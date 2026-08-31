@@ -82,7 +82,7 @@ When connecting this repository to Cloudflare Pages, use:
 - Framework preset: `Astro`
 - Build command: `npm run build`
 - Build output directory: `dist`
-- Node.js version: `22`
+- Node.js version: `22.22.0` (pinned by `.nvmrc`)
 
 No Functions, database, environment variables, or paid services are required.
 
