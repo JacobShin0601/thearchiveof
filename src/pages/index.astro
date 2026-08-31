@@ -1,0 +1,58 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PostCard from '../components/PostCard.astro';
+import { CATEGORIES } from '../consts';
+
+const posts = (await getCollection('posts', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
+---
+
+<BaseLayout>
+  <section class="hero shell">
+    <p class="eyebrow">A personal knowledge publication · Seoul</p>
+    <h1>The Archive<br />of <em>Ideas.</em></h1>
+    <div class="hero-bottom">
+      <p class="hero-intro">Notes on systems, markets, models, and the mathematics underneath.</p>
+      <p class="hero-index">Vol. 01<br />Est. 2026</p>
+    </div>
+  </section>
+
+  <section class="category-grid shell" aria-labelledby="fields-heading">
+    <div class="section-heading">
+      <p class="eyebrow" id="fields-heading">Fields of inquiry</p>
+      <span>Four working shelves</span>
+    </div>
+    <div class="category-list">
+      {CATEGORIES.map((category) => (
+        <a class="category-card" href={`/${category.slug}/`}>
+          <span class="category-index">{category.index}</span>
+          <div>
+            <h2>{category.name}</h2>
+            <p>{category.description}</p>
+            <span class="topics">{category.topics.join(' · ')}</span>
+          </div>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="latest shell" aria-labelledby="latest-heading">
+    <div class="section-heading">
+      <p class="eyebrow" id="latest-heading">Latest notes</p>
+      <a href="/archive/">View the full archive →</a>
+    </div>
+    <div class="post-grid">
+      {posts.length > 0 ? posts.slice(0, 6).map((post, index) => <PostCard post={post} featured={index === 0} />) : (
+        <p class="empty-state">The first notes are being prepared.</p>
+      )}
+    </div>
+  </section>
+
+  <aside class="manifesto shell" aria-label="Publication statement">
+    <span class="manifesto-mark">“</span>
+    <blockquote>Ideas become useful when they are examined, connected, and left where others can find them.</blockquote>
+    <p>Open HTML · Permanent URLs · Human and agent readable</p>
+  </aside>
+</BaseLayout>

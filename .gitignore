@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.astro/
+
+# local environment files
+.env
+.env.*
+!.env.example
+
+# system files
+.DS_Store
+
+# local task scratch files
+work/

@@ -1,0 +1,16 @@
+---
+import { SITE_TITLE } from '../consts';
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer shell">
+  <div>
+    <p class="footer-mark">The Archive of</p>
+    <p>Independent notes on systems, markets, models, and ideas.</p>
+  </div>
+  <div class="footer-links">
+    <a href="/rss.xml">RSS</a>
+    <a href="/archive/">All notes</a>
+    <span>© {year} {SITE_TITLE}</span>
+  </div>
+</footer>

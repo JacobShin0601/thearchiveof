@@ -1,0 +1,17 @@
+---
+import { CATEGORIES } from '../consts';
+---
+
+<header class="site-header shell">
+  <a class="wordmark" href="/" aria-label="The Archive of Ideas home">
+    <span class="wordmark-the">The</span>
+    <span>Archive of Ideas</span>
+  </a>
+  <nav aria-label="Primary navigation">
+    <ul>
+      {CATEGORIES.map((category) => <li><a href={`/${category.slug}/`}>{category.name}</a></li>)}
+      <li><a href="/archive/">Archive</a></li>
+      <li><a href="/about/">About</a></li>
+    </ul>
+  </nav>
+</header>
