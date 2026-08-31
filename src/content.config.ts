@@ -31,6 +31,9 @@ const posts = defineCollection({
     codeRepository: z.url().optional(),
     methodology: z.string().optional(),
     dataThrough: z.coerce.date().optional(),
+    freshness: z.enum(['evergreen', 'periodic', 'time-sensitive']).optional(),
+    lastReviewed: z.coerce.date().optional(),
+    nextReviewDate: z.coerce.date().optional(),
     references: z.array(z.object({
       title: z.string(),
       url: z.url(),
@@ -41,6 +44,13 @@ const posts = defineCollection({
   }).superRefine((data, ctx) => {
     if (data.primaryTopic && !data.topics.includes(data.primaryTopic)) {
       ctx.addIssue({ code: 'custom', path: ['primaryTopic'], message: 'primaryTopic must also appear in topics' });
+    }
+    if (data.lastReviewed && data.nextReviewDate && data.nextReviewDate <= data.lastReviewed) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['nextReviewDate'],
+        message: 'nextReviewDate must be later than lastReviewed',
+      });
     }
   }),
 });

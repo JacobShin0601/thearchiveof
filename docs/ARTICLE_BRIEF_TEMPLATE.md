@@ -43,6 +43,8 @@ Copy this brief into Work when starting a new article. The author supplies the t
 - Tags (2–5 secondary descriptors):
 - Featured: `false`
 - Comments: `false`
+- Freshness: `evergreen` / `periodic` / `time-sensitive`
+- First review date:
 
 ## Work deliverables
 

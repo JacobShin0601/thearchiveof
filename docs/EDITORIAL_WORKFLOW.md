@@ -110,3 +110,20 @@ After approval:
 5. confirm the Cloudflare Production deployment.
 
 Never publish only one half of an approved pair accidentally. If an English edition is intentionally deferred, publish the Korean article without a `translationKey` until the English file is ready; the language button will then lead to the English homepage.
+
+## 8. Review lifecycle
+
+Every approved article should declare its expected review cadence in both language files:
+
+```yaml
+freshness: periodic # evergreen | periodic | time-sensitive
+lastReviewed: 2026-09-01
+nextReviewDate: 2026-12-01
+```
+
+- `updatedDate` is public and changes only when the published article materially changes.
+- `lastReviewed` records the latest editorial fact, source, and link check even if no public edit was needed.
+- `nextReviewDate` schedules the next check.
+- `freshness` describes the article's normal decay rate, not its quality or performance.
+
+Use `/ops/content-review/` on the Cloudflare Preview deployment to find overdue, upcoming, and unscheduled articles. This route is omitted from Production. Review Korean and English editions together, keep their review metadata aligned, and use `docs/CONTENT_INTELLIGENCE.md` for the monthly decision process.

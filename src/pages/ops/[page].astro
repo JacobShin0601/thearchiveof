@@ -1,0 +1,129 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { postPath } from '../../consts';
+import { IS_PREVIEW } from '../../environment';
+
+export function getStaticPaths() {
+  return IS_PREVIEW ? [{ params: { page: 'content-review' } }] : [];
+}
+
+const posts = (await getCollection('posts')).sort((a, b) => {
+  const aDate = a.data.nextReviewDate?.valueOf() ?? Number.POSITIVE_INFINITY;
+  const bDate = b.data.nextReviewDate?.valueOf() ?? Number.POSITIVE_INFINITY;
+  return aDate - bDate || a.data.title.localeCompare(b.data.title);
+});
+
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+const upcomingCutoff = new Date(today);
+upcomingCutoff.setDate(upcomingCutoff.getDate() + 30);
+
+type ReviewState = 'overdue' | 'upcoming' | 'scheduled' | 'unscheduled';
+
+function reviewState(nextReviewDate?: Date): ReviewState {
+  if (!nextReviewDate) return 'unscheduled';
+  if (nextReviewDate < today) return 'overdue';
+  if (nextReviewDate <= upcomingCutoff) return 'upcoming';
+  return 'scheduled';
+}
+
+const labels: Record<ReviewState, string> = {
+  overdue: '기한 지남',
+  upcoming: '30일 이내',
+  scheduled: '예약됨',
+  unscheduled: '미예약',
+};
+
+const counts = posts.reduce<Record<ReviewState, number>>((result, post) => {
+  result[reviewState(post.data.nextReviewDate)] += 1;
+  return result;
+}, { overdue: 0, upcoming: 0, scheduled: 0, unscheduled: 0 });
+---
+
+<BaseLayout
+  title="콘텐츠 검토 대시보드"
+  description="The Archive Preview 전용 콘텐츠 검토 일정입니다."
+  language="ko"
+  indexable={false}
+>
+  <section class="review-page shell">
+    <header>
+      <p class="eyebrow">Preview operations</p>
+      <h1>콘텐츠 검토</h1>
+      <p>공개 글을 바꾸지 않고 사실·출처·링크·번역 일치 여부를 정기적으로 확인하기 위한 내부 목록입니다.</p>
+    </header>
+
+    <div class="review-notice" role="note">
+      이 화면은 Preview 빌드에만 생성되며 Production과 sitemap에는 포함되지 않습니다. 기준일: {today.toLocaleDateString('ko-KR')}
+    </div>
+
+    <dl class="review-summary">
+      <div><dt>기한 지남</dt><dd>{counts.overdue}</dd></div>
+      <div><dt>30일 이내</dt><dd>{counts.upcoming}</dd></div>
+      <div><dt>예약됨</dt><dd>{counts.scheduled}</dd></div>
+      <div><dt>미예약</dt><dd>{counts.unscheduled}</dd></div>
+    </dl>
+
+    <div class="review-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>상태</th>
+            <th>글</th>
+            <th>언어</th>
+            <th>신선도</th>
+            <th>마지막 검토</th>
+            <th>다음 검토</th>
+          </tr>
+        </thead>
+        <tbody>
+          {posts.map((post) => {
+            const state = reviewState(post.data.nextReviewDate);
+            return (
+              <tr>
+                <td><span class:list={['review-state', state]}>{labels[state]}</span></td>
+                <td>
+                  <a href={postPath(post)}>{post.data.title}</a>
+                  <small>{post.data.section} · {post.data.contentType}{post.data.draft ? ' · draft' : ''}</small>
+                </td>
+                <td>{post.data.language.toUpperCase()}</td>
+                <td>{post.data.freshness ?? '—'}</td>
+                <td>{post.data.lastReviewed?.toLocaleDateString('ko-KR') ?? '—'}</td>
+                <td>{post.data.nextReviewDate?.toLocaleDateString('ko-KR') ?? '—'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .review-page { padding-top: 78px; padding-bottom: 120px; }
+  .review-page > header { padding-bottom: 55px; border-bottom: 1px solid var(--ink); }
+  .review-page h1 { max-width: 950px; margin: 30px 0 18px; font-family: var(--serif); font-size: clamp(54px, 8vw, 104px); font-weight: 400; letter-spacing: -.055em; line-height: .9; }
+  .review-page header > p:last-child { max-width: 680px; color: var(--muted); font-family: var(--serif); font-size: 22px; }
+  .review-notice { margin-top: 28px; padding: 14px 16px; border: 1px solid var(--ink); font-size: 12px; }
+  .review-summary { display: grid; grid-template-columns: repeat(4, 1fr); margin: 42px 0 30px; }
+  .review-summary div { padding: 22px; border: 1px solid var(--line); border-right: 0; }
+  .review-summary div:last-child { border-right: 1px solid var(--line); }
+  .review-summary dt { color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+  .review-summary dd { margin: 12px 0 0; font-family: var(--serif); font-size: 42px; line-height: 1; }
+  .review-table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 900px; }
+  th, td { padding: 16px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+  td { font-size: 12px; }
+  td a { display: block; font-family: var(--serif); font-size: 18px; line-height: 1.25; text-decoration: none; }
+  td small { display: block; margin-top: 5px; color: var(--muted); }
+  .review-state { display: inline-block; padding: 4px 7px; border: 1px solid var(--line); font-size: 9px; font-weight: 700; letter-spacing: .06em; white-space: nowrap; }
+  .review-state.overdue { border-color: #8b4c36; background: #8b4c36; color: #fff; }
+  .review-state.upcoming { border-color: #9a752b; color: #74571e; }
+  .review-state.scheduled { border-color: var(--accent); color: var(--accent); }
+  @media (max-width: 700px) {
+    .review-summary { grid-template-columns: repeat(2, 1fr); }
+    .review-summary div:nth-child(2) { border-right: 1px solid var(--line); }
+  }
+</style>
