@@ -1,0 +1,36 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+import { SECTIONS, type Section } from '../../consts';
+import { isVisiblePost } from '../../environment';
+
+export const getStaticPaths = (() => SECTIONS.map((section) => ({
+  params: { section: section.slug },
+  props: { section },
+}))) satisfies GetStaticPaths;
+
+interface Props { section: Section }
+const { section } = Astro.props;
+const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko' && data.section === section.name))
+  .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
+---
+
+<BaseLayout title={section.name} description={section.description}>
+  <section class="listing-page shell">
+    <header class="category-header">
+      <p class="eyebrow">Section {section.index}</p>
+      <h1>{section.name}</h1>
+      <p>{section.description}</p>
+      <nav class="topic-row" aria-label={`${section.name} subsections`}>
+        {section.subsections.map((subsection) => (
+          <a href={`/${section.slug}/${subsection.slug}/`}>{subsection.name}</a>
+        ))}
+      </nav>
+    </header>
+    {posts.length > 0 ? <div class="post-grid category-posts">
+      {posts.map((post, index) => <PostCard post={post} featured={index === 0} />)}
+    </div> : <p class="empty-state">Articles for this section are being prepared.</p>}
+  </section>
+</BaseLayout>

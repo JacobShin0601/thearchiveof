@@ -1,0 +1,34 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+import NewsletterCTA from '../../components/NewsletterCTA.astro';
+import { isVisiblePost } from '../../environment';
+
+const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en'))
+  .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
+---
+
+<BaseLayout language="en" alternateLanguageUrl="/">
+  <section class="hero shell">
+    <p class="eyebrow">An AI-native personal research publication · Seoul</p>
+    <h1>The<br /><em>Archive.</em></h1>
+    <div class="hero-bottom">
+      <p class="hero-intro">Markets, AI, code, mathematics, and ideas worth keeping.</p>
+      <p class="hero-index">English edition<br />Est. 2026</p>
+    </div>
+  </section>
+  <section class="latest shell" aria-labelledby="english-latest-heading">
+    <div class="section-heading">
+      <p class="eyebrow" id="english-latest-heading">English articles</p>
+      <a href="/en/archive/">View the archive →</a>
+    </div>
+    <div class="post-grid">{posts.map((post, index) => <PostCard post={post} featured={index === 0} />)}</div>
+  </section>
+  <div class="home-newsletter shell"><NewsletterCTA language="en" /></div>
+  <aside class="manifesto shell" aria-label="Editorial method">
+    <span class="manifesto-mark">“</span>
+    <blockquote>Explain → Model → Test → Interpret</blockquote>
+    <p>English editions are edited from the Korean originals, preserving claims, evidence, and sources.</p>
+  </aside>
+</BaseLayout>

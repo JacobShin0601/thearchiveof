@@ -1,0 +1,15 @@
+---
+import { integrations } from '../site.config';
+import { IS_PRODUCTION } from '../environment';
+
+const token = IS_PRODUCTION ? integrations.cloudflareWebAnalyticsToken : '';
+---
+
+{token && (
+  <script
+    is:inline
+    defer
+    src="https://static.cloudflareinsights.com/beacon.min.js"
+    data-cf-beacon={JSON.stringify({ token })}
+  ></script>
+)}

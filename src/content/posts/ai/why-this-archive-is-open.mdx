@@ -1,36 +1,50 @@
 ---
-title: "Why this archive is built for readers and agents"
-description: "A short note on publishing durable research as open, structured, and directly readable documents."
+title: "사람과 AI가 함께 읽을 수 있는 아카이브"
+description: "오래 남을 리서치를 개방적이고 구조적이며 직접 읽을 수 있는 문서로 발행하는 이유를 설명합니다."
 publishedDate: 2026-08-31
-category: "AI & AX"
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
 tags:
-  - Open Web
-  - Publishing
-  - AI Agents
+  - framework
+  - publishing
 author: "Jacob Shin"
+featured: true
 draft: false
+comments: false
+language: "ko"
+translationKey: "why-this-archive-is-open"
 ---
 
-The web is most useful when a document can be read without negotiation. No account, no application shell, and no hidden request is needed to reach the text on this page.
+import AnswerBlock from '../../../components/AnswerBlock.astro';
 
-## A document first
+<AnswerBlock question="사람, 검색엔진과 AI 에이전트가 함께 읽을 수 있는 출판물은 무엇이 다른가?">
+  각 글을 안정적인 URL, 명시적인 메타데이터, 분명한 제목 구조와 확인 가능한 출처를 가진 완전한 HTML 문서로 발행해야 합니다. 별도의 앱을 실행하지 않아도 본문과 근거를 읽을 수 있어야 합니다.
+</AnswerBlock>
 
-Each note in this archive is built into a complete HTML document. Its title, summary, author, date, headings, references, and canonical address are present in the first response.
+웹은 문서를 아무런 조건 없이 읽을 수 있을 때 가장 유용합니다. 이 페이지의 본문에 도달하기 위해 계정이나 애플리케이션 셸, 숨겨진 요청이 필요하지 않습니다.
 
-That arrangement is intentionally ordinary. It works for a person using a browser, a search engine building an index, an RSS reader following new work, and an agent looking for a source it can cite.
+## 문서를 먼저 생각하기
 
-## Structure is part of the argument
+이 아카이브의 모든 글은 완전한 HTML 문서로 만들어집니다. 제목, 요약, 작성자, 날짜, 목차, 출처와 표준 주소가 첫 응답 안에 함께 존재합니다.
 
-Clear structure is not decoration. A useful research note should make its central claim legible, separate evidence from inference, and let a reader find the relevant section quickly.
+이 구조는 의도적으로 평범합니다. 브라우저로 읽는 사람, 검색 색인을 만드는 검색엔진, 새 글을 구독하는 RSS 리더, 인용할 출처를 찾는 AI 에이전트가 모두 같은 문서를 사용할 수 있습니다.
 
-The same principle applies to quantitative work. A model should expose its assumptions. For example, even a familiar expression such as Bayes’ theorem carries a statement about how evidence changes belief:
+## 구조도 논증의 일부다
+
+명확한 구조는 장식이 아닙니다. 유용한 리서치 글은 핵심 주장을 쉽게 확인할 수 있어야 하고, 증거와 추론을 구분하며, 독자가 필요한 부분을 빠르게 찾을 수 있어야 합니다.
+
+같은 원칙은 정량 분석에도 적용됩니다. 모델은 자신의 가정을 드러내야 합니다. 예를 들어 베이즈 정리처럼 익숙한 식도 증거가 믿음을 어떻게 바꾸는지에 관한 진술을 담고 있습니다.
 
 $$
 P(A \mid B) = \frac{P(B \mid A)P(A)}{P(B)}
 $$
 
-## An archive, not a feed
+## 피드가 아니라 아카이브
 
-Feeds optimize for the moment of publication. An archive optimizes for retrieval later. The goal here is therefore not to publish often, but to publish notes that remain understandable, linkable, and open to revision.
+피드는 발행 순간에 최적화됩니다. 아카이브는 나중에 다시 찾는 순간에 최적화됩니다. 따라서 목표는 자주 발행하는 것이 아니라, 시간이 지나도 이해할 수 있고 연결할 수 있으며 수정 가능한 글을 남기는 것입니다.
 
-That is the standard this site is designed to support.
+이 사이트는 그 기준을 지키기 위해 설계되었습니다.

@@ -1,0 +1,20 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+import { isVisiblePost } from '../../environment';
+
+const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en'))
+  .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
+---
+
+<BaseLayout title="English archive" description="Every English-language article published in The Archive." language="en" alternateLanguageUrl="/archive/">
+  <section class="listing-page shell">
+    <header>
+      <p class="eyebrow">English edition</p>
+      <h1>Archive</h1>
+      <p>English editions edited from the original Korean articles.</p>
+    </header>
+    <div class="post-grid category-posts">{posts.map((post, index) => <PostCard post={post} featured={index === 0} />)}</div>
+  </section>
+</BaseLayout>

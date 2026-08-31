@@ -1,0 +1,13 @@
+---
+interface Props {
+  language: 'ko' | 'en';
+  alternateLanguageUrl?: string;
+}
+const { language, alternateLanguageUrl } = Astro.props;
+const fallback = language === 'ko' ? '/en/' : '/';
+---
+
+<div class="language-switch" aria-label="Language selection">
+  {language === 'ko' ? <span aria-current="true">한국어</span> : <a href={alternateLanguageUrl ?? fallback} hreflang="ko">한국어</a>}
+  {language === 'en' ? <span aria-current="true">EN</span> : <a href={alternateLanguageUrl ?? fallback} hreflang="en">EN</a>}
+</div>

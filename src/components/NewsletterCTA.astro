@@ -1,0 +1,22 @@
+---
+import { integrations } from '../site.config';
+const { newsletter } = integrations;
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+---
+
+<aside class="newsletter-cta" aria-labelledby="newsletter-heading">
+  <p class="eyebrow">The Archive</p>
+  <h2 id="newsletter-heading">{language === 'ko' ? '시장, AI, 코드와 수학에서 오래 기억할 만한 생각들.' : 'Markets, AI, code and mathematics worth remembering.'}</h2>
+  {newsletter.enabled && newsletter.action ? (
+    <form action={newsletter.action} method="post">
+      <label for="newsletter-email">{language === 'ko' ? '이메일 주소' : 'Email address'}</label>
+      <div>
+        <input id="newsletter-email" name="email" type="email" autocomplete="email" required />
+        <button type="submit">{language === 'ko' ? '구독' : 'Subscribe'}</button>
+      </div>
+    </form>
+  ) : (
+    <p>{language === 'ko' ? '뉴스레터는 추후 열 예정입니다. 지금은 ' : 'Newsletter subscriptions will open later. For now, follow new work through '}<a href={language === 'ko' ? '/rss.xml' : '/en/rss.xml'}>RSS</a>{language === 'ko' ? '로 새 글을 받아볼 수 있습니다.' : '.'}</p>
+  )}
+</aside>

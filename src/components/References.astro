@@ -1,0 +1,59 @@
+---
+interface Reference {
+  title: string;
+  url: string;
+  publisher?: string;
+}
+
+interface Props {
+  dataSources?: string[];
+  dataThrough?: Date;
+  methodology?: string;
+  codeRepository?: string;
+  references?: Reference[];
+  language?: 'ko' | 'en';
+}
+
+const { dataSources, dataThrough, methodology, codeRepository, references, language = 'ko' } = Astro.props;
+const hasResources = dataSources?.length || dataThrough || methodology || codeRepository || references?.length;
+const labels = language === 'ko'
+  ? {
+      dataThrough: '데이터 기준일',
+      methodology: '방법론',
+      dataSources: '데이터 출처',
+      code: '코드',
+      viewRepository: '저장소 보기 ↗',
+      references: '참고문헌',
+    }
+  : {
+      dataThrough: 'Data through',
+      methodology: 'Methodology',
+      dataSources: 'Data sources',
+      code: 'Code',
+      viewRepository: 'View repository ↗',
+      references: 'References',
+    };
+---
+
+{hasResources && (
+  <section class="article-resources" aria-labelledby="resources-heading">
+    <p class="eyebrow" id="resources-heading">{language === 'ko' ? '출처 / 데이터 / 코드' : 'Sources / Data / Code'}</p>
+    <dl>
+      {dataThrough && <><dt>{labels.dataThrough}</dt><dd>{dataThrough.toLocaleDateString(language === 'ko' ? 'ko-KR' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+      {methodology && <><dt>{labels.methodology}</dt><dd>{methodology}</dd></>}
+      {dataSources?.length && <><dt>{labels.dataSources}</dt><dd><ul>{dataSources.map((source) => <li>{source}</li>)}</ul></dd></>}
+      {codeRepository && <><dt>{labels.code}</dt><dd><a href={codeRepository}>{labels.viewRepository}</a></dd></>}
+    </dl>
+    {references?.length && (
+      <div class="reference-list">
+        <h2>{labels.references}</h2>
+        <ol>{references.map((reference) => (
+          <li>
+            <a href={reference.url}>{reference.title}</a>
+            {reference.publisher && <span> — {reference.publisher}</span>}
+          </li>
+        ))}</ol>
+      </div>
+    )}
+  </section>
+)}

@@ -1,0 +1,156 @@
+---
+import type { GetStaticPaths } from 'astro';
+import type { CollectionEntry } from 'astro:content';
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PostCard from '../../../components/PostCard.astro';
+import NewsletterCTA from '../../../components/NewsletterCTA.astro';
+import Comments from '../../../components/Comments.astro';
+import AdSlot from '../../../components/AdSlot.astro';
+import References from '../../../components/References.astro';
+import { postPath, sectionPath, seriesPath, subsectionPath, topicPath } from '../../../consts';
+import { isVisiblePost } from '../../../environment';
+
+export const getStaticPaths = (async () => {
+  const posts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko');
+  return posts.map((post) => ({
+    params: {
+      section: sectionPath(post.data.section),
+      subsection: subsectionPath(post.data.section, post.data.subsection),
+      slug: post.id.split('/').at(-1)?.replace(/\.(md|mdx)$/, ''),
+    },
+    props: { post },
+  }));
+}) satisfies GetStaticPaths;
+
+const { post } = Astro.props as { post: CollectionEntry<'posts'> };
+const { Content, headings } = await render(post);
+const isKo = post.data.language === 'ko';
+const date = post.data.publishedDate.toLocaleDateString(isKo ? 'ko-KR' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+const allPosts = await getCollection('posts', ({ data }) => isVisiblePost(data));
+const translation = post.data.translationKey
+  ? allPosts.find((candidate) => candidate.data.translationKey === post.data.translationKey && candidate.data.language !== post.data.language)
+  : undefined;
+const sectionHref = isKo ? `/${sectionPath(post.data.section)}/` : '/en/';
+const subsectionHref = isKo ? `/${sectionPath(post.data.section)}/${subsectionPath(post.data.section, post.data.subsection)}/` : '/en/';
+const tagSet = new Set(post.data.tags.map((tag) => tag.toLowerCase()));
+const topicSet = new Set(post.data.topics);
+const relatedPosts = allPosts
+  .filter((candidate) => candidate.id !== post.id && candidate.data.language === post.data.language)
+  .map((candidate) => ({
+    post: candidate,
+    score:
+      candidate.data.topics.filter((topic) => topicSet.has(topic)).length * 4
+      + (candidate.data.primaryTopic && candidate.data.primaryTopic === post.data.primaryTopic ? 5 : 0)
+      + candidate.data.tags.filter((tag) => tagSet.has(tag.toLowerCase())).length * 2
+      + (candidate.data.subsection === post.data.subsection ? 2 : 0)
+      + (candidate.data.section === post.data.section ? 1 : 0),
+  }))
+  .filter(({ score }) => score > 0)
+  .sort((a, b) => b.score - a.score || b.post.data.publishedDate.valueOf() - a.post.data.publishedDate.valueOf())
+  .slice(0, 3)
+  .map(({ post: relatedPost }) => relatedPost);
+
+const seriesPosts = post.data.series
+  ? allPosts
+      .filter((candidate) => candidate.data.series === post.data.series && candidate.data.language === post.data.language)
+      .sort((a, b) => (a.data.seriesOrder ?? 999) - (b.data.seriesOrder ?? 999))
+  : [];
+const seriesIndex = seriesPosts.findIndex((candidate) => candidate.id === post.id);
+const previousInSeries = seriesIndex > 0 ? seriesPosts[seriesIndex - 1] : undefined;
+const nextInSeries = seriesIndex >= 0 ? seriesPosts[seriesIndex + 1] : undefined;
+---
+
+<BaseLayout
+  title={post.data.title}
+  description={post.data.description}
+  type="article"
+  publishedDate={post.data.publishedDate}
+  updatedDate={post.data.updatedDate}
+  author={post.data.author}
+  section={post.data.section}
+  contentType={post.data.contentType}
+  tags={[...post.data.topics, ...post.data.tags]}
+  language={post.data.language}
+  alternateLanguageUrl={translation ? postPath(translation) : (isKo ? '/en/' : '/')}
+  breadcrumbs={[
+    { name: isKo ? '홈' : 'Home', url: isKo ? '/' : '/en/' },
+    { name: post.data.section, url: sectionHref },
+    { name: post.data.subsection, url: subsectionHref },
+    { name: post.data.title, url: postPath(post) },
+  ]}
+>
+  <article class="article-page shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href={isKo ? '/' : '/en/'}>{isKo ? '홈' : 'Home'}</a></li>
+        <li><a href={sectionHref}>{post.data.section}</a></li>
+        <li><a href={subsectionHref}>{post.data.subsection}</a></li>
+        <li aria-current="page">{post.data.title}</li>
+      </ol>
+    </nav>
+    {post.data.draft && <p class="draft-banner">{isKo ? '미리보기 초안 · 이 글은 Production에 공개되지 않습니다.' : 'Preview draft · This article is not published on the production site.'}</p>}
+    <header class="article-header">
+      <div class="post-meta">
+        <a href={sectionHref}>{post.data.section}</a>
+        <span>/</span>
+        <a href={subsectionHref}>{post.data.subsection}</a>
+        <span>/</span>
+        <span>{post.data.contentType}</span>
+        <span>/</span>
+        <time datetime={post.data.publishedDate.toISOString()}>{date}</time>
+      </div>
+      <h1>{post.data.title}</h1>
+      <p class="dek">{post.data.description}</p>
+      <div class="article-byline">
+        <span>{isKo ? '작성' : 'By'} {post.data.author}</span>
+        {post.data.updatedDate && <span>{isKo ? '수정' : 'Updated'} {post.data.updatedDate.toLocaleDateString(isKo ? 'ko-KR' : 'en-US')}</span>}
+        {post.data.tags.length > 0 && <span>{post.data.tags.join(' · ')}</span>}
+      </div>
+      {post.data.topics.length > 0 && <nav class="article-topics" aria-label="Article topics">
+        {post.data.topics.map((topic) => <a href={topicPath(topic)}>#{topic}</a>)}
+      </nav>}
+    </header>
+    <div class="article-body-wrap">
+      {headings.length > 1 && <aside class="toc" aria-label="Table of contents">
+        <p>{isKo ? '이 글의 구성' : 'In this article'}</p>
+        <ol>{headings.filter((heading) => heading.depth === 2).map((heading) => <li><a href={`#${heading.slug}`}>{heading.text}</a></li>)}</ol>
+      </aside>}
+      <div class="article-content"><Content /></div>
+    </div>
+
+    <References
+      dataSources={post.data.dataSources}
+      dataThrough={post.data.dataThrough}
+      methodology={post.data.methodology}
+      codeRepository={post.data.codeRepository}
+      references={post.data.references}
+      language={post.data.language}
+    />
+
+    {post.data.series && (
+      <nav class="series-nav" aria-label={`${post.data.series} series`}>
+        <p class="eyebrow">Series · <a href={seriesPath(post.data.series)}>{post.data.series}</a></p>
+        <div>
+          {previousInSeries ? <a href={postPath(previousInSeries)}>← {previousInSeries.data.title}</a> : <span></span>}
+          {nextInSeries && <a href={postPath(nextInSeries)}>{nextInSeries.data.title} →</a>}
+        </div>
+      </nav>
+    )}
+
+    <AdSlot position="article-end" />
+
+    {relatedPosts.length > 0 && (
+      <section class="related-articles" aria-labelledby="related-heading">
+        <div class="section-heading">
+          <p class="eyebrow" id="related-heading">{isKo ? '관련 글' : 'Related articles'}</p>
+          <span>{isKo ? '토픽과 섹션으로 연결된 글' : 'Connected by topic and section'}</span>
+        </div>
+        <div class="post-grid">{relatedPosts.map((relatedPost) => <PostCard post={relatedPost} />)}</div>
+      </section>
+    )}
+
+    <NewsletterCTA language={post.data.language} />
+    <Comments enabled={post.data.comments} />
+  </article>
+</BaseLayout>

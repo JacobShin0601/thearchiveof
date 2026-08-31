@@ -1,17 +1,25 @@
 ---
-import { CATEGORIES } from '../consts';
+import { SECTIONS } from '../consts';
+import LanguageSwitch from './LanguageSwitch.astro';
+
+interface Props {
+  language?: 'ko' | 'en';
+  alternateLanguageUrl?: string;
+}
+const { language = 'ko', alternateLanguageUrl } = Astro.props;
 ---
 
 <header class="site-header shell">
-  <a class="wordmark" href="/" aria-label="The Archive of Ideas home">
+  <a class="wordmark" href={language === 'ko' ? '/' : '/en/'} aria-label="The Archive home">
     <span class="wordmark-the">The</span>
-    <span>Archive of Ideas</span>
+    <span>Archive</span>
   </a>
-  <nav aria-label="Primary navigation">
+  <nav aria-label={language === 'ko' ? '주요 메뉴' : 'Primary navigation'}>
     <ul>
-      {CATEGORIES.map((category) => <li><a href={`/${category.slug}/`}>{category.name}</a></li>)}
-      <li><a href="/archive/">Archive</a></li>
-      <li><a href="/about/">About</a></li>
+      {language === 'ko' ? SECTIONS.map((section) => <li><a href={`/${section.slug}/`}>{section.name}</a></li>) : <li><a href="/en/">Home</a></li>}
+      <li><a href={language === 'ko' ? '/archive/' : '/en/archive/'}>{language === 'ko' ? '전체 글' : 'Archive'}</a></li>
+      <li><a href={language === 'ko' ? '/about/' : '/en/about/'}>{language === 'ko' ? '소개' : 'About'}</a></li>
+      <li><LanguageSwitch language={language} alternateLanguageUrl={alternateLanguageUrl} /></li>
     </ul>
   </nav>
 </header>

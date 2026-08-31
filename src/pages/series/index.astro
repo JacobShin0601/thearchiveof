@@ -1,0 +1,30 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { PLANNED_SERIES, seriesPath } from '../../consts';
+import { isVisiblePost } from '../../environment';
+
+const posts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko');
+const series = [...new Set([...PLANNED_SERIES, ...posts.flatMap((post) => post.data.series ? [post.data.series] : [])])];
+---
+
+<BaseLayout title="Series" description="Ordered learning paths through the core ideas in The Archive.">
+  <section class="listing-page shell">
+    <header>
+      <p class="eyebrow">Connected reading</p>
+      <h1>Series</h1>
+      <p>Ordered paths that build from foundations to implementation and original research.</p>
+    </header>
+    <div class="series-list">
+      {series.map((name, index) => {
+        const count = posts.filter((post) => post.data.series === name).length;
+        return <a href={seriesPath(name)}>
+          <span>{String(index + 1).padStart(2, '0')}</span>
+          <h2>{name}</h2>
+          <p>{count > 0 ? `${count} published article${count === 1 ? '' : 's'}` : 'Series in preparation'}</p>
+          <span aria-hidden="true">↗</span>
+        </a>;
+      })}
+    </div>
+  </section>
+</BaseLayout>

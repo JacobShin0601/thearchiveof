@@ -2,23 +2,27 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
-<BaseLayout title="About" description="About The Archive of Ideas and its editorial principles.">
+<BaseLayout title="소개" description="The Archive의 목적과 편집 원칙을 소개합니다." language="ko" alternateLanguageUrl="/en/about/">
   <article class="prose-page shell">
     <header>
       <p class="eyebrow">About this publication</p>
-      <h1>A working archive for ideas that deserve a longer life.</h1>
+      <h1>오래 남을 가치가 있는 생각을 위한 아카이브.</h1>
     </header>
     <div class="prose-grid">
-      <aside>
-        <p>Investing</p><p>AI & AX</p><p>Coding</p><p>Mathematics</p>
-      </aside>
+      <aside><p>Investing</p><p>AI & AX</p><p>Coding</p><p>Mathematics</p><p>Misc</p></aside>
       <div class="prose">
-        <p class="lead">The Archive of Ideas is an independent research journal by Jacob Shin.</p>
-        <p>It is a place for durable explanations, working notes, original analysis, and connections across markets, technology, code, and mathematics.</p>
-        <h2>Editorial principles</h2>
-        <p>Prefer primary sources. Separate observation from inference. Show the model, code, or calculation when it matters. Update a note when the evidence changes.</p>
-        <h2>Built to remain open</h2>
-        <p>Every article is published as static HTML with a permanent URL, structured metadata, and an RSS entry. There is no login, paywall, or client-side application standing between a reader and the text.</p>
+        <p class="lead">The Archive는 Jacob Shin의 독립적인 리서치·지식 출판물입니다.</p>
+        <p>시장, 기술, 코드와 수학을 가로지르는 설명, 작업 노트, 원본 분석과 연결을 오래 읽을 수 있는 형태로 남깁니다.</p>
+        <h2>편집 원칙</h2>
+        <p><strong>Explain → Model → Test → Interpret.</strong> 가능하면 1차 자료를 사용하고, 관찰과 추론을 구분하며, 필요한 경우 모델·코드·계산을 공개합니다.</p>
+        <h2>한국어 원문과 영어판</h2>
+        <p>글은 한국어를 기본으로 작성합니다. 영어판은 동일한 주장과 근거, 출처를 유지하면서 영어 독자가 자연스럽게 읽을 수 있도록 Work에서 다시 편집합니다.</p>
+        <h2>근거와 재현 가능성</h2>
+        <p>Research 글은 중요한 경우 데이터 출처, 분석 기준일, 방법론과 코드를 명시합니다. 사실, 분석과 추정을 구분하고 한계를 숨기지 않습니다.</p>
+        <h2>정정 및 업데이트</h2>
+        <p>중요한 변경은 수정일에 반영합니다. 오류는 직접 바로잡고, 해석이 달라진 경우 그 이유를 글 안에서 설명합니다.</p>
+        <h2>투자 관련 고지</h2>
+        <p>Investing 글은 연구와 교육 목적이며 투자 조언, 추천 또는 매매 권유가 아닙니다. 모든 투자 판단과 위험에 대한 책임은 독자에게 있습니다.</p>
       </div>
     </div>
   </article>

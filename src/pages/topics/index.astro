@@ -1,0 +1,33 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { TOPIC_CLUSTERS, topicDefinition, topicPath } from '../../consts';
+import { isVisiblePost } from '../../environment';
+
+const posts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko');
+const usedTopics = new Set(posts.flatMap((post) => post.data.topics));
+const clusters = TOPIC_CLUSTERS.map((cluster) => ({
+  ...cluster,
+  topics: cluster.topics.filter((topic) => usedTopics.has(topic)),
+})).filter((cluster) => cluster.topics.length > 0);
+---
+
+<BaseLayout title="토픽" description="설명, 연구, 구현과 관점을 연결하는 The Archive의 지식 허브입니다." language="ko">
+  <section class="listing-page shell">
+    <header>
+      <p class="eyebrow">Knowledge graph</p>
+      <h1>토픽</h1>
+      <p>섹션을 가로질러 설명, 구현, 실증과 개인적 관점을 연결하는 핵심 개념입니다.</p>
+    </header>
+    <div class="topic-clusters">
+      {clusters.map((cluster) => (
+        <section>
+          <p class="eyebrow">핵심 클러스터</p>
+          <h2>{cluster.name}</h2>
+          <p>{cluster.descriptionKo}</p>
+          <div class="topic-links">{cluster.topics.map((topic) => <a href={topicPath(topic)}>{topicDefinition(topic)?.nameKo ?? topic}</a>)}</div>
+        </section>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

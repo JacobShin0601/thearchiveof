@@ -1,16 +1,20 @@
 ---
 import { SITE_TITLE } from '../consts';
 const year = new Date().getFullYear();
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
 ---
 
 <footer class="site-footer shell">
   <div>
-    <p class="footer-mark">The Archive of</p>
-    <p>Independent notes on systems, markets, models, and ideas.</p>
+    <p class="footer-mark">The Archive</p>
+    <p>Explain → Model → Test → Interpret</p>
   </div>
   <div class="footer-links">
-    <a href="/rss.xml">RSS</a>
-    <a href="/archive/">All notes</a>
+    <a href={language === 'ko' ? '/rss.xml' : '/en/rss.xml'}>RSS</a>
+    {language === 'ko' && <a href="/topics/">토픽</a>}
+    {language === 'ko' && <a href="/series/">시리즈</a>}
+    <a href={language === 'ko' ? '/archive/' : '/en/archive/'}>{language === 'ko' ? '전체 글' : 'All articles'}</a>
     <span>© {year} {SITE_TITLE}</span>
   </div>
 </footer>

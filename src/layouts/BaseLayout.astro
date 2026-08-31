@@ -5,6 +5,7 @@ import BaseHead from '../components/BaseHead.astro';
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+import Analytics from '../components/Analytics.astro';
 
 interface Props {
   title?: string;
@@ -14,6 +15,13 @@ interface Props {
   publishedDate?: Date;
   updatedDate?: Date;
   author?: string;
+  section?: string;
+  contentType?: string;
+  tags?: string[];
+  language?: 'ko' | 'en';
+  breadcrumbs?: Array<{ name: string; url: string }>;
+  alternateLanguageUrl?: string;
+  indexable?: boolean;
 }
 
 const {
@@ -24,11 +32,18 @@ const {
   publishedDate,
   updatedDate,
   author,
+  section,
+  contentType,
+  tags,
+  language = 'ko',
+  breadcrumbs,
+  alternateLanguageUrl,
+  indexable,
 } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={language}>
   <head>
     <BaseHead
       title={title}
@@ -38,14 +53,22 @@ const {
       publishedDate={publishedDate}
       updatedDate={updatedDate}
       author={author}
+      section={section}
+      contentType={contentType}
+      tags={tags}
+      language={language}
+      breadcrumbs={breadcrumbs}
+      alternateLanguageUrl={alternateLanguageUrl}
+      indexable={indexable}
     />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
-    <SiteHeader />
+    <SiteHeader language={language} alternateLanguageUrl={alternateLanguageUrl} />
     <main id="main-content">
       <slot />
     </main>
-    <SiteFooter />
+    <SiteFooter language={language} />
+    <Analytics />
   </body>
 </html>

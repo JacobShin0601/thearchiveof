@@ -1,0 +1,10 @@
+---
+interface Props { question?: string }
+const { question = 'TL;DR' } = Astro.props;
+---
+
+<aside class="answer-block" aria-labelledby="answer-block-heading">
+  <p class="eyebrow">Answer / TL;DR</p>
+  <h2 id="answer-block-heading">{question}</h2>
+  <div><slot /></div>
+</aside>

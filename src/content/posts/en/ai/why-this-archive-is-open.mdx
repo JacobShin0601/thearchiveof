@@ -1,0 +1,50 @@
+---
+title: "Why this archive is built for readers and agents"
+description: "A short note on publishing durable research as open, structured, and directly readable documents."
+publishedDate: 2026-08-31
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - framework
+  - publishing
+author: "Jacob Shin"
+featured: true
+draft: false
+comments: false
+language: "en"
+translationKey: "why-this-archive-is-open"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="What makes a publication readable by people, search engines, and AI agents?">
+  Publish each article as complete, structured HTML with a stable URL, explicit metadata, clear headings, and sources that can be inspected without running a client-side application.
+</AnswerBlock>
+
+The web is most useful when a document can be read without negotiation. No account, no application shell, and no hidden request is needed to reach the text on this page.
+
+## A document first
+
+Each note in this archive is built into a complete HTML document. Its title, summary, author, date, headings, references, and canonical address are present in the first response.
+
+That arrangement is intentionally ordinary. It works for a person using a browser, a search engine building an index, an RSS reader following new work, and an agent looking for a source it can cite.
+
+## Structure is part of the argument
+
+Clear structure is not decoration. A useful research note should make its central claim legible, separate evidence from inference, and let a reader find the relevant section quickly.
+
+The same principle applies to quantitative work. A model should expose its assumptions. For example, even a familiar expression such as Bayes’ theorem carries a statement about how evidence changes belief:
+
+$$
+P(A \mid B) = \frac{P(B \mid A)P(A)}{P(B)}
+$$
+
+## An archive, not a feed
+
+Feeds optimize for the moment of publication. An archive optimizes for retrieval later. The goal here is therefore not to publish often, but to publish notes that remain understandable, linkable, and open to revision.
+
+That is the standard this site is designed to support.

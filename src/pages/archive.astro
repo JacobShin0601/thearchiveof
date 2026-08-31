@@ -1,36 +1,135 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { categoryPath, postPath } from '../consts';
+import { CONTENT_TYPES, postPath, sectionPath, SECTIONS } from '../consts';
+import { isVisiblePost } from '../environment';
 
-const posts = (await getCollection('posts', ({ data }) => !data.draft))
+const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko'))
   .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
+const years = [...new Set(posts.map((post) => post.data.publishedDate.getFullYear()))].sort((a, b) => b - a);
+const topics = [...new Set(posts.flatMap((post) => post.data.topics))].sort((a, b) => a.localeCompare(b));
+const series = [...new Set(posts.flatMap((post) => post.data.series ? [post.data.series] : []))].sort((a, b) => a.localeCompare(b));
+const tags = [...new Set(posts.flatMap((post) => post.data.tags))].sort((a, b) => a.localeCompare(b));
 ---
 
-<BaseLayout title="Archive" description="Every published note in The Archive of Ideas.">
+<BaseLayout title="전체 글" description="The Archive에 발행된 모든 글입니다." language="ko" alternateLanguageUrl="/en/archive/">
   <section class="listing-page shell">
     <header>
-      <p class="eyebrow">Complete index</p>
-      <h1>Archive</h1>
-      <p>Every note, newest first.</p>
+      <p class="eyebrow">전체 색인</p>
+      <h1>전체 글</h1>
+      <p>피드가 아니라 나중에 다시 찾기 좋은 구조로 정리한 모든 발행 글입니다.</p>
     </header>
-    <div class="archive-list">
+    <form class="archive-filters" aria-label="Filter the archive">
+      <label>
+        <span>섹션</span>
+        <select name="section">
+          <option value="">모든 섹션</option>
+          {SECTIONS.map((section) => <option value={section.name}>{section.name}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>글 유형</span>
+        <select name="contentType">
+          <option value="">모든 유형</option>
+          {CONTENT_TYPES.map((type) => <option value={type}>{type}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>연도</span>
+        <select name="year">
+          <option value="">모든 연도</option>
+          {years.map((year) => <option value={String(year)}>{year}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>토픽</span>
+        <select name="topic">
+          <option value="">모든 토픽</option>
+          {topics.map((topic) => <option value={topic}>{topic}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>시리즈</span>
+        <select name="series">
+          <option value="">모든 시리즈</option>
+          {series.map((name) => <option value={name}>{name}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>태그</span>
+        <select name="tag">
+          <option value="">모든 태그</option>
+          {tags.map((tag) => <option value={tag}>{tag}</option>)}
+        </select>
+      </label>
+      <button type="reset">초기화</button>
+    </form>
+    <p class="archive-count" aria-live="polite"><span>{posts.length}</span>개 글</p>
+    <div class="archive-list" data-archive-list>
       {posts.map((post, index) => (
-        <article>
+        <article
+          data-section={post.data.section}
+          data-content-type={post.data.contentType}
+          data-year={String(post.data.publishedDate.getFullYear())}
+          data-topics={post.data.topics.join('|')}
+          data-series={post.data.series ?? ''}
+          data-tags={post.data.tags.join('|')}
+        >
           <span class="archive-number">{String(index + 1).padStart(2, '0')}</span>
           <div>
             <div class="post-meta">
-              <a href={`/${categoryPath(post.data.category)}/`}>{post.data.category}</a>
+              <a href={`/${sectionPath(post.data.section)}/`}>{post.data.section}</a>
+              <span>/</span>
+              <span>{post.data.subsection}</span>
+              <span>/</span>
+              <span>{post.data.contentType}</span>
               <span>/</span>
               <time datetime={post.data.publishedDate.toISOString()}>
                 {post.data.publishedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' })}
               </time>
             </div>
-            <h2><a href={postPath(post.id)}>{post.data.title}</a></h2>
+            <h2><a href={postPath(post)}>{post.data.title}</a></h2>
           </div>
           <span class="arrow">↗</span>
         </article>
       ))}
     </div>
+    <p class="empty-state archive-empty" hidden>조건에 맞는 글이 없습니다.</p>
   </section>
+
+  <script>
+    const form = document.querySelector<HTMLFormElement>('.archive-filters');
+    const items = [...document.querySelectorAll<HTMLElement>('[data-archive-list] > article')];
+    const count = document.querySelector<HTMLElement>('.archive-count span');
+    const empty = document.querySelector<HTMLElement>('.archive-empty');
+
+    function applyFilters() {
+      if (!form) return;
+      const values = new FormData(form);
+      const section = String(values.get('section') ?? '');
+      const contentType = String(values.get('contentType') ?? '');
+      const year = String(values.get('year') ?? '');
+      const topic = String(values.get('topic') ?? '');
+      const series = String(values.get('series') ?? '');
+      const tag = String(values.get('tag') ?? '');
+      let visible = 0;
+
+      items.forEach((item) => {
+        const matches = (!section || item.dataset.section === section)
+          && (!contentType || item.dataset.contentType === contentType)
+          && (!year || item.dataset.year === year)
+          && (!topic || (item.dataset.topics ?? '').split('|').includes(topic))
+          && (!series || item.dataset.series === series);
+        const finalMatch = matches && (!tag || (item.dataset.tags ?? '').split('|').includes(tag));
+        item.hidden = !finalMatch;
+        if (finalMatch) visible += 1;
+      });
+
+      if (count) count.textContent = String(visible);
+      if (empty) empty.hidden = visible !== 0;
+    }
+
+    form?.addEventListener('change', applyFilters);
+    form?.addEventListener('reset', () => requestAnimationFrame(applyFilters));
+  </script>
 </BaseLayout>

@@ -2,35 +2,63 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PostCard from '../components/PostCard.astro';
-import { CATEGORIES } from '../consts';
+import NewsletterCTA from '../components/NewsletterCTA.astro';
+import { PLANNED_SERIES, SECTIONS, seriesPath, TOPIC_CLUSTERS, topicPath } from '../consts';
+import { isVisiblePost } from '../environment';
 
-const posts = (await getCollection('posts', ({ data }) => !data.draft))
+const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko'))
   .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
+const featuredPosts = posts.filter((post) => post.data.featured).slice(0, 3);
+const activeTopics = new Set(posts.flatMap((post) => post.data.topics));
+const activeTopicClusters = TOPIC_CLUSTERS.map((cluster) => ({ ...cluster, topics: cluster.topics.filter((topic) => activeTopics.has(topic)) }))
+  .filter((cluster) => cluster.topics.length > 0);
 ---
 
-<BaseLayout>
+<BaseLayout language="ko" alternateLanguageUrl="/en/">
   <section class="hero shell">
-    <p class="eyebrow">A personal knowledge publication · Seoul</p>
-    <h1>The Archive<br />of <em>Ideas.</em></h1>
+    <p class="eyebrow">개인 리서치·지식 출판물 · Seoul</p>
+    <h1>The<br /><em>Archive.</em></h1>
     <div class="hero-bottom">
-      <p class="hero-intro">Notes on systems, markets, models, and the mathematics underneath.</p>
+      <p class="hero-intro">시장, AI, 코드, 수학 그리고 오래 남길 가치가 있는 생각들.</p>
       <p class="hero-index">Vol. 01<br />Est. 2026</p>
+    </div>
+  </section>
+
+  <section class="latest featured-research shell" aria-labelledby="featured-heading">
+    <div class="section-heading">
+      <p class="eyebrow" id="featured-heading">주요 글</p>
+      <span>Selected work</span>
+    </div>
+    {featuredPosts.length > 0 ? <div class="post-grid">
+      {featuredPosts.map((post, index) => <PostCard post={post} featured={index === 0} />)}
+    </div> : <p class="empty-state">Selected research will appear here.</p>}
+  </section>
+
+  <section class="latest latest-articles shell" aria-labelledby="latest-heading">
+    <div class="section-heading">
+      <p class="eyebrow" id="latest-heading">최신 글</p>
+      <a href="/archive/">전체 글 보기 →</a>
+    </div>
+    <div class="post-grid">
+      {posts.length > 0 ? posts.slice(0, 6).map((post, index) => <PostCard post={post} featured={index === 0} />) : (
+        <p class="empty-state">The first articles are being prepared.</p>
+      )}
     </div>
   </section>
 
   <section class="category-grid shell" aria-labelledby="fields-heading">
     <div class="section-heading">
-      <p class="eyebrow" id="fields-heading">Fields of inquiry</p>
-      <span>Four working shelves</span>
+      <p class="eyebrow" id="fields-heading">탐구 영역</p>
+      <span>서로 연결된 다섯 섹션</span>
     </div>
     <div class="category-list">
-      {CATEGORIES.map((category) => (
-        <a class="category-card" href={`/${category.slug}/`}>
-          <span class="category-index">{category.index}</span>
+      {SECTIONS.map((section) => (
+        <a class="category-card" href={`/${section.slug}/`}>
+          <span class="category-index">{section.index}</span>
           <div>
-            <h2>{category.name}</h2>
-            <p>{category.description}</p>
-            <span class="topics">{category.topics.join(' · ')}</span>
+            <h2>{section.name}</h2>
+            <p>{section.description}</p>
+            <span class="topics">{section.subsections.map((item) => item.name).join(' · ')}</span>
           </div>
           <span class="arrow" aria-hidden="true">↗</span>
         </a>
@@ -38,21 +66,37 @@ const posts = (await getCollection('posts', ({ data }) => !data.draft))
     </div>
   </section>
 
-  <section class="latest shell" aria-labelledby="latest-heading">
-    <div class="section-heading">
-      <p class="eyebrow" id="latest-heading">Latest notes</p>
-      <a href="/archive/">View the full archive →</a>
+  <section class="discovery-grid shell" aria-label="Topics and series">
+    <div>
+      <div class="section-heading">
+        <p class="eyebrow">토픽</p>
+        <a href="/topics/">전체 보기 →</a>
+      </div>
+      <div class="discovery-links">
+        {activeTopicClusters.map((cluster) => (
+          <section>
+            <h2>{cluster.name}</h2>
+            <p>{cluster.topics.slice(0, 5).map((topic) => <a href={topicPath(topic)}>{topic.replaceAll('-', ' ')}</a>)}</p>
+          </section>
+        ))}
+      </div>
     </div>
-    <div class="post-grid">
-      {posts.length > 0 ? posts.slice(0, 6).map((post, index) => <PostCard post={post} featured={index === 0} />) : (
-        <p class="empty-state">The first notes are being prepared.</p>
-      )}
+    <div>
+      <div class="section-heading">
+        <p class="eyebrow">시리즈</p>
+        <a href="/series/">전체 보기 →</a>
+      </div>
+      <ol class="home-series">
+        {PLANNED_SERIES.map((series, index) => <li><span>{String(index + 1).padStart(2, '0')}</span><a href={seriesPath(series)}>{series}</a></li>)}
+      </ol>
     </div>
   </section>
 
+  <div class="home-newsletter shell"><NewsletterCTA /></div>
+
   <aside class="manifesto shell" aria-label="Publication statement">
     <span class="manifesto-mark">“</span>
-    <blockquote>Ideas become useful when they are examined, connected, and left where others can find them.</blockquote>
-    <p>Open HTML · Permanent URLs · Human and agent readable</p>
+    <blockquote>Explain → Model → Test → Interpret</blockquote>
+    <p>One method across markets, AI, code, and mathematics</p>
   </aside>
 </BaseLayout>

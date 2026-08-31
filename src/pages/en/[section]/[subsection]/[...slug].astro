@@ -1,0 +1,23 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import ArticlePage from '../../../[section]/[subsection]/[...slug].astro';
+import { sectionPath, subsectionPath } from '../../../../consts';
+import { isVisiblePost } from '../../../../environment';
+
+export const getStaticPaths = (async () => {
+  const posts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en');
+  return posts.map((post) => ({
+    params: {
+      section: sectionPath(post.data.section),
+      subsection: subsectionPath(post.data.section, post.data.subsection),
+      slug: post.id.split('/').at(-1)?.replace(/\.(md|mdx)$/, ''),
+    },
+    props: { post },
+  }));
+}) satisfies GetStaticPaths;
+
+const { post } = Astro.props;
+---
+
+<ArticlePage post={post} />

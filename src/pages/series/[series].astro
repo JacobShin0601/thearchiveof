@@ -1,0 +1,39 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { PLANNED_SERIES, postPath, slugify } from '../../consts';
+import { isVisiblePost } from '../../environment';
+
+export const getStaticPaths = (async () => {
+  const posts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko');
+  const names = new Set([...PLANNED_SERIES, ...posts.flatMap((post) => post.data.series ? [post.data.series] : [])]);
+  return [...names].map((name) => ({ params: { series: slugify(name) }, props: { name } }));
+}) satisfies GetStaticPaths;
+
+const { name } = Astro.props as { name: string };
+const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko' && data.series === name))
+  .sort((a, b) => (a.data.seriesOrder ?? 999) - (b.data.seriesOrder ?? 999));
+---
+
+<BaseLayout title={name} description={`${name}: an ordered series from The Archive.`}>
+  <section class="listing-page shell">
+    <header>
+      <p class="eyebrow"><a href="/series/">Series</a> / Learning path</p>
+      <h1>{name}</h1>
+      <p>An ordered path from core concepts to implementation and evidence.</p>
+    </header>
+    {posts.length > 0 ? <ol class="series-articles">
+      {posts.map((post, index) => (
+        <li>
+          <span>{String(post.data.seriesOrder ?? index + 1).padStart(2, '0')}</span>
+          <div>
+            <p class="post-meta">{post.data.section} / {post.data.subsection} / {post.data.contentType}</p>
+            <h2><a href={postPath(post)}>{post.data.title}</a></h2>
+            <p>{post.data.description}</p>
+          </div>
+        </li>
+      ))}
+    </ol> : <p class="empty-state">This series is being prepared. Its articles will appear here in reading order.</p>}
+  </section>
+</BaseLayout>

@@ -1,0 +1,64 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+import { topicDefinition, topicPath } from '../../consts';
+import { isVisiblePost } from '../../environment';
+
+export const getStaticPaths = (async () => {
+  const posts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko');
+  const topics = new Set(posts.flatMap((post) => post.data.topics));
+  return [...topics].map((topic) => ({ params: { topic }, props: { topic } }));
+}) satisfies GetStaticPaths;
+
+const { topic } = Astro.props as { topic: string };
+const allPosts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko');
+const posts = allPosts
+  .filter((post) => post.data.topics.includes(topic))
+  .sort((a, b) => Number(b.data.featured) - Number(a.data.featured)
+    || (b.data.updatedDate ?? b.data.publishedDate).valueOf() - (a.data.updatedDate ?? a.data.publishedDate).valueOf());
+const definition = topicDefinition(topic);
+const pillar = posts.find((post) => post.data.pillar);
+const indexable = Boolean(definition?.indexable && posts.length >= 3 && pillar);
+const availableTopics = new Set(allPosts.flatMap((post) => post.data.topics));
+const relatedTopics = definition?.related.filter((related) => availableTopics.has(related)) ?? [];
+const groups = [
+  { type: 'foundation', label: 'Foundation / 기본 개념' },
+  { type: 'research', label: 'Research / 연구' },
+  { type: 'implementation', label: 'Implementation / 구현' },
+  { type: 'current', label: 'Current / 시의성 분석' },
+  { type: 'misc', label: 'Perspective / 관점과 노트' },
+].map((group) => ({ ...group, posts: posts.filter((post) => post.data.contentType === group.type && post.id !== pillar?.id) }))
+  .filter((group) => group.posts.length > 0);
+---
+
+<BaseLayout
+  title={definition?.nameKo ?? topic}
+  description={definition?.descriptionKo ?? `${topic} 관련 글을 연결한 지식 허브입니다.`}
+  language="ko"
+  indexable={indexable}
+>
+  <section class="listing-page shell topic-hub">
+    <header>
+      <p class="eyebrow"><a href="/topics/">토픽</a> / Knowledge hub</p>
+      <h1>{definition?.nameKo ?? topic}</h1>
+      <p>{definition?.descriptionKo}</p>
+    </header>
+
+    {pillar && <section class="topic-group start-here" aria-labelledby="start-here-heading">
+      <div class="section-heading"><p class="eyebrow" id="start-here-heading">Start here</p></div>
+      <div class="post-grid"><PostCard post={pillar} featured /></div>
+    </section>}
+
+    {groups.map((group) => <section class="topic-group" aria-labelledby={`group-${group.type}`}>
+      <div class="section-heading"><p class="eyebrow" id={`group-${group.type}`}>{group.label}</p></div>
+      <div class="post-grid">{group.posts.map((post, index) => <PostCard post={post} featured={index === 0} />)}</div>
+    </section>)}
+
+    {relatedTopics.length > 0 && <nav class="related-topics" aria-label="관련 토픽">
+      <p class="eyebrow">Related topics</p>
+      <div class="topic-links">{relatedTopics.map((related) => <a href={topicPath(related)}>{topicDefinition(related)?.nameKo ?? related}</a>)}</div>
+    </nav>}
+  </section>
+</BaseLayout>
