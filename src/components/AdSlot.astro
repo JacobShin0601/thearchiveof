@@ -1,0 +1,8 @@
+---
+import { integrations } from '../site.config';
+
+interface Props { position: 'article-inline' | 'article-end' }
+const { position } = Astro.props;
+---
+
+{integrations.ads.enabled && <div class="ad-slot" data-position={position} aria-label="Advertisement"></div>}
