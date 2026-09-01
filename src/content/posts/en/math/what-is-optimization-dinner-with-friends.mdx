@@ -342,18 +342,21 @@ In formal language, this is mathematical optimization. Intuitively, I prefer to 
 
 Once I saw it that way, the equations in *Convex Optimization* began to look different. The equations were not the starting point. They were a language for expressing, clearly and precisely, the choices we make every day.
 
-## Next: turning dinner into an actual optimization model
+## Next: when no restaurant is perfect for everyone — Pareto optimization
 
-This article has tried to explain optimization with as little mathematics as possible. In the next one, we will turn the dinner problem into an actual model.
+This article has explained optimization as intuitively as possible. But our dinner problem still contains an unresolved question:
 
-We will represent prices, travel times, taste, and reservation availability numerically, then define:
+<strong>If travel time, price, taste, and fairness cannot all be improved at once, what should count as optimal?</strong>
 
-- the Decision Variables;
-- the Objective Function; and
-- the Constraints.
+The next article will use that question to introduce **Pareto optimization**. We will compare whether one restaurant is better than another on every criterion and identify the point at which improving one objective necessarily makes another worse.
 
-Finally, we will formulate a small integer-programming problem and solve it in Python.
+- What is Pareto dominance?
+- Why can there be more than one Pareto-optimal solution?
+- How does the Pareto frontier display the available trade-offs?
+- Whose preferences determine the final choice among those candidates?
 
-The equations may look slightly more difficult, but the problem will still be the same:
+We probably will not find a restaurant that makes everyone perfectly happy. We should, however, be able to say much more clearly **whose satisfaction must be sacrificed to reduce someone else’s travel time**.
 
-**Where should we have dinner with our friends on Friday night?**
+The problem is still Friday dinner. This time, instead of asking only “Which restaurant is best?”, we will ask a more realistic question:
+
+> **When several objectives conflict, which choices deserve to remain serious candidates?**
