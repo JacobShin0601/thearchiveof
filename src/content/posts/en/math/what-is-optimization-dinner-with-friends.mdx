@@ -7,6 +7,7 @@ subsection: "Optimization"
 contentType: "foundation"
 topics:
   - optimization
+  - linear-programming
   - integer-programming
 primaryTopic: optimization
 tags:
@@ -202,6 +203,38 @@ We have to make a **trade-off**.
 Would we travel ten minutes longer for better food? Pay KRW 10,000 more for a much better restaurant? Ask one friend to travel a little farther if it improves the group’s overall experience?
 
 Optimization gives us a way to make those trade-offs explicit instead of leaving them entirely to vague intuition. It forces us to say what matters and how much it matters.
+
+## So what is linear programming?
+
+One of the first terms we encounter in optimization is **linear programming**. Here, *programming* does not mean writing Python. It is an older use of the word that is closer to **planning** how scarce resources should be allocated.
+
+The word *linear* means that the objective and constraints are linear expressions of the decision variables. That sounds more technical than it is. If the overall satisfaction scores of three candidate restaurants are $s_A$, $s_B$, and $s_C$, we might write:
+
+$$
+\text{maximize}\quad s_Ax_A + s_Bx_B + s_Cx_C
+$$
+
+If their prices are $p_A$, $p_B$, and $p_C$, and our budget is KRW 30,000, we could add:
+
+$$
+p_Ax_A + p_Bx_B + p_Cx_C \le 30{,}000
+$$
+
+Each variable is multiplied by a fixed coefficient and the terms are added together. There are no terms such as $x_A^2$ or $x_Ax_B$. An optimization problem with a linear objective and linear constraints is a **linear program**.
+
+Continuous variables are natural when quantities can be divided. A company can buy 3.5 tonnes from supplier A and 6.5 tonnes from supplier B, or allocate production across several plants. In problems like those, an ordinary linear program may describe reality quite well.
+
+Dinner is different. If we merely require $0 \le x_A,x_B,x_C \le 1$, a linear-programming solver might return an answer like this:
+
+> Choose 30% of Restaurant A and 70% of Restaurant B.
+
+Mathematically, that can be a perfectly sensible solution. Practically, we are trying to eat one dinner. Unless the plan is to have an appetizer at A and move to B for the main course, the answer is awkward.
+
+The objective and constraints can still be linear, but the reality that we must choose a whole restaurant requires the variables to be 0 or 1. The relationship between linear and integer programming can therefore be summarized simply:
+
+> If a quantity can be divided, linear programming may be enough. If a choice cannot be split, we need an integer restriction.
+
+The reservation problem makes that restriction concrete.
 
 ## What if the best restaurant has no table?
 
