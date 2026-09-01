@@ -238,7 +238,6 @@ a:hover { color: var(--accent); }
   .mobile-navigation li { border-bottom: 1px solid var(--line); }
   .mobile-navigation li:last-child { padding: 10px 0 2px; border-bottom: 0; }
   .mobile-navigation nav > ul > li > a { display: block; padding: 10px 0; }
-  .wordmark-the { display: none; }
   .hero { padding-top: 62px; }
   .hero h1 { margin-top: 28px; font-size: clamp(60px, 16.5vw, 94px); line-height: .8; }
   .hero-bottom { padding-left: 0; gap: 30px; }
