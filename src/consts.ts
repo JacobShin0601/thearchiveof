@@ -3,7 +3,7 @@ import topicRegistry from './data/topics.json';
 
 export const SITE_TITLE = 'The Archive of';
 export const SITE_DESCRIPTION =
-  'Markets, AI, experiments, mathematics, and ideas worth keeping.';
+  'Understand uncertainty. Make better decisions.';
 export const SITE_URL = 'https://thearchiveof.com';
 
 export const CONTENT_TYPES = ['foundation', 'research', 'current', 'implementation', 'perspective'] as const;
