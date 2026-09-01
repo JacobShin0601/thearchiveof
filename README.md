@@ -46,7 +46,7 @@ translationKey: "term-premium-explained"
 Write the note here.
 ```
 
-Allowed sections are `Investing`, `AI & AX`, `Coding`, `Mathematics`, and `Misc`. Content types are `foundation`, `research`, `current`, `implementation`, and `misc`.
+Allowed sections are `Investing`, `AI & AX`, `Lab`, `Mathematics`, and `Notes`. Content types are `foundation`, `research`, `current`, `implementation`, and `perspective`.
 
 - Topics are the main knowledge taxonomy and must come from `src/data/topics.json`.
 - `primaryTopic` is optional, but when present it must also be listed in `topics`.

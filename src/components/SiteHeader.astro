@@ -7,6 +7,7 @@ interface Props {
   alternateLanguageUrl?: string;
 }
 const { language = 'ko', alternateLanguageUrl } = Astro.props;
+const sectionPrefix = language === 'ko' ? '' : '/en';
 ---
 
 <header class="site-header shell">
@@ -14,12 +15,23 @@ const { language = 'ko', alternateLanguageUrl } = Astro.props;
     <span class="wordmark-the">The</span>
     <span>Archive</span>
   </a>
-  <nav aria-label={language === 'ko' ? '주요 메뉴' : 'Primary navigation'}>
+  <nav class="desktop-navigation" aria-label={language === 'ko' ? '주요 메뉴' : 'Primary navigation'}>
     <ul>
-      {language === 'ko' ? SECTIONS.map((section) => <li><a href={`/${section.slug}/`}>{section.name}</a></li>) : <li><a href="/en/">Home</a></li>}
+      {SECTIONS.map((section) => <li><a href={`${sectionPrefix}/${section.slug}/`}>{section.name}</a></li>)}
       <li><a href={language === 'ko' ? '/archive/' : '/en/archive/'}>{language === 'ko' ? '전체 글' : 'Archive'}</a></li>
       <li><a href={language === 'ko' ? '/about/' : '/en/about/'}>{language === 'ko' ? '소개' : 'About'}</a></li>
       <li><LanguageSwitch language={language} alternateLanguageUrl={alternateLanguageUrl} /></li>
     </ul>
   </nav>
+  <details class="mobile-navigation">
+    <summary>{language === 'ko' ? '메뉴' : 'Menu'}</summary>
+    <nav aria-label={language === 'ko' ? '모바일 주요 메뉴' : 'Mobile primary navigation'}>
+      <ul>
+        {SECTIONS.map((section) => <li><a href={`${sectionPrefix}/${section.slug}/`}>{section.name}</a></li>)}
+        <li><a href={language === 'ko' ? '/archive/' : '/en/archive/'}>{language === 'ko' ? '전체 글' : 'Archive'}</a></li>
+        <li><a href={language === 'ko' ? '/about/' : '/en/about/'}>{language === 'ko' ? '소개' : 'About'}</a></li>
+        <li><LanguageSwitch language={language} alternateLanguageUrl={alternateLanguageUrl} /></li>
+      </ul>
+    </nav>
+  </details>
 </header>

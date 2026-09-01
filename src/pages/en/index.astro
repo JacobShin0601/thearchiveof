@@ -3,6 +3,7 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostCard from '../../components/PostCard.astro';
 import NewsletterCTA from '../../components/NewsletterCTA.astro';
+import { SECTIONS } from '../../consts';
 import { isVisiblePost } from '../../environment';
 
 const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en'))
@@ -14,7 +15,7 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
     <p class="eyebrow">An AI-native personal research publication · Seoul</p>
     <h1>The<br /><em>Archive.</em></h1>
     <div class="hero-bottom">
-      <p class="hero-intro">Markets, AI, code, mathematics, and ideas worth keeping.</p>
+      <p class="hero-intro">Markets, AI, experiments, mathematics, and ideas worth keeping.</p>
       <p class="hero-index">English edition<br />Est. 2026</p>
     </div>
   </section>
@@ -24,6 +25,25 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
       <a href="/en/archive/">View the archive →</a>
     </div>
     <div class="post-grid">{posts.map((post, index) => <PostCard post={post} featured={index === 0} />)}</div>
+  </section>
+  <section class="category-grid shell" aria-labelledby="english-fields-heading">
+    <div class="section-heading">
+      <p class="eyebrow" id="english-fields-heading">Fields of inquiry</p>
+      <span>Five connected sections</span>
+    </div>
+    <div class="category-list">
+      {SECTIONS.map((section) => (
+        <a class="category-card" href={`/en/${section.slug}/`}>
+          <span class="category-index">{section.index}</span>
+          <div>
+            <h2>{section.name}</h2>
+            <p>{section.description}</p>
+            <span class="topics">{section.subsections.map((item) => item.name).join(' · ')}</span>
+          </div>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+      ))}
+    </div>
   </section>
   <div class="home-newsletter shell"><NewsletterCTA language="en" /></div>
   <aside class="manifesto shell" aria-label="Editorial method">

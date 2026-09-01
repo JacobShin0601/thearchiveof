@@ -28,7 +28,7 @@ const groups = [
   { type: 'research', label: 'Research / 연구' },
   { type: 'implementation', label: 'Implementation / 구현' },
   { type: 'current', label: 'Current / 시의성 분석' },
-  { type: 'misc', label: 'Perspective / 관점과 노트' },
+  { type: 'perspective', label: 'Perspective / 관점과 노트' },
 ].map((group) => ({ ...group, posts: posts.filter((post) => post.data.contentType === group.type && post.id !== pillar?.id) }))
   .filter((group) => group.posts.length > 0);
 ---

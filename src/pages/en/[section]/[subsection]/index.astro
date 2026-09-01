@@ -1,10 +1,10 @@
 ---
 import type { GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
-import BaseLayout from '../../../layouts/BaseLayout.astro';
-import PostCard from '../../../components/PostCard.astro';
-import { SECTIONS } from '../../../consts';
-import { isVisiblePost } from '../../../environment';
+import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import PostCard from '../../../../components/PostCard.astro';
+import { SECTIONS } from '../../../../consts';
+import { isVisiblePost } from '../../../../environment';
 
 export const getStaticPaths = (() => SECTIONS.flatMap((section) =>
   section.subsections.map((subsection) => ({
@@ -15,19 +15,25 @@ export const getStaticPaths = (() => SECTIONS.flatMap((section) =>
 
 const { section, subsection } = Astro.props;
 const posts = (await getCollection('posts', ({ data }) =>
-  isVisiblePost(data) && data.language === 'ko' && data.section === section.name && data.subsection === subsection.name
+  isVisiblePost(data) && data.language === 'en' && data.section === section.name && data.subsection === subsection.name
 )).sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
 ---
 
-<BaseLayout title={`${subsection.name} — ${section.name}`} description={`${subsection.name} articles in ${section.name}.`} alternateLanguageUrl={`/en/${section.slug}/${subsection.slug}/`} indexable={posts.length > 0}>
+<BaseLayout
+  title={`${subsection.name} — ${section.name}`}
+  description={`${subsection.name} articles in ${section.name}.`}
+  language="en"
+  alternateLanguageUrl={`/${section.slug}/${subsection.slug}/`}
+  indexable={posts.length > 0}
+>
   <section class="listing-page shell">
     <header class="category-header">
-      <p class="eyebrow"><a href={`/${section.slug}/`}>{section.name}</a> / Subsection</p>
+      <p class="eyebrow"><a href={`/en/${section.slug}/`}>{section.name}</a> / Subsection</p>
       <h1>{subsection.name}</h1>
       <p>Research, foundations, and current analysis filed under {subsection.name}.</p>
     </header>
     {posts.length > 0 ? <div class="post-grid category-posts">
       {posts.map((post, index) => <PostCard post={post} featured={index === 0} />)}
-    </div> : <p class="empty-state">Articles for this subsection are being prepared.</p>}
+    </div> : <p class="empty-state">English articles for this subsection are being prepared.</p>}
   </section>
 </BaseLayout>

@@ -3,10 +3,10 @@ import topicRegistry from './data/topics.json';
 
 export const SITE_TITLE = 'The Archive';
 export const SITE_DESCRIPTION =
-  'Markets, AI, code, mathematics, and ideas worth keeping.';
+  'Markets, AI, experiments, mathematics, and ideas worth keeping.';
 export const SITE_URL = 'https://thearchiveof.com';
 
-export const CONTENT_TYPES = ['foundation', 'research', 'current', 'implementation', 'misc'] as const;
+export const CONTENT_TYPES = ['foundation', 'research', 'current', 'implementation', 'perspective'] as const;
 
 export const TOPICS = topicRegistry;
 export const TOPIC_CLUSTERS = [...new Set(TOPICS.map((topic) => topic.cluster))].map((name) => ({
@@ -49,15 +49,15 @@ export const SECTIONS = [
     ],
   },
   {
-    name: 'Coding',
+    name: 'Lab',
     slug: 'coding',
     index: '03',
-    description: 'Python, data systems, experiments, and practical tutorials.',
+    description: 'Reproducible experiments, data work, agentic engineering, and projects built with code.',
     subsections: [
-      { name: 'Python', slug: 'python' },
-      { name: 'Data', slug: 'data' },
-      { name: 'Backend', slug: 'backend' },
-      { name: 'AI Engineering', slug: 'ai-engineering' },
+      { name: 'Projects', slug: 'projects' },
+      { name: 'Experiments', slug: 'experiments' },
+      { name: 'Data & Notebooks', slug: 'data' },
+      { name: 'Agentic Engineering', slug: 'ai-engineering' },
       { name: 'Tutorials', slug: 'tutorials' },
     ],
   },
@@ -75,12 +75,12 @@ export const SECTIONS = [
     ],
   },
   {
-    name: 'Misc',
+    name: 'Notes',
     slug: 'misc',
     index: '05',
-    description: 'Short notes, reading records, observations, and ideas still taking shape.',
+    description: 'Short notes, reading records, essays, and ideas still taking shape.',
     subsections: [
-      { name: 'Notes', slug: 'notes' },
+      { name: 'Short Notes', slug: 'notes' },
       { name: 'Reading', slug: 'reading' },
       { name: 'Career', slug: 'career' },
       { name: 'Essays', slug: 'essays' },

@@ -1,10 +1,10 @@
 ---
 import type { GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import PostCard from '../../components/PostCard.astro';
-import { SECTIONS, type Section } from '../../consts';
-import { isVisiblePost } from '../../environment';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PostCard from '../../../components/PostCard.astro';
+import { SECTIONS, type Section } from '../../../consts';
+import { isVisiblePost } from '../../../environment';
 
 export const getStaticPaths = (() => SECTIONS.map((section) => ({
   params: { section: section.slug },
@@ -13,11 +13,17 @@ export const getStaticPaths = (() => SECTIONS.map((section) => ({
 
 interface Props { section: Section }
 const { section } = Astro.props;
-const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko' && data.section === section.name))
+const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en' && data.section === section.name))
   .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
 ---
 
-<BaseLayout title={section.name} description={section.description} alternateLanguageUrl={`/en/${section.slug}/`} indexable={posts.length > 0}>
+<BaseLayout
+  title={section.name}
+  description={section.description}
+  language="en"
+  alternateLanguageUrl={`/${section.slug}/`}
+  indexable={posts.length > 0}
+>
   <section class="listing-page shell">
     <header class="category-header">
       <p class="eyebrow">Section {section.index}</p>
@@ -25,12 +31,12 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
       <p>{section.description}</p>
       <nav class="topic-row" aria-label={`${section.name} subsections`}>
         {section.subsections.map((subsection) => (
-          <a href={`/${section.slug}/${subsection.slug}/`}>{subsection.name}</a>
+          <a href={`/en/${section.slug}/${subsection.slug}/`}>{subsection.name}</a>
         ))}
       </nav>
     </header>
     {posts.length > 0 ? <div class="post-grid category-posts">
       {posts.map((post, index) => <PostCard post={post} featured={index === 0} />)}
-    </div> : <p class="empty-state">Articles for this section are being prepared.</p>}
+    </div> : <p class="empty-state">English articles for this section are being prepared.</p>}
   </section>
 </BaseLayout>

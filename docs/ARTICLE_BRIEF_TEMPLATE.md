@@ -7,7 +7,7 @@ Copy this brief into Work when starting a new article. The author supplies the t
 - Working title:
 - One-sentence question this article answers:
 - Section / subsection:
-- Content type: `foundation` / `research` / `current` / `implementation` / `misc`
+- Content type: `foundation` / `research` / `current` / `implementation` / `perspective`
 - Primary topic (from `src/data/topics.json`):
 - Other topics:
 - Intended reader:

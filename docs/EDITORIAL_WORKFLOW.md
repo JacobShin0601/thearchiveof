@@ -55,12 +55,12 @@ Korean files live under `src/content/posts/<section>/...`; paired English files 
 
 ## 4. Taxonomy rules
 
-- **Section** says where the article belongs.
+- **Section** says where the article belongs. Lab contains reproducible experiments and projects; Notes contains perspectives, reading records, and shorter essays.
 - **Content type** says what kind of article it is.
 - **Topic** says what the article is actually about and powers knowledge hubs.
 - **Tag** is a secondary descriptor used for archive filtering and navigation.
 
-Topics must come from `src/data/topics.json`. Use one optional `primaryTopic`; it must also be present in `topics`. Use 2–5 tags. Misc articles should still receive professional topics when relevant so that perspectives connect to Foundation, Research, Current, and Implementation material.
+Topics must come from `src/data/topics.json`. Use one optional `primaryTopic`; it must also be present in `topics`. Use 2–5 tags. Notes articles should still receive professional topics when relevant so that perspectives connect to Foundation, Research, Current, and Implementation material.
 
 Topic hubs cross sections and group content by type. A topic page remains `noindex` until it has a registry introduction, at least three related posts, and a pillar / Start Here article. Once those conditions have been reviewed, set that registry entry's `indexable` value to `true`. Tags do not become SEO landing pages.
 
