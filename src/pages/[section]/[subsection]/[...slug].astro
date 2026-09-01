@@ -31,8 +31,9 @@ const allPosts = await getCollection('posts', ({ data }) => isVisiblePost(data))
 const translation = post.data.translationKey
   ? allPosts.find((candidate) => candidate.data.translationKey === post.data.translationKey && candidate.data.language !== post.data.language)
   : undefined;
-const sectionHref = isKo ? `/${sectionPath(post.data.section)}/` : '/en/';
-const subsectionHref = isKo ? `/${sectionPath(post.data.section)}/${subsectionPath(post.data.section, post.data.subsection)}/` : '/en/';
+const languagePrefix = isKo ? '' : '/en';
+const sectionHref = `${languagePrefix}/${sectionPath(post.data.section)}/`;
+const subsectionHref = `${languagePrefix}/${sectionPath(post.data.section)}/${subsectionPath(post.data.section, post.data.subsection)}/`;
 const tagSet = new Set(post.data.tags.map((tag) => tag.toLowerCase()));
 const topicSet = new Set(post.data.topics);
 const relatedPosts = allPosts

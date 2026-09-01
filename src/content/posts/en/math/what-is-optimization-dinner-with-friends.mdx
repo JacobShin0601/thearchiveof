@@ -1,0 +1,326 @@
+---
+title: "What is optimization? Even planning dinner with friends is an optimization problem"
+description: "An intuitive introduction to optimization through the everyday problem of choosing where to meet friends for dinner."
+publishedDate: 2026-09-01
+section: "Mathematics"
+subsection: "Optimization"
+contentType: "foundation"
+topics:
+  - optimization
+  - integer-programming
+primaryTopic: optimization
+tags:
+  - intuition
+  - decision-making
+  - operations-research
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "what-is-optimization-dinner-with-friends"
+freshness: evergreen
+references:
+  - title: "Convex Optimization"
+    url: "https://web.stanford.edu/~boyd/cvxbook/"
+    publisher: "Stephen Boyd and Lieven Vandenberghe"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="What is optimization?">
+  Optimization is the process of **finding the best available choice while respecting the constraints of the real world**. It begins by defining what we can decide, what “better” means, and which conditions cannot be violated.
+</AnswerBlock>
+
+To be honest, I did not really know what **optimization** meant when I first encountered it.
+
+Before I joined a company as a data scientist, the world of data science in my head revolved mostly around machine learning and deep learning: collect data, train a model, and predict some future quantity.
+
+Questions like these felt familiar:
+
+> What will the price of a commodity be tomorrow?
+
+Or:
+
+> What is the probability that the central bank will cut rates at its next meeting?
+
+For the first problem, we might use historical prices, supply and demand, inventories, and macroeconomic indicators. For the second, we might use inflation, employment, market rates, and central-bank communication. Both look like classic data-science problems.
+
+Then I started working on actual business problems, and a different class of questions appeared. They were the questions that came **after** the forecast.
+
+> So how much of the commodity should we buy now?
+
+> If prices are likely to rise, how far should we bring the purchase forward?
+
+> Given the probability of a rate cut, how much duration should the portfolio carry?
+
+> With limited budget and production capacity, which plant should make how much?
+
+These questions are not asking, “What will happen?” They are asking, **“So what should we do?”**
+
+The first is primarily a problem of **prediction**. The second is a problem of **decision**. Optimization turned out to be one of the main mathematical ways to handle that second problem.
+
+This does not mean machine learning and optimization live in separate worlds. Training a machine-learning model is itself often an optimization problem in which we minimize a loss function. But the distinction that mattered to me at the time was the direction of the question.
+
+Machine learning had taught me to ask, “What is likely to happen?” The optimization problems I met at work asked, “Given all these real constraints, which choice is best?”
+
+## My first encounter with optimization was not especially friendly
+
+At first, the field felt completely unfamiliar. I asked colleagues:
+
+“What exactly is optimization?”
+
+I searched online. Eventually I found *Convex Optimization* by Stephen Boyd and Lieven Vandenberghe, a book that appears almost everywhere in the field.
+
+Then I opened it.
+
+Convex set. Convex function. Lagrangian. Duality.
+
+The unfamiliar vocabulary arrived with impressive efficiency. I had only wanted to understand what optimization was, but somehow I had wandered into the middle of a mathematics textbook.
+
+“Was this really what I was trying to learn?”
+
+After working through practical problems and slowly becoming more comfortable with the notation, I realized something important: **the idea of optimization was not unfamiliar at all.**
+
+We optimize things in ordinary life all the time. We simply do not call them `objective functions`, `constraints`, and `decision variables`.
+
+## Let us plan dinner with friends
+
+Suppose four friends agree to meet on Friday evening. The restaurant has not been chosen. That does not mean every restaurant in Seoul is available to us.
+
+The date and time are fixed: **Friday at 7 p.m.**
+
+A restaurant that closes on Fridays is impossible, however good it may be. One that closes at 6 p.m. is also eliminated. We already have our first **constraint**.
+
+### Price matters too
+
+Now consider the budget. Suppose this is meant to be a casual dinner with friends. For me, once the expected cost moves much beyond KRW 30,000 per person, it starts to feel like a different kind of evening.
+
+Imagine agreeing to have a simple meal and a few drinks, only for one friend to book a steakhouse that costs KRW 150,000 per person. The steak may be excellent. The restaurant may be wonderful.
+
+But the friend who made the booking is also quite likely to hear some version of, **“Have you completely lost your mind?”**
+
+So we have an implicit condition:
+
+> Expected cost per person ≤ KRW 30,000
+
+That is our second constraint.
+
+### Location may matter most of all
+
+Suppose the four friends live in Jamsil, Sinchon, Yongsan, and Gangnam. The friend in Jamsil says:
+
+“I know an amazing place in Jamsil. Let’s meet there.”
+
+It may genuinely be amazing. The problem is that it is amazing mainly for the friend who lives ten minutes away. If everyone else needs an hour to get there, the arrangement begins to look suspicious.
+
+Of course, I cannot pick a restaurant five minutes from my own home and declare, “This is the center of Seoul,” either. My friends are unlikely to accept the geography.
+
+There is a peculiar sense of fairness in these negotiations. **It is irritating when one friend is suspiciously close, and even more irritating when I am the only one travelling forever.** So we naturally look for an area that is not unreasonably bad for anyone.
+
+That is already an optimization problem. One possible rule is:
+
+> Minimize the total travel time of all four friends.
+
+If fairness matters more, we might choose a different rule:
+
+> Minimize the longest individual travel time.
+
+The two rules sound similar, but they do not necessarily select the same place. This brings us to one of the central questions in optimization:
+
+**What exactly do we mean by “good”?**
+
+The quantity we want to minimize or maximize is called the **objective function**.
+
+## Decision variables, objective functions, and constraints
+
+Our dinner problem now has several conditions. A restaurant must:
+
+- be open at 7 p.m. on Friday;
+- cost roughly no more than KRW 30,000 per person; and
+- not be unreasonably inconvenient for the group.
+
+These are the **constraints**.
+
+Among the restaurants that satisfy them, we need a rule for deciding which one is best. “Minimize total travel time” is one possible **objective function**. “Maximize a combined score for taste, price, and travel time” is another.
+
+The thing we actually choose—whether to visit restaurant A or restaurant B—is represented by a **decision variable**.
+
+An optimization problem therefore begins with three surprisingly simple questions:
+
+1. **What can we decide?**
+2. **What do we want to make as good as possible?**
+3. **Which conditions must be respected?**
+
+More formally, optimization means finding, among the choices that satisfy the constraints, a solution that minimizes or maximizes the objective function.
+
+## Why not just meet at the exact midpoint?
+
+At this point, someone may ask:
+
+“Why not calculate the exact midpoint of where everyone lives?”
+
+We could. We could translate each address into coordinates and find a geometric center.
+
+There is just one small problem: **there may not be a restaurant there.**
+
+The point could land in the Han River, in the middle of an apartment complex, or in a neighborhood where the only food nearby comes from a convenience store. A mathematically perfect midpoint does not help much when the actual goal is to eat dinner.
+
+So we usually begin with a set of feasible candidates:
+
+- Restaurant A in Hongdae
+- Restaurant B in Yongsan
+- Restaurant C in Gangnam
+- Restaurant D in Euljiro
+
+Then we compare their prices, travel times, food, and opening hours.
+
+This is what makes real optimization interesting. Not every imaginable choice is available. **There is a feasible set, there are practical constraints, and we must find the best choice inside it.**
+
+## Now add taste
+
+So far, we have focused on travel and price. But we have left out an important reason for choosing a restaurant: **the food**.
+
+Suppose Restaurant B in Yongsan minimizes total travel time. From a transportation perspective, it is perfect. Unfortunately, its rating is 2.1.
+
+Restaurant D in Euljiro requires everyone to travel twenty minutes longer, but the food is genuinely excellent. The human optimization engine immediately starts running:
+
+“Wouldn’t it be worth travelling twenty more minutes?”
+
+The problem is now more interesting. We want to:
+
+- reduce travel time;
+- reduce price; and
+- increase taste.
+
+In shorthand: `Distance ↓`, `Price ↓`, `Taste ↑`.
+
+The perfect restaurant rarely exists. Good restaurants may be expensive. Cheap and good restaurants may be far away. Nearby restaurants may be disappointing.
+
+We have to make a **trade-off**.
+
+Would we travel ten minutes longer for better food? Pay KRW 10,000 more for a much better restaurant? Ask one friend to travel a little farther if it improves the group’s overall experience?
+
+Optimization gives us a way to make those trade-offs explicit instead of leaving them entirely to vague intuition. It forces us to say what matters and how much it matters.
+
+## What if the best restaurant has no table?
+
+After all that thought, suppose we finally identify the perfect restaurant. The price is right. The location is good. The food is excellent.
+
+We call, and it is fully booked.
+
+Now the model must include not only price and distance, but whether the restaurant can actually be selected. This is a simple way to see the idea behind **integer programming**.
+
+Let a variable represent whether each restaurant is selected:
+
+$$
+x_A = \begin{cases}
+1 & \text{if restaurant A is selected} \\
+0 & \text{otherwise}
+\end{cases}
+$$
+
+Define $x_B$ and $x_C$ in the same way. We need exactly one restaurant, so:
+
+$$
+x_A + x_B + x_C = 1
+$$
+
+If Restaurant A is fully booked, it is unavailable:
+
+$$
+x_A = 0
+$$
+
+No matter how good its food or location may be, it is no longer in the feasible set.
+
+In integer programming, some or all decision variables are constrained to take integer values. When a variable can take only 0 or 1, the model is often called **binary, or 0–1, integer programming**.
+
+The terminology sounds formidable. The basic idea is not:
+
+> Do we choose this restaurant? Yes = 1. No = 0.
+
+The same structure appears in many business decisions:
+
+- Do we operate this factory?
+- Do we invest in this project?
+- Do we use this distribution center?
+- Do we assign this vehicle to this route?
+
+Structurally, these decisions are not so different from choosing where to have dinner.
+
+## Is there always one optimal solution?
+
+The word “optimal” can make it sound as though a single perfect answer is hidden somewhere in the universe. That is not always true.
+
+If Restaurants A and B have exactly the same objective value, both can be optimal. The problem becomes more complex when we care about several objectives at once. The cheapest, tastiest, and closest restaurants may all be different.
+
+Ideas such as **multi-objective optimization** and **Pareto optimality** help us reason about these competing goals. We will leave those for a later article.
+
+For now, one idea is enough:
+
+> Optimization is not necessarily a machine for producing one magical answer. It is a way to define what matters and find the best available choice under that definition.
+
+## Prediction and optimization belong in the same pipeline
+
+Return to the data-science questions from the beginning. A model may estimate tomorrow’s commodity price or the probability of a central-bank rate cut.
+
+But a company rarely stops there. The consequential questions come next:
+
+> How much of the commodity should we buy today?
+
+> How much inventory should we hold against the risk of higher prices?
+
+> How should the portfolio’s interest-rate exposure change given the probability of a cut?
+
+Prediction provides information about the world. Optimization can use that information to decide **what to do**. In practical systems, they often form one pipeline:
+
+```text
+Data
+  ↓
+Prediction / Estimation
+  ↓
+Optimization
+  ↓
+Decision
+```
+
+A forecast becomes an input to an optimization model, and the optimization model proposes an action. That is why machine learning and optimization should not be treated as disconnected subjects.
+
+## Optimization is the mathematics of choice
+
+It took me longer than expected to understand optimization because I encountered the intimidating vocabulary first.
+
+Linear Programming. Integer Programming. Convex Optimization. Lagrangian. Duality.
+
+At first, these terms made optimization look like a highly specialized and forbidding corner of mathematics. At depth, it certainly can be difficult. But the problems it tries to solve are remarkably ordinary.
+
+We want things, and reality imposes limits. Money is finite. Time is finite. People, factory capacity, storage, vehicles, and budgets are all finite. We still have to choose.
+
+Where should friends meet for dinner? How much should a company buy from each supplier? Which plant should produce how much? In what order should delivery vehicles visit customers? How much capital should be allocated to each asset?
+
+These problems look unrelated, but their underlying structure is similar.
+
+**There is something to decide, something to improve, and a set of conditions that must be respected.**
+
+In formal language, this is mathematical optimization. Intuitively, I prefer to think of it this way:
+
+> **Optimization is the mathematics of finding the best choice in a constrained world.**
+
+Once I saw it that way, the equations in *Convex Optimization* began to look different. The equations were not the starting point. They were a language for expressing, clearly and precisely, the choices we make every day.
+
+## Next: turning dinner into an actual optimization model
+
+This article has tried to explain optimization with as little mathematics as possible. In the next one, we will turn the dinner problem into an actual model.
+
+We will represent prices, travel times, taste, and reservation availability numerically, then define:
+
+- the Decision Variables;
+- the Objective Function; and
+- the Constraints.
+
+Finally, we will formulate a small integer-programming problem and solve it in Python.
+
+The equations may look slightly more difficult, but the problem will still be the same:
+
+**Where should we have dinner with our friends on Friday night?**
