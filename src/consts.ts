@@ -1,7 +1,7 @@
 import type { CollectionEntry } from 'astro:content';
 import topicRegistry from './data/topics.json';
 
-export const SITE_TITLE = 'The Archive';
+export const SITE_TITLE = 'The Archive of';
 export const SITE_DESCRIPTION =
   'Markets, AI, experiments, mathematics, and ideas worth keeping.';
 export const SITE_URL = 'https://thearchiveof.com';

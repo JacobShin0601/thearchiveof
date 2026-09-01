@@ -60,7 +60,7 @@ a:hover { color: var(--accent); }
 
 .hero { padding: 86px 0 50px; border-bottom: 1px solid var(--ink); }
 .eyebrow { margin: 0; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .16em; line-height: 1.4; text-transform: uppercase; }
-.hero h1 { max-width: 980px; margin: 38px 0 54px; font-family: var(--serif); font-size: clamp(74px, 12vw, 160px); font-weight: 400; letter-spacing: -.065em; line-height: .72; }
+.hero h1 { max-width: 1050px; margin: 38px 0 54px; font-family: var(--serif); font-size: clamp(68px, 10.8vw, 144px); font-weight: 400; letter-spacing: -.06em; line-height: .76; }
 .hero h1 em { color: var(--accent); font-weight: 400; }
 .hero-bottom { display: flex; align-items: end; justify-content: space-between; padding-left: 34%; }
 .hero-intro { max-width: 530px; margin: 0; font-family: var(--serif); font-size: clamp(21px, 2.5vw, 34px); line-height: 1.18; }
@@ -117,7 +117,7 @@ a:hover { color: var(--accent); }
 
 .listing-page, .prose-page, .article-page { padding-top: 78px; padding-bottom: 120px; }
 .listing-page > header, .prose-page > header { padding-bottom: 55px; border-bottom: 1px solid var(--ink); }
-.listing-page h1, .prose-page h1, .not-found h1 { max-width: 950px; margin: 30px 0 18px; font-family: var(--serif); font-size: clamp(64px, 9vw, 118px); font-weight: 400; letter-spacing: -.055em; line-height: .9; }
+.listing-page h1, .prose-page h1, .not-found h1 { max-width: 950px; margin: 30px 0 18px; font-family: var(--serif); font-size: clamp(58px, 8.2vw, 106px); font-weight: 400; letter-spacing: -.05em; line-height: .92; }
 .listing-page header > p:last-of-type { max-width: 590px; color: var(--muted); font-family: var(--serif); font-size: 24px; }
 .topic-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; }
 .topic-row a, .topic-row span { padding: 6px 11px; border: 1px solid var(--line); color: var(--muted); font-size: 10px; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
@@ -138,7 +138,7 @@ a:hover { color: var(--accent); }
 .archive-count { margin: 18px 0 0; color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .archive-list article[hidden] { display: none; }
 
-.prose-page h1 { font-size: clamp(52px, 7vw, 94px); line-height: .96; }
+.prose-page h1 { font-size: clamp(48px, 6.4vw, 86px); line-height: .98; }
 .prose-grid { display: grid; grid-template-columns: 1fr 2.2fr; gap: 8%; padding-top: 60px; }
 .prose-grid aside p { margin: 0; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 .prose { max-width: 720px; }
@@ -153,8 +153,8 @@ a:hover { color: var(--accent); }
 .breadcrumbs a { text-decoration: none; }
 .draft-banner { max-width: 990px; margin: 26px auto 0; padding: 10px 14px; background: #8b4c36; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-align: center; text-transform: uppercase; }
 .article-header .post-meta { justify-content: center; }
-.article-header h1 { margin: 38px 0 26px; font-family: var(--serif); font-size: clamp(48px, 7.5vw, 96px); font-weight: 400; letter-spacing: -.05em; line-height: .96; }
-.dek { max-width: 720px; margin: 0 auto 36px; color: var(--muted); font-family: var(--serif); font-size: 23px; line-height: 1.35; }
+.article-header h1 { margin: 38px 0 26px; font-family: var(--serif); font-size: clamp(44px, 6.8vw, 88px); font-weight: 400; letter-spacing: -.045em; line-height: .98; }
+.dek { max-width: 720px; margin: 0 auto 36px; color: var(--muted); font-family: var(--serif); font-size: 21px; line-height: 1.4; }
 .article-byline { display: flex; justify-content: center; gap: 30px; color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .article-topics { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
 .article-topics a { color: var(--accent); font-size: 10px; text-decoration: none; }
@@ -164,9 +164,9 @@ a:hover { color: var(--accent); }
 .toc ol { margin: 0; padding: 0; list-style: none; }
 .toc li { padding: 7px 0; border-bottom: 1px solid var(--line); }
 .toc a { color: var(--muted); font-size: 11px; line-height: 1.35; text-decoration: none; }
-.article-content { min-width: 0; color: #313631; font-family: var(--serif); font-size: 19px; line-height: 1.78; }
+.article-content { min-width: 0; color: #313631; font-family: var(--serif); font-size: 18px; line-height: 1.8; }
 .article-content > :first-child { margin-top: 0; }
-.article-content h2 { margin: 2.2em 0 .65em; color: var(--ink); font-size: 40px; font-weight: 400; letter-spacing: -.025em; line-height: 1.12; }
+.article-content h2 { margin: 2.2em 0 .65em; color: var(--ink); font-size: 36px; font-weight: 400; letter-spacing: -.02em; line-height: 1.15; }
 .article-content h3 { margin-top: 2em; font-size: 27px; font-weight: 400; }
 .article-content a { color: var(--accent); }
 .article-content blockquote { margin: 2em 0; padding: 4px 0 4px 28px; border-left: 2px solid var(--accent); color: var(--muted); font-style: italic; }
@@ -240,7 +240,7 @@ a:hover { color: var(--accent); }
   .mobile-navigation nav > ul > li > a { display: block; padding: 10px 0; }
   .wordmark-the { display: none; }
   .hero { padding-top: 62px; }
-  .hero h1 { margin-top: 28px; font-size: clamp(68px, 19vw, 110px); line-height: .77; }
+  .hero h1 { margin-top: 28px; font-size: clamp(60px, 16.5vw, 94px); line-height: .8; }
   .hero-bottom { padding-left: 0; gap: 30px; }
   .category-grid { padding-top: 45px; }
   .category-card { grid-template-columns: 38px 1fr auto; gap: 10px; }
@@ -267,13 +267,13 @@ a:hover { color: var(--accent); }
 }
 
 @media (max-width: 520px) {
-  .hero h1 { font-size: 21vw; }
+  .hero h1 { font-size: 17.5vw; }
   .hero-index { display: none; }
   .category-card { grid-template-columns: 30px 1fr auto; }
   .category-card .topics { display: none; }
   .section-heading > span, .section-heading > a { display: none; }
-  .article-content { font-size: 18px; }
-  .article-content h2 { font-size: 33px; }
+  .article-content { font-size: 17px; }
+  .article-content h2 { font-size: 31px; }
   .archive-filters { grid-template-columns: 1fr; }
   .archive-filters button { grid-column: auto; }
   .newsletter-cta { padding: 28px 22px; }

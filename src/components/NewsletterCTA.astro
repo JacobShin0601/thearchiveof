@@ -6,7 +6,7 @@ const { language = 'ko' } = Astro.props;
 ---
 
 <aside class="newsletter-cta" aria-labelledby="newsletter-heading">
-  <p class="eyebrow">The Archive</p>
+  <p class="eyebrow">The Archive of</p>
   <h2 id="newsletter-heading">{language === 'ko' ? '시장, AI, 코드와 수학에서 오래 기억할 만한 생각들.' : 'Markets, AI, code and mathematics worth remembering.'}</h2>
   {newsletter.enabled && newsletter.action ? (
     <form action={newsletter.action} method="post">
