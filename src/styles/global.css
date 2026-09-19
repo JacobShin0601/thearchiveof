@@ -286,3 +286,11 @@ a:hover { color: var(--accent); }
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition-duration: .01ms !important; }
 }
+
+/* Preserve Korean word boundaries in long article titles and summaries. */
+html[lang="ko"] .article-header h1,
+html[lang="ko"] .article-header .dek {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+html[lang="ko"] .article-header h1 { line-height: 1.18; }
