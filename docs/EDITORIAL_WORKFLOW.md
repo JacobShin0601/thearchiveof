@@ -87,8 +87,8 @@ The two files must share structural metadata:
 ```yaml
 title: "A clear, specific title"
 subtitle: "An optional supporting line under the title"
-section: "AI & AX"
-subsection: "Agents"
+section: "Notes"
+subsection: "Essays"
 contentType: "foundation"
 topics:
   - ai-agents
