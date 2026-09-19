@@ -98,9 +98,10 @@ tags:
   - publishing
 draft: true
 translationKey: "example-article"
+socialImage: "/og/example-article.png"
 ```
 
-Only `title`, `subtitle`, `description`, body text, and `language` normally differ. Set `language: "ko"` for the source and `language: "en"` for the English edition. Use `title` for the heading and optional `subtitle` for the supporting line; keep the search summary in `description`.
+Only `title`, `subtitle`, `description`, body text, and `language` normally differ. If a pair has a custom share image, both files use the same `socialImage` path. Put the file at `public/og/<translationKey>.png` (1200×630). Omit the field to fall back to `/og.png`. Set `language: "ko"` for the source and `language: "en"` for the English edition. Use `title` for the heading and optional `subtitle` for the supporting line; keep the search summary in `description`.
 
 ## 6. Preview review
 
@@ -115,7 +116,8 @@ Checklist:
 - mobile layout and language switch work;
 - Topic, primaryTopic, and tags are intentional;
 - canonical, alternate-language links, and Preview `noindex` are present;
-- drafts are visible in Preview but absent from Production.
+- drafts are visible in Preview but absent from Production;
+- if `socialImage` is set, the file exists at `public/og/` and both editions use the same path.
 
 ## 7. Production release
 

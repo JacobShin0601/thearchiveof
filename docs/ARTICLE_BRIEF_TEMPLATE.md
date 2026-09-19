@@ -47,6 +47,7 @@ Copy this brief into Work when starting a new article. The author supplies the t
 - Comments: `false`
 - Freshness: `evergreen` / `periodic` / `time-sensitive`
 - First review date:
+- Social image (optional): `/og/<english-slug>.png` — 1200×630, shared by both languages; omit to use the site default
 
 ## Work deliverables
 

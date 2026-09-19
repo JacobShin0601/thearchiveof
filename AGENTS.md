@@ -18,7 +18,7 @@ Cloudflare deploys automatically. `develop` is Preview (`*.pages.dev`, drafts on
 
 ## Content and product
 
-- Korean is the source edition. English is an adaptation, not a literal translation. Share `translationKey` on paired files.
+- Korean is the source edition. English is an adaptation, not a literal translation. Share `translationKey` on paired files. Optional `socialImage` is `/og/<translationKey>.png` and is shared by both editions; otherwise use `/og.png`.
 - Useful counts are shared by `translationKey`. giscus threads stay per URL.
 - Keep article prose readable without JavaScript. Explorers and Useful are enhancements.
 - Do not add extra analytics beacons or a CSP that would break giscus or Web Analytics.

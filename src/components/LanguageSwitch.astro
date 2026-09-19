@@ -7,9 +7,13 @@ const { language, alternateLanguageUrl } = Astro.props;
 const fallback = language === 'ko' ? '/en/' : '/';
 ---
 
-<div class="language-switch" aria-label="Language selection">
-  {language === 'ko' ? <span aria-current="true">한국어</span> : <a href={alternateLanguageUrl ?? fallback} hreflang="ko">한국어</a>}
-  {language === 'en' ? <span aria-current="true">EN</span> : <a href={alternateLanguageUrl ?? fallback} hreflang="en">EN</a>}
+<div class="language-switch" role="group" aria-label={language === 'ko' ? '언어 선택' : 'Language selection'}>
+  {language === 'ko'
+    ? <span aria-current="true" lang="ko">KO</span>
+    : <a href={alternateLanguageUrl ?? fallback} hreflang="ko" lang="ko" aria-label="한국어">KO</a>}
+  {language === 'en'
+    ? <span aria-current="true" lang="en">EN</span>
+    : <a href={alternateLanguageUrl ?? fallback} hreflang="en" lang="en" aria-label="English">EN</a>}
 </div>
 
 <script>

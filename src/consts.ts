@@ -5,6 +5,7 @@ export const SITE_TITLE = 'The Archive of';
 export const SITE_DESCRIPTION =
   'Understand uncertainty. Make better decisions.';
 export const SITE_URL = 'https://thearchiveof.com';
+export { DEFAULT_SOCIAL_IMAGE, resolveSocialImage } from './lib/social-image';
 
 export const CONTENT_TYPES = ['foundation', 'research', 'current', 'implementation', 'perspective'] as const;
 
