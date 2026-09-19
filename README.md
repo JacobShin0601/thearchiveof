@@ -23,6 +23,7 @@ Add a `.md` or `.mdx` file below `src/content/posts/`. Folder names become part 
 ```md
 ---
 title: "A clear, specific title"
+subtitle: "An optional supporting line, displayed below the title"
 description: "A one-sentence summary for search results and feeds."
 publishedDate: 2026-09-05
 section: "Investing"
@@ -54,7 +55,9 @@ Allowed sections are `Investing`, `AI & AX`, `Lab`, `Mathematics`, and `Notes`. 
 - Korean is the source edition. A paired English edition uses the same `translationKey` and `language: "en"`.
 - New work starts with `draft: true` and is reviewed on Cloudflare Preview.
 
-Optional fields include `updatedDate`, `series`, `seriesOrder`, `primaryTopic`, `translationKey`, `dataSources`, `dataThrough`, `methodology`, `codeRepository`, `references`, and `pillar`.
+Use `title` for the main heading and optional `subtitle` for its supporting line. Cards, archives, series, and article headers display these at distinct sizes. Keep the summary in `description`.
+
+Optional fields include `subtitle`, `updatedDate`, `series`, `seriesOrder`, `primaryTopic`, `translationKey`, `dataSources`, `dataThrough`, `methodology`, `codeRepository`, `references`, and `pillar`.
 
 Article URLs are generated from section, subsection, and filename, for example:
 
@@ -69,9 +72,11 @@ Optional integrations are kept disabled in `src/site.config.ts`. Add the relevan
 - `develop` is the review branch. Cloudflare builds it as Preview, includes `draft: true` articles, and applies `noindex, nofollow`.
 - `main` is the production branch. It excludes drafts, allows search and AI retrieval crawlers, creates the sitemap, and deploys to `thearchiveof.com`.
 
-Write and review articles on `develop`. After review, change `draft` to `false` and merge `develop` into `main`.
+Start each new article on its own branch from the latest `develop`, for example `content/term-premium-explained`. Open a pull request into `develop`. After Preview review, change `draft` to `false` and merge `develop` into `main`.
 
-The repeatable Work authoring process, input brief, bilingual quality checks, and release checklist are documented in [`docs/EDITORIAL_WORKFLOW.md`](docs/EDITORIAL_WORKFLOW.md). Start each article from [`docs/ARTICLE_BRIEF_TEMPLATE.md`](docs/ARTICLE_BRIEF_TEMPLATE.md).
+Keep site design, layout, and functionality on a separate `design/` or `fix/` branch so an unfinished article does not mix with production UI changes. Articles already in progress on `develop` may stay there; this rule applies to new work.
+
+The branching rule, Work authoring process, input brief, bilingual quality checks, and release checklist are documented in [`docs/EDITORIAL_WORKFLOW.md`](docs/EDITORIAL_WORKFLOW.md). Start each article from [`docs/ARTICLE_BRIEF_TEMPLATE.md`](docs/ARTICLE_BRIEF_TEMPLATE.md).
 
 Cloudflare provides `CF_PAGES_BRANCH` automatically. For a local preview-style build, set `DEPLOY_ENV=preview`; no Cloudflare environment variable needs to be configured manually.
 
