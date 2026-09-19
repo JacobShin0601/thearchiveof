@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="The Archive of">
-  <rect width="32" height="32" fill="#f2f0e9"/>
-  <path fill="#1c201d" fill-rule="evenodd" d="M16 6.6 23.55 24.15h-2.36l-1.5-3.7h-7.38l-1.5 3.7H8.45L16 6.6Zm0 5.05-2.42 5.85h4.84L16 11.65Z"/>
-  <rect x="13.15" y="25.7" width="5.7" height="1.15" fill="#335f4b"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="title">
+  <title id="title">The Archive of — A monogram</title>
+  <rect width="32" height="32" rx="7" fill="#294c3e"/>
+  <path fill="#f2f0e9" fill-rule="evenodd" d="M14.5 6h3L24 24h2v2h-9v-2h2.8l-1.4-4h-6.8l-1.4 4H13v2H6v-2h2L14.5 6Zm.5 4.5L12.5 17h5L15 10.5Z"/>
 </svg>
