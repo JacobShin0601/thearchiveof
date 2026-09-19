@@ -11,23 +11,25 @@ Author brief
   → Korean source draft
   → English edited edition
   → paired MDX files (`draft: true`)
-  → PR into develop
+  → PR into develop (CI: npm test + npm run build)
   → merge to develop
   → Cloudflare Preview review
-  → corrections on the article branch or develop
+  → corrections on the article branch
   → `draft: false`
-  → develop → main merge
+  → PR the article branch into main
   → Production
 ```
 
 ## Branching
 
-Keep site work and article work on separate branches so a draft does not block design, and a design review does not collide with an unfinished essay.
+Keep site work and article work on separate branches so a draft does not block design, and a design review does not collide with an unfinished essay. Do not commit directly to `develop` or `main`.
 
 - `main` is production. Do not commit drafts or in-progress articles here.
 - `develop` is the integration and Cloudflare Preview branch. It may contain reviewed drafts, but it is not the place to start new writing.
-- Each new article gets its own branch from the latest `develop`, named `content/<english-slug>`. Open a pull request into `develop`. Cloudflare Preview builds `develop` only, so the live preview appears after that PR is merged.
-- Site design, layout, schema, and functionality use a separate branch from `main` or `develop`, named `design/<change>` or `fix/<change>`. Merge those changes on their own, without waiting for an article to be finished.
+- GitHub Actions runs `npm test` and `npm run build` on pull requests to `develop` and `main`, and again on the merge commit.
+- Cloudflare deploys automatically. Merge to `develop` updates Preview; merge to `main` updates `thearchiveof.com`. There is no extra deploy step. Feature branches do not get a Pages preview.
+- Each new article gets its own branch from the latest `develop`, named `content/<english-slug>`. Open a pull request into `develop`. After Preview approval, set `draft: false` and open a pull request from that article branch into `main`.
+- Site design, layout, schema, and functionality use `feat/<change>`, `design/<change>`, or `fix/<change>` from `develop` (or from `main` for a production-only hotfix). Pull request into `develop` first. When Preview is good, pull request the **same feature branch** into `main`. Do not merge all of `develop` into `main` while unpublished drafts should stay off production.
 - Articles already in progress on `develop` may stay there. This rule applies to new work.
 
 Do not add a new article, series metadata, or topic-registry entries on a design or fix branch. Do not mix a site redesign into an article branch.
@@ -102,7 +104,7 @@ Only `title`, `subtitle`, `description`, body text, and `language` normally diff
 
 ## 6. Preview review
 
-Work lands on an article branch first, then merges into `develop` for the first review. Do not update `main` until the pair is approved. Cloudflare automatically builds the Preview deployment from `develop`. Review both language buttons and confirm they open the corresponding edition.
+Work lands on an article branch first, then merges into `develop` for the first review. Do not update `main` until the pair is approved. Cloudflare automatically builds the Preview deployment from `develop`; GitHub Actions must be green on the pull request before that merge. Review both language buttons and confirm they open the corresponding edition.
 
 Checklist:
 
@@ -119,11 +121,11 @@ Checklist:
 
 After approval:
 
-1. apply corrections on the article branch or `develop`;
+1. apply corrections on the article branch;
 2. change both paired files to `draft: false`;
-3. run the production build;
-4. merge `develop` into `main` only for the approved article work, not for unrelated drafts;
-5. confirm the Cloudflare Production deployment.
+3. run the production build locally if you want a last check (`npm test` and `npm run build`);
+4. open a pull request from the article branch into `main` so unrelated `develop` drafts do not ship;
+5. confirm CI is green and the Cloudflare Production deployment finished.
 
 Never publish only one half of an approved pair accidentally. If an English edition is intentionally deferred, publish the Korean article without a `translationKey` until the English file is ready; the language button will then lead to the English homepage.
 
