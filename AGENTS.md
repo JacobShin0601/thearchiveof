@@ -6,7 +6,7 @@ Details: `README.md`, `docs/EDITORIAL_WORKFLOW.md`, `docs/interactivity.md`, `do
 
 ## Git and deploy
 
-Do not commit directly to `develop` or `main`. Start a branch, open a pull request, wait for CI (`npm test` and `npm run build`), then merge.
+Do not commit directly to `develop` or `main`. Start a branch, open a pull request, wait for CI (`npm test`, `npm run check:pages`, `npm run check:functions`, `npm run check:cloudflare`, and `npm run build`), then merge. CI rejects placeholder D1 IDs, missing `public/` assets, Functions that do not compile, and a missing Pages project. Do not deploy from Actions; Cloudflare Git still publishes `develop` and `main`.
 
 - Site work: `feat/<change>`, `fix/<change>`, or `design/<change>` → PR into `develop` → Preview → PR the **same branch** into `main`.
 - Articles: `content/<english-slug>` from latest `develop` → PR into `develop` with `draft: true` → after review, `draft: false` → PR that branch into `main`.
