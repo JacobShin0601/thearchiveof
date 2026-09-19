@@ -39,6 +39,8 @@ Copy this brief into Work when starting a new article. The author supplies the t
 ## 5. Publication metadata
 
 - Suggested English slug:
+- Branch: `content/<english-slug>` from latest `develop`
+- Title / optional subtitle:
 - Series / order:
 - Tags (2–5 secondary descriptors):
 - Featured: `false`
@@ -53,4 +55,4 @@ Copy this brief into Work when starting a new article. The author supplies the t
 3. Preserve the author's mandatory claims and distinguish fact, analysis, and inference.
 4. Produce an edited English edition from the approved Korean text; do not translate mechanically.
 5. Keep facts, numbers, sources, headings, and caveats aligned across both editions.
-6. Create paired MDX files with the same `translationKey`, set `draft: true`, and update `develop` only.
+6. Create paired MDX files with the same `translationKey`, set `draft: true`, and open a pull request from `content/<slug>` into `develop`. Do not start the article on `develop` or `main`.

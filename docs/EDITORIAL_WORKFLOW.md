@@ -6,17 +6,31 @@ Korean is the source edition. The English edition is an editorial adaptation mad
 
 ```text
 Author brief
+  → branch from latest develop (`content/<slug>`)
   → Work challenges gaps and develops the argument
   → Korean source draft
   → English edited edition
   → paired MDX files (`draft: true`)
-  → develop push
+  → PR into develop
+  → merge to develop
   → Cloudflare Preview review
-  → corrections in develop
+  → corrections on the article branch or develop
   → `draft: false`
   → develop → main merge
   → Production
 ```
+
+## Branching
+
+Keep site work and article work on separate branches so a draft does not block design, and a design review does not collide with an unfinished essay.
+
+- `main` is production. Do not commit drafts or in-progress articles here.
+- `develop` is the integration and Cloudflare Preview branch. It may contain reviewed drafts, but it is not the place to start new writing.
+- Each new article gets its own branch from the latest `develop`, named `content/<english-slug>`. Open a pull request into `develop`. Cloudflare Preview builds `develop` only, so the live preview appears after that PR is merged.
+- Site design, layout, schema, and functionality use a separate branch from `main` or `develop`, named `design/<change>` or `fix/<change>`. Merge those changes on their own, without waiting for an article to be finished.
+- Articles already in progress on `develop` may stay there. This rule applies to new work.
+
+Do not add a new article, series metadata, or topic-registry entries on a design or fix branch. Do not mix a site redesign into an article branch.
 
 ## 1. Intake
 
@@ -69,6 +83,8 @@ Topic hubs cross sections and group content by type. A topic page remains `noind
 The two files must share structural metadata:
 
 ```yaml
+title: "A clear, specific title"
+subtitle: "An optional supporting line under the title"
 section: "AI & AX"
 subsection: "Agents"
 contentType: "foundation"
@@ -82,11 +98,11 @@ draft: true
 translationKey: "example-article"
 ```
 
-Only `title`, `description`, body text, and `language` normally differ. Set `language: "ko"` for the source and `language: "en"` for the English edition.
+Only `title`, `subtitle`, `description`, body text, and `language` normally differ. Set `language: "ko"` for the source and `language: "en"` for the English edition. Use `title` for the heading and optional `subtitle` for the supporting line; keep the search summary in `description`.
 
 ## 6. Preview review
 
-Work updates `develop`, never `main`, for the first review. Cloudflare automatically builds the Preview deployment. Review both language buttons and confirm they open the corresponding edition.
+Work lands on an article branch first, then merges into `develop` for the first review. Do not update `main` until the pair is approved. Cloudflare automatically builds the Preview deployment from `develop`. Review both language buttons and confirm they open the corresponding edition.
 
 Checklist:
 
@@ -103,10 +119,10 @@ Checklist:
 
 After approval:
 
-1. apply corrections on `develop`;
+1. apply corrections on the article branch or `develop`;
 2. change both paired files to `draft: false`;
 3. run the production build;
-4. merge `develop` into `main`;
+4. merge `develop` into `main` only for the approved article work, not for unrelated drafts;
 5. confirm the Cloudflare Production deployment.
 
 Never publish only one half of an approved pair accidentally. If an English edition is intentionally deferred, publish the Korean article without a `translationKey` until the English file is ready; the language button will then lead to the English homepage.
