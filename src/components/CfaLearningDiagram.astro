@@ -1,50 +1,115 @@
 ---
-interface Props { kind: 'journey' | 'learning' | 'expansion' }
-const { kind } = Astro.props;
-const captions = {
-  journey: '그림 1. 리튬 가격 모델링에서 시작해 기업 공시의 금융 맥락을 배우고, AI와 금융을 함께 놓고 질문하게 된 과정.',
-  learning: '그림 2. 필요한 문제를 빠르게 푸는 학습과 개념 사이의 연결을 넓히는 학습. 두 방식은 서로 오가며 사용할 수 있습니다.',
-  expansion: '그림 3. 증설 발표를 공급 증가 신호로 읽는 데서 나아가, 자금·진행 단계·가격 조건을 통해 공급 실현 가능성을 묻는 일반화된 예시.',
-};
-const journey = ['리튬 가격 모델링', '기업 공시 읽기', '숫자의 의미에서 막힘', 'CFA 학습', '금융 맥락 이해', '더 나은 질문', 'AI × Finance'];
-const context = [
-  ['CapEx', '실제 투자 집행'], ['잉여현금흐름', '투자비 충당 가능성'], ['차입 여력', '추가 자금조달 조건'],
-  ['프로젝트 진행', '계획과 실제 단계'], ['리튬 가격 환경', '경제성과 연기 가능성'], ['장기 계약 · 헤지', '현금흐름과 가격 위험'],
-];
+interface Props {
+  kind: 'journey' | 'learning' | 'expansion';
+  language?: 'ko' | 'en';
+}
+const { kind, language = 'ko' } = Astro.props;
+const isKo = language === 'ko';
+const copy = isKo
+  ? {
+      labels: { journey: '01 / 배움의 경로', learning: '02 / 두 가지 학습', expansion: '03 / 발표에서 실행 가능성으로' },
+      captions: {
+        journey: '그림 1. 리튬 가격 모델링에서 시작해 기업 공시의 금융 맥락을 배우고, AI와 금융을 함께 놓고 질문하게 된 과정.',
+        learning: '그림 2. 필요한 문제를 빠르게 푸는 학습과 개념 사이의 연결을 넓히는 학습. 두 방식은 서로 오가며 사용할 수 있습니다.',
+        expansion: '그림 3. 증설 발표를 공급 증가 신호로 읽는 데서 나아가, 자금·진행 단계·가격 조건을 통해 공급 실현 가능성을 묻는 일반화된 예시.',
+      },
+      journey: ['리튬 가격 모델링', '기업 공시 읽기', '숫자의 의미에서 막힘', 'CFA 학습', '금융 맥락 이해', '더 나은 질문', 'AI × Finance'],
+      filingNote: '10-K · 10-Q · 실적 발표',
+      askTitle: '필요할 때 AI에게 묻는 학습',
+      askSteps: ['모르는 개념 발견', '질문', '설명', '코드', '업무 적용'],
+      askNote: '현재 문제에 빠르게 적용합니다.',
+      askLimit: '아직 모르는 영역은 지나치기 쉽습니다.',
+      structuredTitle: '체계적 학습',
+      subjects: ['회계', '경제학', '채권', '포트폴리오', '파생상품'],
+      connection: '개념 ↔ 맥락 ↔ 다른 개념',
+      structuredNote: '당장 필요하지 않은 연결도 배웁니다.',
+      structuredLimit: '시간이 들고 적용까지 거리가 있을 수 있습니다.',
+      takeaway: 'AI는 답을 빠르게 준다.',
+      takeawayLimit: '체계적 학습은 질문의 공간을 넓힌다.',
+      filingStage: '공시 문장',
+      filingText: '“향후 생산능력을 확대한다”',
+      filingSmall: 'Capacity expansion announced',
+      extractedStage: '텍스트에서 추출한 신호',
+      extractedText: '공급 증가 신호',
+      contextTitle: '금융 맥락을 함께 확인',
+      context: [
+        ['CapEx', '실제 투자 집행'], ['잉여현금흐름', '투자비 충당 가능성'], ['차입 여력', '추가 자금조달 조건'],
+        ['프로젝트 진행', '계획과 실제 단계'], ['리튬 가격 환경', '경제성과 연기 가능성'], ['장기 계약 · 헤지', '현금흐름과 가격 위험'],
+      ],
+      reframedStage: '다시 정의한 질문',
+      reframedText: '실제 공급이 실현될 가능성은?',
+      result: '더 나은 입력변수 후보 · 더 구체적인 모델 질문',
+      resultNote: '성능 개선 여부는 별도로 검증합니다.',
+    }
+  : {
+      labels: { journey: '01 / A path through learning', learning: '02 / Two kinds of study', expansion: '03 / From announcement to feasibility' },
+      captions: {
+        journey: 'Figure 1. From lithium-price modeling to the financial context in filings, then to questions that sit across AI and finance.',
+        learning: 'Figure 2. Fast, problem-driven learning and slower study that widens the links between ideas. The two can move back and forth.',
+        expansion: 'Figure 3. A generalized example: moving from a capacity-expansion announcement as a supply signal to asking whether supply will actually arrive.',
+      },
+      journey: ['Lithium-price modeling', 'Reading company filings', 'Stuck on what the numbers mean', 'CFA study', 'Financial context', 'Better questions', 'AI × Finance'],
+      filingNote: '10-K · 10-Q · earnings releases',
+      askTitle: 'Asking AI when you need it',
+      askSteps: ['Find a gap', 'Ask', 'Explanation', 'Code', 'Apply to work'],
+      askNote: 'It applies quickly to the current problem.',
+      askLimit: 'It is easy to skip what you do not yet know.',
+      structuredTitle: 'Structured study',
+      subjects: ['Accounting', 'Economics', 'Fixed income', 'Portfolio', 'Derivatives'],
+      connection: 'Concept ↔ context ↔ other concepts',
+      structuredNote: 'You also meet connections you do not need yet.',
+      structuredLimit: 'It takes time and sits farther from immediate use.',
+      takeaway: 'AI answers quickly.',
+      takeawayLimit: 'Structured study widens the space of questions.',
+      filingStage: 'Filing sentence',
+      filingText: '“We plan to expand production capacity.”',
+      filingSmall: 'Capacity expansion announced',
+      extractedStage: 'Signal extracted from the text',
+      extractedText: 'Supply-increase signal',
+      contextTitle: 'Check the financial context as well',
+      context: [
+        ['CapEx', 'Whether investment is actually spent'], ['Free cash flow', 'Whether the firm can fund it'], ['Debt capacity', 'Whether more financing is needed'],
+        ['Project progress', 'Plan versus actual stage'], ['Lithium-price setting', 'Economics and delay risk'], ['Long-term contracts · hedges', 'Cash flow and price risk'],
+      ],
+      reframedStage: 'Reframed question',
+      reframedText: 'Will the supply actually materialize?',
+      result: 'Better feature candidates · a more specific modeling question',
+      resultNote: 'Whether performance improves is a separate test.',
+    };
 ---
-<figure class="cfa-diagram" aria-labelledby={`cfa-${kind}-caption`}>
-  <p class="diagram-label" aria-hidden="true">{kind === 'journey' ? '01 / 배움의 경로' : kind === 'learning' ? '02 / 두 가지 학습' : '03 / 발표에서 실행 가능성으로'}</p>
+<figure class="cfa-diagram" aria-labelledby={`cfa-${kind}-${language}-caption`}>
+  <p class="diagram-label" aria-hidden="true">{copy.labels[kind]}</p>
   {kind === 'journey' && <ol class="journey" role="list">
-    {journey.map((label, index) => <li><span class="step-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span><span>{label}{index === 1 && <small>10-K · 10-Q · 실적 발표</small>}</span></li>)}
+    {copy.journey.map((label, index) => <li><span class="step-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span><span>{label}{index === 1 && <small>{copy.filingNote}</small>}</span></li>)}
   </ol>}
   {kind === 'learning' && <>
     <div class="learning-grid">
       <div class="learning-card">
-        <p class="card-title">필요할 때 AI에게 묻는 학습</p>
-        <ol class="learning-steps"><li>모르는 개념 발견</li><li>질문</li><li>설명</li><li>코드</li><li>업무 적용</li></ol>
-        <p class="note">현재 문제에 빠르게 적용합니다.<br />아직 모르는 영역은 지나치기 쉽습니다.</p>
+        <p class="card-title">{copy.askTitle}</p>
+        <ol class="learning-steps">{copy.askSteps.map((step) => <li>{step}</li>)}</ol>
+        <p class="note">{copy.askNote}<br />{copy.askLimit}</p>
       </div>
       <div class="learning-card">
-        <p class="card-title">체계적 학습</p>
-        <ul class="subjects" role="list"><li>회계</li><li>경제학</li><li>채권</li><li>포트폴리오</li><li>파생상품</li></ul>
-        <p class="connection">개념 ↔ 맥락 ↔ 다른 개념</p>
-        <p class="note">당장 필요하지 않은 연결도 배웁니다.<br />시간이 들고 적용까지 거리가 있을 수 있습니다.</p>
+        <p class="card-title">{copy.structuredTitle}</p>
+        <ul class="subjects" role="list">{copy.subjects.map((subject) => <li>{subject}</li>)}</ul>
+        <p class="connection">{copy.connection}</p>
+        <p class="note">{copy.structuredNote}<br />{copy.structuredLimit}</p>
       </div>
     </div>
-    <p class="takeaway">AI는 답을 빠르게 준다.<br />체계적 학습은 질문의 공간을 넓힌다.</p>
+    <p class="takeaway">{copy.takeaway}<br />{copy.takeawayLimit}</p>
   </>}
   {kind === 'expansion' && <div class="expansion">
-    <div class="signal"><span class="stage">공시 문장</span><p>“향후 생산능력을 확대한다”</p><small>Capacity expansion announced</small></div>
+    <div class="signal"><span class="stage">{copy.filingStage}</span><p>{copy.filingText}</p><small>{copy.filingSmall}</small></div>
     <span class="arrow" aria-hidden="true">↓</span>
-    <div class="signal"><span class="stage">텍스트에서 추출한 신호</span><p>공급 증가 신호</p></div>
+    <div class="signal"><span class="stage">{copy.extractedStage}</span><p>{copy.extractedText}</p></div>
     <span class="arrow" aria-hidden="true">↓</span>
-    <div class="context"><p class="card-title">금융 맥락을 함께 확인</p><ul role="list">{context.map(([title, description]) => <li><strong>{title}</strong><span>{description}</span></li>)}</ul></div>
+    <div class="context"><p class="card-title">{copy.contextTitle}</p><ul role="list">{copy.context.map(([title, description]) => <li><strong>{title}</strong><span>{description}</span></li>)}</ul></div>
     <span class="arrow" aria-hidden="true">↓</span>
-    <div class="signal"><span class="stage">다시 정의한 질문</span><p>실제 공급이 실현될 가능성은?</p></div>
+    <div class="signal"><span class="stage">{copy.reframedStage}</span><p>{copy.reframedText}</p></div>
     <span class="arrow" aria-hidden="true">↓</span>
-    <div class="result"><p>더 나은 입력변수 후보 · 더 구체적인 모델 질문</p><small>성능 개선 여부는 별도로 검증합니다.</small></div>
+    <div class="result"><p>{copy.result}</p><small>{copy.resultNote}</small></div>
   </div>}
-  <figcaption id={`cfa-${kind}-caption`}>{captions[kind]}</figcaption>
+  <figcaption id={`cfa-${kind}-${language}-caption`}>{copy.captions[kind]}</figcaption>
 </figure>
 <style>
   .cfa-diagram { margin: 2.5rem 0; padding: clamp(18px, 4vw, 30px); border: 1px solid var(--line); background: var(--paper-deep); color: var(--ink); font-family: var(--sans); }

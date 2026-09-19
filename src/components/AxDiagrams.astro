@@ -1,19 +1,66 @@
-<figure class="ax-diagram" aria-labelledby={Astro.props.id}>
-  <figcaption id={Astro.props.id}>{Astro.props.caption}</figcaption>
-  {Astro.props.kind === 'workflow' && (
+---
+interface Props {
+  kind: 'workflow' | 'needs' | 'context';
+  id: string;
+  caption: string;
+  language?: 'ko' | 'en';
+}
+
+const { kind, id, caption, language = 'ko' } = Astro.props;
+const isKo = language === 'ko';
+
+const workflow = isKo
+  ? [
+      { title: 'Traditional', steps: ['사람', '수집', '분석', '보고서·승인'] },
+      { title: 'AI-assisted', steps: ['사람', 'AI 도움', '수집·분석·초안', '검토·승인'] },
+      { title: 'AX / redesigned', accent: true, steps: ['Agent가 지속 수집·분석', '이상징후만 전달', '사람 판단·승인', '피드백'] },
+    ]
+  : [
+      { title: 'Traditional', steps: ['Person', 'Collect', 'Analyze', 'Report · approve'] },
+      { title: 'AI-assisted', steps: ['Person', 'AI help', 'Collect · analyze · draft', 'Review · approve'] },
+      { title: 'AX / redesigned', accent: true, steps: ['Agent collects and analyzes continuously', 'Escalates only anomalies', 'Person judges and approves', 'Feedback'] },
+    ];
+
+const needs = isKo
+  ? [
+      { kicker: 'Compression', title: 'Human capability → Machine speed', items: ['자료 취합과 문서 비교', '반복 리서치와 초안 작성', '여러 시스템의 정보 정리'] },
+      { kicker: 'Expansion', title: 'Human cognition → Augmented cognition', items: ['과거 결정과 현재 이슈 연결', '반론·리스크·시나리오 제안', '새로운 가설과 질문 생성'] },
+    ]
+  : [
+      { kicker: 'Compression', title: 'Human capability → Machine speed', items: ['Gathering materials and comparing documents', 'Repeated research and drafting', 'Organizing information across systems'] },
+      { kicker: 'Expansion', title: 'Human cognition → Augmented cognition', items: ['Connecting past decisions to current issues', 'Proposing counterarguments, risks, and scenarios', 'Generating new hypotheses and questions'] },
+    ];
+---
+
+<figure class="ax-diagram" aria-labelledby={id}>
+  <figcaption id={id}>{caption}</figcaption>
+  {kind === 'workflow' && (
     <div class="workflow-grid">
-      <div><strong>Traditional</strong><span>사람</span><i>→</i><span>수집</span><i>→</i><span>분석</span><i>→</i><span>보고서·승인</span></div>
-      <div><strong>AI-assisted</strong><span>사람</span><i>→</i><span>AI 도움</span><i>→</i><span>수집·분석·초안</span><i>→</i><span>검토·승인</span></div>
-      <div class="accent"><strong>AX / redesigned</strong><span>Agent가 지속 수집·분석</span><i>→</i><span>이상징후만 전달</span><i>→</i><span>사람 판단·승인</span><i>→</i><span>피드백</span></div>
+      {workflow.map((row) => (
+        <div class={row.accent ? 'accent' : undefined}>
+          <strong>{row.title}</strong>
+          {row.steps.map((step, index) => (
+            <>
+              {index > 0 && <i>→</i>}
+              <span>{step}</span>
+            </>
+          ))}
+        </div>
+      ))}
     </div>
   )}
-  {Astro.props.kind === 'needs' && (
+  {kind === 'needs' && (
     <div class="needs-grid">
-      <section><p class="kicker">Compression</p><h3>Human capability → Machine speed</h3><ul><li>자료 취합과 문서 비교</li><li>반복 리서치와 초안 작성</li><li>여러 시스템의 정보 정리</li></ul></section>
-      <section><p class="kicker">Expansion</p><h3>Human cognition → Augmented cognition</h3><ul><li>과거 결정과 현재 이슈 연결</li><li>반론·리스크·시나리오 제안</li><li>새로운 가설과 질문 생성</li></ul></section>
+      {needs.map((column) => (
+        <section>
+          <p class="kicker">{column.kicker}</p>
+          <h3>{column.title}</h3>
+          <ul>{column.items.map((item) => <li>{item}</li>)}</ul>
+        </section>
+      ))}
     </div>
   )}
-  {Astro.props.kind === 'context' && (
+  {kind === 'context' && (
     <div class="context-stack"><div>Foundation model</div><div>+ Company documents</div><div>+ Permissions</div><div>+ Past decisions</div><div>+ Workflow context</div><div>+ Human feedback</div><strong>= Enterprise context</strong></div>
   )}
 </figure>
