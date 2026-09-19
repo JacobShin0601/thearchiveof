@@ -17,9 +17,9 @@ const { language = 'ko' } = Astro.props;
   </div>
   <div class="footer-links">
     <a href={language === 'ko' ? '/rss.xml' : '/en/rss.xml'}>RSS</a>
-    {language === 'ko' && <a href="/topics/">토픽</a>}
-    {language === 'ko' && <a href="/series/">시리즈</a>}
-    <a href={language === 'ko' ? '/archive/' : '/en/archive/'}>{language === 'ko' ? '전체 글' : 'All articles'}</a>
+    <a href={language === 'ko' ? '/topics/' : '/en/topics/'}>{language === 'ko' ? '토픽' : 'Topics'}</a>
+    <a href={language === 'ko' ? '/series/' : '/en/series/'}>{language === 'ko' ? '시리즈' : 'Series'}</a>
+    <a href={language === 'ko' ? '/archive/' : '/en/archive/'}>{language === 'ko' ? '전체 글' : 'Archive'}</a>
     <span>© {year} {SITE_TITLE}</span>
   </div>
 </footer>

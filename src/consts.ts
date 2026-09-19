@@ -76,10 +76,10 @@ export const SECTIONS = [
     ],
   },
   {
-    name: 'Notes',
+    name: 'Perspectives',
     slug: 'misc',
     index: '05',
-    description: 'Short notes, reading records, essays, and ideas still taking shape.',
+    description: 'Perspectives, reading records, essays, and ideas still taking shape.',
     subsections: [
       { name: 'Short Notes', slug: 'notes' },
       { name: 'Reading', slug: 'reading' },
@@ -112,12 +112,14 @@ export function slugify(value: string) {
   return value.toLowerCase().trim().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
-export function topicPath(topic: string) {
-  return `/topics/${slugify(topic)}/`;
+export function topicPath(topic: string, language: 'ko' | 'en' = 'ko') {
+  const prefix = language === 'en' ? '/en' : '';
+  return `${prefix}/topics/${slugify(topic)}/`;
 }
 
-export function seriesPath(series: string) {
-  return `/series/${slugify(series)}/`;
+export function seriesPath(series: string, language: 'ko' | 'en' = 'ko') {
+  const prefix = language === 'en' ? '/en' : '';
+  return `${prefix}/series/${slugify(series)}/`;
 }
 
 export function labelFromSlug(slug: string) {

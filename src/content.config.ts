@@ -15,7 +15,7 @@ const posts = defineCollection({
     description: z.string().max(180),
     publishedDate: z.coerce.date(),
     updatedDate: z.coerce.date().optional(),
-    section: z.enum(['Investing', 'AI & AX', 'Lab', 'Mathematics', 'Notes']),
+    section: z.enum(['Investing', 'AI & AX', 'Lab', 'Mathematics', 'Perspectives']),
     subsection: z.string().min(1),
     contentType: z.enum(['foundation', 'research', 'current', 'implementation', 'perspective']),
     topics: z.array(topic).default([]),
