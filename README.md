@@ -69,16 +69,32 @@ Optional integrations are kept disabled in `src/site.config.ts`. Add the relevan
 
 ## Publishing workflow
 
+Do not commit directly to `develop` or `main`. Site work and articles both start on a branch, go through a pull request, and deploy only after that PR is merged.
+
 - `develop` is the review branch. Cloudflare builds it as Preview, includes `draft: true` articles, and applies `noindex, nofollow`.
 - `main` is the production branch. It excludes drafts, allows search and AI retrieval crawlers, creates the sitemap, and deploys to `thearchiveof.com`.
+- GitHub Actions runs `npm test` and `npm run build` on every pull request to those branches, and again on the merge commit.
 
-Start each new article on its own branch from the latest `develop`, for example `content/term-premium-explained`. Open a pull request into `develop`. After Preview review, change `draft` to `false` and merge `develop` into `main`.
+### Site functionality
 
-Keep site design, layout, and functionality on a separate `design/` or `fix/` branch so an unfinished article does not mix with production UI changes. Articles already in progress on `develop` may stay there; this rule applies to new work.
+Use `feat/<change>`, `fix/<change>`, or `design/<change>` from the latest `develop` (or from `main` for a production-only hotfix). Open a pull request into `develop`. After Preview looks right, open a second pull request from the **same feature branch** into `main`. Do not merge all of `develop` into `main` while unpublished drafts should stay off production.
+
+### New articles
+
+Start each article on `content/<english-slug>` from the latest `develop`. Open a pull request into `develop` with `draft: true`. After Preview review, set `draft: false` and open a pull request into `main` that contains only that approved pair.
 
 The branching rule, Work authoring process, input brief, bilingual quality checks, and release checklist are documented in [`docs/EDITORIAL_WORKFLOW.md`](docs/EDITORIAL_WORKFLOW.md). Start each article from [`docs/ARTICLE_BRIEF_TEMPLATE.md`](docs/ARTICLE_BRIEF_TEMPLATE.md).
 
 Cloudflare provides `CF_PAGES_BRANCH` automatically. For a local preview-style build, set `DEPLOY_ENV=preview`; no Cloudflare environment variable needs to be configured manually.
+
+## Deployment
+
+There is no separate deploy command. Cloudflare Pages watches GitHub:
+
+1. Merge to `develop` → Preview deploy (`*.pages.dev`, drafts visible, `noindex`).
+2. Merge to `main` → Production deploy (`thearchiveof.com`).
+
+Feature-branch pushes do not get a Cloudflare preview. Review happens after the develop merge. Local checks are `npm test`, `npm run build`, and `DEPLOY_ENV=preview npm run build` when you need draft pages.
 
 ## Cloudflare Pages
 
