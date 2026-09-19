@@ -1,0 +1,9 @@
+# Copy the D1 block into wrangler.toml only after the databases exist.
+# Preview and Production IDs must stay different.
+
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "archive-interactions-preview"
+# database_id = "<preview-uuid>"
+# preview_database_id = "DB"
+# migrations_dir = "migrations"

@@ -69,6 +69,8 @@ archive-interactions-production   → Production / main
 
 Binding name is `DB` in both environments. Apply `migrations/` to each database.
 
+Do not commit a placeholder `database_id` in `wrangler.toml`. Pages Git deploys will fail with a missing-database error. Create the two D1 databases, bind `DB` in the dashboard, then optionally copy real IDs from `wrangler.d1.example.toml`.
+
 ### Identity
 
 The browser stores an anonymous UUID in `localStorage`. The Function hashes `HMAC(INTERACTION_SECRET, articleKey + viewerId)` and stores only `actor_hash`. Raw IP, email, and fingerprints are not stored.
@@ -134,7 +136,7 @@ Measurement exists to improve the publication, not to build advertising profiles
 
 1. Workers & Pages → D1 → Create `archive-interactions-preview`.
 2. Create `archive-interactions-production`.
-3. Pages project → Settings → Bindings:
+3. Pages project → Settings → Bindings (not `wrangler.toml`, until the IDs are real):
    - Preview: `DB` → preview database
    - Production: `DB` → production database
 4. Pages project → Settings → Environment variables: `INTERACTION_SECRET` (different values per environment).
