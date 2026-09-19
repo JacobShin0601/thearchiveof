@@ -115,7 +115,7 @@ const articleKey = post.data.translationKey
         {post.data.tags.length > 0 && <span>{post.data.tags.join(' · ')}</span>}
       </div>
       {post.data.topics.length > 0 && <nav class="article-topics" aria-label="Article topics">
-        {post.data.topics.map((topic) => <a href={topicPath(topic)}>#{topic}</a>)}
+        {post.data.topics.map((topic) => <a href={topicPath(topic, post.data.language)}>#{topic}</a>)}
       </nav>}
     </header>
     <div class="article-body-wrap">
@@ -137,7 +137,7 @@ const articleKey = post.data.translationKey
 
     {post.data.series && (
       <nav class="series-nav" aria-label={`${post.data.series} series`}>
-        <p class="eyebrow">Series · <a href={seriesPath(post.data.series)}>{post.data.series}</a></p>
+        <p class="eyebrow">Series · <a href={seriesPath(post.data.series, post.data.language)}>{post.data.series}</a></p>
         <div>
           {previousInSeries ? <a href={postPath(previousInSeries)}>← {previousInSeries.data.title}</a> : <span></span>}
           {nextInSeries && <a href={postPath(nextInSeries)}>{nextInSeries.data.title} →</a>}
