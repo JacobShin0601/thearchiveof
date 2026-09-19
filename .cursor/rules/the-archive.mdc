@@ -1,0 +1,17 @@
+---
+description: The Archive branching, deploy, and static-first product rules
+alwaysApply: true
+---
+
+# The Archive
+
+Read `AGENTS.md` at the repo root at the start of site or article work.
+
+- Static Astro only. No SSR, `@astrojs/cloudflare`, or React unless the user asks.
+- Never commit to `develop` or `main`. Branch → PR → CI → merge.
+- Site: `feat/` `fix/` `design/` → PR `develop` → same branch PR `main`.
+- Articles: `content/<slug>` from `develop`, `draft: true` → later that branch to `main`.
+- Do not merge all of `develop` into `main` while drafts should stay off production.
+- Cloudflare deploys on merge. `develop` is Preview, `main` is Production.
+- Korean is the source edition. Share `translationKey`. Keep prose readable without JS.
+- Commit only when asked. Do not push or merge to `main` unless asked.
