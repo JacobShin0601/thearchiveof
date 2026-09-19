@@ -214,6 +214,8 @@ a:hover { color: var(--accent); }
 .prose .lead { font-family: var(--serif); font-size: 26px; line-height: 1.6; }
 .prose h2 { margin: 52px 0 12px; font-family: var(--serif); font-size: 36px; font-weight: 400; }
 .prose p { color: #424741; }
+.about-notes { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line); }
+.about-notes p { color: var(--muted); font-size: 14px; }
 
 .article-header { max-width: 990px; margin: 0 auto; padding: 44px 0 60px; text-align: center; border-bottom: 1px solid var(--ink); }
 .breadcrumbs { max-width: 990px; margin: 0 auto; }
