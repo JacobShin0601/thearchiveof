@@ -1,0 +1,110 @@
+---
+title: 'The Point of AX Is Transformation, Not AI'
+description: 'Why enterprise AX stalls, what practitioners actually need, and why organizational context matters more than another model.'
+publishedDate: 2026-09-19
+section: 'AI & AX'
+subsection: 'AX'
+contentType: research
+topics: [ax, enterprise-ai, ai-agents]
+primaryTopic: ax
+tags: [ax, enterprise-ai, agents, transformation, workflow]
+author: 'Jacob Shin'
+language: en
+translationKey: ax-is-transformation
+draft: true
+featured: false
+comments: false
+pillar: false
+freshness: evergreen
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AxDiagrams from '../../../../components/AxDiagrams.astro';
+
+<AnswerBlock question="Why do so many enterprise AI transformation efforts fall short of expectations?">
+  Many organizations treat AX as a matter of adopting AI, when the harder work is redesigning how work and organizations operate. Without small wins, active participation from practitioners, internal context and data, and a new division of labor between people and AI, adding a better model or another tool rarely becomes real transformation.
+</AnswerBlock>
+
+I work on AX inside a large Korean company. In recent years, AX has become a central management priority across most large enterprises. Messages come down from leadership, teams create initiatives, and proofs of concept, internal training, and new solutions follow. From the outside, it can look as if the whole company is rapidly becoming AI-first.
+
+Inside the work, a different set of stories repeats. There are many proofs of concept but few things people actually use. Practitioners are not particularly engaged. It is hard to explain how much productivity has improved. A demo looks impressive, but becomes difficult to use when it meets a real workflow.
+
+Many organizations put the emphasis on AI when they say AX. But the more important word comes after it: **Transformation.** The point of AX is transformation, not AI.
+
+## Prove value with a small problem first
+
+It is tempting to begin with a company-wide knowledge platform, connect every system, and announce an agent-based operating model. But when teams have no concrete experience of success, a large blueprint only increases the distance between technology and work.
+
+AX is better started with a small, narrow, sharp problem. A three-hour report takes thirty minutes. A task that required searching dozens of documents finishes in a few minutes. An agent handles the first pass on an unstructured document and a person checks only the exceptions.
+
+The starting point for AX is not “our model is 92% accurate.” It is **“after using this, the way I work actually changed.”** A better question is whether the person who experienced it wants to go back to the old way.
+
+## The moment AX becomes extra work for practitioners
+
+Enterprise AX usually begins top-down. Headquarters or group leadership sets the direction, each organization submits initiatives, and executives ask for visible results. The problem starts when the core job, KPIs, and schedule stay the same while AX is added on top.
+
+Practitioners then choose easy projects, repackage an existing automation as AI, and build a demo that is easy to show. It is too simple to explain the resulting pile of unmaintained proofs of concept as a lack of commitment. It is also an **incentive design** problem. If AX is truly important, leaders must decide which existing work will be removed as well.
+
+## People expect AI to be a magic wand
+
+Organizations accustomed to commercial SaaS often expect a new tool to work like this: buy it, install it, log in, click a button, and productivity rises. But when AI enters real work, the organization must decide how far AI can judge, where human approval belongs, who owns responsibility when it fails, which data is allowed, and when it should escalate to a person.
+
+Transformation is uncomfortable by nature. Many organizations want the convenience AI promises while skipping the uncomfortable work of changing how decisions and responsibilities are arranged. The cost of change cannot be skipped while keeping the result of change.
+
+## Using AI is different from doing AX
+
+Summarizing an email with ChatGPT, drafting a report with Claude, or writing code with Copilot can all be excellent uses of AI. They are not automatically AX. AI use makes an existing task faster. AX redesigns the task because AI is now part of the operating model.
+
+<AxDiagrams kind="workflow" id="workflow-diagram-en" caption="Putting AI into an existing process is different from redesigning the process itself." />
+
+In the old workflow, a person gathers data, analyzes it, writes a report, and sends it through review and approval. In an AI-assisted workflow, AI helps with some of those steps. In AX, an agent continuously monitors and analyzes information, sends only anomalies to a person, and receives the person’s decision and approval as feedback for its next action. The role and sequence change; one step is not merely accelerated.
+
+## Practitioners want two things from AI
+
+After long conversations with teams in different functions, the requests I heard repeatedly fell into two directions. One was to make work they could already do much faster and cheaper. The other was to think with them about things they had not considered.
+
+### Compression
+
+Compression reduces work that people can do but that consumes time: collecting materials, comparing documents, repeated research, drafting reports, checking a specific contract clause, and organizing information across systems. RPA is strong at structured, repetitive work. Agentic AI extends the boundary into unstructured documents, context, and deciding what to do next. It is a shift from **human capability to machine speed**.
+
+### Expansion
+
+Expansion connects internal reports, compares past projects with current issues, and proposes counterarguments, unexpected risks, and new hypotheses. It goes beyond asking a general-purpose tool a question by expanding thought from the company’s own material and memory. It is a shift from **human cognition to augmented cognition**.
+
+<AxDiagrams kind="needs" id="needs-diagram-en" caption="Practitioners’ AI needs split between compressing time and expanding thought." />
+
+## The core of enterprise AI is context, more than security
+
+Security is a prerequisite for enterprise AI. But the harder asset that differentiates enterprise systems is organizational context.
+
+A general-purpose model does not know why a past project failed, what a particular customer actually values, or why two departments interpret the same number differently. It does not know judgments that never made it into an official document or the tacit knowledge held in supplier relationships. A general-purpose model knows many things about the world. It does not know **why our company has made its decisions over the past decade.**
+
+That is why internal AX does not end with putting documents into a vector database. It also requires data connections, permission design, information trust, links between workflows and AI, and the accumulation of human feedback. The central question is how well the company can connect its memory to the systems where work happens.
+
+<AxDiagrams kind="context" id="context-diagram-en" caption="Enterprise AI builds the company’s memory and workflow context on top of a foundation model." />
+
+## Which work will AI absorb first?
+
+AI can take on work more easily when the required information is digital, the process is standardized, inputs and outputs are clear, and the criteria for a good result are explicit. It is harder when information lives in people’s heads, relationships and tacit knowledge matter, and the work requires negotiation and accountability.
+
+Consider choosing a supplier. The decision is not based only on price, quality, and delivery time. It also involves trust built over time, supply-chain risk, long-term strategy, room for negotiation, customer reaction, geopolitical risk, and executive priorities. Work like this is likely to remain a copilot relationship for a long time rather than become fully automated.
+
+## The destination of AX may not be an organization without people
+
+AI is good at search, summarization, drafting, analysis, monitoring, generating hypotheses, scenario analysis, and repeated execution. People retain goal-setting, context, value judgments, stakeholder coordination, accountability, and final decisions.
+
+The question is less “Will AI replace people?” than **“How should work be divided between people and AI?”** AX is the design of a new division of labor: what AI owns, which judgments stay with people, and how the result from each side becomes the next action.
+
+## What matters is not how much AI an organization uses
+
+User counts, proof-of-concept counts, agent counts, and API calls can show activity. They do not prove transformation. The more important questions are these:
+
+- Did the workflow change because of AI?
+- Did the amount of work people had to do actually decrease?
+- Do people now have more time for higher-value judgment?
+- Can the organization make decisions that were previously impossible?
+- Do practitioners want to use the system again on their own?
+
+The more I work on AX, the more I return to these questions. What matters is not how much AI the organization adopted, but how much the way it works changed because of AI.
+
+**The point of AX is transformation, not AI.**
