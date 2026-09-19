@@ -6,9 +6,12 @@ const { language = 'ko' } = Astro.props;
 ---
 
 <footer class="site-footer shell">
-  <div>
-    <p class="footer-mark">The Archive of</p>
-    <p>Explain → Model → Test → Interpret</p>
+  <div class="footer-brand">
+    <p class="footer-mark">
+      <span class="wordmark-the">The</span>
+      <span class="footer-name">Archive of</span>
+    </p>
+    <p class="footer-method">Explain → Model → Test → Interpret</p>
   </div>
   <div class="footer-links">
     <a href={language === 'ko' ? '/rss.xml' : '/en/rss.xml'}>RSS</a>

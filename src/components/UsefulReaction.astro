@@ -16,7 +16,11 @@ const isKo = language === 'ko';
   <p class="eyebrow">{isKo ? '반응' : 'Response'}</p>
   <h2>{isKo ? '이 글이 도움이 되었나요?' : 'Was this useful?'}</h2>
   <button type="button" class="useful-button" aria-pressed="false" aria-busy="false">
-    <span class="useful-mark" aria-hidden="true"></span>
+    <span class="useful-icon" aria-hidden="true">
+      <svg viewBox="0 0 16 16">
+        <path fill="currentColor" d="M5.15 14.4H2.7A1.2 1.2 0 0 1 1.5 13.2V8.05c0-.66.54-1.2 1.2-1.2h2.45c.28 0 .54.1.74.28l.7.64V13.2c0 .66-.54 1.2-1.2 1.2Zm8.72-7.68c.55 0 1.01.4 1.1.94l.53 3.28a2.4 2.4 0 0 1-2.38 2.78H7.55a.9.9 0 0 1-.9-.9V7.43c0-.24.1-.47.26-.64l2.7-2.86c.3-.32.8-.4 1.18-.2.5.25.72.84.5 1.34L10.7 6.72h3.17Z"/>
+      </svg>
+    </span>
     <span class="useful-label">Useful</span>
     <span aria-hidden="true">·</span>
     <span class="useful-count">0</span>
@@ -32,9 +36,8 @@ const isKo = language === 'ko';
     const language = root.dataset.language === 'en' ? 'en' : 'ko';
     const button = root.querySelector<HTMLButtonElement>('.useful-button');
     const count = root.querySelector('.useful-count');
-    const mark = root.querySelector('.useful-mark');
     const status = root.querySelector('.useful-status');
-    if (!button || !count || !status || !mark) return;
+    if (!button || !count || !status) return;
 
     const failed = language === 'ko' ? '반응을 저장하지 못했습니다.' : 'Could not save reaction.';
     const id = viewerId();
@@ -44,7 +47,6 @@ const isKo = language === 'ko';
       count.textContent = String(data.count ?? 0);
       button.setAttribute('aria-pressed', String(reacted));
       button.classList.toggle('is-reacted', reacted);
-      mark.textContent = reacted ? '✓ ' : '';
       button.setAttribute('aria-label', `Useful, ${data.count ?? 0}`);
     };
 

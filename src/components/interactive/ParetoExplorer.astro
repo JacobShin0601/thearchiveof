@@ -14,8 +14,8 @@ const payload = JSON.stringify(restaurants);
   <h2>{isKo ? '가중치를 바꾸면 선택이 달라진다' : 'Change the weights and the choice moves'}</h2>
   <p>
     {isKo
-      ? '위 표와 차트는 그대로입니다. 여기서는 같은 가상 데이터로 가중합이 파레토 후보 중 어디를 고르는지 볼 수 있습니다. Python을 실행하지는 않습니다.'
-      : 'The table and charts above stay as written. This block uses the same illustrative data to show how a weighted sum picks among Pareto candidates. It does not execute Python.'}
+      ? '위 표와 차트는 그대로입니다. 여기서는 같은 가상 데이터로 가중합이 파레토 후보 중 어디를 고르는지 볼 수 있습니다.'
+      : 'The table and charts above stay as written. This block uses the same illustrative data to show how a weighted sum picks among Pareto candidates.'}
   </p>
 
   <div class="explorer-presets" role="group" aria-label={isKo ? '가중치 프리셋' : 'Weight presets'}>
@@ -27,7 +27,7 @@ const payload = JSON.stringify(restaurants);
 
   <div class="explorer-weights">
     <label>{isKo ? '가격 가중치' : 'Price weight'} <input type="range" name="wPrice" min="0" max="20" value="10" /> <span data-out="wPrice">1.0</span></label>
-    <label>{isKo ? '이동시간 가중치' : 'Travel-time weight'} <input type="range" name="wTime" min="0" max="20" value="10" /> <span data-out="wTime">1.0</span></label>
+    <label>{isKo ? '이동시간 가중치' : 'Travel-time weight'} <input type="range" name="wTime" min="0" max="20" value="16" /> <span data-out="wTime">1.6</span></label>
     <label>{isKo ? '맛 가중치' : 'Taste weight'} <input type="range" name="wTaste" min="0" max="20" value="10" /> <span data-out="wTaste">1.0</span></label>
   </div>
 
@@ -55,65 +55,29 @@ const payload = JSON.stringify(restaurants);
     </table>
   </div>
 
-  <svg class="explorer-chart" viewBox="0 0 600 360" role="img" aria-labelledby="explorer-chart-title">
+  <svg class="explorer-chart" viewBox="0 0 600 390" role="img" aria-labelledby="explorer-chart-title">
     <title id="explorer-chart-title">{isKo ? '가격과 이동시간의 실험용 산점도' : 'Explorable price and travel-time scatterplot'}</title>
   </svg>
 
+  <p class="explorer-choice" data-choice></p>
   <p class="explorer-result" role="status"></p>
   <div class="explorer-actions">
-    <button type="button" class="explorer-run">{isKo ? '예시 실행' : 'Run the example'}</button>
+    <button type="button" class="explorer-run">{isKo ? '이 가중치로 보기' : 'Apply these weights'}</button>
     <button type="button" class="explorer-reset">{isKo ? '원래 값으로' : 'Reset'}</button>
   </div>
 </section>
 
 <script>
   import { restaurants as source } from '../../data/pareto-restaurants';
+  import { efficientOf, weightedChoice, type Place } from '../../data/pareto-score';
   import { track } from '../../scripts/track';
 
-  type Place = { name: string; price: number; travelTime: number; taste: number };
   const presets: Record<string, [number, number, number]> = {
-    balanced: [10, 10, 10],
-    cheap: [20, 5, 5],
-    near: [5, 20, 5],
-    tasty: [5, 5, 20],
+    balanced: [10, 16, 10],
+    cheap: [20, 2, 2],
+    near: [2, 20, 2],
+    tasty: [2, 2, 20],
   };
-
-  function dominates(a: Place, b: Place) {
-    return a.price <= b.price && a.travelTime <= b.travelTime && a.taste >= b.taste
-      && (a.price < b.price || a.travelTime < b.travelTime || a.taste > b.taste);
-  }
-
-  function efficientOf(places: Place[]) {
-    return places.filter((candidate) => !places.some((other) => dominates(other, candidate)));
-  }
-
-  function normalize(values: number[], invert = false) {
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const span = max - min || 1;
-    return values.map((value) => {
-      const unit = (value - min) / span;
-      return invert ? 1 - unit : unit;
-    });
-  }
-
-  function weightedChoice(places: Place[], weights: [number, number, number]) {
-    const cheap = normalize(places.map((place) => place.price), true);
-    const near = normalize(places.map((place) => place.travelTime), true);
-    const tasty = normalize(places.map((place) => place.taste));
-    const [wPrice, wTime, wTaste] = weights;
-    const total = wPrice + wTime + wTaste || 1;
-    let best = 0;
-    let bestScore = Number.NEGATIVE_INFINITY;
-    places.forEach((_place, index) => {
-      const score = (wPrice * cheap[index] + wTime * near[index] + wTaste * tasty[index]) / total;
-      if (score > bestScore) {
-        bestScore = score;
-        best = index;
-      }
-    });
-    return places[best];
-  }
 
   function readPlaces(root: HTMLElement): Place[] {
     return [...root.querySelectorAll<HTMLTableRowElement>('tbody tr')].map((row) => ({
@@ -121,7 +85,7 @@ const payload = JSON.stringify(restaurants);
       price: Number(row.querySelector<HTMLInputElement>('input[name="price"]')?.value),
       travelTime: Number(row.querySelector<HTMLInputElement>('input[name="travelTime"]')?.value),
       taste: Number(row.querySelector<HTMLInputElement>('input[name="taste"]')?.value),
-    }));
+    })).filter((place) => Number.isFinite(place.price) && Number.isFinite(place.travelTime) && Number.isFinite(place.taste));
   }
 
   function readWeights(root: HTMLElement): [number, number, number] {
@@ -129,19 +93,34 @@ const payload = JSON.stringify(restaurants);
     return [value('wPrice'), value('wTime'), value('wTaste')];
   }
 
-  function draw(svg: SVGSVGElement, places: Place[], efficient: Place[]) {
-    const x = (minutes: number) => 80 + (minutes - 10) / 50 * 460;
-    const y = (price: number) => 280 - (price - 15000) / 25000 * 210;
+  function draw(svg: SVGSVGElement, places: Place[], efficient: Place[], choice?: Place, language: 'ko' | 'en' = 'ko') {
+    const times = places.map((place) => place.travelTime);
+    const prices = places.map((place) => place.price);
+    const minT = Math.min(...times) - 5;
+    const maxT = Math.max(...times) + 5;
+    const minP = Math.min(...prices) * 0.9;
+    const maxP = Math.max(...prices) * 1.1;
+    const spanT = maxT - minT || 1;
+    const spanP = maxP - minP || 1;
+    const x = (minutes: number) => 80 + (minutes - minT) / spanT * 460;
+    const y = (price: number) => 290 - (price - minP) / spanP * 220;
     const frontier = [...efficient].sort((a, b) => a.travelTime - b.travelTime)
       .map((place) => `${x(place.travelTime)},${y(place.price)}`).join(' ');
+    const selected = language === 'ko' ? '선택' : 'chosen';
     svg.innerHTML = `
-      <path d="M80 50 V280 H560" fill="none" stroke="currentColor"></path>
+      <text x="80" y="28" fill="#1c201d" font-size="13" font-weight="600">${language === 'ko' ? '1인당 가격' : 'Price'}</text>
+      <path d="M80 50 V290 H560" fill="none" stroke="currentColor"></path>
+      <text x="320" y="372" text-anchor="middle" fill="#676b64" font-size="13">${language === 'ko' ? '평균 이동시간 (분)' : 'Average travel time (minutes)'}</text>
       <polyline points="${frontier}" fill="none" stroke="#335f4b" stroke-dasharray="6 5"></polyline>
       ${places.map((place) => {
         const ok = efficient.some((item) => item.name === place.name);
+        const picked = choice?.name === place.name;
+        const cx = x(place.travelTime);
+        const cy = y(place.price);
         return `<g>
-          <circle cx="${x(place.travelTime)}" cy="${y(place.price)}" r="7" fill="${ok ? '#335f4b' : '#c9c6bc'}"></circle>
-          <text x="${x(place.travelTime) + 10}" y="${y(place.price) - 10}" font-size="14">${place.name}</text>
+          ${picked ? `<circle cx="${cx}" cy="${cy}" r="13" fill="none" stroke="#335f4b" stroke-width="2"></circle>` : ''}
+          <circle cx="${cx}" cy="${cy}" r="${picked ? 8 : 7}" fill="${ok ? '#335f4b' : '#c9c6bc'}"></circle>
+          <text x="${cx + 12}" y="${cy - 12}" font-size="14" fill="#1c201d">${place.name}${picked ? ` (${selected})` : ''}</text>
         </g>`;
       }).join('')}
     `;
@@ -156,15 +135,29 @@ const payload = JSON.stringify(restaurants);
       if (input) out.textContent = (Number(input.value) / 10).toFixed(1);
     });
     const efficient = efficientOf(places);
-    const dominated = places.filter((place) => !efficient.includes(place));
-    const choice = weightedChoice(places, weights);
+    const dominated = places.filter((place) => !efficient.some((item) => item.name === place.name));
+    const pool = efficient.length ? efficient : places;
+    const choice = weightedChoice(pool, weights);
     const svg = root.querySelector<SVGSVGElement>('.explorer-chart');
     const result = root.querySelector('.explorer-result');
-    if (svg) draw(svg, places, efficient);
+    const choiceLine = root.querySelector('[data-choice]');
+    if (svg) draw(svg, places, efficient, choice, language);
+    root.querySelectorAll<HTMLTableRowElement>('tbody tr').forEach((row) => {
+      row.classList.toggle('is-chosen', row.dataset.name === choice?.name);
+    });
+    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => {
+      const next = presets[button.dataset.preset ?? ''];
+      button.classList.toggle('is-active', Boolean(next && next.every((value, index) => value === weights[index])));
+    });
+    if (choiceLine) {
+      choiceLine.textContent = language === 'ko'
+        ? `지금 가중합 선택: ${choice?.name ?? '없음'}`
+        : `Weighted-sum choice: ${choice?.name ?? 'none'}`;
+    }
     if (result) {
       result.textContent = language === 'ko'
-        ? `파레토 후보: ${efficient.map((place) => place.name).join(', ') || '없음'}. 지배됨: ${dominated.map((place) => place.name).join(', ') || '없음'}. 현재 가중치의 가중합 선택: ${choice.name}.`
-        : `Pareto candidates: ${efficient.map((place) => place.name).join(', ') || 'none'}. Dominated: ${dominated.map((place) => place.name).join(', ') || 'none'}. Weighted-sum choice: ${choice.name}.`;
+        ? `파레토 후보: ${efficient.map((place) => place.name).join(', ') || '없음'}. 지배됨: ${dominated.map((place) => place.name).join(', ') || '없음'}.`
+        : `Pareto candidates: ${efficient.map((place) => place.name).join(', ') || 'none'}. Dominated: ${dominated.map((place) => place.name).join(', ') || 'none'}.`;
     }
     if (announceRun) {
       track('code_run', { articleSlug: 'pareto-optimization-dinner-with-friends', language, component: 'pareto-explorer-v1' });
@@ -182,15 +175,17 @@ const payload = JSON.stringify(restaurants);
       if (travel) travel.value = String(place.travelTime);
       if (taste) taste.value = String(place.taste);
     });
-    (['wPrice', 'wTime', 'wTaste'] as const).forEach((name) => {
+    const defaults = presets.balanced;
+    (['wPrice', 'wTime', 'wTaste'] as const).forEach((name, index) => {
       const input = root.querySelector<HTMLInputElement>(`input[name="${name}"]`);
-      if (input) input.value = '10';
+      if (input) input.value = String(defaults[index]);
     });
   }
 
   document.querySelectorAll<HTMLElement>('.pareto-explorer').forEach((root) => {
     render(root);
     root.addEventListener('input', () => render(root));
+    root.addEventListener('change', () => render(root));
     root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => {
       button.addEventListener('click', () => {
         const next = presets[button.dataset.preset ?? ''] ?? presets.balanced;
@@ -199,7 +194,7 @@ const payload = JSON.stringify(restaurants);
           const input = root.querySelector<HTMLInputElement>(`input[name="${name}"]`);
           if (input) input.value = String(next[index]);
         });
-        render(root);
+        render(root, true);
       });
     });
     root.querySelector('.explorer-reset')?.addEventListener('click', () => {
@@ -207,7 +202,6 @@ const payload = JSON.stringify(restaurants);
       render(root);
     });
     root.querySelector('.explorer-run')?.addEventListener('click', () => {
-      reset(root);
       render(root, true);
     });
   });

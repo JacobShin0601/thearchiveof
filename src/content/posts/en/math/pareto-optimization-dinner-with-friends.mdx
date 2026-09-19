@@ -34,6 +34,7 @@ import AnswerBlock from '../../../../components/AnswerBlock.astro';
 import RestaurantTable from '../../../../components/optimization/RestaurantTable.astro';
 import DominanceComparison from '../../../../components/optimization/DominanceComparison.astro';
 import ParetoChart from '../../../../components/optimization/ParetoChart.astro';
+import ParetoExplorer from '../../../../components/interactive/ParetoExplorer.astro';
 
 <AnswerBlock question="What is Pareto optimization?">
   Pareto optimization is a way to reason about several competing objectives. It keeps the choices for which no other feasible choice is at least as good on every criterion and strictly better on one. There may be more than one such choice; together, they show the trade-offs among the objectives.
@@ -115,6 +116,8 @@ Score = Food quality × w1 - Price × w2 - Travel time × w3
 
 Food quality is higher-is-better, so it is added. Price and travel time are lower-is-better, so they are subtracted. But why should the food weight be 0.5 and the price weight 0.2? The table cannot tell us. Those numbers express what the group values, and the units and scales differ. Preferences do not disappear when we combine objectives into one score; they move into the weights.
 
+<ParetoExplorer language="en" />
+
 ## Average travel time can hide an unfair trip
 
 Consider a separate illustrative example. X and Y have the same price and food score; only travel time differs.
@@ -152,7 +155,9 @@ At least now, when someone asks “Why this restaurant?”, we can answer with m
 
 ## Next: multi-objective optimization
 
-Our dinner decision had three objectives. Real business problems may involve cost, carbon emissions, supply reliability, service levels, and more. The next article will show how to formulate such a problem as **multi-objective optimization**, including multiple objective functions, preferences, weighted sums, and the ε-constraint method.
+Dinner had about three objectives. Work usually has more. The price has to come down, so does the carbon, and the shipment still has to arrive.
+
+The next article takes a procurement problem I actually worked through. I will show what collided, and how I sorted it out as **multi-objective optimization**.
 
 Related topics: [Optimization](/en/topics/optimization/) · [Pareto Optimization](/en/topics/pareto-optimization/) · [Multi-objective Optimization](/en/topics/multi-objective-optimization/)
 
