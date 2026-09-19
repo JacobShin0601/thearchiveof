@@ -1,6 +1,6 @@
 ---
-title: "Why I keep research in an archive, not a feed"
-description: "Why this archive preserves not only conclusions from investing, AI, mathematics, and experiments, but also the evidence, assumptions, and reasoning that produced them."
+title: "Why I Keep Research as an Archive, Not a Feed"
+description: "Why I keep questions, evidence, assumptions, and revision conditions with the conclusion, so research can be revisited and reused."
 publishedDate: 2026-08-31
 section: "AI & AX"
 subsection: "Agents"
@@ -24,17 +24,17 @@ nextReviewDate: 2027-03-01
 
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
 
-<AnswerBlock question="What belongs in this archive?">
-  Not only conclusions from investing, AI, mathematics, and projects, but also the questions, data, assumptions, and reasoning that produced them. The goal is to create documents that can be revisited to see what held up and what needs to change.
+<AnswerBlock question="What am I trying to preserve in this archive?">
+  Not just the conclusions I reach in investing, AI, mathematics, and projects, but also the questions, data, assumptions, reasoning, and conditions that would make me revise them. The goal is to leave behind research that can still be examined later: what was right, what was wrong, and why I thought the way I did.
 </AnswerBlock>
 
-Notes disappear more easily than we expect.
+In research, the thing that disappears most easily is not the conclusion. It is the path that led to it.
 
-A sentence in a notes app, a useful conversation, the code behind an analysis, and the sources left open in a browser all end up in different places. At the time, the idea feels complete. A few months later, only the conclusion remains and the reasoning that produced it is gone.
+A few months later, a conclusion may remain — rates may fall, a company looked attractive, a system design seemed better — while the evidence, assumptions, and conditions that shaped it have disappeared. The sentence in a notes app, the useful conversation, the code behind an analysis, and the sources left open in a browser have all ended up somewhere else.
 
-I did not create The Archive to publish more often. I created it to make **past thinking reusable**.
+I did not build The Archive to publish more often. I built it so that a thought I had once could still be examined, revised, and reused later.
 
-## Preserve the decision process, not just the conclusion
+## Keep the reasoning, not just the conclusion
 
 Suppose I record only the sentence, “Interest rates are likely to fall.” Months later, I can check whether the forecast was correct, but little else. A real decision requires more context:
 
@@ -44,51 +44,80 @@ Suppose I record only the sentence, “Interest rates are likely to fall.” Mon
 - How did that view lead to a decision about portfolio duration?
 - What new evidence would make me change my mind?
 
-Those questions make a wrong outcome useful. They help distinguish bad reasoning from a reasonable decision followed by bad luck.
+Those questions make a wrong outcome useful. They help distinguish poor reasoning from a reasonable decision followed by bad luck. A good outcome, on the other hand, does not automatically validate weak reasoning.
 
-That is why these articles try to separate **claims, evidence, assumptions, inference, and conditions for revision**. The purpose is less to display finished knowledge than to preserve the path by which an idea was formed.
+Being wrong is not the part that bothers me most. What bothers me more is reaching a point where I can no longer explain why I made the decision in the first place.
+
+That is why these articles try to keep the following distinct:
+
+> - Question
+> - Facts and data
+> - Assumptions
+> - Interpretation and reasoning
+> - Conclusion
+> - Conditions for revision
+
+The purpose is less to display finished knowledge than to preserve the path by which a conclusion was formed.
 
 ## Why put different fields in one place?
 
-Investing, AI & AX, mathematics, and hands-on projects appear to be separate subjects. In practice, the questions that interest me often share one underlying structure:
+Investing, AI, optimization, mathematics, and coding look like separate fields. In practice, they repeatedly return to a similar problem:
 
-> How should we interpret uncertain information and make decisions in a constrained world?
+> How do we interpret incomplete information and make decisions under real-world constraints?
 
-In investing, a view must become a position. In AI, a model’s potential must become a working process. Mathematics provides the language of probability, estimation, and optimization. Projects in the Lab test whether those ideas survive contact with reality.
+In investing, we infer an uncertain future from incomplete information and turn that view into a position. In AI, we decide how probabilistic model outputs should be controlled and used inside real workflows. Optimization asks how to choose among conflicting objectives under constraints such as cost, time, capacity, or risk. Mathematics provides the language of probability, estimation, and optimization. Code makes those ideas executable and testable.
 
-Keeping them in one archive makes it easier to preserve the connections that disappear when each field is treated as an isolated folder.
+The point is not that all disciplines are the same. It is that they often share a decision structure. Keeping them in one archive makes it easier to preserve the connections that disappear when each field is treated as an isolated folder.
 
 ## Public documents put useful pressure on thinking
 
 Private notes tolerate phrases such as “I know what I mean.” Public writing does not. A claim must be stated clearly, facts must be separated from interpretation, and numbers and sources must be checked again.
 
-That pressure is uncomfortable but useful. Publishing is not a declaration that I am always right. It is a way to let someone else inspect **why I thought this was right**.
+That pressure is uncomfortable but useful. Publishing something is not a declaration that I am right. It is a way of making the basis of my thinking inspectable by someone else. Other readers may find a counterexample, point out missing data, challenge an assumption, or expose an error. That scrutiny makes the research more legible.
 
-Articles may change when new evidence arrives. Important revisions should carry a date, and a changed conclusion should include an explanation. Durable research is not writing that has been frozen after publication; it is writing that can survive disagreement and revision.
+## Research should not be frozen after publication
 
-## Written for people, readable by AI
+I want these pieces to behave more like versioned research notes than finished artifacts frozen at publication. New data may change a conclusion. An explanation may need correction. Significant changes should retain their date and context, and a changed conclusion is itself useful information.
+
+A durable research note is not one that never changes. It is one that can survive revision.
+
+## Written for people, but not only for people
 
 The first reader of this archive is a person. A title should reveal the question, the argument should make sense from the text alone, and every cited source should be open to inspection.
 
-Still, as more discovery happens through search and AI agents, it is strategically useful for good writing to be machine-readable as well. Stable URLs, explicit dates and topics, clear headings, and inspectable sources reduce the chance that a search engine or an agent will detach a claim from its context.
+More information is likely to be encountered indirectly: through search systems and agents that retrieve, summarize, and connect material on a reader’s behalf. A good public research document should be clear enough that both humans and machines can preserve its context. Stable URLs, explicit publication and update dates, clear section hierarchy, source links, descriptive figures, relevant code and calculations, visible claims and limitations, and a clear Korean-English pairing all help.
 
 This does not mean the articles are written to please agents. The order is the other way around:
 
 > A document that is clear and verifiable for people is usually easier for machines to read accurately.
 
-Being “agent-friendly” is therefore not the protagonist of this archive. It is a **distribution and rediscovery advantage** produced by well-structured public documents.
+Documents that are clear and verifiable for people tend to be easier for machines to interpret as well. Being “agent-friendly” is therefore not the main purpose of this archive. It is a distribution and rediscovery advantage that follows from good information architecture.
+
+## Research you can rerun, not just read
+
+Some pieces may include executable calculations, interactive charts, adjustable assumptions, or small models that make a claim easier to test. If an article about multi-objective optimization lets a reader change the relative importance of cost and carbon and immediately see how the preferred solution changes, the article becomes more than an explanation. It becomes a small research instrument.
+
+I want some pieces of research to be things you can rerun, not just read. For me, an archive is not only a place to store documents. It is a way to preserve ideas so they can be tested again.
 
 ## An archive, not a feed
 
-Feeds demand something noticeable now. Archives demand something worth finding later.
+A feed optimizes for what is visible now. An archive optimizes for what is worth finding again later.
+
+A feed favors recency and constant publishing; the next item pushes the previous one downward. An archive favors retrievability, durability, connection, revision, and reuse. It chooses a different optimization target without needing to dismiss the value of a feed.
 
 For that reason, this site values the following standards more than publishing frequency:
 
 - begin each article with one clear question whenever possible;
 - distinguish facts, interpretation, and personal judgment;
 - state the relevant date and the assumptions that matter;
-- link sources, calculations, and code when possible;
-- explain meaningful revisions instead of silently overwriting them; and
-- keep the Korean original and English edition aligned to the same claims and evidence.
+- link sources, calculations, and code when they matter;
+- make limitations and uncertainty visible;
+- explain why a view changed;
+- connect related pieces instead of leaving them isolated;
+- keep the Korean and English versions aligned in substance;
+- write for people first, while preserving enough structure for search and agents to recover the context; and
+- where useful, let readers test or manipulate the underlying model themselves.
 
-I will not meet these standards perfectly every time. But the purpose of this archive is to leave documents that can still be examined, challenged, and connected after the initial moment of publication has passed.
+I know I will not follow these principles perfectly. Some arguments will age badly. Some explanations will need to be rewritten. Some views will turn out to be wrong.
+
+But I would rather leave behind research that can be revisited, challenged, revised, and reused than conclusions that disappear into a feed. I would rather build an archive that can be reused by my future self and by others than a feed that only reflects what I happen to be thinking today.

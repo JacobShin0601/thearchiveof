@@ -47,6 +47,7 @@ const posts = defineCollection({
     })).optional(),
     pillar: z.boolean().default(false),
     comments: z.boolean().default(false),
+    socialImage: z.string().regex(/^\/og\/[a-z0-9]+(?:-[a-z0-9]+)*\.(png|jpe?g|webp)$/).optional(),
   }).superRefine((data, ctx) => {
     if (data.primaryTopic && !data.topics.includes(data.primaryTopic)) {
       ctx.addIssue({ code: 'custom', path: ['primaryTopic'], message: 'primaryTopic must also appear in topics' });

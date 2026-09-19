@@ -1,15 +1,24 @@
 ---
 import { integrations } from '../site.config';
 
-interface Props { enabled?: boolean }
-const { enabled = false } = Astro.props;
+interface Props {
+  enabled?: boolean;
+  language?: 'ko' | 'en';
+}
+const { enabled = false, language = 'ko' } = Astro.props;
 const config = integrations.giscus;
 const active = enabled && config.enabled && config.repo && config.repoId && config.category && config.categoryId;
+const heading = language === 'ko' ? '토론' : 'Discussion';
+const intro = language === 'ko'
+  ? '질문, 정정, 반례, 다른 해석이 있다면 남겨 주세요.'
+  : 'Have a question, correction, counterexample, or another interpretation?';
 ---
 
 {active && (
   <section class="comments" aria-labelledby="comments-heading">
-    <h2 id="comments-heading">Discussion</h2>
+    <p class="eyebrow">Discussion</p>
+    <h2 id="comments-heading">{heading}</h2>
+    <p class="comments-intro">{intro}</p>
     <script
       is:inline
       src="https://giscus.app/client.js"
@@ -19,11 +28,11 @@ const active = enabled && config.enabled && config.repo && config.repoId && conf
       data-category-id={config.categoryId}
       data-mapping="pathname"
       data-strict="1"
-      data-reactions-enabled="1"
+      data-reactions-enabled="0"
       data-emit-metadata="0"
       data-input-position="top"
       data-theme="light"
-      data-lang="en"
+      data-lang={language}
       crossorigin="anonymous"
       async
     ></script>

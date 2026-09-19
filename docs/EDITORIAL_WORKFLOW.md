@@ -11,23 +11,25 @@ Author brief
   → Korean source draft
   → English edited edition
   → paired MDX files (`draft: true`)
-  → PR into develop
+  → PR into develop (CI: npm test + npm run build)
   → merge to develop
   → Cloudflare Preview review
-  → corrections on the article branch or develop
+  → corrections on the article branch
   → `draft: false`
-  → develop → main merge
+  → PR the article branch into main
   → Production
 ```
 
 ## Branching
 
-Keep site work and article work on separate branches so a draft does not block design, and a design review does not collide with an unfinished essay.
+Keep site work and article work on separate branches so a draft does not block design, and a design review does not collide with an unfinished essay. Do not commit directly to `develop` or `main`.
 
 - `main` is production. Do not commit drafts or in-progress articles here.
 - `develop` is the integration and Cloudflare Preview branch. It may contain reviewed drafts, but it is not the place to start new writing.
-- Each new article gets its own branch from the latest `develop`, named `content/<english-slug>`. Open a pull request into `develop`. Cloudflare Preview builds `develop` only, so the live preview appears after that PR is merged.
-- Site design, layout, schema, and functionality use a separate branch from `main` or `develop`, named `design/<change>` or `fix/<change>`. Merge those changes on their own, without waiting for an article to be finished.
+- GitHub Actions runs `npm test` and `npm run build` on pull requests to `develop` and `main`, and again on the merge commit.
+- Cloudflare deploys automatically. Merge to `develop` updates Preview; merge to `main` updates `thearchiveof.com`. There is no extra deploy step. Feature branches do not get a Pages preview.
+- Each new article gets its own branch from the latest `develop`, named `content/<english-slug>`. Open a pull request into `develop`. After Preview approval, set `draft: false` and open a pull request from that article branch into `main`.
+- Site design, layout, schema, and functionality use `feat/<change>`, `design/<change>`, or `fix/<change>` from `develop` (or from `main` for a production-only hotfix). Pull request into `develop` first. When Preview is good, pull request the **same feature branch** into `main`. Do not merge all of `develop` into `main` while unpublished drafts should stay off production.
 - Articles already in progress on `develop` may stay there. This rule applies to new work.
 
 Do not add a new article, series metadata, or topic-registry entries on a design or fix branch. Do not mix a site redesign into an article branch.
@@ -53,13 +55,13 @@ Work first develops the Korean article using the publication method:
 3. **Test** — use evidence, data, code, or sources where relevant.
 4. **Interpret** — explain meaning, limits, and practical consequences.
 
-Foundation and Research articles should normally begin with an `AnswerBlock`. Research pieces should identify data sources, data-through date, methodology, references, and limitations when applicable.
+Foundation and Research articles should normally begin with an `AnswerBlock`. Research pieces should identify data sources, data-through date, methodology, references, and limitations when applicable. Put the claim in HTML so a retrieval agent can carry it; do not hide the answer in a client-only widget. See `docs/AGENT_ACCESS.md`.
 
 ## 3. English edition
 
 The English file is not a literal translation. Work should:
 
-- preserve the thesis, evidence, figures, links, and caveats;
+- preserve the thesis, factual evidence and figures, links, and caveats; localize illustrative examples according to [the English localization guide](editorial-localization.md);
 - rewrite syntax and idiom for natural English;
 - keep terminology consistent with the topic registry;
 - avoid adding claims that do not exist in the approved Korean edition;
@@ -96,34 +98,36 @@ tags:
   - publishing
 draft: true
 translationKey: "example-article"
+socialImage: "/og/example-article.png"
 ```
 
-Only `title`, `subtitle`, `description`, body text, and `language` normally differ. Set `language: "ko"` for the source and `language: "en"` for the English edition. Use `title` for the heading and optional `subtitle` for the supporting line; keep the search summary in `description`.
+`title`, `subtitle`, `description`, body text, and `language` normally differ. If a pair has a custom share image, both files use the same `socialImage` path. Put the file at `public/og/<translationKey>.png` (1200×630). Omit the field to fall back to `/og.png`. Optional `localization` metadata belongs to the English edition only; `updatedDate` can differ when just one published edition materially changes. Semantic parity does not require identical illustrative prices, locations, jokes, or paragraph order. Set `language: "ko"` for the source and `language: "en"` for the English edition. Use `title` for the heading and optional `subtitle` for the supporting line; keep the search summary in `description`.
 
 ## 6. Preview review
 
-Work lands on an article branch first, then merges into `develop` for the first review. Do not update `main` until the pair is approved. Cloudflare automatically builds the Preview deployment from `develop`. Review both language buttons and confirm they open the corresponding edition.
+Work lands on an article branch first, then merges into `develop` for the first review. Do not update `main` until the pair is approved. Cloudflare automatically builds the Preview deployment from `develop`; GitHub Actions must be green on the pull request before that merge. Review both language buttons and confirm they open the corresponding edition.
 
 Checklist:
 
 - argument and mandatory wording preserved;
 - unsupported claims removed or qualified;
-- facts, numbers, sources, and dates match in both languages;
+- facts, analytical numbers, sources, and dates agree in both languages; illustrative adaptations preserve the same decision logic and are internally consistent;
 - headings, tables, equations, links, captions, and code render correctly;
 - mobile layout and language switch work;
 - Topic, primaryTopic, and tags are intentional;
 - canonical, alternate-language links, and Preview `noindex` are present;
-- drafts are visible in Preview but absent from Production.
+- drafts are visible in Preview but absent from Production;
+- if `socialImage` is set, the file exists at `public/og/` and both editions use the same path.
 
 ## 7. Production release
 
 After approval:
 
-1. apply corrections on the article branch or `develop`;
+1. apply corrections on the article branch;
 2. change both paired files to `draft: false`;
-3. run the production build;
-4. merge `develop` into `main` only for the approved article work, not for unrelated drafts;
-5. confirm the Cloudflare Production deployment.
+3. run the production build locally if you want a last check (`npm test` and `npm run build`);
+4. open a pull request from the article branch into `main` so unrelated `develop` drafts do not ship;
+5. confirm CI is green and the Cloudflare Production deployment finished.
 
 Never publish only one half of an approved pair accidentally. If an English edition is intentionally deferred, publish the Korean article without a `translationKey` until the English file is ready; the language button will then lead to the English homepage.
 

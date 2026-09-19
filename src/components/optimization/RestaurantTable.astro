@@ -1,11 +1,23 @@
 ---
 import { restaurants, formatPrice } from '../../data/pareto-restaurants';
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const isKo = language === 'ko';
 ---
-<div class="table-wrap" role="region" aria-label="식당 후보 비교표" tabindex="0">
+<div class="table-wrap" role="region" aria-label={isKo ? '식당 후보 비교표' : 'Restaurant comparison table'} tabindex="0">
   <table>
-    <caption>식당 선택을 위한 가상 데이터 · 가격과 평균 이동시간은 낮을수록, 맛은 높을수록 좋다.</caption>
-    <thead><tr><th scope="col">식당</th><th scope="col">1인당 가격 ↓</th><th scope="col">평균 이동시간 ↓</th><th scope="col">맛 ↑<br />(5점 만점)</th></tr></thead>
-    <tbody>{restaurants.map((r) => <tr><th scope="row">{r.name}</th><td>{formatPrice(r.price)}</td><td>{r.travelTime}분</td><td>{r.taste.toFixed(1)}</td></tr>)}</tbody>
+    <caption>{isKo
+      ? '식당 선택을 위한 가상 데이터 · 가격과 평균 이동시간은 낮을수록, 맛은 높을수록 좋다.'
+      : 'Illustrative dinner data. Lower price and shorter average travel time are better; a higher food score is better.'}</caption>
+    <thead>
+      <tr>
+        <th scope="col">{isKo ? '식당' : 'Restaurant'}</th>
+        <th scope="col">{isKo ? '1인당 가격 ↓' : 'Price per person ↓'}</th>
+        <th scope="col">{isKo ? '평균 이동시간 ↓' : 'Average travel time ↓'}</th>
+        <th scope="col">{isKo ? '맛 ↑' : 'Taste ↑'}<br />{isKo ? '(5점 만점)' : '(out of 5)'}</th>
+      </tr>
+    </thead>
+    <tbody>{restaurants.map((r) => <tr><th scope="row">{r.name}</th><td>{formatPrice(r.price, language)}</td><td>{isKo ? `${r.travelTime}분` : `${r.travelTime} min`}</td><td>{r.taste.toFixed(1)}</td></tr>)}</tbody>
   </table>
 </div>
 <style>
