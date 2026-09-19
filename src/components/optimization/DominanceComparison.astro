@@ -1,0 +1,10 @@
+---
+import { restaurants, formatPrice } from '../../data/pareto-restaurants';
+const b = restaurants.find((r) => r.name === 'B')!;
+const d = restaurants.find((r) => r.name === 'D')!;
+---
+<ul>
+  <li>가격: B는 {formatPrice(b.price)}, D는 {formatPrice(d.price)}. B가 더 저렴합니다.</li>
+  <li>평균 이동시간: B는 {b.travelTime}분, D는 {d.travelTime}분. B가 더 가깝습니다.</li>
+  <li>맛: B는 {b.taste.toFixed(1)}점, D는 {d.taste.toFixed(1)}점. B가 더 맛있습니다.</li>
+</ul>

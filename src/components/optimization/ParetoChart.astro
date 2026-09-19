@@ -1,0 +1,55 @@
+---
+import { restaurants, efficientRestaurants } from '../../data/pareto-restaurants';
+interface Props { variant: 'dominance' | 'frontier' }
+const { variant } = Astro.props;
+const id = `pareto-${variant}`;
+const frontier = variant === 'frontier';
+const x = (minutes: number) => 85 + (minutes - 15) / 35 * 455;
+const y = (price: number) => 290 - (price - 18000) / 16000 * 230;
+const b = restaurants.find((r) => r.name === 'B')!;
+const d = restaurants.find((r) => r.name === 'D')!;
+const points = [...efficientRestaurants].sort((a, b) => a.travelTime - b.travelTime).map((r) => `${x(r.travelTime)},${y(r.price)}`).join(' ');
+---
+<figure aria-labelledby={`${id}-caption`}>
+  <svg viewBox="0 0 600 390" role="img" aria-labelledby={`${id}-title ${id}-desc`}>
+    <title id={`${id}-title`}>{frontier ? 'A·B·C의 파레토 프런티어' : 'B가 D를 지배하는 가격·이동시간 산점도'}</title>
+    <desc id={`${id}-desc`}>가로축은 평균 이동시간(분), 세로축은 1인당 가격(원)이다. 왼쪽 아래일수록 좋다. A는 45분·20,000원, B는 25분·25,000원, C는 20분·30,000원, D는 35분·32,000원이다. D는 B보다 오른쪽 위에 있어 지배된다. A, B, C는 서로 지배하지 않는다. {frontier ? '점선은 이산적인 후보 세 점을 안내용으로 연결하며, 중간 지점은 선택 가능한 식당이 아니다.' : 'B에서 D로 이어지는 꺾인 점선은 이동시간과 가격이 모두 증가함을 보여준다.'}</desc>
+    <text x="85" y="25" class="axis-title">1인당 가격 (원 / KRW)</text>
+    {[20000, 25000, 30000].map((price) => <g><line x1="85" x2="540" y1={y(price)} y2={y(price)} class="grid" /><text x="74" y={y(price) + 5} text-anchor="end">{price.toLocaleString('ko-KR')}</text></g>)}
+    {[20, 25, 35, 45].map((minutes) => <g><line x1={x(minutes)} x2={x(minutes)} y1="60" y2="290" class="grid" /><text x={x(minutes)} y="313" text-anchor="middle">{minutes}</text></g>)}
+    <path d="M85 55 V290 H545" class="axis" />
+    <text x="312" y="342" text-anchor="middle" class="axis-title">평균 이동시간 (분 / minutes)</text>
+    <text x="85" y="376" class="direction">↙ 왼쪽 아래가 더 좋음 · Lower is better</text>
+    {frontier ? <polyline points={points} class="frontier" /> : <path d={`M${x(b.travelTime)} ${y(b.price)} H${x(d.travelTime)} V${y(d.price)}`} class="comparison" />}
+    {restaurants.map((r) => {
+      const efficient = efficientRestaurants.includes(r);
+      return <g>
+        {efficient ? <circle cx={x(r.travelTime)} cy={y(r.price)} r="7" class="efficient" /> : <rect x={x(r.travelTime) - 6} y={y(r.price) - 6} width="12" height="12" class="dominated" />}
+        <text x={x(r.travelTime) + 12} y={y(r.price) - 11} class={efficient ? 'point-label' : 'dominated-label'}>{r.name}{!efficient && ' (지배됨)'}</text>
+      </g>;
+    })}
+  </svg>
+  <p class="legend">● A·B·C: 파레토 후보　 □ D: 지배되는 후보{frontier && '　 ⋯ 안내선'}</p>
+  <figcaption id={`${id}-caption`}>
+    {frontier
+      ? '그림 2. 가격과 이동시간에서 A·B·C는 서로 지배하지 않는다. 여기에서는 이해를 돕기 위해 Pareto-efficient 후보들을 연결해 표시했다. 실제 이산적인 후보 문제에서 frontier는 이 점들의 집합이다.'
+      : '그림 1. 가격과 이동시간만 고려하면 D는 B보다 비싸고 멀기 때문에 B에 의해 지배된다. 맛은 이 차트에서 제외했다.'}
+  </figcaption>
+</figure>
+<style>
+  figure { margin: 2em 0; padding: 16px; border: 1px solid var(--line); background: var(--paper); }
+  svg { display: block; width: 100%; height: auto; overflow: visible; font-family: var(--sans); }
+  text { fill: var(--muted); font-size: 15px; }
+  .axis-title, .point-label { fill: var(--ink); font-weight: 600; }
+  .grid { stroke: var(--line); stroke-width: 1; }
+  .axis { fill: none; stroke: var(--ink); }
+  .efficient { fill: var(--accent); }
+  .dominated { fill: var(--paper-deep); stroke: var(--muted); stroke-width: 2; }
+  .frontier { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 5; }
+  .comparison { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 4 5; }
+  .direction { fill: var(--accent); }
+  .legend, figcaption { font-family: var(--sans); font-size: 13px; line-height: 1.7; word-break: keep-all; overflow-wrap: anywhere; }
+  .legend { margin: 10px 0; color: var(--accent); }
+  figcaption { color: var(--muted); }
+  @media (max-width: 480px) { figure { padding: 8px; } text { font-size: 19px; } .direction { font-size: 17px; } }
+</style>
