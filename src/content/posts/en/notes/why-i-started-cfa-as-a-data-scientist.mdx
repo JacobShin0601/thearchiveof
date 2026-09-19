@@ -1,0 +1,151 @@
+---
+title: "Why I Started Studying for the CFA as a Data Scientist"
+description: "How lithium-price models and company filings pushed me from data science into finance, and why slow study still matters when AI can explain almost anything."
+publishedDate: 2026-09-19
+section: "Perspectives"
+subsection: "Essays"
+contentType: "perspective"
+topics:
+  - supply-chain
+tags:
+  - cfa
+  - finance
+  - data-science
+  - learning
+  - research
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: false
+language: "en"
+translationKey: "why-i-started-cfa-as-a-data-scientist"
+freshness: evergreen
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import CfaLearningDiagram from '../../../../components/CfaLearningDiagram.astro';
+
+<AnswerBlock question="Why study for the CFA when AI can explain almost anything on demand?">
+  It started as a practical need. While modeling lithium prices with unstructured data, I realized that reading filings was not enough; I needed to understand the financial context that gave the numbers meaning. What I gained from the CFA curriculum was larger than a few finance concepts. When one field meets another, the problem itself can change.
+</AnswerBlock>
+
+In 2025, starting the CFA program felt like a slightly strange decision for a data scientist.
+
+I was not working as a sell-side analyst or a portfolio manager. Most of my time was spent in Python, building models, testing hypotheses, and looking for new data sources. ChatGPT had already made just-in-time learning remarkably easy. If I encountered an unfamiliar concept, I could ask for an intuitive explanation, a mathematical derivation, or a small example in minutes.
+
+So why spend years reading textbooks, memorizing concepts, solving questions, and sitting for exams?
+
+The answer began with lithium.
+
+## The numbers were visible. Their meaning was not.
+
+While working on lithium-price models, I started using unstructured information from company filings. That meant reading 10-Ks, 10-Qs, earnings releases, and other disclosures for the first time in a systematic way.
+
+I could read the sentences. I could see the numbers. What I did not know was which numbers mattered.
+
+I could see revenue growing without knowing how different that was from an improvement in cash flow. I could see a large CapEx plan without knowing what it implied for future supply. I could see inventory rising without knowing whether it represented preparation for growth or a sign that demand was slowing. Debt, impairment, working capital, and hedging appeared as separate lines, even when they were describing one connected situation.
+
+What I needed was not a better model for extracting numbers from PDFs. I needed to understand what those numbers meant.
+
+That was the practical reason I began studying finance. In 2025, I started with CFA Level I. I eventually sat for the Level III examination as well.
+
+<CfaLearningDiagram kind="journey" language="en" />
+
+## Did I really need an exam?
+
+The strongest counterargument is easy to make. If I needed to understand duration, I could ask ChatGPT to explain it intuitively, explain it mathematically, and calculate the sensitivity of a bond price to a 100-basis-point move in Python. For many concrete tasks, that is genuinely powerful and often sufficient.
+
+The value of structured study is not that it defeats this kind of just-in-time learning. It is that it changes what becomes available to ask.
+
+## AI can answer questions. It cannot choose all of them for you.
+
+You can only ask about duration if duration is somewhere in your conceptual vocabulary. If you do not know that yield curves, credit spreads, convexity, carry, and roll-down exist, you are less likely to formulate questions that involve them.
+
+The same is true of financial statements. To ask why operating cash flow is strong while cash is falling, you need at least a rough mental model of the cash-flow statement and its relationship to working capital, investment, and financing.
+
+AI can also suggest missing angles. I do not treat that as a fixed limit of the tools. But if the context and the question I provide are narrow, the answers I can understand and check stay narrow too. I still have to judge which of the suggested questions matter for the problem in front of me.
+
+Structured study expands the map of things you know are worth asking about. One of the things it gives you is not just a set of answers, but a larger space of possible questions.
+
+## Slow study makes connections visible
+
+Just-in-time learning is efficient. It is local, task-driven, and often exactly what a project needs. Structured study is broader and slower. It forces you to encounter concepts you would not have selected for yourself.
+
+One topic leads to another: economics to monetary policy, monetary policy to the yield curve, the yield curve to duration and convexity, those ideas to cost of capital, and cost of capital to portfolio risk.
+
+The same rate move can reappear as a firm’s investment plan, a bond price, and a portfolio risk limit. Meeting the idea in more than one place is what made the connections visible.
+
+The value was not just knowing more terms. It was seeing more connections between them.
+
+<CfaLearningDiagram kind="learning" language="en" />
+
+An exam is not the only way to build those links. A well-designed reading list, a project, or a course of study made with AI can do it too. For me, a curriculum with a fixed range and order was a device for leaving the habit of learning only the next useful thing. When I got stuck, I asked AI again. The two modes were used together.
+
+## What changes at the boundary between data science and finance?
+
+Suppose a lithium producer announces a capacity expansion. This is a generalized example, not a reconstruction of a particular company or a piece of work I shipped.
+
+A data-science-first approach might ask:
+
+- Can I extract production-related statements from filings?
+- Can sentiment become a feature?
+- Can embeddings quantify supply events?
+- Does the feature improve forecast accuracy?
+
+Those are useful questions. A supply-increase signal is also not automatically good news for price. With some financial context, more questions become visible:
+
+- Is the company actually deploying the CapEx?
+- Can it fund the project from free cash flow?
+- Will it need additional debt?
+- How sensitive is the project economics to rates and lithium prices?
+- Is project progress consistent with guidance?
+- Are long-term contracts or hedges supporting the investment?
+- Could lower prices lead to impairment or delay?
+
+<CfaLearningDiagram kind="expansion" language="en" />
+
+The feature can evolve from “capacity expansion mentioned” into something closer to “expansion intent, financial feasibility, project progress, and the price environment.” That is a different modeling question. It is also a better representation of the likelihood that supply will actually come online.
+
+More variables do not automatically make a better model. Only information that was public at the forecast time should enter, and later project outcomes should not leak into earlier inputs. Whether the model improves is a separate test. The change I am describing is not a claim of higher accuracy. It is that the questions worth testing became more specific.
+
+This is where standing between two fields becomes useful. The point is not to become two complete experts. It is to learn enough of a second field to notice questions that neither silo surfaces naturally.
+
+## Finance changed how I think about AI
+
+Studying finance also changed the questions I ask about models. I used to begin with, “Can I predict this?” I am more likely now to ask, “Where does this prediction actually enter a decision?”
+
+A lower RMSE in lithium-price prediction is an interesting result. Its significance depends on what it changes in cash-flow expectations, investment decisions, or risk management. Predicting the probability of a rate cut is one task; translating that view into duration, curve positioning, and a risk budget is another.
+
+The sequence is often:
+
+> Prediction → interpretation → choice → constraints → execution
+
+In practice the steps loop. What I had been missing was the space after the forecast. Whether a prediction is accurate and whether it can be used are connected questions, and they are not the same question.
+
+AI can help at every stage. It does not remove the need to understand the context that connects them.
+
+## The CFA did not make me a finance expert
+
+The curriculum does not substitute for years of investing, analyst work, or portfolio-management experience. Passing examinations does not make someone an expert, and I do not consider myself one simply because I have sat through Level III.
+
+The meaningful change was not that I had “become a finance person.” It was that I could start framing questions in both financial and data-science terms.
+
+## Why slow study still matters
+
+As AI improves, the cost of storing and retrieving facts can fall. I do not think I need to memorize every formula or explain every concept alone.
+
+What remains is choosing the question, noticing when an answer feels wrong, seeing how pieces of information connect, and spotting the assumption behind an explanation. Decisions still need that background. Deeper study can become the base for those judgments.
+
+Not every part of the slow path was useful. There was inefficient repetition, and there were topics I will not use at work. The same hours spent on another project would have produced something else. I would not tell everyone that the CFA is the best choice.
+
+What mattered to me was less the speed of learning than meeting concepts whose necessity I did not yet know, then connecting them. Those questions I could explore quickly with AI, compare explanations, and check in code. Structured study and asking when I needed something filled each other’s gaps.
+
+## New questions appear at the edge of expertise
+
+I do not think this is only a CFA story. A data scientist learning finance, a financier learning to program, an engineer studying economics, or a physician going deeper into statistics can meet a similar change.
+
+Borrowing a few terms is not enough. You have to learn what the other field treats as important, what it assumes, and what it counts as evidence. That does not always produce insight. It does make it more likely that you will catch a question you used to walk past.
+
+I started because I wanted to read a 10-K a little better. The study I began in order to understand those numbers became a way of putting AI and finance in the same frame.
+
+If there is still a reason to study slowly in a world where AI can explain almost anything on demand, I think this is one of them: not to memorize more answers, but to notice questions that were previously invisible.

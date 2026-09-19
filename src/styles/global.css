@@ -186,12 +186,13 @@ a:hover { color: var(--accent); }
 
 .listing-page, .prose-page, .article-page { padding-top: 56px; padding-bottom: 88px; }
 .listing-page > header, .prose-page > header { padding-bottom: 55px; border-bottom: 1px solid var(--ink); }
-.listing-page h1, .prose-page h1, .not-found h1 { max-width: 950px; margin: 30px 0 18px; font-family: var(--serif); font-size: clamp(38px, 6vw, 72px); font-weight: 400; letter-spacing: -.03em; line-height: 1.15; }
+.listing-page h1, .prose-page h1, .not-found h1 { max-width: 950px; margin: 30px 0 18px; font-family: var(--serif); font-size: clamp(29px, 4.5vw, 54px); font-weight: 400; letter-spacing: -.03em; line-height: 1.15; }
 .listing-page header > p:last-of-type { max-width: 590px; color: var(--muted); font-family: var(--serif); font-size: clamp(18px, 2vw, 22px); line-height: 1.65; }
 .topic-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; }
 .topic-row a, .topic-row span { padding: 6px 11px; border: 1px solid var(--line); color: var(--muted); font-size: 10px; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
 .topic-row a:hover { border-color: var(--accent); color: var(--accent); }
 .category-posts { margin-top: 35px; }
+.listing-page .archive-list { margin-top: 8px; }
 .empty-state { padding: 70px 0; color: var(--muted); font-family: var(--serif); font-size: 24px; }
 
 .archive-list article { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 20px; align-items: center; padding: 27px 0; border-bottom: 1px solid var(--line); }
@@ -207,7 +208,7 @@ a:hover { color: var(--accent); }
 .archive-count { margin: 18px 0 0; color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .archive-list article[hidden] { display: none; }
 
-.prose-page h1 { font-size: clamp(36px, 5vw, 64px); line-height: 1.25; }
+.prose-page h1 { font-size: clamp(27px, 3.75vw, 48px); line-height: 1.25; }
 .prose-grid { display: grid; grid-template-columns: 1fr 2.2fr; gap: 8%; padding-top: 60px; }
 .prose-grid aside p { margin: 0; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 .prose { max-width: 720px; }

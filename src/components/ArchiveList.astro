@@ -1,0 +1,37 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { postPath, sectionPath } from '../consts';
+
+interface Props {
+  posts: CollectionEntry<'posts'>[];
+}
+
+const { posts } = Astro.props;
+---
+
+<div class="archive-list">
+  {posts.map((post, index) => {
+    const prefix = post.data.language === 'en' ? '/en' : '';
+    return (
+      <article>
+        <span class="archive-number">{String(index + 1).padStart(2, '0')}</span>
+        <div>
+          <div class="post-meta">
+            <a href={`${prefix}/${sectionPath(post.data.section)}/`}>{post.data.section}</a>
+            <span>/</span>
+            <span>{post.data.subsection}</span>
+            <span>/</span>
+            <span>{post.data.contentType}</span>
+            <span>/</span>
+            <time datetime={post.data.publishedDate.toISOString()}>
+              {post.data.publishedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' })}
+            </time>
+          </div>
+          <h2><a href={postPath(post)}>{post.data.title}</a></h2>
+          {post.data.subtitle && <p class="post-subtitle">{post.data.subtitle}</p>}
+        </div>
+        <span class="arrow">↗</span>
+      </article>
+    );
+  })}
+</div>
