@@ -266,6 +266,7 @@ a:hover { color: var(--accent); }
 .related-articles { margin-top: 90px; }
 .newsletter-cta { margin-top: 90px; padding: 42px; border: 1px solid var(--ink); }
 .newsletter-cta h2 { max-width: 570px; margin: 20px 0; font-family: var(--serif); font-size: clamp(28px, 4vw, 42px); font-weight: 400; letter-spacing: -.025em; line-height: 1.12; }
+html:lang(ko) .newsletter-cta h2 { font-size: clamp(22.4px, 3.2vw, 33.6px); }
 .newsletter-cta > p:last-child { margin-bottom: 0; color: var(--muted); }
 .newsletter-cta form label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .newsletter-cta form > div { display: flex; }
