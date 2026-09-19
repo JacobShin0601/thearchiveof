@@ -1,0 +1,19 @@
+---
+import { restaurants, formatPrice } from '../../data/pareto-restaurants';
+---
+<div class="table-wrap" role="region" aria-label="식당 후보 비교표" tabindex="0">
+  <table>
+    <caption>식당 선택을 위한 가상 데이터 · 가격과 평균 이동시간은 낮을수록, 맛은 높을수록 좋다.</caption>
+    <thead><tr><th scope="col">식당</th><th scope="col">1인당 가격 ↓</th><th scope="col">평균 이동시간 ↓</th><th scope="col">맛 ↑<br />(5점 만점)</th></tr></thead>
+    <tbody>{restaurants.map((r) => <tr><th scope="row">{r.name}</th><td>{formatPrice(r.price)}</td><td>{r.travelTime}분</td><td>{r.taste.toFixed(1)}</td></tr>)}</tbody>
+  </table>
+</div>
+<style>
+  .table-wrap { overflow-x: auto; margin: 2em 0; }
+  table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 14px; }
+  caption { text-align: left; color: var(--muted); margin-bottom: 12px; font-size: 13px; word-break: keep-all; }
+  th, td { padding: 12px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  th:first-child { text-align: left; }
+  thead { background: var(--paper-deep); }
+  .table-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+</style>

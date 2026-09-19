@@ -1,0 +1,214 @@
+---
+import { restaurants } from '../../data/pareto-restaurants';
+
+interface Props {
+  language?: 'ko' | 'en';
+}
+const { language = 'ko' } = Astro.props;
+const isKo = language === 'ko';
+const payload = JSON.stringify(restaurants);
+---
+
+<section class="pareto-explorer" data-component="pareto-explorer-v1" data-language={language} data-restaurants={payload}>
+  <p class="eyebrow">{isKo ? '직접 실험' : 'Interactive equivalent'}</p>
+  <h2>{isKo ? '가중치를 바꾸면 선택이 달라진다' : 'Change the weights and the choice moves'}</h2>
+  <p>
+    {isKo
+      ? '위 표와 차트는 그대로입니다. 여기서는 같은 가상 데이터로 가중합이 파레토 후보 중 어디를 고르는지 볼 수 있습니다. Python을 실행하지는 않습니다.'
+      : 'The table and charts above stay as written. This block uses the same illustrative data to show how a weighted sum picks among Pareto candidates. It does not execute Python.'}
+  </p>
+
+  <div class="explorer-presets" role="group" aria-label={isKo ? '가중치 프리셋' : 'Weight presets'}>
+    <button type="button" data-preset="balanced">{isKo ? '균형' : 'Balanced'}</button>
+    <button type="button" data-preset="cheap">{isKo ? '가격' : 'Cheap'}</button>
+    <button type="button" data-preset="near">{isKo ? '거리' : 'Near'}</button>
+    <button type="button" data-preset="tasty">{isKo ? '맛' : 'Taste'}</button>
+  </div>
+
+  <div class="explorer-weights">
+    <label>{isKo ? '가격 가중치' : 'Price weight'} <input type="range" name="wPrice" min="0" max="20" value="10" /> <span data-out="wPrice">1.0</span></label>
+    <label>{isKo ? '이동시간 가중치' : 'Travel-time weight'} <input type="range" name="wTime" min="0" max="20" value="10" /> <span data-out="wTime">1.0</span></label>
+    <label>{isKo ? '맛 가중치' : 'Taste weight'} <input type="range" name="wTaste" min="0" max="20" value="10" /> <span data-out="wTaste">1.0</span></label>
+  </div>
+
+  <div class="explorer-table-wrap" role="region" tabindex="0" aria-label={isKo ? '실험용 식당 값' : 'Explorable restaurant values'}>
+    <table>
+      <caption>{isKo ? '값을 바꾸면 지배 관계도 다시 계산됩니다.' : 'Editing a value recalculates dominance.'}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{isKo ? '식당' : 'Restaurant'}</th>
+          <th scope="col">{isKo ? '가격' : 'Price'}</th>
+          <th scope="col">{isKo ? '이동시간' : 'Minutes'}</th>
+          <th scope="col">{isKo ? '맛' : 'Taste'}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {restaurants.map((restaurant) => (
+          <tr data-name={restaurant.name}>
+            <th scope="row">{restaurant.name}</th>
+            <td><input type="number" name="price" min="10000" max="50000" step="1000" value={restaurant.price} /></td>
+            <td><input type="number" name="travelTime" min="5" max="90" step="1" value={restaurant.travelTime} /></td>
+            <td><input type="number" name="taste" min="1" max="5" step="0.1" value={restaurant.taste} /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <svg class="explorer-chart" viewBox="0 0 600 360" role="img" aria-labelledby="explorer-chart-title">
+    <title id="explorer-chart-title">{isKo ? '가격과 이동시간의 실험용 산점도' : 'Explorable price and travel-time scatterplot'}</title>
+  </svg>
+
+  <p class="explorer-result" role="status"></p>
+  <div class="explorer-actions">
+    <button type="button" class="explorer-run">{isKo ? '예시 실행' : 'Run the example'}</button>
+    <button type="button" class="explorer-reset">{isKo ? '원래 값으로' : 'Reset'}</button>
+  </div>
+</section>
+
+<script>
+  import { restaurants as source } from '../../data/pareto-restaurants';
+  import { track } from '../../scripts/track';
+
+  type Place = { name: string; price: number; travelTime: number; taste: number };
+  const presets: Record<string, [number, number, number]> = {
+    balanced: [10, 10, 10],
+    cheap: [20, 5, 5],
+    near: [5, 20, 5],
+    tasty: [5, 5, 20],
+  };
+
+  function dominates(a: Place, b: Place) {
+    return a.price <= b.price && a.travelTime <= b.travelTime && a.taste >= b.taste
+      && (a.price < b.price || a.travelTime < b.travelTime || a.taste > b.taste);
+  }
+
+  function efficientOf(places: Place[]) {
+    return places.filter((candidate) => !places.some((other) => dominates(other, candidate)));
+  }
+
+  function normalize(values: number[], invert = false) {
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const span = max - min || 1;
+    return values.map((value) => {
+      const unit = (value - min) / span;
+      return invert ? 1 - unit : unit;
+    });
+  }
+
+  function weightedChoice(places: Place[], weights: [number, number, number]) {
+    const cheap = normalize(places.map((place) => place.price), true);
+    const near = normalize(places.map((place) => place.travelTime), true);
+    const tasty = normalize(places.map((place) => place.taste));
+    const [wPrice, wTime, wTaste] = weights;
+    const total = wPrice + wTime + wTaste || 1;
+    let best = 0;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    places.forEach((_place, index) => {
+      const score = (wPrice * cheap[index] + wTime * near[index] + wTaste * tasty[index]) / total;
+      if (score > bestScore) {
+        bestScore = score;
+        best = index;
+      }
+    });
+    return places[best];
+  }
+
+  function readPlaces(root: HTMLElement): Place[] {
+    return [...root.querySelectorAll<HTMLTableRowElement>('tbody tr')].map((row) => ({
+      name: row.dataset.name ?? '',
+      price: Number(row.querySelector<HTMLInputElement>('input[name="price"]')?.value),
+      travelTime: Number(row.querySelector<HTMLInputElement>('input[name="travelTime"]')?.value),
+      taste: Number(row.querySelector<HTMLInputElement>('input[name="taste"]')?.value),
+    }));
+  }
+
+  function readWeights(root: HTMLElement): [number, number, number] {
+    const value = (name: string) => Number(root.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.value ?? 10);
+    return [value('wPrice'), value('wTime'), value('wTaste')];
+  }
+
+  function draw(svg: SVGSVGElement, places: Place[], efficient: Place[]) {
+    const x = (minutes: number) => 80 + (minutes - 10) / 50 * 460;
+    const y = (price: number) => 280 - (price - 15000) / 25000 * 210;
+    const frontier = [...efficient].sort((a, b) => a.travelTime - b.travelTime)
+      .map((place) => `${x(place.travelTime)},${y(place.price)}`).join(' ');
+    svg.innerHTML = `
+      <path d="M80 50 V280 H560" fill="none" stroke="currentColor"></path>
+      <polyline points="${frontier}" fill="none" stroke="#335f4b" stroke-dasharray="6 5"></polyline>
+      ${places.map((place) => {
+        const ok = efficient.some((item) => item.name === place.name);
+        return `<g>
+          <circle cx="${x(place.travelTime)}" cy="${y(place.price)}" r="7" fill="${ok ? '#335f4b' : '#c9c6bc'}"></circle>
+          <text x="${x(place.travelTime) + 10}" y="${y(place.price) - 10}" font-size="14">${place.name}</text>
+        </g>`;
+      }).join('')}
+    `;
+  }
+
+  function render(root: HTMLElement, announceRun = false) {
+    const language = root.dataset.language === 'en' ? 'en' : 'ko';
+    const places = readPlaces(root);
+    const weights = readWeights(root);
+    root.querySelectorAll<HTMLSpanElement>('[data-out]').forEach((out) => {
+      const input = root.querySelector<HTMLInputElement>(`input[name="${out.dataset.out}"]`);
+      if (input) out.textContent = (Number(input.value) / 10).toFixed(1);
+    });
+    const efficient = efficientOf(places);
+    const dominated = places.filter((place) => !efficient.includes(place));
+    const choice = weightedChoice(places, weights);
+    const svg = root.querySelector<SVGSVGElement>('.explorer-chart');
+    const result = root.querySelector('.explorer-result');
+    if (svg) draw(svg, places, efficient);
+    if (result) {
+      result.textContent = language === 'ko'
+        ? `파레토 후보: ${efficient.map((place) => place.name).join(', ') || '없음'}. 지배됨: ${dominated.map((place) => place.name).join(', ') || '없음'}. 현재 가중치의 가중합 선택: ${choice.name}.`
+        : `Pareto candidates: ${efficient.map((place) => place.name).join(', ') || 'none'}. Dominated: ${dominated.map((place) => place.name).join(', ') || 'none'}. Weighted-sum choice: ${choice.name}.`;
+    }
+    if (announceRun) {
+      track('code_run', { articleSlug: 'pareto-optimization-dinner-with-friends', language, component: 'pareto-explorer-v1' });
+    }
+  }
+
+  function reset(root: HTMLElement) {
+    source.forEach((place) => {
+      const row = root.querySelector(`tr[data-name="${place.name}"]`);
+      if (!row) return;
+      const price = row.querySelector<HTMLInputElement>('input[name="price"]');
+      const travel = row.querySelector<HTMLInputElement>('input[name="travelTime"]');
+      const taste = row.querySelector<HTMLInputElement>('input[name="taste"]');
+      if (price) price.value = String(place.price);
+      if (travel) travel.value = String(place.travelTime);
+      if (taste) taste.value = String(place.taste);
+    });
+    (['wPrice', 'wTime', 'wTaste'] as const).forEach((name) => {
+      const input = root.querySelector<HTMLInputElement>(`input[name="${name}"]`);
+      if (input) input.value = '10';
+    });
+  }
+
+  document.querySelectorAll<HTMLElement>('.pareto-explorer').forEach((root) => {
+    render(root);
+    root.addEventListener('input', () => render(root));
+    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const next = presets[button.dataset.preset ?? ''] ?? presets.balanced;
+        const names = ['wPrice', 'wTime', 'wTaste'] as const;
+        names.forEach((name, index) => {
+          const input = root.querySelector<HTMLInputElement>(`input[name="${name}"]`);
+          if (input) input.value = String(next[index]);
+        });
+        render(root);
+      });
+    });
+    root.querySelector('.explorer-reset')?.addEventListener('click', () => {
+      reset(root);
+      render(root);
+    });
+    root.querySelector('.explorer-run')?.addEventListener('click', () => {
+      reset(root);
+      render(root, true);
+    });
+  });
+</script>
