@@ -1,21 +1,30 @@
 ---
 import { scenarios, efficientScenarios, requirementSweep } from '../../data/battery-procurement';
-interface Props { variant?: 'tradeoff' | 'sweep' }
-const { variant = 'tradeoff' } = Astro.props;
+interface Props { variant?: 'tradeoff' | 'sweep'; language?: 'ko' | 'en' }
+const { variant = 'tradeoff', language = 'ko' } = Astro.props;
+const isKo = language === 'ko';
 const sweep = variant === 'sweep';
-const id = `battery-${variant}`;
+const id = `battery-${variant}-${language}`;
 const x = (v: number) => sweep ? 85 + (100-v)/30*430 : 85+(v-99)/10*430;
 const y = (v: number) => sweep ? 285-(v-99)/8*220 : 285-(v-65)/40*220;
 const points = sweep ? requirementSweep.map(r=>`${x(r.target)},${y(r.best.costIndex)}`) : efficientScenarios.map(s=>`${x(s.costIndex)},${y(s.carbonIndex)}`);
 const alt = sweep
-  ? `가상 후보 A–E만 비교한 탄소 상한별 최소비용. ${requirementSweep.map(r=>`상한 ${r.target}: ${r.best.name}, 비용 ${r.best.costIndex}`).join('; ')}. 오른쪽으로 갈수록 탄소 요구가 강화된다. 점선은 표에 있는 결과를 잇는 안내선이며 중간값의 최적비용을 뜻하지 않는다.`
-  : `가상 조달 시나리오의 비용·탄소 산점도. ${scenarios.map(s=>`${s.name}: 비용 ${s.costIndex}, 탄소 ${s.carbonIndex}`).join('; ')}. 두 지표 모두 낮을수록 좋다. 원형 A·B·C·E는 이 후보 집합에서 파레토 효율적이고 사각형 D는 B·C·E에 지배된다.`;
+  ? (isKo
+    ? `가상 후보 A–E만 비교한 탄소 상한별 최소비용. ${requirementSweep.map(r=>`상한 ${r.target}: ${r.best.name}, 비용 ${r.best.costIndex}`).join('; ')}. 오른쪽으로 갈수록 탄소 요구가 강화된다. 점선은 표에 있는 결과를 잇는 안내선이며 중간값의 최적비용을 뜻하지 않는다.`
+    : `Minimum cost at each carbon cap, using only illustrative candidates A–E. ${requirementSweep.map(r=>`cap ${r.target}: ${r.best.name}, cost ${r.best.costIndex}`).join('; ')}. Moving right tightens the carbon requirement. The dotted line joins tabulated results; it is not an interpolated optimum.`)
+  : (isKo
+    ? `가상 조달 시나리오의 비용·탄소 산점도. ${scenarios.map(s=>`${s.name}: 비용 ${s.costIndex}, 탄소 ${s.carbonIndex}`).join('; ')}. 두 지표 모두 낮을수록 좋다. 원형 A·B·C·E는 이 후보 집합에서 파레토 효율적이고 사각형 D는 B·C·E에 지배된다.`
+    : `Cost–carbon scatterplot of illustrative procurement scenarios. ${scenarios.map(s=>`${s.name}: cost ${s.costIndex}, carbon ${s.carbonIndex}`).join('; ')}. Lower is better on both axes. Circles A, B, C, and E are Pareto-efficient in this set; square D is dominated by B, C, and E.`);
 ---
 <figure aria-labelledby={`${id}-caption`}>
   <svg viewBox="0 0 620 390" role="img" aria-labelledby={`${id}-title ${id}-desc`}>
-    <title id={`${id}-title`}>{sweep ? '탄소 요구조건 강화에 따른 최소비용' : '비용과 탄소의 trade-off'}</title>
+    <title id={`${id}-title`}>{sweep
+      ? (isKo ? '탄소 요구조건 강화에 따른 최소비용' : 'Minimum cost as the carbon cap tightens')
+      : (isKo ? '비용과 탄소의 trade-off' : 'Cost–carbon trade-off')}</title>
     <desc id={`${id}-desc`}>{alt}</desc>
-    <text x="85" y="28" class="axis-title">{sweep ? 'Minimum Cost Index ↓' : 'Carbon Index ↓'}</text>
+    <text x="85" y="28" class="axis-title">{sweep
+      ? (isKo ? '최소비용 지수 ↓' : 'Minimum Cost Index ↓')
+      : (isKo ? '탄소 지수 ↓' : 'Carbon Index ↓')}</text>
     {(sweep ? [100,102,104,106] : [70,80,90,100]).map(v=><g><line x1="85" x2="535" y1={y(v)} y2={y(v)} class="grid"/><text x="70" y={y(v)+5} text-anchor="end">{v}</text></g>)}
     {(sweep ? [100,90,80,75,70] : [100,102,104,106,108]).map(v=><text x={x(v)} y="312" text-anchor="middle">{v}</text>)}
     <path d="M85 55 V285 H540" class="axis"/>
@@ -24,18 +33,34 @@ const alt = sweep
       const efficient = efficientScenarios.includes(s);
       return <g>{efficient ? <circle cx={x(s.costIndex)} cy={y(s.carbonIndex)} r="7" class="efficient"/> : <rect x={x(s.costIndex)-6} y={y(s.carbonIndex)-6} width="12" height="12" class="dominated"/>}<text x={x(s.costIndex)+10} y={y(s.carbonIndex)-12} class="point-label">{s.name}</text></g>;
     })}
-    <text x="300" y="344" text-anchor="middle" class="axis-title">{sweep ? 'Carbon Target (upper limit)' : 'Cost Index ↓'}</text>
-    <text x="85" y="378">{sweep ? '→ 오른쪽으로 갈수록 탄소 기준 강화' : '↙ 왼쪽 아래가 더 좋음 · Lower is better'}</text>
+    <text x="300" y="344" text-anchor="middle" class="axis-title">{sweep
+      ? (isKo ? '탄소 상한' : 'Carbon Target (upper limit)')
+      : (isKo ? '비용 지수 ↓' : 'Cost Index ↓')}</text>
+    <text x="85" y="378">{sweep
+      ? (isKo ? '→ 오른쪽으로 갈수록 탄소 기준 강화' : '→ Tighter carbon cap to the right')
+      : (isKo ? '↙ 왼쪽 아래가 더 좋음 · Lower is better' : '↙ Lower-left is better')}</text>
   </svg>
-  <p class="legend">{sweep ? '● 각 상한에서 선택된 후보 · ⋯ 안내선' : '● A·B·C·E: 파레토 효율적 · □ D: 지배됨 · ⋯ 안내선'}</p>
+  <p class="legend">{sweep
+    ? (isKo ? '● 각 상한에서 선택된 후보 · ⋯ 안내선' : '● Candidate chosen at each cap · ⋯ guide line')
+    : (isKo ? '● A·B·C·E: 파레토 효율적 · □ D: 지배됨 · ⋯ 안내선' : '● A, B, C, E: Pareto-efficient · □ D: dominated · ⋯ guide line')}</p>
   <figcaption id={`${id}-caption`}>{sweep
-    ? '그림 2. 고객의 탄소 요구조건을 단계적으로 강화하면, 각 조건을 만족하는 최소비용 조합을 다시 계산할 수 있다. 이 결과는 탄소 감축과 추가 비용 사이의 trade-off를 보여준다. A–E만 비교한 가상 예시이며, 점선 사이의 값은 계산하지 않았다.'
-    : '그림 1. 비용을 낮추는 것과 탄소배출량을 낮추는 것은 동시에 완벽하게 달성하기 어려울 수 있다. Pareto frontier는 추가 비용을 지불했을 때 얼마나 많은 탄소 감축을 얻을 수 있는지를 보여준다. 모든 수치는 가상이며, 점선은 후보를 잇는 안내선이다.'}</figcaption>
+    ? (isKo
+      ? '그림 2. 고객의 탄소 요구조건을 단계적으로 강화하면, 각 조건을 만족하는 최소비용 조합을 다시 계산할 수 있다. 이 결과는 탄소 감축과 추가 비용 사이의 trade-off를 보여준다. A–E만 비교한 가상 예시이며, 점선 사이의 값은 계산하지 않았다.'
+      : 'Figure 2. Tighten the customer carbon cap step by step, then recompute the cheapest feasible mix. The chart shows the extra cost of cutting carbon. Only A–E are compared; values between the dots were not calculated.')
+    : (isKo
+      ? '그림 1. 비용을 낮추는 것과 탄소배출량을 낮추는 것은 동시에 완벽하게 달성하기 어려울 수 있다. Pareto frontier는 추가 비용을 지불했을 때 얼마나 많은 탄소 감축을 얻을 수 있는지를 보여준다. 모든 수치는 가상이며, 점선은 후보를 잇는 안내선이다.'
+      : 'Figure 1. Cutting cost and cutting carbon need not be achievable together. The Pareto frontier shows how much carbon falls if you pay more. All figures are illustrative; the dotted line is a guide.')}</figcaption>
 </figure>
-<div class="table-wrap" role="region" aria-label={sweep ? '탄소 상한별 최소비용 데이터' : '조달 시나리오 데이터'} tabindex="0">
+<div class="table-wrap" role="region" aria-label={sweep
+  ? (isKo ? '탄소 상한별 최소비용 데이터' : 'Minimum-cost data by carbon cap')
+  : (isKo ? '조달 시나리오 데이터' : 'Procurement scenario data')} tabindex="0">
   <table>
-    <caption>{sweep ? '동일한 가상 후보 A–E에서 계산한 결과. Carbon Target은 상한이다.' : '모든 수치는 설명용 가상 데이터. 비용·탄소 지수 100은 A 기준이며 낮을수록 좋다. 재활용 비중은 높을수록 좋다. 위험은 Low < Medium < High 순이다.'}</caption>
-    <thead>{sweep ? <tr><th scope="col">탄소 상한</th><th scope="col">최소비용 지수</th><th scope="col">선택</th><th scope="col">실제 탄소 지수</th></tr> : <tr><th scope="col">시나리오</th><th scope="col">비용 지수 ↓</th><th scope="col">탄소 지수 ↓</th><th scope="col">재활용 비중 ↑</th><th scope="col">공급 위험 ↓</th></tr>}</thead>
+    <caption>{sweep
+      ? (isKo ? '동일한 가상 후보 A–E에서 계산한 결과. Carbon Target은 상한이다.' : 'Computed from the same illustrative set A–E. Carbon target is an upper limit.')
+      : (isKo ? '모든 수치는 설명용 가상 데이터. 비용·탄소 지수 100은 A 기준이며 낮을수록 좋다. 재활용 비중은 높을수록 좋다. 위험은 Low < Medium < High 순이다.' : 'All figures are illustrative. Cost and carbon index 100 are A’s baseline; lower is better. Higher recycled content is better. Risk runs Low < Medium < High.')}</caption>
+    <thead>{sweep
+      ? <tr><th scope="col">{isKo ? '탄소 상한' : 'Carbon cap'}</th><th scope="col">{isKo ? '최소비용 지수' : 'Min. cost index'}</th><th scope="col">{isKo ? '선택' : 'Choice'}</th><th scope="col">{isKo ? '실제 탄소 지수' : 'Actual carbon index'}</th></tr>
+      : <tr><th scope="col">{isKo ? '시나리오' : 'Scenario'}</th><th scope="col">{isKo ? '비용 지수 ↓' : 'Cost index ↓'}</th><th scope="col">{isKo ? '탄소 지수 ↓' : 'Carbon index ↓'}</th><th scope="col">{isKo ? '재활용 비중 ↑' : 'Recycled share ↑'}</th><th scope="col">{isKo ? '공급 위험 ↓' : 'Supply risk ↓'}</th></tr>}</thead>
     <tbody>{sweep ? requirementSweep.map(r=><tr><th scope="row">{r.target}</th><td>{r.best.costIndex}</td><td>{r.best.name}</td><td>{r.best.carbonIndex}</td></tr>) : scenarios.map(s=><tr><th scope="row">{s.name}</th><td>{s.costIndex}</td><td>{s.carbonIndex}</td><td>{s.recycledContent}%</td><td>{s.supplyRisk}</td></tr>)}</tbody>
   </table>
 </div>

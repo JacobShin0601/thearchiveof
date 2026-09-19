@@ -6,7 +6,8 @@ export const restaurants = [
   { name: 'D', price: 32000, travelTime: 35, taste: 4.0 },
 ] as const;
 
-export const formatPrice = (price: number) => `${price.toLocaleString('ko-KR')}원`;
+export const formatPrice = (price: number, language: 'ko' | 'en' = 'ko') =>
+  language === 'en' ? `$${(price / 1000).toFixed(0)}` : `${price.toLocaleString('ko-KR')}원`;
 export const dominatesInChart = (a: typeof restaurants[number], b: typeof restaurants[number]) =>
   a.price <= b.price && a.travelTime <= b.travelTime
   && (a.price < b.price || a.travelTime < b.travelTime);
