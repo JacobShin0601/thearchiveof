@@ -50,7 +50,7 @@ If price, travel time, and food quality cannot all be improved at once, what sho
 
 Let us attach illustrative numbers to four candidates. These are new fictional data; they do not continue the ratings or locations from the previous article. We will also relax the earlier $30-per-person budget to $35 for this comparison, and assume every restaurant is open and has a table. Under the old budget, D would be removed before the comparison began.
 
-<RestaurantTable />
+<RestaurantTable language="en" />
 
 Lower price and shorter average travel time are better; a higher food score is better. Average travel time is the mean for the four friends. The food score is a shared simplification: real people may rate the same meal differently.
 
@@ -60,7 +60,7 @@ On price and taste, A looks strongest. It also asks everyone to travel an averag
 
 One candidate does look strange: D.
 
-<DominanceComparison />
+<DominanceComparison language="en" />
 
 With D, we pay more, travel longer, and receive a lower food score. **Isn’t D obviously out?** Given these three criteria, yes. Unless D has an additional advantage—say, a large parking garage—there is no reason to choose it over B. If parking matters, add it as another criterion and compare again.
 
@@ -72,7 +72,7 @@ The first choice does not need to be strictly better on every criterion. Matchin
 
 For a simpler picture, temporarily ignore food and compare only price and average travel time. Both should be minimized, so the lower-left direction is better.
 
-<ParetoChart variant="dominance" />
+<ParetoChart variant="dominance" language="en" />
 
 D sits above and to the right of B: it is both more expensive and farther away. Moving from D to B improves both criteria, so D can be removed.
 
@@ -92,7 +92,7 @@ In the price-and-travel example, A, B, and C are all Pareto-optimal. “Optimal�
 
 Plot A, B, and C in objective space using travel time and price:
 
-<ParetoChart variant="frontier" />
+<ParetoChart variant="frontier" language="en" />
 
 The set or boundary formed by Pareto-efficient objective values is the **Pareto frontier**. With continuous decisions, it may look like a smooth curve. Here, however, we must choose one whole restaurant, so the frontier is the **set of three points**. The dotted line is only a visual guide; it does not mean that we can reserve 30% of A and 70% of B as one restaurant.
 
@@ -158,6 +158,8 @@ At least now, when someone asks “Why this restaurant?”, we can answer with m
 Dinner had about three objectives. Work usually has more. The price has to come down, so does the carbon, and the shipment still has to arrive.
 
 The next article takes a procurement problem I actually worked through. I will show what collided, and how I sorted it out as **multi-objective optimization**.
+
+The draft is at [What is multi-objective optimization?](/en/math/optimization/multi-objective-optimization-battery-supply-chain/).
 
 Related topics: [Optimization](/en/topics/optimization/) · [Pareto Optimization](/en/topics/pareto-optimization/) · [Multi-objective Optimization](/en/topics/multi-objective-optimization/)
 

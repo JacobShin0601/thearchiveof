@@ -1,0 +1,343 @@
+---
+title: "What is multi-objective optimization? Real decisions rarely have one goal"
+description: "When cost, carbon, recycled content, and supply reliability collide, how do you decide? An EV battery procurement case I worked through."
+publishedDate: 2026-09-19
+section: "Mathematics"
+subsection: "Optimization"
+contentType: "foundation"
+topics:
+  - optimization
+  - multi-objective-optimization
+  - pareto-optimization
+  - supply-chain
+  - carbon-footprint
+primaryTopic: multi-objective-optimization
+tags:
+  - decision-making
+  - operations-research
+  - supply-chain
+  - sustainability
+  - trade-off
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "multi-objective-optimization-battery-supply-chain"
+series: "Optimization"
+seriesOrder: 3
+freshness: evergreen
+references:
+  - title: "Convex Optimization — Vector optimization (§4.7)"
+    url: "https://web.stanford.edu/~boyd/cvxbook/"
+    publisher: "Stephen Boyd and Lieven Vandenberghe"
+  - title: "Multiple Objectives"
+    url: "https://docs.gurobi.com/projects/optimizer/en/current/features/multiobjective.html"
+    publisher: "Gurobi Optimization"
+  - title: "New ε-constraint methods for multi-objective integer linear programming"
+    url: "https://arxiv.org/abs/2109.02630"
+    publisher: "Mesquita-Cunha, Figueira and Barbosa-Póvoa"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import BatteryScenarios from '../../../../components/optimization/BatteryScenarios.astro';
+import { scenarios } from '../../../../data/battery-procurement';
+
+<AnswerBlock question="What is multi-objective optimization?">
+  Multi-objective optimization is a way to decide when **several objective functions can pull against one another**. When cutting cost, carbon, quality, or supply risk can make another measure worse, we use it to map the trade-offs that remain inside the constraints.
+</AnswerBlock>
+
+Previous article: [What is Pareto optimization? When no restaurant is perfect for everyone](/en/math/optimization/pareto-optimization-dinner-with-friends/)
+
+The [last piece](/en/math/optimization/pareto-optimization-dinner-with-friends/) was about Friday dinner. Price, travel time, and taste collided, so we were left with several Pareto-optimal restaurants instead of one perfect booking.
+
+Work was messier than dinner.
+
+Suppose an EV battery manufacturer hears this from a customer:
+
+- Bring product carbon footprint (PCF) under a stated limit.
+- Do not lose price competitiveness doing it.
+- Recycled material has to clear a minimum share.
+- Can some inputs move to lower-carbon grades?
+- And the volume still has to arrive on time.
+
+Each request makes sense alone. Together they do not.
+
+**If we want lower carbon, a lower price, more recycled content, and a more stable supply, what exactly are we optimizing?**
+
+At first I thought the model would hand us one optimum. What actually mattered was being able to see, when a condition moved, which options remained and what each one gained or gave up.
+
+## Buy battery feedstock instead of a table
+
+**The case below simplifies a problem I met at work. The numbers and supplier mix are invented for the explanation. They are not a real customer, contract, or supply chain. Every figure, threshold, weight, and scenario in this article is illustrative.**
+
+Say five suppliers can deliver the same grade of feedstock. Unit price is not enough. We also need a carbon factor, recycled content, maximum volume, location, logistics cost, transport emissions, and supply risk.
+
+One supplier can be cheap and dirty. Another can be clean and short of volume. A quote that looks good on the price list can look worse once freight is added.
+
+What we decide is this:
+
+```text
+x_i = volume bought from supplier i
+```
+
+We are not picking one supplier. We are choosing how much to take from each. Those quantities are the **decision variables**.
+
+A real battery is not made from one input. Here we hold product, output, and feedstock requirement fixed, and assume quality and substitution rules are already met. That does not mean two different materials can be swapped tonne for tonne.
+
+Moved into a skeleton model, it looks like this. `cost_i`, `carbon_i`, and `recycled_i` are supplier *i*'s unit cost, carbon index, and recycled content; `capacity_i` is how much that supplier can ship.
+
+```text
+Minimize Total Cost = Σ cost_i × x_i
+
+subject to:
+  Σ x_i = Required Volume
+  Σ recycled_i × x_i / Required Volume ≥ Minimum Recycled Content
+  Σ carbon_i × x_i / Required Volume ≤ Carbon Limit
+  0 ≤ x_i ≤ capacity_i
+```
+
+A working model can fold freight and transport emissions into `cost_i` and `carbon_i`, or keep them as extra terms. The point of the algebra is the structure — which numbers we gather, and under which conditions — not a live contract.
+
+## What are we trying to improve, and what must we keep?
+
+The first article drew the same line: **objective** versus **constraint**.
+
+The objective says which feasible choices we want to make better. The constraint says which choices are allowed at all.
+
+If the customer says “PCF must stay at or below 70,” then `PCF ≤ 70` is a constraint. A cheaper mix that overshoots 70 cannot be offered. The 70 here is an invented index, not a measured emission; the charts later use the same kind of index.
+
+If the cap is already met and we still want a lower-carbon product, `Minimize PCF` can become an objective. The same carbon number can be a floor we must keep or a target we keep pushing. We can also set a cap and still try to go lower.
+
+> **One of the first jobs in optimization is deciding what belongs in the objective and what belongs in the constraints.**
+
+That is a business question before it is a solver question. We need to know what the customer treats as non-negotiable, and what can still be improved in negotiation.
+
+## Counting carbon does not make the problem multi-objective
+
+Start as simply as possible.
+
+```text
+Minimize Total Cost
+
+subject to:
+  PCF ≤ the customer's carbon cap
+  recycled share ≥ the customer's minimum
+  volume from each supplier ≤ that supplier's available volume
+  total volume = required volume
+  every volume ≥ 0
+```
+
+This model has **one objective: cost**. Carbon, recycled content, and capacity are conditions we have to keep. They all matter. They are not all objectives.
+
+A supplier's nameplate capacity is not enough. The volume we assign cannot exceed what that supplier can actually ship: `x_i ≤ capacity_i`.
+
+If buying extra were allowed, total volume could be at least the requirement. Here we buy exactly what we need. Recycled share is not an average across suppliers. It is recycled content times volume, summed, then divided by total volume.
+
+### Many constraints are not the same as many objectives
+
+Ten constraints on `Minimize Cost` still leave a **single-objective** problem.
+
+Put “cut cost” and “cut carbon” side by side as goals, and it becomes **multi-objective optimization**.
+
+```text
+Objective 1: Total Cost ↓
+Objective 2: Product Carbon Footprint ↓
+```
+
+We could add lower supply risk or higher recycled content. Four axes at once are hard to see. Cost and carbon first.
+
+## Five suppliers. Why is that already hard?
+
+Is a five-way comparison enough?
+
+No. Once we can split volume freely, the choices outnumber the suppliers. A continuous-volume model can have infinitely many mixes. Then add material types, plants, customer specs, caps, routes, and contract terms.
+
+A spreadsheet is not the problem. **Building every mix by hand, then rebuilding it whenever a condition moves**, is.
+
+Total cost has to include freight, not only the purchase price. PCF is not just the feedstock emission added up. The functional unit and the system boundary have to match, and transport or manufacturing inside that boundary has to be counted. Here we hold other production conditions fixed and compare what changes when procurement changes.
+
+Then someone asks:
+
+“Why not just take the cheapest mix that meets the constraints?”
+
+If that is the company's rule, yes. **The cheapest mix is not always the most useful offer.** If a little more cost buys a large carbon cut, we at least want to see that option.
+
+## What do we get if we spend a little more?
+
+Scenarios A–E below are **procurement mixes**, not supplier names. They are kept apart from Supplier 1–5 on purpose. Per-supplier volumes are omitted. All five meet the same required volume, quality, capacity, and recycled-content floor. The first carbon cap is an index of 100.
+
+For the explanation, **only these five mixes are allowed**. They are not the output of a continuous solver. “Pareto-efficient” here means efficient inside this set.
+
+Cost index 100 is the cheapest mix, A. Carbon index 100 is A's PCF. Each scale is set to 100 on its own baseline. Neither number is a real currency amount or a real tonne of CO₂.
+
+<BatteryScenarios language="en" />
+
+The horizontal axis is cost; the vertical axis is carbon. Lower-left is better.
+
+<ul>
+  {scenarios.filter(s => s.name !== 'D').map(s => <li><strong>{s.name}</strong>: {s.name === 'A' ? 'the cheapest baseline.' : `cost +${s.costIndex - 100}% versus A, carbon −${100 - s.carbonIndex}%.`} Recycled content is {s.recycledContent}%.</li>)}
+</ul>
+
+D is both more expensive and higher-carbon than B. It also loses to C and E on both measures. A, B, C, and E do not dominate one another. Inside this set, cutting carbon means paying more.
+
+Keep three words apart. **Multi-objective optimization** is the problem structure: more than one objective function. **Scenario analysis** is how we compare the mixes the model produces. The **Pareto frontier** is the result: the mixes that are not beaten on every measure. Structure, method, and picture are linked. They are not the same sentence.
+
+**This is the dinner-table Pareto frontier showing up in a company decision.** The dotted line is a guide along four points. Whether we can actually sit between two mixes depends on volume, contracts, and production.
+
+Will the customer accept B's extra cost? Does C's recycled content and lower supply risk help a longer contract? Do we need E's carbon cut in this bid?
+
+Customer requirements, win-rate, long-term supply, ESG or carbon targets, and cost pressure all sit on the same picture. The chart makes those questions specific.
+
+## Method 1: fold the goals into one score
+
+The last article left this open.
+
+“Can't we just make one score?”
+
+We can. A **weighted sum** attaches a weight to each objective and adds them. Cost and carbon are both lower-is-better, so we minimize:
+
+```text
+Minimize Score = w_cost × Scaled Cost + w_carbon × Scaled Carbon
+```
+
+Adding raw currency to kgCO₂e lets the larger number drag the answer. We need a shared scale — divide by a baseline, or stretch each range. The chart's indices, each set to 100, are one such scale. Scaling does not make the two goals equally important.
+
+On these invented indices, weights 0.9 on cost and 0.1 on carbon give B a score of `0.9 × 102 + 0.1 × 85 = 100.3`, worse than A's 100. Equal 0.5 weights give B 93.5, better than A's 100. That is only A versus B. A real choice still has to score the rest.
+
+The sharper question remains.
+
+**Who sets `w_cost` and `w_carbon`?**
+
+The data will not. Preference, strategy, and negotiating room will. Choosing the weights is part of the decision. A weighted sum turns the arithmetic into one objective. The trade-off is still there, hiding in the weights.
+
+### A weighted sum is convenient. It does not finish the job.
+
+Weights are subjective, and the answer is sensitive to scale. The same weights can pick a different mix if the normalization changes. So it is safer to move the weights and see how much the choice moves.
+
+On some **non-convex Pareto frontiers**, changing weights will not find every Pareto-optimal point. A positive-weight global optimum is Pareto-efficient; the converse is not guaranteed. Boyd and Vandenberghe discuss this in [vector optimization (§4.7)](https://web.stanford.edu/~boyd/cvxbook/).
+
+## Method 2: tighten the carbon cap and resolve for cost
+
+With a customer, “What carbon weight should we use?” is often the wrong question. This one is better:
+
+“If the carbon index has to stay at or below 80, what is the lowest cost?”
+
+That is the **ε-constraint** method. Optimize one objective; turn the others into caps or floors. Change ε and solve again.
+
+```text
+Minimize Cost
+subject to Carbon Index ≤ ε
+           and the remaining volume, quality, and supply conditions
+```
+
+We resolve at caps 100, 90, 80, 75, and 70, still using only A–E.
+
+<BatteryScenarios variant="sweep" language="en" />
+
+At a cap of 90, A's carbon index of 100 is out. The cheapest remaining mix is B. At 80, B drops and C remains. At 70 we have to take E.
+
+Caps 80 and 75 share the same minimum cost because both pick C. **A tighter requirement does not always move cost a little at a time.** In this table we choose a whole mix. A model that continuously rebalances volume can look different.
+
+A cap is not the achieved value. We asked for 90 or below; B lands at 85. We only need to be under the line. Ask for a cap below 70 and none of these five mixes work. Then we look for a new source or reopen the requirement.
+
+One solve is still a cost-minimization. **Repeating it as the carbon cap moves is how we explore the two-objective choice set.** If several mixes tie on cost, a follow-up comparison on carbon can drop the dominated ties.
+
+The same pattern appears in [work on ε-constraint methods](https://arxiv.org/abs/2109.02630). The algorithm matters less than the question: if the requirement moves, how does the lowest feasible cost move? Push the carbon cap far enough and the current network may have no mix left. The model has not failed. It has shown that we need another source, a technology bet, or a price conversation.
+
+## Put recycled content, low-carbon grades, and freight back in
+
+Does more recycled content always cut cost?
+
+Not necessarily. It can be dearer, thinner, or farther away. Raising the recycled share can raise cost and tighten supply.
+
+High recycled content is also not the same as low PCF. Processing, energy, and freight have to be scored inside the same boundary. If a low-carbon grade is mandatory for one input, that family needs its own volume and certification rule. A lower product-average carbon does not satisfy that rule by itself.
+
+A farther supplier can raise freight, transport emissions, lead time, and risk. Distance does not decide everything. Mode, route, and inventory do. **The cheapest unit price and the cheapest landed procurement cost can be different suppliers.**
+
+To put supply risk in the objective we first have to say what risk is: concentration, late delivery, or loss if a line stops. The Low / Medium / High labels above are teaching marks, not a real risk score.
+
+## What the model can miss
+
+A precise-looking result still stops at its inputs and its boundary. We still have to check whether capacity holds, which transport and manufacturing steps sit inside the PCF, and how recycled content is verified. Turning disruption or quality into a number is itself a judgment.
+
+So we should not read a solve as a purchase order. Current availability, contract terms, certificates, quality, and a logistics shock we did not model still need a look. If a missing condition appears, we add it and solve again. Optimization does not photocopy the world. It shows the assumptions and trade-offs we have to stand behind.
+
+## The customer does not ask once
+
+It would be easier if the requirement never moved. In the conversation it does.
+
+“Can the carbon cap come down a little?”
+
+“If we raise recycled content, what happens to price?”
+
+“Can we do this without that supplier?”
+
+“Keep those conditions — can the price still come down?”
+
+Rebuilding the table from scratch each time is slow. If the variables, the arithmetic, and the constraints are already written down, we change the condition and recompute. Data still has to be refreshed, and runtime still depends on size. At least we know what to check again.
+
+**The value of the model, for me, was not one optimum. It was being able to produce a new strategic option when the customer moved.**
+
+There is room between “no” and “yes.” Keep this condition and the cost looks like this. Relax that one and this other mix appears.
+
+## The company does not speak one language
+
+Purchasing reads cost. Sustainability reads carbon. Production reads whether the volume is real. Sales reads whether the customer spec is met. Leadership reads margin and competitive position.
+
+The disagreement is not that someone is wrong. Each desk owns a different measure.
+
+“A is cheaper” will not persuade the rest of the room. “E is cleaner” will not either. The same table — extra cost, carbon change, recycled share, supply risk — lets us say which mix fits which condition.
+
+> **An optimization model can turn the company's separate languages into one trade-off table.**
+
+The table does not replace agreement. It makes clear what we already agree on, and what still needs a conversation.
+
+## Does optimization only count if it decides for us?
+
+I used to picture a computer handing over one answer, and people executing it.
+
+It does not have to work that way.
+
+```text
+Feasible space: mixes that meet the conditions
+    → Optimization: compute under the chosen objectives and constraints
+    → Pareto / strategic scenarios: alternatives with different trade-offs
+    → Human decision: preference and the rest of reality pick one
+```
+
+Multi-objective optimization is the **structure**. The Pareto frontier is the **picture of the trade-offs** that structure produces. The dinner article and this one meet there.
+
+If quality or a supply shift sits outside the model, we still have to check it. Pareto-efficient is not a license to issue the PO. If a missing criterion shows up while we build the options, we add it and compare again.
+
+**In the companies I have seen, a good model does not retire the decision-maker. It lets that person choose faster and more clearly.**
+
+## Making the sacrifice visible
+
+Dinner with friends and battery feedstock share the same limit: we rarely make every objective best at once. At work the conditions and the stakeholders just multiply.
+
+Once objectives and constraints are separated, the problem has a shape. A weighted sum puts preference into a score. An ε-constraint shows the cost of each requirement. The Pareto frontier shows what we give up to get something else.
+
+> **The point of multi-objective optimization is not to make every goal perfect at once. It is to make clear which choices remain, and how much we give up to improve one goal.**
+>
+> **A good model does not force one answer. It produces strategic options a person can actually choose among.**
+
+We no longer have to answer “Which mix is best?” with a supplier name.
+
+“What must we keep, and what do we still want to improve?”
+
+If we can start there, we already understand the problem better.
+
+## Next: integer programming — writing yes-or-no into the math
+
+Until now it was enough to choose how much to buy. Some suppliers attach a fixed cost the moment we open the account, and a minimum order as well. Open the plant or don't. Use the supplier or don't. There is no halfway.
+
+The next article takes those yes-or-no choices I met at work, and how I wrote them as **integer programming**.
+
+**That article is still being written.** I will link it here when it is up.
+
+Related topics: [Optimization](/en/topics/optimization/) · [Multi-objective Optimization](/en/topics/multi-objective-optimization/) · [Pareto Optimization](/en/topics/pareto-optimization/) · [Supply Chain](/en/topics/supply-chain/) · [Carbon Footprint](/en/topics/carbon-footprint/)
+
+This case is an introduction to how **supply-chain optimization** and **carbon-footprint optimization** meet in one decision.
+
+Series: [Optimization](/en/series/optimization/)
