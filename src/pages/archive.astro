@@ -89,6 +89,7 @@ const tags = [...new Set(posts.flatMap((post) => post.data.tags))].sort((a, b) =
               </time>
             </div>
             <h2><a href={postPath(post)}>{post.data.title}</a></h2>
+            {post.data.subtitle && <p class="post-subtitle">{post.data.subtitle}</p>}
           </div>
           <span class="arrow">↗</span>
         </article>

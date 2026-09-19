@@ -102,6 +102,7 @@ const nextInSeries = seriesIndex >= 0 ? seriesPosts[seriesIndex + 1] : undefined
         <time datetime={post.data.publishedDate.toISOString()}>{date}</time>
       </div>
       <h1>{post.data.title}</h1>
+      {post.data.subtitle && <p class="article-subtitle">{post.data.subtitle}</p>}
       <p class="dek">{post.data.description}</p>
       <div class="article-byline">
         <span>{isKo ? '작성' : 'By'} {post.data.author}</span>
