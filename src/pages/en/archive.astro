@@ -1,20 +1,136 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import PostCard from '../../components/PostCard.astro';
+import { CONTENT_TYPES, postPath, sectionPath, SECTIONS } from '../../consts';
 import { isVisiblePost } from '../../environment';
 
 const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en'))
   .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
+const years = [...new Set(posts.map((post) => post.data.publishedDate.getFullYear()))].sort((a, b) => b - a);
+const topics = [...new Set(posts.flatMap((post) => post.data.topics))].sort((a, b) => a.localeCompare(b));
+const series = [...new Set(posts.flatMap((post) => post.data.series ? [post.data.series] : []))].sort((a, b) => a.localeCompare(b));
+const tags = [...new Set(posts.flatMap((post) => post.data.tags))].sort((a, b) => a.localeCompare(b));
 ---
 
-<BaseLayout title="English archive" description="Every English-language article published in The Archive." language="en" alternateLanguageUrl="/archive/">
+<BaseLayout title="Archive" description="Every English article published in The Archive." language="en" alternateLanguageUrl="/archive/">
   <section class="listing-page shell">
     <header>
-      <p class="eyebrow">English edition</p>
+      <p class="eyebrow">Full index</p>
       <h1>Archive</h1>
-      <p>English editions edited from the original Korean articles.</p>
+      <p>Every published article, arranged to be found later rather than as a feed.</p>
     </header>
-    <div class="post-grid category-posts">{posts.map((post, index) => <PostCard post={post} featured={index === 0} />)}</div>
+    <form class="archive-filters" aria-label="Filter the archive">
+      <label>
+        <span>Section</span>
+        <select name="section">
+          <option value="">All sections</option>
+          {SECTIONS.map((section) => <option value={section.name}>{section.name}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Type</span>
+        <select name="contentType">
+          <option value="">All types</option>
+          {CONTENT_TYPES.map((type) => <option value={type}>{type}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Year</span>
+        <select name="year">
+          <option value="">All years</option>
+          {years.map((year) => <option value={String(year)}>{year}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Topic</span>
+        <select name="topic">
+          <option value="">All topics</option>
+          {topics.map((topic) => <option value={topic}>{topic}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Series</span>
+        <select name="series">
+          <option value="">All series</option>
+          {series.map((name) => <option value={name}>{name}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Tag</span>
+        <select name="tag">
+          <option value="">All tags</option>
+          {tags.map((tag) => <option value={tag}>{tag}</option>)}
+        </select>
+      </label>
+      <button type="reset">Reset</button>
+    </form>
+    <p class="archive-count" aria-live="polite"><span>{posts.length}</span> articles</p>
+    <div class="archive-list" data-archive-list>
+      {posts.map((post, index) => (
+        <article
+          data-section={post.data.section}
+          data-content-type={post.data.contentType}
+          data-year={String(post.data.publishedDate.getFullYear())}
+          data-topics={post.data.topics.join('|')}
+          data-series={post.data.series ?? ''}
+          data-tags={post.data.tags.join('|')}
+        >
+          <span class="archive-number">{String(index + 1).padStart(2, '0')}</span>
+          <div>
+            <div class="post-meta">
+              <a href={`/en/${sectionPath(post.data.section)}/`}>{post.data.section}</a>
+              <span>/</span>
+              <span>{post.data.subsection}</span>
+              <span>/</span>
+              <span>{post.data.contentType}</span>
+              <span>/</span>
+              <time datetime={post.data.publishedDate.toISOString()}>
+                {post.data.publishedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' })}
+              </time>
+            </div>
+            <h2><a href={postPath(post)}>{post.data.title}</a></h2>
+            {post.data.subtitle && <p class="post-subtitle">{post.data.subtitle}</p>}
+          </div>
+          <span class="arrow">↗</span>
+        </article>
+      ))}
+    </div>
+    <p class="empty-state archive-empty" hidden>No articles match these filters.</p>
   </section>
+
+  <script>
+    const form = document.querySelector<HTMLFormElement>('.archive-filters');
+    const items = [...document.querySelectorAll<HTMLElement>('[data-archive-list] > article')];
+    const count = document.querySelector<HTMLElement>('.archive-count span');
+    const empty = document.querySelector<HTMLElement>('.archive-empty');
+
+    function applyFilters() {
+      if (!form) return;
+      const values = new FormData(form);
+      const section = String(values.get('section') ?? '');
+      const contentType = String(values.get('contentType') ?? '');
+      const year = String(values.get('year') ?? '');
+      const topic = String(values.get('topic') ?? '');
+      const series = String(values.get('series') ?? '');
+      const tag = String(values.get('tag') ?? '');
+      let visible = 0;
+
+      items.forEach((item) => {
+        const matches = (!section || item.dataset.section === section)
+          && (!contentType || item.dataset.contentType === contentType)
+          && (!year || item.dataset.year === year)
+          && (!topic || (item.dataset.topics ?? '').split('|').includes(topic))
+          && (!series || item.dataset.series === series);
+        const finalMatch = matches && (!tag || (item.dataset.tags ?? '').split('|').includes(tag));
+        item.hidden = !finalMatch;
+        if (finalMatch) visible += 1;
+      });
+
+      if (count) count.textContent = String(visible);
+      if (empty) empty.hidden = visible !== 0;
+    }
+
+    form?.addEventListener('change', applyFilters);
+    form?.addEventListener('reset', () => requestAnimationFrame(applyFilters));
+  </script>
 </BaseLayout>

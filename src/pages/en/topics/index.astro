@@ -1,0 +1,33 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { TOPIC_CLUSTERS, topicDefinition, topicPath } from '../../../consts';
+import { isVisiblePost } from '../../../environment';
+
+const posts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en');
+const usedTopics = new Set(posts.flatMap((post) => post.data.topics));
+const clusters = TOPIC_CLUSTERS.map((cluster) => ({
+  ...cluster,
+  topics: cluster.topics.filter((topic) => usedTopics.has(topic)),
+})).filter((cluster) => cluster.topics.length > 0);
+---
+
+<BaseLayout title="Topics" description="A knowledge hub connecting explanations, research, implementation, and points of view." language="en" alternateLanguageUrl="/topics/">
+  <section class="listing-page shell">
+    <header>
+      <p class="eyebrow">Knowledge graph</p>
+      <h1>Topics</h1>
+      <p>Core ideas that cut across sections, connecting explanation, implementation, evidence, and personal views.</p>
+    </header>
+    <div class="topic-clusters">
+      {clusters.map((cluster) => (
+        <section>
+          <p class="eyebrow">Core cluster</p>
+          <h2>{cluster.name}</h2>
+          <p>{cluster.description}</p>
+          <div class="topic-links">{cluster.topics.map((topic) => <a href={topicPath(topic, 'en')}>{topicDefinition(topic)?.name ?? topic}</a>)}</div>
+        </section>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

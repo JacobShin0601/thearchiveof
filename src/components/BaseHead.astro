@@ -43,7 +43,7 @@ const allowIndex = INDEXABLE && indexable;
 const pageTitle = title === SITE_TITLE ? title : `${title} — ${SITE_TITLE}`;
 const canonicalUrl = new URL(canonical.pathname, SITE_URL);
 const socialImage = new URL(resolveSocialImage(socialImagePath), SITE_URL);
-const socialImageAlt = type === 'article' ? title : `${SITE_TITLE} — Investing, AI & AX, Lab, Mathematics, Notes`;
+const socialImageAlt = type === 'article' ? title : `${SITE_TITLE} — Investing, AI & AX, Lab, Mathematics, Perspectives`;
 
 const articleSchema = type === 'article'
   ? {

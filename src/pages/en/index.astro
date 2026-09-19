@@ -3,11 +3,15 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostCard from '../../components/PostCard.astro';
 import NewsletterCTA from '../../components/NewsletterCTA.astro';
-import { SECTIONS } from '../../consts';
+import { PLANNED_SERIES, SECTIONS, seriesPath, TOPIC_CLUSTERS, topicPath } from '../../consts';
 import { isVisiblePost } from '../../environment';
 
 const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en'))
   .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
+const featuredPosts = posts.filter((post) => post.data.featured).slice(0, 3);
+const activeTopics = new Set(posts.flatMap((post) => post.data.topics));
+const activeTopicClusters = TOPIC_CLUSTERS.map((cluster) => ({ ...cluster, topics: cluster.topics.filter((topic) => activeTopics.has(topic)) }))
+  .filter((cluster) => cluster.topics.length > 0);
 ---
 
 <BaseLayout language="en" alternateLanguageUrl="/">
@@ -21,18 +25,34 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
       <span class="hero-line">Understand uncertainty.</span>
       <span class="hero-line">Make better decisions.</span>
     </p>
-    <p class="hero-index">English edition · Est. 2026</p>
+    <p class="hero-index">Vol. 01 · Est. 2026</p>
   </section>
-  <section class="latest shell" aria-labelledby="english-latest-heading">
+
+  <section class="latest featured-research shell" aria-labelledby="featured-heading">
     <div class="section-heading">
-      <p class="eyebrow" id="english-latest-heading">English articles</p>
+      <p class="eyebrow" id="featured-heading">Featured</p>
+      <span>Selected work</span>
+    </div>
+    {featuredPosts.length > 0 ? <div class="post-grid">
+      {featuredPosts.map((post, index) => <PostCard post={post} featured={index === 0} />)}
+    </div> : <p class="empty-state">Selected research will appear here.</p>}
+  </section>
+
+  <section class="latest latest-articles shell" aria-labelledby="latest-heading">
+    <div class="section-heading">
+      <p class="eyebrow" id="latest-heading">Latest</p>
       <a href="/en/archive/">View the archive →</a>
     </div>
-    <div class="post-grid">{posts.map((post, index) => <PostCard post={post} featured={index === 0} />)}</div>
+    <div class="post-grid">
+      {posts.length > 0 ? posts.slice(0, 6).map((post, index) => <PostCard post={post} featured={index === 0} />) : (
+        <p class="empty-state">The first articles are being prepared.</p>
+      )}
+    </div>
   </section>
-  <section class="category-grid shell" aria-labelledby="english-fields-heading">
+
+  <section class="category-grid shell" aria-labelledby="fields-heading">
     <div class="section-heading">
-      <p class="eyebrow" id="english-fields-heading">Fields of inquiry</p>
+      <p class="eyebrow" id="fields-heading">Fields of inquiry</p>
       <span>Five connected sections</span>
     </div>
     <div class="category-list">
@@ -49,10 +69,38 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
       ))}
     </div>
   </section>
+
+  <section class="discovery-grid shell" aria-label="Topics and series">
+    <div>
+      <div class="section-heading">
+        <p class="eyebrow">Topics</p>
+        <a href="/en/topics/">View all →</a>
+      </div>
+      <div class="discovery-links">
+        {activeTopicClusters.map((cluster) => (
+          <section>
+            <h2>{cluster.name}</h2>
+            <p>{cluster.topics.slice(0, 5).map((topic) => <a href={topicPath(topic, 'en')}>{topic.replaceAll('-', ' ')}</a>)}</p>
+          </section>
+        ))}
+      </div>
+    </div>
+    <div>
+      <div class="section-heading">
+        <p class="eyebrow">Series</p>
+        <a href="/en/series/">View all →</a>
+      </div>
+      <ol class="home-series">
+        {PLANNED_SERIES.map((series, index) => <li><span>{String(index + 1).padStart(2, '0')}</span><a href={seriesPath(series, 'en')}>{series}</a></li>)}
+      </ol>
+    </div>
+  </section>
+
   <div class="home-newsletter shell"><NewsletterCTA language="en" /></div>
-  <aside class="manifesto shell" aria-label="Editorial method">
+
+  <aside class="manifesto shell" aria-label="Publication statement">
     <span class="manifesto-mark">“</span>
     <blockquote>Explain → Model → Test → Interpret</blockquote>
-    <p>English editions are edited from the Korean originals, preserving claims, evidence, and sources.</p>
+    <p>One method across markets, AI, experiments, and mathematics</p>
   </aside>
 </BaseLayout>
