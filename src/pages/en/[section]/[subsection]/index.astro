@@ -2,7 +2,7 @@
 import type { GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../../../layouts/BaseLayout.astro';
-import PostCard from '../../../../components/PostCard.astro';
+import ArchiveList from '../../../../components/ArchiveList.astro';
 import { SECTIONS } from '../../../../consts';
 import { isVisiblePost } from '../../../../environment';
 
@@ -32,8 +32,6 @@ const posts = (await getCollection('posts', ({ data }) =>
       <h1>{subsection.name}</h1>
       <p>Research, foundations, and current analysis filed under {subsection.name}.</p>
     </header>
-    {posts.length > 0 ? <div class="post-grid category-posts">
-      {posts.map((post, index) => <PostCard post={post} featured={index === 0} />)}
-    </div> : <p class="empty-state">English articles for this subsection are being prepared.</p>}
+    {posts.length > 0 ? <ArchiveList posts={posts} /> : <p class="empty-state">English articles for this subsection are being prepared.</p>}
   </section>
 </BaseLayout>
