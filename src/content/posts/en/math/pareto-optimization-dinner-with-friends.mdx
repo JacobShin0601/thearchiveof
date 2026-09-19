@@ -1,0 +1,159 @@
+---
+title: "What is Pareto optimization? When no restaurant is perfect for everyone"
+description: "An intuitive introduction to Pareto dominance, Pareto-optimal solutions, and the Pareto frontier through a New York dinner decision."
+publishedDate: 2026-09-19
+section: "Mathematics"
+subsection: "Optimization"
+contentType: "foundation"
+topics:
+  - optimization
+  - pareto-optimization
+  - multi-objective-optimization
+primaryTopic: optimization
+tags:
+  - intuition
+  - decision-making
+  - trade-off
+  - operations-research
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "pareto-optimization-dinner-with-friends"
+series: "Optimization"
+seriesOrder: 2
+localization:
+  locale: "en-US"
+  defaultContext: "New York City"
+  strategy: "localized-adaptation"
+freshness: evergreen
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import RestaurantTable from '../../../../components/optimization/RestaurantTable.astro';
+import DominanceComparison from '../../../../components/optimization/DominanceComparison.astro';
+import ParetoChart from '../../../../components/optimization/ParetoChart.astro';
+
+<AnswerBlock question="What is Pareto optimization?">
+  Pareto optimization is a way to reason about several competing objectives. It keeps the choices for which no other feasible choice is at least as good on every criterion and strictly better on one. There may be more than one such choice; together, they show the trade-offs among the objectives.
+</AnswerBlock>
+
+In the [previous article](/en/math/optimization/what-is-optimization-dinner-with-friends/), four friends were trying to choose a restaurant for Friday dinner in New York City. We defined what we could decide, what “better” meant, and which conditions had to hold.
+
+We still have not made the reservation. **The problem is that cheap, close, and delicious do not all point to the same restaurant.** One friend wants to keep the bill down. Another does not want a long subway ride after work. Someone else says, “If we are going out, the food should at least be good.” Everyone has a reasonable point. That is what makes the decision difficult.
+
+If price, travel time, and food quality cannot all be improved at once, what should count as optimal? That question leads us to **Pareto optimization**.
+
+## Which restaurant is best?
+
+Let us attach illustrative numbers to four candidates. These are new fictional data; they do not continue the ratings or locations from the previous article. We will also relax the earlier $30-per-person budget to $35 for this comparison, and assume every restaurant is open and has a table. Under the old budget, D would be removed before the comparison began.
+
+<RestaurantTable />
+
+Lower price and shorter average travel time are better; a higher food score is better. Average travel time is the mean for the four friends. The food score is a shared simplification: real people may rate the same meal differently.
+
+On price and taste, A looks strongest. It also asks everyone to travel an average of 45 minutes. C is the closest, but costs $30 and scores 4.2. B sits between those extremes. “So which one is best?” A table of numbers does not automatically settle the group chat.
+
+## The obviously inferior restaurant
+
+One candidate does look strange: D.
+
+<DominanceComparison />
+
+With D, we pay more, travel longer, and receive a lower food score. **Isn’t D obviously out?** Given these three criteria, yes. Unless D has an additional advantage—say, a large parking garage—there is no reason to choose it over B. If parking matters, add it as another criterion and compare again.
+
+## Pareto dominance
+
+When one choice is at least as good as another on every criterion and strictly better on at least one, we say the first choice **Pareto-dominates** the second. B Pareto-dominates D, so D is a **dominated solution**.
+
+The first choice does not need to be strictly better on every criterion. Matching the price and food score while offering a shorter trip is enough. If one criterion improves while another gets worse, neither choice automatically dominates the other.
+
+For a simpler picture, temporarily ignore food and compare only price and average travel time. Both should be minimized, so the lower-left direction is better.
+
+<ParetoChart variant="dominance" />
+
+D sits above and to the right of B: it is both more expensive and farther away. Moving from D to B improves both criteria, so D can be removed.
+
+## What remains after removing D?
+
+Now A, B, and C remain. Moving from A to B cuts average travel time from 45 minutes to 25, but raises the price from $20 to $25. Moving from B to C saves another five minutes, but costs another $5. Going from C back to A saves $10, but adds 25 minutes of travel.
+
+There is no universally better choice. **When one criterion improves and another must be sacrificed, we have a trade-off.** For one person, $5 may matter more than 20 minutes. For another, the opposite may be true. The arithmetic is not wrong; the priorities differ.
+
+## A Pareto-optimal solution need not be unique
+
+Among feasible choices, a solution is **Pareto-optimal** when no other feasible solution dominates it. It is also called a **Pareto-efficient solution**.
+
+In the price-and-travel example, A, B, and C are all Pareto-optimal. “Optimal” here does not mean the restaurant everyone agrees is best. It means that, under the chosen criteria and candidates, we cannot improve one criterion without giving up something elsewhere. Add a new restaurant or change the criteria, and the Pareto set may change.
+
+## The Pareto frontier
+
+Plot A, B, and C in objective space using travel time and price:
+
+<ParetoChart variant="frontier" />
+
+The set or boundary formed by Pareto-efficient objective values is the **Pareto frontier**. With continuous decisions, it may look like a smooth curve. Here, however, we must choose one whole restaurant, so the frontier is the **set of three points**. The dotted line is only a visual guide; it does not mean that we can reserve 30% of A and 70% of B as one restaurant.
+
+The chart does not identify a winner. It shows how much more we must pay to reduce travel time.
+
+## Add food quality back in
+
+Return to all three criteria: `Price ↓ / Average travel time ↓ / Food quality ↑`.
+
+A costs $20 and scores 4.8, but takes 45 minutes on average. B costs $25, scores 4.5, and takes 25 minutes. C costs $30, scores 4.2, and is closest at 20 minutes.
+
+Adding food quality still leaves A, B, and C. A is cheaper and tastier but farther away; C is closest but more expensive and less tasty; B is not worse than another candidate on all three criteria. D remains dominated because its food score is lower as well. Two-criterion dominance does not always survive the addition of a third criterion; D remains dominated here precisely because it is also worse on food.
+
+## Why not combine everything into one score?
+
+It is natural to ask whether we can combine price, travel, and food into one score:
+
+```text
+Score = Food quality × w1 - Price × w2 - Travel time × w3
+```
+
+Food quality is higher-is-better, so it is added. Price and travel time are lower-is-better, so they are subtracted. But why should the food weight be 0.5 and the price weight 0.2? The table cannot tell us. Those numbers express what the group values, and the units and scales differ. Preferences do not disappear when we combine objectives into one score; they move into the weights.
+
+## Average travel time can hide an unfair trip
+
+Consider a separate illustrative example. X and Y have the same price and food score; only travel time differs.
+
+- **Restaurant X:** 20 / 20 / 20 / 70 minutes. Average: **32.5 minutes**; maximum: **70 minutes**.
+- **Restaurant Y:** 35 / 35 / 35 / 35 minutes. Average: **35 minutes**; maximum: **35 minutes**.
+
+Average travel time favors X. If I am the person travelling 70 minutes, I may see it differently: “The three of you get a 20-minute trip, and I get more than an hour?” We can add another objective: **minimize the longest individual travel time**. X is better on average; Y is better on the maximum. Neither dominates the other, so with these two criteria both are Pareto-optimal. If fairness matters, it has to appear in the objectives or constraints.
+
+## Pareto-optimal does not mean final decision
+
+Pareto-optimal does not mean cheapest, fairest, or best for everyone. Even after learning that A, B, and C are all Pareto-optimal, we still have to reserve one restaurant. The group might choose C because everyone is tired, A because this month is expensive, or B as a compromise. That is the **final decision**.
+
+> **Pareto optimization does not decide for us. It removes choices that are plainly inferior and leaves the candidates worth discussing.**
+
+The word “inferior” is relative to the criteria in the model. We still need to check that no important condition was omitted and agree on which remaining trade-off the group prefers.
+
+## Pareto set and Pareto frontier
+
+The **Pareto set** is the set of Pareto-optimal solutions in decision-variable space: “choose A,” “choose B,” and “choose C.” The **Pareto frontier** is the set of their objective values in objective space: `(45 minutes, $20)`, `(25 minutes, $25)`, and `(20 minutes, $30)`. With food included, each point gains a third coordinate.
+
+People often use the two terms loosely. The distinction is whether we are looking at the choices themselves or at the evaluations produced by those choices.
+
+## Instead of asking for the best restaurant
+
+The first question was simple: “Which restaurant is best?” With several objectives, the question changes:
+
+> “Which restaurants are not plainly inferior?”
+
+D can be removed because switching to another candidate improves every criterion. Between A, B, and C, however, gaining something means giving something else up. Filtering dominated choices, understanding the remaining trade-offs, and making the final preference-based decision are related steps, but they are not the same task.
+
+> **When several objectives conflict, “optimal” does not always mean one answer. Removing plainly inferior choices and understanding the remaining trade-offs may be the beginning of good decision-making.**
+
+At least now, when someone asks “Why this restaurant?”, we can answer with more than “because.” The reservation still requires agreement, though.
+
+## Next: multi-objective optimization
+
+Our dinner decision had three objectives. Real business problems may involve cost, carbon emissions, supply reliability, service levels, and more. The next article will show how to formulate such a problem as **multi-objective optimization**, including multiple objective functions, preferences, weighted sums, and the ε-constraint method.
+
+Related topics: [Optimization](/en/topics/optimization/) · [Pareto Optimization](/en/topics/pareto-optimization/) · [Multi-objective Optimization](/en/topics/multi-objective-optimization/)
+
+Series: [Optimization](/en/series/optimization/)

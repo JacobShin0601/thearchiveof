@@ -61,7 +61,7 @@ Foundation and Research articles should normally begin with an `AnswerBlock`. Re
 
 The English file is not a literal translation. Work should:
 
-- preserve the thesis, evidence, figures, links, and caveats;
+- preserve the thesis, factual evidence and figures, links, and caveats; localize illustrative examples according to [the English localization guide](editorial-localization.md);
 - rewrite syntax and idiom for natural English;
 - keep terminology consistent with the topic registry;
 - avoid adding claims that do not exist in the approved Korean edition;
@@ -101,7 +101,7 @@ translationKey: "example-article"
 socialImage: "/og/example-article.png"
 ```
 
-Only `title`, `subtitle`, `description`, body text, and `language` normally differ. If a pair has a custom share image, both files use the same `socialImage` path. Put the file at `public/og/<translationKey>.png` (1200×630). Omit the field to fall back to `/og.png`. Set `language: "ko"` for the source and `language: "en"` for the English edition. Use `title` for the heading and optional `subtitle` for the supporting line; keep the search summary in `description`.
+`title`, `subtitle`, `description`, body text, and `language` normally differ. If a pair has a custom share image, both files use the same `socialImage` path. Put the file at `public/og/<translationKey>.png` (1200×630). Omit the field to fall back to `/og.png`. Optional `localization` metadata belongs to the English edition only; `updatedDate` can differ when just one published edition materially changes. Semantic parity does not require identical illustrative prices, locations, jokes, or paragraph order. Set `language: "ko"` for the source and `language: "en"` for the English edition. Use `title` for the heading and optional `subtitle` for the supporting line; keep the search summary in `description`.
 
 ## 6. Preview review
 
@@ -111,7 +111,7 @@ Checklist:
 
 - argument and mandatory wording preserved;
 - unsupported claims removed or qualified;
-- facts, numbers, sources, and dates match in both languages;
+- facts, analytical numbers, sources, and dates agree in both languages; illustrative adaptations preserve the same decision logic and are internally consistent;
 - headings, tables, equations, links, captions, and code render correctly;
 - mobile layout and language switch work;
 - Topic, primaryTopic, and tags are intentional;
