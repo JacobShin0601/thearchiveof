@@ -13,7 +13,7 @@ const alt = sweep
     ? `가상 후보 A–E만 비교한 탄소 상한별 최소비용. ${requirementSweep.map(r=>`상한 ${r.target}: ${r.best.name}, 비용 ${r.best.costIndex}`).join('; ')}. 오른쪽으로 갈수록 탄소 요구가 강화된다. 점선은 표에 있는 결과를 잇는 안내선이며 중간값의 최적비용을 뜻하지 않는다.`
     : `Minimum cost at each carbon cap, using only illustrative candidates A–E. ${requirementSweep.map(r=>`cap ${r.target}: ${r.best.name}, cost ${r.best.costIndex}`).join('; ')}. Moving right tightens the carbon requirement. The dotted line joins tabulated results; it is not an interpolated optimum.`)
   : (isKo
-    ? `가상 조달 시나리오의 비용·탄소 산점도. ${scenarios.map(s=>`${s.name}: 비용 ${s.costIndex}, 탄소 ${s.carbonIndex}`).join('; ')}. 두 지표 모두 낮을수록 좋다. 원형 A·B·C·E는 이 후보 집합에서 파레토 효율적이고 사각형 D는 B·C·E에 지배된다.`
+    ? `가상 조달 시나리오의 비용·탄소 산점도. ${scenarios.map(s=>`${s.name}: 비용 ${s.costIndex}, 탄소 ${s.carbonIndex}`).join('; ')}. 두 지표 모두 낮을수록 좋다. 원형 A·B·C·E는 이 후보 집합에서 파레토 효율적이고 사각형 D는 B·C·E에 밀린다.`
     : `Cost–carbon scatterplot of illustrative procurement scenarios. ${scenarios.map(s=>`${s.name}: cost ${s.costIndex}, carbon ${s.carbonIndex}`).join('; ')}. Lower is better on both axes. Circles A, B, C, and E are Pareto-efficient in this set; square D is dominated by B, C, and E.`);
 ---
 <figure aria-labelledby={`${id}-caption`}>
@@ -42,7 +42,7 @@ const alt = sweep
   </svg>
   <p class="legend">{sweep
     ? (isKo ? '● 각 상한에서 선택된 후보 · ⋯ 안내선' : '● Candidate chosen at each cap · ⋯ guide line')
-    : (isKo ? '● A·B·C·E: 파레토 효율적 · □ D: 지배됨 · ⋯ 안내선' : '● A, B, C, E: Pareto-efficient · □ D: dominated · ⋯ guide line')}</p>
+    : (isKo ? '● A·B·C·E: 파레토 효율적 · □ D: 밀리는 후보 · ⋯ 안내선' : '● A, B, C, E: Pareto-efficient · □ D: dominated · ⋯ guide line')}</p>
   <figcaption id={`${id}-caption`}>{sweep
     ? (isKo
       ? '그림 2. 고객의 탄소 요구조건을 단계적으로 강화하면, 각 조건을 만족하는 최소비용 조합을 다시 계산할 수 있다. 이 결과는 탄소 감축과 추가 비용 사이의 trade-off를 보여준다. A–E만 비교한 가상 예시이며, 점선 사이의 값은 계산하지 않았다.'

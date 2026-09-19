@@ -11,7 +11,7 @@ const payload = JSON.stringify(restaurants);
 
 <section class="pareto-explorer" data-component="pareto-explorer-v1" data-language={language} data-restaurants={payload}>
   <p class="eyebrow">{isKo ? '직접 실험' : 'Interactive equivalent'}</p>
-  <h2>{isKo ? '가중치를 바꾸면 선택이 달라진다' : 'Change the weights and the choice moves'}</h2>
+  <h3>{isKo ? '가중치를 바꾸면 선택이 달라진다' : 'Change the weights and the choice moves'}</h3>
   <p>
     {isKo
       ? '위 표와 차트는 그대로입니다. 여기서는 같은 가상 데이터로 가중합이 파레토 후보 중 어디를 고르는지 볼 수 있습니다.'
@@ -33,7 +33,7 @@ const payload = JSON.stringify(restaurants);
 
   <div class="explorer-table-wrap" role="region" tabindex="0" aria-label={isKo ? '실험용 식당 값' : 'Explorable restaurant values'}>
     <table>
-      <caption>{isKo ? '값을 바꾸면 지배 관계도 다시 계산됩니다.' : 'Editing a value recalculates dominance.'}</caption>
+      <caption>{isKo ? '값을 바꾸면 누가 밀리는지도 다시 계산됩니다.' : 'Editing a value recalculates dominance.'}</caption>
       <thead>
         <tr>
           <th scope="col">{isKo ? '식당' : 'Restaurant'}</th>
@@ -156,7 +156,7 @@ const payload = JSON.stringify(restaurants);
     }
     if (result) {
       result.textContent = language === 'ko'
-        ? `파레토 후보: ${efficient.map((place) => place.name).join(', ') || '없음'}. 지배됨: ${dominated.map((place) => place.name).join(', ') || '없음'}.`
+        ? `파레토 후보: ${efficient.map((place) => place.name).join(', ') || '없음'}. 밀리는 후보: ${dominated.map((place) => place.name).join(', ') || '없음'}.`
         : `Pareto candidates: ${efficient.map((place) => place.name).join(', ') || 'none'}. Dominated: ${dominated.map((place) => place.name).join(', ') || 'none'}.`;
     }
     if (announceRun) {

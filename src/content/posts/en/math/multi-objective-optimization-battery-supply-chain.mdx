@@ -189,7 +189,11 @@ Will the customer accept B's extra cost? Does C's recycled content and lower sup
 
 Customer requirements, win-rate, long-term supply, ESG or carbon targets, and cost pressure all sit on the same picture. The chart makes those questions specific.
 
-## Method 1: fold the goals into one score
+## One score, or a tighter cap
+
+If cost and carbon are both objectives, the next question is how to handle them together. We can fold them into one score, or we can turn one into a cap and resolve the other.
+
+### Method 1: fold the goals into one score
 
 The last article left this open.
 
@@ -217,7 +221,7 @@ Weights are subjective, and the answer is sensitive to scale. The same weights c
 
 On some **non-convex Pareto frontiers**, changing weights will not find every Pareto-optimal point. A positive-weight global optimum is Pareto-efficient; the converse is not guaranteed. Boyd and Vandenberghe discuss this in [vector optimization (§4.7)](https://web.stanford.edu/~boyd/cvxbook/).
 
-## Method 2: tighten the carbon cap and resolve for cost
+### Method 2: tighten the carbon cap and resolve for cost
 
 With a customer, “What carbon weight should we use?” is often the wrong question. This one is better:
 
@@ -257,7 +261,7 @@ A farther supplier can raise freight, transport emissions, lead time, and risk. 
 
 To put supply risk in the objective we first have to say what risk is: concentration, late delivery, or loss if a line stops. The Low / Medium / High labels above are teaching marks, not a real risk score.
 
-## What the model can miss
+### What the model can miss
 
 A precise-looking result still stops at its inputs and its boundary. We still have to check whether capacity holds, which transport and manufacturing steps sit inside the PCF, and how recycled content is verified. Turning disruption or quality into a number is itself a judgment.
 
@@ -281,7 +285,7 @@ Rebuilding the table from scratch each time is slow. If the variables, the arith
 
 There is room between “no” and “yes.” Keep this condition and the cost looks like this. Relax that one and this other mix appears.
 
-## The company does not speak one language
+### The company does not speak one language
 
 Purchasing reads cost. Sustainability reads carbon. Production reads whether the volume is real. Sales reads whether the customer spec is met. Leadership reads margin and competitive position.
 
