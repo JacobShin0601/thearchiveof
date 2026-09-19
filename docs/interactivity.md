@@ -130,6 +130,10 @@ Label the control **Interactive equivalent** / **직접 실험**. Do not claim t
 
 Measurement exists to improve the publication, not to build advertising profiles. See the About page disclosure.
 
+## GitHub Actions secrets
+
+Repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` let CI confirm the Pages project exists. They are not used to deploy. Keep the token out of git and chat.
+
 ## Cloudflare dashboard steps
 
 ### D1
