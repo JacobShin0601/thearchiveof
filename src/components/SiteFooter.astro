@@ -1,5 +1,6 @@
 ---
 import { SITE_TITLE } from '../consts';
+import ArchiveMark from './ArchiveMark.astro';
 const year = new Date().getFullYear();
 interface Props { language?: 'ko' | 'en' }
 const { language = 'ko' } = Astro.props;
@@ -8,6 +9,7 @@ const { language = 'ko' } = Astro.props;
 <footer class="site-footer shell">
   <div class="footer-brand">
     <p class="footer-mark">
+      <ArchiveMark variant="double-c" size={26} decorative />
       <span class="wordmark-the">The</span>
       <span class="footer-name">Archive of</span>
     </p>
