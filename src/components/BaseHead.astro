@@ -39,7 +39,7 @@ const {
 const allowIndex = INDEXABLE && indexable;
 const pageTitle = title === SITE_TITLE ? title : `${title} — ${SITE_TITLE}`;
 const canonicalUrl = new URL(canonical.pathname, SITE_URL);
-const socialImage = type === 'website' ? new URL('/og.png', SITE_URL) : undefined;
+const socialImage = new URL('/og.png', SITE_URL);
 
 const articleSchema = type === 'article'
   ? {
@@ -97,6 +97,10 @@ const schema = {
 {allowIndex && integrations.googleSiteVerification && (
   <meta name="google-site-verification" content={integrations.googleSiteVerification} />
 )}
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
 <link rel="canonical" href={canonicalUrl} />
 <link rel="alternate" hreflang={language} href={canonicalUrl} />
 {alternateLanguageUrl && <link rel="alternate" hreflang={language === 'ko' ? 'en' : 'ko'} href={new URL(alternateLanguageUrl, SITE_URL)} />}

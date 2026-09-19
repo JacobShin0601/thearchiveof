@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="The Archive of">
+  <rect width="32" height="32" fill="#f2f0e9"/>
+  <rect x="4" y="4" width="24" height="24" rx="3.2" fill="#f2f0e9" stroke="#1c201d" stroke-width="1.45"/>
+  <path d="M4 7.15C4 5.4 5.4 4 7.15 4H24.85C26.6 4 28 5.4 28 7.15V9.1H4V7.15Z" fill="#335f4b"/>
+  <path fill="#1c201d" fill-rule="evenodd" d="M16 11.05 21.25 22.55h-1.92l-1.08-2.62h-4.5l-1.08 2.62H10.75L16 11.05Zm0 3.28-1.58 3.82h3.16L16 14.33Z"/>
+  <rect x="11.15" y="23.55" width="9.7" height="0.72" fill="#c9c6bc"/>
+  <rect x="11.15" y="25.1" width="9.7" height="0.72" fill="#c9c6bc"/>
+</svg>
