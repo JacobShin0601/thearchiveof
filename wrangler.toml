@@ -1,9 +1,5 @@
+# Pages Git builds read this file. Do not put a D1 database_id here until
+# those databases exist. Bind `DB` in the Pages dashboard per environment.
 name = "thearchiveof"
 compatibility_date = "2026-09-01"
 pages_build_output_dir = "dist"
-
-[[d1_databases]]
-binding = "DB"
-database_name = "archive-interactions-preview"
-database_id = "REPLACE_WITH_PREVIEW_D1_ID"
-migrations_dir = "migrations"
