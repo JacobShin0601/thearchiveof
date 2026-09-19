@@ -1,8 +1,9 @@
 ---
 title: "What is optimization?"
 subtitle: "Even planning dinner with friends is an optimization problem"
-description: "An intuitive introduction to optimization through the everyday problem of choosing where to meet friends for dinner."
+description: "Optimization explained through a New York dinner plan: decision variables, objective functions, constraints, and why choosing one restaurant needs a binary decision."
 publishedDate: 2026-09-01
+updatedDate: 2026-09-19
 section: "Mathematics"
 subsection: "Optimization"
 contentType: "foundation"
@@ -21,6 +22,10 @@ draft: false
 comments: true
 language: "en"
 translationKey: "what-is-optimization-dinner-with-friends"
+localization:
+  locale: "en-US"
+  defaultContext: "New York City"
+  strategy: "localized-adaptation"
 freshness: evergreen
 references:
   - title: "Convex Optimization"
@@ -34,9 +39,9 @@ import AnswerBlock from '../../../../components/AnswerBlock.astro';
   Optimization is the process of <strong>finding the best available choice while respecting the constraints of the real world</strong>. It begins by defining what we can decide, what “better” means, and which conditions cannot be violated.
 </AnswerBlock>
 
-To be honest, I did not really know what **optimization** meant when I first encountered it.
+I did not really know what **optimization** meant when I first encountered it.
 
-Before I joined a company as a data scientist, the world of data science in my head revolved mostly around machine learning and deep learning: collect data, train a model, and predict some future quantity.
+Before I started working as a data scientist, I mostly associated the field with machine learning and deep learning: collect data, train a model, and predict some future quantity.
 
 Questions like these felt familiar:
 
@@ -52,7 +57,7 @@ Then I started working on actual business problems, and a different class of que
 
 > So how much of the commodity should we buy now?
 
-> If prices are likely to rise, how far should we bring the purchase forward?
+> If prices are likely to rise, how much earlier should we buy?
 
 > Given the probability of a rate cut, how much duration should the portfolio carry?
 
@@ -86,39 +91,39 @@ After working through practical problems and slowly becoming more comfortable wi
 
 We optimize things in ordinary life all the time. We simply do not call them `objective functions`, `constraints`, and `decision variables`.
 
-## Let us plan dinner with friends
+## Let’s plan dinner with friends
 
-Suppose four friends agree to meet on Friday evening. The restaurant has not been chosen. That does not mean every restaurant in Seoul is available to us.
+Suppose four friends in New York City agree to meet for dinner on Friday. We have not picked a restaurant yet, but that does not mean every place in the city is an option. The restaurants, prices, ratings, and travel times below are illustrative, not actual listings or route estimates.
 
 The date and time are fixed: **Friday at 7 p.m.**
 
-A restaurant that closes on Fridays is impossible, however good it may be. One that closes at 6 p.m. is also eliminated. We already have our first **constraint**.
+A restaurant that is closed on Fridays is out, however good the food is. So is one that closes at 6 p.m. We already have our first **constraint**.
 
 ### Price matters too
 
-Now consider the budget. Suppose this is meant to be a casual dinner with friends. For me, once the expected cost moves much beyond KRW 30,000 per person, it starts to feel like a different kind of evening.
+Now consider the budget. For this casual dinner, let’s allow about $30 per person before tax and tip—enough for a simple meal, perhaps shared plates and a beer if the menu allows. Much more than that, and we are planning a different kind of evening.
 
-Imagine agreeing to have a simple meal and a few drinks, only for one friend to book a steakhouse that costs KRW 150,000 per person. The steak may be excellent. The restaurant may be wonderful.
+Imagine everyone agrees on a casual dinner, and someone books a $120-per-person steakhouse instead. The steak may be excellent.
 
-But the friend who made the booking is also quite likely to hear some version of, **“Have you completely lost your mind?”**
+That friend would probably **get roasted before anyone even left home**.
 
 So we have an implicit condition:
 
-> Expected cost per person ≤ KRW 30,000
+> Expected cost per person before tax and tip ≤ $30
 
 That is our second constraint.
 
 ### Location may matter most of all
 
-Suppose the four friends live in Jamsil, Sinchon, Yongsan, and Gangnam. The friend in Jamsil says:
+Suppose the four friends live on the Upper West Side, in Williamsburg in Brooklyn, in Lower Manhattan, and in Midtown East. The friend in Williamsburg says:
 
-“I know an amazing place in Jamsil. Let’s meet there.”
+“I know an amazing place around the corner. Let’s meet there.”
 
-It may genuinely be amazing. The problem is that it is amazing mainly for the friend who lives ten minutes away. If everyone else needs an hour to get there, the arrangement begins to look suspicious.
+The food may be amazing. The convenience is less evenly distributed. One person gets a ten-minute walk; someone else gets a long subway ride, a transfer, and another walk. The recommendation starts to look a little self-serving.
 
-Of course, I cannot pick a restaurant five minutes from my own home and declare, “This is the center of Seoul,” either. My friends are unlikely to accept the geography.
+Of course, I cannot pick a restaurant five minutes from my own home and declare, “This is basically central Manhattan,” either. My friends are unlikely to accept the geography.
 
-There is a peculiar sense of fairness in these negotiations. **It is irritating when one friend is suspiciously close, and even more irritating when I am the only one travelling forever.** So we naturally look for an area that is not unreasonably bad for anyone.
+Fairness has a way of entering the group chat. **Everyone notices who gets to walk around the corner—and who spends the evening on the subway.** We want a location that does not leave anyone with an unreasonable trip. Door-to-door travel time matters more than distance on a map.
 
 That is already an optimization problem. One possible rule is:
 
@@ -139,8 +144,9 @@ The quantity we want to minimize or maximize is called the **objective function*
 Our dinner problem now has several conditions. A restaurant must:
 
 - be open at 7 p.m. on Friday;
-- cost roughly no more than KRW 30,000 per person; and
-- not be unreasonably inconvenient for the group.
+- cost no more than $30 per person before tax and tip;
+- keep each person’s door-to-door trip within an agreed limit, say 45 minutes; and
+- have a table available for four.
 
 These are the **constraints**.
 
@@ -166,14 +172,14 @@ We could. We could translate each address into coordinates and find a geometric 
 
 There is just one small problem: **there may not be a restaurant there.**
 
-The point could land in the Han River, in the middle of an apartment complex, or in a neighborhood where the only food nearby comes from a convenience store. A mathematically perfect midpoint does not help much when the actual goal is to eat dinner.
+Depending on where people live, that point could land in the East River, inside an office building, or on a block with nowhere to sit down and eat. Subway routes do not follow straight lines, either. A mathematically perfect midpoint does not help much when the actual goal is to eat dinner.
 
-So we usually begin with a set of feasible candidates:
+So we usually start with a shortlist, then check which options are feasible:
 
-- Restaurant A in Hongdae
-- Restaurant B in Yongsan
-- Restaurant C in Gangnam
-- Restaurant D in Euljiro
+- Restaurant A in Midtown
+- Restaurant B near Union Square
+- Restaurant C on the Lower East Side
+- Restaurant D in Downtown Brooklyn
 
 Then we compare their prices, travel times, food, and opening hours.
 
@@ -183,25 +189,25 @@ This is what makes real optimization interesting. Not every imaginable choice is
 
 So far, we have focused on travel and price. But we have left out an important reason for choosing a restaurant: **the food**.
 
-Suppose Restaurant B in Yongsan minimizes total travel time. From a transportation perspective, it is perfect. Unfortunately, its rating is 2.1.
+Suppose Restaurant B near Union Square minimizes total travel time. It wins on convenience. Unfortunately, its rating is 2.1 out of 5.
 
-Restaurant D in Euljiro requires everyone to travel twenty minutes longer, but the food is genuinely excellent. The human optimization engine immediately starts running:
+Restaurant D in Downtown Brooklyn adds twenty minutes to one friend’s trip, still within our travel-time limit, but the food is excellent. Suddenly we are negotiating:
 
-“Wouldn’t it be worth travelling twenty more minutes?”
+“Would the better food be worth another twenty minutes on the train?”
 
 The problem is now more interesting. We want to:
 
 - reduce travel time;
 - reduce price; and
-- increase taste.
+- get better food.
 
-In shorthand: `Distance ↓`, `Price ↓`, `Taste ↑`.
+In shorthand: `Travel time ↓`, `Price ↓`, `Food quality ↑`.
 
 The perfect restaurant rarely exists. Good restaurants may be expensive. Cheap and good restaurants may be far away. Nearby restaurants may be disappointing.
 
 We have to make a **trade-off**.
 
-Would we travel ten minutes longer for better food? Pay KRW 10,000 more for a much better restaurant? Ask one friend to travel a little farther if it improves the group’s overall experience?
+Would we travel ten minutes longer for better food? Pay $10 more for a much better meal, if we agree to raise the budget? Ask one friend to travel a little farther if it improves the group’s overall experience?
 
 Optimization gives us a way to make those trade-offs explicit instead of leaving them entirely to vague intuition. It forces us to say what matters and how much it matters.
 
@@ -209,23 +215,23 @@ Optimization gives us a way to make those trade-offs explicit instead of leaving
 
 One of the first terms we encounter in optimization is **linear programming**. Here, *programming* does not mean writing Python. It is an older use of the word that is closer to **planning** how scarce resources should be allocated.
 
-The word *linear* means that the objective and constraints are linear expressions of the decision variables. That sounds more technical than it is. If the overall satisfaction scores of three candidate restaurants are $s_A$, $s_B$, and $s_C$, we might write:
+The word *linear* means that the objective and constraints are linear expressions of the decision variables. That sounds more technical than it is. To keep the notation simple, narrow the shortlist to A, B, and C. If their overall satisfaction scores are $s_A$, $s_B$, and $s_C$, we might write:
 
 $$
 \text{maximize}\quad s_Ax_A + s_Bx_B + s_Cx_C
 $$
 
-If their prices are $p_A$, $p_B$, and $p_C$, and our budget is KRW 30,000, we could add:
+If their prices are $p_A$, $p_B$, and $p_C$, all measured in dollars per person before tax and tip, and our budget is $30, we could add:
 
 $$
-p_Ax_A + p_Bx_B + p_Cx_C \le 30{,}000
+p_Ax_A + p_Bx_B + p_Cx_C \le 30
 $$
 
-Each variable is multiplied by a fixed coefficient and the terms are added together. There are no terms such as $x_A^2$ or $x_Ax_B$. An optimization problem with a linear objective and linear constraints is a **linear program**.
+Each variable is multiplied by a fixed coefficient and the terms are added together. There are no terms such as $x_A^2$ or $x_Ax_B$. With continuous decision variables, a linear objective, and linear constraints, this is a **linear program**. Adding integer restrictions gives an integer linear program.
 
 Continuous variables are natural when quantities can be divided. A company can buy 3.5 tonnes from supplier A and 6.5 tonnes from supplier B, or allocate production across several plants. In problems like those, an ordinary linear program may describe reality quite well.
 
-Dinner is different. If we merely require $0 \le x_A,x_B,x_C \le 1$, a linear-programming solver might return an answer like this:
+Dinner is different. If we allow $0 \le x_A,x_B,x_C \le 1$ and require $x_A+x_B+x_C=1$, a linear-programming solver might return an answer like this:
 
 > Choose 30% of Restaurant A and 70% of Restaurant B.
 
@@ -254,7 +260,13 @@ x_A = \begin{cases}
 \end{cases}
 $$
 
-Define $x_B$ and $x_C$ in the same way. We need exactly one restaurant, so:
+Define $x_B$ and $x_C$ in the same way. Each is a **binary decision**:
+
+$$
+x_A, x_B, x_C \in \{0,1\}
+$$
+
+We need exactly one restaurant, so:
 
 $$
 x_A + x_B + x_C = 1
@@ -268,7 +280,7 @@ $$
 
 No matter how good its food or location may be, it is no longer in the feasible set.
 
-In integer programming, some or all decision variables are constrained to take integer values. When a variable can take only 0 or 1, the model is often called **binary, or 0–1, integer programming**.
+In integer programming, some or all decision variables are constrained to take integer values. When all decision variables can take only 0 or 1, this is **binary, or 0–1, integer programming**.
 
 The terminology sounds formidable. The basic idea is not:
 
@@ -327,7 +339,7 @@ It took me longer than expected to understand optimization because I encountered
 
 Linear Programming. Integer Programming. Convex Optimization. Lagrangian. Duality.
 
-At first, these terms made optimization look like a highly specialized and forbidding corner of mathematics. At depth, it certainly can be difficult. But the problems it tries to solve are remarkably ordinary.
+At first, these terms made optimization look like a highly specialized and forbidding corner of mathematics. At a deeper level, it certainly can be difficult. But the problems it tries to solve are remarkably ordinary.
 
 We want things, and reality imposes limits. Money is finite. Time is finite. People, factory capacity, storage, vehicles, and budgets are all finite. We still have to choose.
 
@@ -345,7 +357,7 @@ Once I saw it that way, the equations in *Convex Optimization* began to look dif
 
 ## Next: when no restaurant is perfect for everyone — Pareto optimization
 
-This article has explained optimization as intuitively as possible. But our dinner problem still contains an unresolved question:
+Our dinner plan gives us an intuitive starting point for optimization. But one question remains:
 
 <strong>If travel time, price, taste, and fairness cannot all be improved at once, what should count as optimal?</strong>
 

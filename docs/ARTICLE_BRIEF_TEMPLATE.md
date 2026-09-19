@@ -49,11 +49,20 @@ Copy this brief into Work when starting a new article. The author supplies the t
 - First review date:
 - Social image (optional): `/og/<english-slug>.png` — 1200×630, shared by both languages; omit to use the site default
 
+## English localization brief
+
+Follow [the English localization guide](editorial-localization.md).
+
+- Factual context that must remain unchanged:
+- Illustrative settings to adapt (default: NYC / Manhattan when useful):
+- Currency, travel, food, and humor adaptations:
+- Exceptions to the default and why:
+
 ## Work deliverables
 
 1. Flag unsupported claims, missing evidence, and logical gaps before drafting.
 2. Produce the polished Korean source edition first.
 3. Preserve the author's mandatory claims and distinguish fact, analysis, and inference.
 4. Produce an edited English edition from the approved Korean text; do not translate mechanically.
-5. Keep facts, numbers, sources, headings, and caveats aligned across both editions.
+5. Keep facts, analytical numbers, sources, technical meaning, and caveats aligned. Illustrative numbers, headings, paragraph order, locations, and humor may differ to preserve semantic parity.
 6. Create paired MDX files with the same `translationKey`, set `draft: true`, and open a pull request from `content/<slug>` into `develop`. Do not start the article on `develop` or `main`.

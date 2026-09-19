@@ -28,6 +28,11 @@ const posts = defineCollection({
     seriesOrder: z.number().int().positive().optional(),
     language: z.enum(['ko', 'en']).default('ko'),
     translationKey: slug.optional(),
+    localization: z.object({
+      locale: z.literal('en-US'),
+      defaultContext: z.string().min(1).optional(),
+      strategy: z.literal('localized-adaptation'),
+    }).optional(),
     dataSources: z.array(z.string()).optional(),
     codeRepository: z.url().optional(),
     methodology: z.string().optional(),
