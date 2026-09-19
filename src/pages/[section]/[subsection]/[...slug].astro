@@ -77,6 +77,7 @@ const articleKey = post.data.translationKey
   contentType={post.data.contentType}
   tags={[...post.data.topics, ...post.data.tags]}
   language={post.data.language}
+  socialImage={post.data.socialImage}
   alternateLanguageUrl={translation ? postPath(translation) : (isKo ? '/en/' : '/')}
   breadcrumbs={[
     { name: isKo ? '홈' : 'Home', url: isKo ? '/' : '/en/' },

@@ -57,7 +57,9 @@ Allowed sections are `Investing`, `AI & AX`, `Lab`, `Mathematics`, and `Notes`. 
 
 Use `title` for the main heading and optional `subtitle` for its supporting line. Cards, archives, series, and article headers display these at distinct sizes. Keep the summary in `description`.
 
-Optional fields include `subtitle`, `updatedDate`, `series`, `seriesOrder`, `primaryTopic`, `translationKey`, `dataSources`, `dataThrough`, `methodology`, `codeRepository`, `references`, and `pillar`.
+Optional fields include `subtitle`, `updatedDate`, `series`, `seriesOrder`, `primaryTopic`, `translationKey`, `socialImage`, `dataSources`, `dataThrough`, `methodology`, `codeRepository`, `references`, and `pillar`.
+
+`socialImage` is a site-root path such as `/og/term-premium-explained.png`. Korean and English editions share one file. Without it, pages use `/og.png`.
 
 Article URLs are generated from section, subsection, and filename, for example:
 
