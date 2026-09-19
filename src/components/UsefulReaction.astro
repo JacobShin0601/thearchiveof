@@ -1,0 +1,91 @@
+---
+interface Props {
+  articleKey: string;
+  language?: 'ko' | 'en';
+}
+const { articleKey, language = 'ko' } = Astro.props;
+const isKo = language === 'ko';
+---
+
+<section
+  class="useful-reaction"
+  data-article-key={articleKey}
+  data-language={language}
+  hidden
+>
+  <p class="eyebrow">{isKo ? '반응' : 'Response'}</p>
+  <h2>{isKo ? '이 글이 도움이 되었나요?' : 'Was this useful?'}</h2>
+  <button type="button" class="useful-button" aria-pressed="false" aria-busy="false">
+    <span class="useful-mark" aria-hidden="true"></span>
+    <span class="useful-label">Useful</span>
+    <span aria-hidden="true">·</span>
+    <span class="useful-count">0</span>
+  </button>
+  <p class="useful-status" role="status"></p>
+</section>
+
+<script>
+  import { track, viewerId } from '../scripts/track';
+
+  async function load(root: HTMLElement) {
+    const key = root.dataset.articleKey ?? '';
+    const language = root.dataset.language === 'en' ? 'en' : 'ko';
+    const button = root.querySelector<HTMLButtonElement>('.useful-button');
+    const count = root.querySelector('.useful-count');
+    const mark = root.querySelector('.useful-mark');
+    const status = root.querySelector('.useful-status');
+    if (!button || !count || !status || !mark) return;
+
+    const failed = language === 'ko' ? '반응을 저장하지 못했습니다.' : 'Could not save reaction.';
+    const id = viewerId();
+
+    const apply = (data: { count?: number; viewerReacted?: boolean }) => {
+      const reacted = Boolean(data.viewerReacted);
+      count.textContent = String(data.count ?? 0);
+      button.setAttribute('aria-pressed', String(reacted));
+      button.classList.toggle('is-reacted', reacted);
+      mark.textContent = reacted ? '✓ ' : '';
+      button.setAttribute('aria-label', `Useful, ${data.count ?? 0}`);
+    };
+
+    const request = async (method: 'GET' | 'POST') => {
+      const response = await fetch(`/api/articles/${encodeURIComponent(key)}/reactions${method === 'GET' ? `?viewer=${encodeURIComponent(id)}` : ''}`, {
+        method,
+        headers: {
+          'X-Viewer-Id': id,
+          ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+        },
+        body: method === 'POST' ? JSON.stringify({ reaction: 'useful', viewerId: id }) : undefined,
+      });
+      if (!response.ok) throw new Error('request failed');
+      return response.json();
+    };
+
+    try {
+      apply(await request('GET'));
+    } catch {
+      apply({ count: 0, viewerReacted: false });
+    }
+    root.hidden = false;
+
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      status.textContent = '';
+      try {
+        const next = await request('POST');
+        apply(next);
+        track('reaction_click', { articleSlug: key, language, component: 'useful-reaction' });
+      } catch {
+        status.textContent = failed;
+      } finally {
+        button.disabled = false;
+        button.setAttribute('aria-busy', 'false');
+      }
+    });
+  }
+
+  document.querySelectorAll<HTMLElement>('.useful-reaction').forEach((root) => {
+    load(root);
+  });
+</script>

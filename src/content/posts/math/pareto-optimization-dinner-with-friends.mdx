@@ -30,6 +30,7 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 import RestaurantTable from '../../../components/optimization/RestaurantTable.astro';
 import DominanceComparison from '../../../components/optimization/DominanceComparison.astro';
 import ParetoChart from '../../../components/optimization/ParetoChart.astro';
+import ParetoExplorer from '../../../components/interactive/ParetoExplorer.astro';
 
 <AnswerBlock question="파레토 최적화란 무엇인가?">
   파레토 최적화는 여러 목표가 서로 충돌할 때, <strong>다른 선택이 모든 기준에서 같거나 더 좋으면서 적어도 하나의 기준에서 더 좋은 대안이 존재하지 않는 해들을 찾는 관점</strong>입니다. 이런 해는 하나가 아닐 수 있으며, 이들이 보여주는 경계가 여러 목표 사이의 절충 관계(trade-off)를 이해하는 데 도움을 줍니다. 비교 대상은 주어진 제약조건을 만족하는 선택들입니다.
@@ -166,6 +167,8 @@ Score = Taste × w1 - Price × w2 - Travel Time × w3
 이 숫자는 식당 표가 정해주지 않습니다. 우리가 무엇을 중요하게 생각하는지를 반영합니다. 원, 분, 5점 만점의 맛은 단위와 규모도 다르므로, 실제로 계산하려면 척도를 맞추거나 가중치가 그 차이를 어떻게 반영할지도 정해야 합니다. 위 식은 방법의 모양을 보여줄 뿐, 바로 계산하라는 뜻은 아닙니다.
 
 점수 하나로 합치는 순간에도 **선호(preference)**는 사라지지 않습니다. 가중치 안으로 들어갈 뿐입니다. <strong>가중합(weighted sum)</strong>을 어떻게 사용할지는 다음 글에서 다루겠습니다. 이번에는 “점수를 만들기 전에 누구의 기준인지 물어봐야 한다”는 것만 기억하면 충분합니다.
+
+<ParetoExplorer language="ko" />
 
 ## 평균은 괜찮은데, 왜 나만 70분인가?
 

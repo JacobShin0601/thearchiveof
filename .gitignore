@@ -4,11 +4,13 @@ node_modules/
 # build output
 dist/
 .astro/
+.wrangler/
 
 # local environment files
 .env
 .env.*
 !.env.example
+.dev.vars
 
 # system files
 .DS_Store

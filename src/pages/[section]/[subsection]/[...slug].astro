@@ -6,6 +6,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import PostCard from '../../../components/PostCard.astro';
 import NewsletterCTA from '../../../components/NewsletterCTA.astro';
 import Comments from '../../../components/Comments.astro';
+import UsefulReaction from '../../../components/UsefulReaction.astro';
 import AdSlot from '../../../components/AdSlot.astro';
 import References from '../../../components/References.astro';
 import { postPath, sectionPath, seriesPath, subsectionPath, topicPath } from '../../../consts';
@@ -60,6 +61,9 @@ const seriesPosts = post.data.series
 const seriesIndex = seriesPosts.findIndex((candidate) => candidate.id === post.id);
 const previousInSeries = seriesIndex > 0 ? seriesPosts[seriesIndex - 1] : undefined;
 const nextInSeries = seriesIndex >= 0 ? seriesPosts[seriesIndex + 1] : undefined;
+const articleKey = post.data.translationKey
+  ?? post.id.split('/').at(-1)?.replace(/\.(md|mdx)$/, '')
+  ?? post.id;
 ---
 
 <BaseLayout
@@ -81,7 +85,7 @@ const nextInSeries = seriesIndex >= 0 ? seriesPosts[seriesIndex + 1] : undefined
     { name: post.data.title, url: postPath(post) },
   ]}
 >
-  <article class="article-page shell">
+  <article class="article-page shell" data-article-key={articleKey}>
     <nav class="breadcrumbs" aria-label="Breadcrumb">
       <ol>
         <li><a href={isKo ? '/' : '/en/'}>{isKo ? '홈' : 'Home'}</a></li>
@@ -142,6 +146,8 @@ const nextInSeries = seriesIndex >= 0 ? seriesPosts[seriesIndex + 1] : undefined
 
     <AdSlot position="article-end" />
 
+    <UsefulReaction articleKey={articleKey} language={post.data.language} />
+
     {relatedPosts.length > 0 && (
       <section class="related-articles" aria-labelledby="related-heading">
         <div class="section-heading">
@@ -153,6 +159,6 @@ const nextInSeries = seriesIndex >= 0 ? seriesPosts[seriesIndex + 1] : undefined
     )}
 
     <NewsletterCTA language={post.data.language} />
-    <Comments enabled={post.data.comments} />
+    <Comments enabled={post.data.comments} language={post.data.language} />
   </article>
 </BaseLayout>

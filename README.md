@@ -89,7 +89,7 @@ When connecting this repository to Cloudflare Pages, use:
 - Build output directory: `dist`
 - Node.js version: `22.22.0` (pinned by `.nvmrc`)
 
-No Functions, database, environment variables, or paid services are required.
+Static pages do not require Functions. Optional Useful reactions and first-party events use Pages Functions and D1; see [`docs/interactivity.md`](docs/interactivity.md).
 
 In **Settings → Builds & deployments**:
 

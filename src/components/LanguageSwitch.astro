@@ -11,3 +11,19 @@ const fallback = language === 'ko' ? '/en/' : '/';
   {language === 'ko' ? <span aria-current="true">한국어</span> : <a href={alternateLanguageUrl ?? fallback} hreflang="ko">한국어</a>}
   {language === 'en' ? <span aria-current="true">EN</span> : <a href={alternateLanguageUrl ?? fallback} hreflang="en">EN</a>}
 </div>
+
+<script>
+  import { track } from '../scripts/track';
+
+  document.querySelectorAll('.language-switch a').forEach((link) => {
+    link.addEventListener('click', () => {
+      const language = document.documentElement.lang === 'en' ? 'en' : 'ko';
+      const article = document.querySelector<HTMLElement>('[data-article-key]');
+      track('language_switch', {
+        language,
+        articleSlug: article?.dataset.articleKey,
+        component: 'language-switch',
+      });
+    });
+  });
+</script>
