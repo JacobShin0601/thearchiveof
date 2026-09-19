@@ -30,6 +30,7 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
           <div>
             <p class="post-meta">{post.data.section} / {post.data.subsection} / {post.data.contentType}</p>
             <h2><a href={postPath(post)}>{post.data.title}</a></h2>
+            {post.data.subtitle && <p class="post-subtitle">{post.data.subtitle}</p>}
             <p>{post.data.description}</p>
           </div>
         </li>
