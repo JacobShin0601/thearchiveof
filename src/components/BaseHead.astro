@@ -102,6 +102,9 @@ const schema = {
 {allowIndex && integrations.googleSiteVerification && (
   <meta name="google-site-verification" content={integrations.googleSiteVerification} />
 )}
+{language === 'ko' && (
+  <link rel="preload" href="/fonts/noto-serif-kr-korean-400.woff2" as="font" type="font/woff2" crossorigin />
+)}
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
