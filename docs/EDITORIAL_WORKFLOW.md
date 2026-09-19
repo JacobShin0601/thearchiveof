@@ -55,7 +55,7 @@ Work first develops the Korean article using the publication method:
 3. **Test** — use evidence, data, code, or sources where relevant.
 4. **Interpret** — explain meaning, limits, and practical consequences.
 
-Foundation and Research articles should normally begin with an `AnswerBlock`. Research pieces should identify data sources, data-through date, methodology, references, and limitations when applicable.
+Foundation and Research articles should normally begin with an `AnswerBlock`. Research pieces should identify data sources, data-through date, methodology, references, and limitations when applicable. Put the claim in HTML so a retrieval agent can carry it; do not hide the answer in a client-only widget. See `docs/AGENT_ACCESS.md`.
 
 ## 3. English edition
 

@@ -85,7 +85,7 @@ Use `feat/<change>`, `fix/<change>`, or `design/<change>` from the latest `devel
 
 Start each article on `content/<english-slug>` from the latest `develop`. Open a pull request into `develop` with `draft: true`. After Preview review, set `draft: false` and open a pull request into `main` that contains only that approved pair.
 
-The branching rule, Work authoring process, input brief, bilingual quality checks, and release checklist are documented in [`docs/EDITORIAL_WORKFLOW.md`](docs/EDITORIAL_WORKFLOW.md). Start each article from [`docs/ARTICLE_BRIEF_TEMPLATE.md`](docs/ARTICLE_BRIEF_TEMPLATE.md). Agents and GitHub Copilot should follow [`AGENTS.md`](AGENTS.md).
+The branching rule, Work authoring process, input brief, bilingual quality checks, and release checklist are documented in [`docs/EDITORIAL_WORKFLOW.md`](docs/EDITORIAL_WORKFLOW.md). Start each article from [`docs/ARTICLE_BRIEF_TEMPLATE.md`](docs/ARTICLE_BRIEF_TEMPLATE.md). Agents and GitHub Copilot should follow [`AGENTS.md`](AGENTS.md). Retrieval and cost rules for crawlers are in [`docs/AGENT_ACCESS.md`](docs/AGENT_ACCESS.md).
 
 Cloudflare provides `CF_PAGES_BRANCH` automatically. For a local preview-style build, set `DEPLOY_ENV=preview`; no Cloudflare environment variable needs to be configured manually.
 

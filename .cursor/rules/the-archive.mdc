@@ -14,4 +14,5 @@ Read `AGENTS.md` at the repo root at the start of site or article work.
 - Do not merge all of `develop` into `main` while drafts should stay off production.
 - Cloudflare deploys on merge. `develop` is Preview, `main` is Production.
 - Korean is the source edition. Share `translationKey`. Keep prose readable without JS.
+- Agents retrieve; humans reread. Allow production crawlers. Never let bots write Useful/events. Do not add SSR or Bot Fight Mode to save money — static reads are cheap. Read `docs/AGENT_ACCESS.md`.
 - Commit only when asked. Do not push or merge to `main` unless asked.

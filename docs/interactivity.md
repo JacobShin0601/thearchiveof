@@ -160,7 +160,7 @@ npm run preview:cf
 - Pyodide or a remote Python sandbox
 - Public MCP server
 - Dedicated Worker, queues, cron
-- Markdown content negotiation / Cloudflare Pro “Markdown for Agents”
+- Markdown content negotiation / Cloudflare Pro “Markdown for Agents” / `llms.txt` (only when it stays a static file)
 - Analytics Engine
 - Cost vs Carbon explorer (needs that article first)
 
