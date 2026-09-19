@@ -300,7 +300,7 @@ a:hover { color: var(--accent); }
   border: 1px solid var(--ink);
   overflow-x: auto;
 }
-.pareto-explorer h2 { margin: 10px 0 12px; font-family: var(--serif); font-size: 28px; font-weight: 400; }
+.pareto-explorer h3 { margin: 10px 0 12px; font-family: var(--serif); font-size: 24px; font-weight: 400; }
 .explorer-presets, .explorer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
 .pareto-explorer button {
   min-height: 44px;
