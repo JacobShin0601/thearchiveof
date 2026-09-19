@@ -1,3 +1,12 @@
+@font-face {
+  font-family: 'Noto Serif KR';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/noto-serif-kr-korean-400.woff2') format('woff2');
+  unicode-range: U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7A3, U+D7B0-D7FF;
+}
+
 :root {
   --paper: #f2f0e9;
   --paper-deep: #e8e4da;
@@ -6,6 +15,7 @@
   --line: #c9c6bc;
   --accent: #335f4b;
   --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Times New Roman', serif;
+  --serif-kr: 'Noto Serif KR', var(--serif);
   --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
@@ -74,13 +84,40 @@ a:hover { color: var(--accent); }
 }
 .site-header .language-switch span { background: var(--ink); color: var(--paper); }
 
-.hero { padding: 64px 0 48px; border-bottom: 1px solid var(--ink); }
+.hero { padding: 64px 0 56px; border-bottom: 1px solid var(--ink); }
 .eyebrow { margin: 0; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .16em; line-height: 1.4; text-transform: uppercase; }
-.hero h1 { max-width: 1050px; margin: 28px 0 36px; font-family: var(--serif); font-size: clamp(64px, 8vw, 104px); font-weight: 400; letter-spacing: -.035em; line-height: 1.08; }
-.hero h1 em { display: inline-block; padding-right: .12em; color: var(--accent); font-weight: 400; }
-.hero-bottom { display: flex; align-items: end; justify-content: space-between; padding-left: 0; gap: 40px; }
-.hero-intro { max-width: 530px; margin: 0; font-family: var(--serif); font-size: clamp(20px, 2vw, 26px); line-height: 1.6; }
-.hero-index { margin: 0; color: var(--muted); font-size: 10px; letter-spacing: .13em; line-height: 1.7; text-align: right; text-transform: uppercase; }
+.hero-wordmark {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .2em;
+  margin: 22px 0 28px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(40px, 5.2vw, 62px);
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1;
+}
+.hero-wordmark .wordmark-the {
+  font-size: clamp(11px, .24em, 15px);
+  font-weight: 700;
+}
+.hero-name { color: var(--accent); }
+.hero-intro {
+  max-width: 22em;
+  margin: 0 0 16px;
+  font-family: var(--serif);
+  font-size: clamp(22px, 2.3vw, 30px);
+  letter-spacing: -.015em;
+  line-height: 1.45;
+}
+.hero-line { display: block; }
+@media (min-width: 720px) {
+  .hero-line { white-space: nowrap; }
+}
+.hero-index { margin: 0; color: var(--muted); font-size: 10px; letter-spacing: .13em; line-height: 1.7; text-transform: uppercase; }
 
 .section-heading { display: flex; justify-content: space-between; align-items: center; padding: 22px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 .section-heading a { text-decoration: none; }
@@ -298,8 +335,8 @@ a:hover { color: var(--accent); }
   .mobile-navigation li:last-child { padding: 10px 0 2px; border-bottom: 0; }
   .mobile-navigation nav > ul > li > a { display: block; padding: 10px 0; }
   .hero { padding-top: 62px; }
-  .hero h1 { margin-top: 24px; font-size: clamp(56px, 11vw, 84px); line-height: 1.1; }
-  .hero-bottom { padding-left: 0; gap: 30px; }
+  .hero-wordmark { margin-top: 18px; margin-bottom: 22px; font-size: clamp(36px, 9vw, 48px); }
+  .hero-intro { max-width: none; font-size: clamp(20px, 4.4vw, 24px); }
   .category-grid { padding-top: 45px; }
   .category-card { grid-template-columns: 38px 1fr auto; gap: 10px; }
   .category-card p { font-size: 13px; }
@@ -325,8 +362,7 @@ a:hover { color: var(--accent); }
 }
 
 @media (max-width: 520px) {
-  .hero h1 { font-size: clamp(46px, 12vw, 62px); }
-  .hero-index { display: none; }
+  .hero-wordmark { font-size: clamp(32px, 10vw, 40px); }
   .category-card { grid-template-columns: 30px 1fr auto; }
   .category-card .topics { display: none; }
   .section-heading > span { display: none; }
@@ -350,7 +386,8 @@ a:hover { color: var(--accent); }
 
 /* Shared editorial hierarchy: title, optional subtitle, then summary. */
 h1, h2, h3, .post-subtitle, .article-subtitle, .hero-intro { overflow-wrap: anywhere; text-wrap: pretty; }
-:lang(ko) :is(h1, h2, h3, .post-subtitle, .article-subtitle, .hero-intro, .dek, .article-content, .prose) {
+:lang(ko) :is(h2, h3, .hero-intro, .post-subtitle, .article-subtitle, .dek, .article-content, .prose, .manifesto blockquote) {
+  font-family: var(--serif-kr);
   word-break: keep-all;
   overflow-wrap: anywhere;
 }

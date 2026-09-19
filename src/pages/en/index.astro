@@ -12,12 +12,16 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
 
 <BaseLayout language="en" alternateLanguageUrl="/">
   <section class="hero shell">
-    <p class="eyebrow">An AI-native personal research publication · Seoul</p>
-    <h1>The<br /><em>Archive of</em></h1>
-    <div class="hero-bottom">
-      <p class="hero-intro">Understand uncertainty. Make better decisions.</p>
-      <p class="hero-index">English edition<br />Est. 2026</p>
-    </div>
+    <p class="eyebrow">Research journal · Seoul</p>
+    <h1 class="hero-wordmark">
+      <span class="wordmark-the">The</span>
+      <span class="hero-name">Archive of</span>
+    </h1>
+    <p class="hero-intro">
+      <span class="hero-line">Understand uncertainty.</span>
+      <span class="hero-line">Make better decisions.</span>
+    </p>
+    <p class="hero-index">English edition · Est. 2026</p>
   </section>
   <section class="latest shell" aria-labelledby="english-latest-heading">
     <div class="section-heading">
