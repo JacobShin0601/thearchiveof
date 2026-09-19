@@ -1,0 +1,24 @@
+<figure class="ax-diagram" aria-labelledby={Astro.props.id}>
+  <figcaption id={Astro.props.id}>{Astro.props.caption}</figcaption>
+  {Astro.props.kind === 'workflow' && (
+    <div class="workflow-grid">
+      <div><strong>Traditional</strong><span>사람</span><i>→</i><span>수집</span><i>→</i><span>분석</span><i>→</i><span>보고서·승인</span></div>
+      <div><strong>AI-assisted</strong><span>사람</span><i>→</i><span>AI 도움</span><i>→</i><span>수집·분석·초안</span><i>→</i><span>검토·승인</span></div>
+      <div class="accent"><strong>AX / redesigned</strong><span>Agent가 지속 수집·분석</span><i>→</i><span>이상징후만 전달</span><i>→</i><span>사람 판단·승인</span><i>→</i><span>피드백</span></div>
+    </div>
+  )}
+  {Astro.props.kind === 'needs' && (
+    <div class="needs-grid">
+      <section><p class="kicker">Compression</p><h3>Human capability → Machine speed</h3><ul><li>자료 취합과 문서 비교</li><li>반복 리서치와 초안 작성</li><li>여러 시스템의 정보 정리</li></ul></section>
+      <section><p class="kicker">Expansion</p><h3>Human cognition → Augmented cognition</h3><ul><li>과거 결정과 현재 이슈 연결</li><li>반론·리스크·시나리오 제안</li><li>새로운 가설과 질문 생성</li></ul></section>
+    </div>
+  )}
+  {Astro.props.kind === 'context' && (
+    <div class="context-stack"><div>Foundation model</div><div>+ Company documents</div><div>+ Permissions</div><div>+ Past decisions</div><div>+ Workflow context</div><div>+ Human feedback</div><strong>= Enterprise context</strong></div>
+  )}
+</figure>
+
+<style>
+  .ax-diagram{margin:2.5rem 0;padding:1.25rem;border:1px solid var(--border-color,#d7d7d7);border-radius:1rem;background:color-mix(in srgb,var(--card-bg,#fff) 92%,#6d5dfc 8%)}
+  figcaption{font-weight:700;margin-bottom:1rem}.workflow-grid{display:grid;gap:.7rem}.workflow-grid>div{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;padding:.8rem;border-radius:.7rem;background:var(--background,#fff)}.workflow-grid strong{width:100%;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase}.workflow-grid i{color:#8a83ba;font-style:normal}.workflow-grid .accent{border:1px solid #7569e8;background:color-mix(in srgb,var(--background,#fff) 86%,#7569e8 14%)}.needs-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.needs-grid section{padding:1rem;border-radius:.8rem;background:var(--background,#fff)}.needs-grid h3{font-size:1rem;margin:.2rem 0 .8rem}.needs-grid ul{margin:0;padding-left:1.2rem}.kicker{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#7569e8;font-weight:700}.context-stack{display:grid;gap:.35rem;max-width:34rem;margin:auto}.context-stack div,.context-stack strong{padding:.7rem 1rem;border-radius:.55rem;background:var(--background,#fff);border:1px solid var(--border-color,#ddd)}.context-stack strong{text-align:center;background:#7569e8;color:white;border-color:#7569e8}@media(max-width:600px){.needs-grid{grid-template-columns:1fr}.ax-diagram{padding:1rem}.workflow-grid>div{font-size:.9rem}}
+</style>
