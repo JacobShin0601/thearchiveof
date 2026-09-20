@@ -1,5 +1,6 @@
 ---
-title: 'What It Means to Tune vLLM: Serving LLMs Efficiently on Limited GPUs'
+title: "What is vLLM tuning?"
+subtitle: "Serving LLMs when GPUs are scarce"
 description: 'A practical guide to serving LLMs on limited on-premises GPUs: diagnose prefill, decode, KV cache, queues, and tail latency to tune vLLM for sustainable throughput.'
 publishedDate: 2026-09-20
 section: 'AI & AX'
@@ -275,7 +276,7 @@ The TPOT formula applies to requests producing at least two tokens. Record how s
 
 These are hypotheses, not diagnoses. If only client-visible TTFT worsens, inspect proxy buffering and the network before changing the scheduler.
 
-## 11. Tail latency matters more in agent workflows
+## 11. Why look at p95 and p99, not just the average
 
 An average can hide the minority of requests that wait much longer. p95 marks a boundary containing 95% of observations; p99 describes a rarer tail. Comparisons require consistent sample counts, time windows, and workload composition.
 
