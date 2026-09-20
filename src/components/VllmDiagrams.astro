@@ -1,0 +1,22 @@
+---
+interface Props { kind: 'architecture' | 'timeline' | 'budget' | 'loop'; language?: 'ko' | 'en'; }
+const { kind, language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+const captions = {
+architecture: ko ? '그림 1. 애플리케이션과 GPU 사이의 공통 inference 계층' : 'Figure 1. A shared inference layer between applications and GPUs',
+timeline: ko ? '그림 2. 첫 토큰까지의 시간과 그 이후의 생성 간격' : 'Figure 2. Time to the first token, then the intervals between tokens',
+budget: ko ? '그림 3. Sequence 수, iteration token budget, KV 메모리는 서로 다른 제약이다' : 'Figure 3. Sequence count, tokens per iteration, and KV memory are separate constraints',
+loop: ko ? '그림 4. SLO를 제약조건으로 두는 tuning feedback loop' : 'Figure 4. A tuning feedback loop constrained by service SLOs',
+};
+const steps = kind === 'architecture' ? (ko ? ['내부 Agent · RAG · Chat', 'Gateway: 인증 · 요청 제한', 'Kubernetes Service', 'vLLM Pod: API + Scheduler', 'GPU: 모델 가중치 + KV cache'] : ['Internal agents · RAG · chat', 'Gateway: auth · rate limits', 'Kubernetes Service', 'vLLM Pod: API + scheduler', 'GPU: model weights + KV cache']) : kind === 'timeline' ? (ko ? ['요청 도착 · Queue', 'Prompt 처리: Prefill', '첫 토큰', 'Decode → 다음 토큰', 'Decode → 다음 토큰 …'] : ['Request arrives · queue', 'Process prompt: prefill', 'First token', 'Decode → next token', 'Decode → next token …']) : (ko ? ['Workload 분포 정의', 'SLO와 baseline 측정', 'Metrics로 병목 가설', 'Parameter 하나 변경', '같은 부하로 재측정 → 반복'] : ['Define workload distributions', 'Set SLOs and measure baseline', 'Form a bottleneck hypothesis', 'Change one parameter', 'Repeat the same load → iterate']);
+const constraints = ko ? [['max_num_seqs', '한 iteration에 처리할 sequence 수의 상한', '동시 처리 증가 → KV 수요 증가 가능'], ['max_num_batched_tokens', '한 iteration에 처리할 token 수의 상한', 'Prefill과 decode가 같은 예산을 사용'], ['KV cache', '요청이 iteration 사이에도 유지하는 상태', '누적 context와 output이 메모리를 점유']] : [['max_num_seqs', 'Cap on sequences processed per iteration', 'More concurrency can increase KV demand'], ['max_num_batched_tokens', 'Cap on tokens processed per iteration', 'Prefill and decode share the token budget'], ['KV cache', 'Request state retained across iterations', 'Growing context and output occupy memory']];
+---
+<figure class="vllm-figure" aria-labelledby={`vllm-${kind}-${language}`}>
+<figcaption id={`vllm-${kind}-${language}`}>{captions[kind]}</figcaption>
+{kind === 'budget' ? <div class="constraints">{constraints.map(([label, meaning, effect]) => <div><strong>{label}</strong><p>{meaning}</p><small>{effect}</small></div>)}</div> : <ol class="flow">{steps.map((step) => <li>{step}</li>)}</ol>}
+{kind === 'timeline' && <p class="note">{ko ? 'TTFT: 요청 → 첫 토큰 · TPOT: 첫 토큰 이후 평균 간격. 도식은 비례 축이 아니다.' : 'TTFT: arrival → first token · TPOT: average interval after the first token. Not drawn to scale.'}</p>}
+{kind === 'loop' && <p class="note">{ko ? '선택 기준: TTFT · TPOT · E2E · 오류 SLO를 지키는 GPU당 지속 가능한 처리량' : 'Select for sustainable throughput per GPU within TTFT, TPOT, E2E, and error SLOs.'}</p>}
+</figure>
+<style>
+.vllm-figure{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.92rem;line-height:1.6}.vllm-figure figcaption{font-weight:700;margin-bottom:1rem}.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.1rem;margin:0;padding:0;list-style:none}.flow li{position:relative;margin:0;padding:.85rem;border:1px solid var(--line);background:var(--paper);min-width:0}.flow li:not(:last-child)::after{content:'→';position:absolute;right:-.95rem;top:35%;color:var(--accent)}.constraints{display:grid;gap:.8rem}.constraints>div{padding:1rem;border-left:3px solid var(--accent);background:var(--paper)}.constraints strong{font-family:monospace;overflow-wrap:anywhere}.constraints p{margin:.4rem 0}.constraints small{color:var(--muted)}.note{margin:1rem 0 0!important;color:var(--muted);font-size:.85rem}@media(max-width:600px){.flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:'↓';right:50%;top:auto;bottom:-1.2rem}.vllm-figure{padding:1rem}}@media(prefers-color-scheme:dark){.vllm-figure{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
+</style>

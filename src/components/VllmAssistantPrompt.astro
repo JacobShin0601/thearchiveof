@@ -1,0 +1,27 @@
+---
+import prompt from '../data/vllm-tuning-prompt.txt?raw';
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+---
+<div class="vllm-prompt">
+<button type="button" hidden data-vllm-copy data-done={ko ? '복사 완료' : 'Copied'} data-failed={ko ? '복사 실패: 아래 텍스트를 선택해 주세요' : 'Copy failed: select the text below'}>{ko ? '영어 프롬프트 전체 복사' : 'Copy the complete prompt'}</button>
+<span role="status" aria-live="polite"></span>
+<pre tabindex="0" aria-label={ko ? '코딩 어시스턴트용 영어 프롬프트' : 'Coding assistant prompt'}><code>{prompt}</code></pre>
+</div>
+<script>
+document.querySelectorAll<HTMLButtonElement>('[data-vllm-copy]').forEach((button) => {
+button.hidden = false;
+button.addEventListener('click', async () => {
+const container = button.closest('.vllm-prompt');
+const text = container?.querySelector('code')?.textContent;
+const status = container?.querySelector('[role="status"]');
+if (!text || !status) return;
+try { await navigator.clipboard.writeText(text); status.textContent = button.dataset.done ?? 'Copied'; }
+catch { status.textContent = button.dataset.failed ?? 'Select the text below'; }
+});
+});
+</script>
+<style>
+.vllm-prompt{min-width:0;margin:1.5rem 0}.vllm-prompt button{padding:.65rem 1rem;border:1px solid var(--accent);background:var(--paper);color:var(--ink);font:inherit;cursor:pointer}.vllm-prompt span{display:block;font-size:.85rem;margin:.5rem 0}.vllm-prompt pre{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;font-size:.85rem;line-height:1.65}.vllm-prompt code{white-space:inherit}
+</style>

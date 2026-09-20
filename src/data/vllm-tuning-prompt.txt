@@ -1,0 +1,48 @@
+Act as an inference performance engineer for an on-premises Kubernetes vLLM service.
+
+Objective: maximize sustainable throughput subject to TTFT/TPOT/E2E/error SLO and no persistent OOM/preemption.
+Do not optimize for 100% GPU utilization. Optimize useful completed work per allocated GPU, with stable queues and latency headroom.
+
+Safety and scope
+- Begin with read-only inspection in the explicitly authorized environment.
+- Do not apply configuration patches, restart Pods, scale workloads, change routing, install exporters, or run production load tests.
+- Prepare the benchmark plan first. Execute tests only in an approved isolated environment and within an agreed load budget.
+- Keep prompts, outputs, credentials, hostnames, inventory, and internal metrics inside the authorized environment. Redact report identifiers. Do not export raw production payloads.
+- Label every result as measured, derived, inferred, or illustrative. Never fabricate measurements or silently substitute unavailable metrics.
+
+1. Inspect the runtime
+Record the exact vLLM version, image digest, engine, startup command, effective config, model/tokenizer revision (redacted identifiers), dtype, quantization, KV dtype, context limit, parallel layout, replica count, and allocated GPUs.
+Inspect driver/runtime compatibility, resource requests/limits, CPU throttling, memory, volumes, startup/readiness/liveness probes, restarts, gateway admission control, and streaming/proxy buffering.
+Read installed-version CLI help and matching official docs. Do not import defaults or metric names from another version or engine.
+Record effective max_num_seqs, max_num_batched_tokens, gpu_memory_utilization, explicit KV-memory overrides, chunked prefill, and prefix caching. Capture support constraints from startup logs.
+
+2. Establish metric definitions
+Inspect the actual /metrics endpoint and exporter configuration. List exact series names, HELP/TYPE, units, labels, histogram buckets, counter suffixes, and unavailable metrics. Save a sanitized schema snapshot.
+Distinguish server TTFT from client-visible TTFT; exclude empty role-only SSE events from first-content timing. Record client E2E, timeouts, cancellations, errors, and rejected requests.
+Define per-request TPOT as (last-token time - first-token time)/(output tokens - 1) for outputs longer than one token; report exclusions. Do not equate TPOT percentiles with inter-token-latency percentiles.
+Report TTFT, TPOT, E2E p50/p95/p99; running/waiting requests; queue-time distributions; preemption rates; KV occupancy; GPU utilization; framebuffer memory; supported DRAM activity/bandwidth counters; CPU/network constraints.
+Report input/output tokens per second, successful requests per second, offered/admitted/completed RPS, SLO-compliant goodput, and per-GPU throughput. Explain whether cached input tokens count as processed input.
+Use rate/increase for counters. Aggregate histogram buckets before quantiles; never average per-Pod percentiles. Keep workload/model/replica attribution and sample counts.
+
+3. Profile the workload
+For chat, long-context RAG, and agent traffic separately, measure prompt/output token p50/p95/p99, arrival RPS and burstiness, in-flight concurrency, mean and tail LLM calls per agent workflow, and repeated-prefix frequency.
+Use a sanitized representative dataset with fixed sampling parameters, seeds where supported, and token-length distributions. Include long prompts and long outputs, not only short synthetic requests.
+Obtain explicit TTFT/TPOT/E2E/error SLOs, duration, minimum sample count, and stop conditions. If missing, propose illustrative targets labeled as unapproved.
+
+4. Baseline and controlled experiments
+Start with unchanged config. Warm up compilation, kernels, and connections; separate cold-cache and warm-cache tests and exclude warmup from scored intervals.
+Use the same dataset, arrival trace, GPU allocation, measurement window, and cache-state policy. Repeat each candidate at least three times where the approved budget permits; report variability and insufficient evidence.
+Use open-loop arrival-rate sweeps to expose backlog; separately report closed-loop concurrency tests and their tendency to reduce offered load as latency grows. Verify the load generator is not the bottleneck.
+First hold max_num_seqs fixed and vary only max_num_batched_tokens. Then hold the chosen token budget fixed and vary only max_num_seqs. Revisit interactions in a documented second pass.
+Inspect chunked-prefill effectiveness using long-prompt/streaming traffic; test alternatives only if the installed model/engine supports them. For prefix caching, compare realistic shared prefixes against unique prefixes and cold/warm states; measure token hit ratio and TTFT together.
+Stop on agreed error/OOM/latency thresholds or persistent queue growth. Do not interpret burst throughput as sustainable capacity.
+
+5. Scorecard and diagnosis
+Produce one row per candidate, load level, cache condition, and repeat. Include config diff, versions, sample count, offered/admitted/completed RPS, input/output tok/s, per-GPU goodput, latency percentiles, errors, queue trend, preemptions, KV peak/headroom, GPU/DRAM metrics, and repeat variability.
+For each suspected bottleneck, state evidence, competing explanations, and the next discriminating measurement. Low GPU plus high queue is not proof that concurrency is too low; check CPU tokenization, gateway, replica imbalance, scheduling constraints, and communication.
+Reject candidates violating any SLO or showing persistent OOM/preemption/backlog. If all fail, say so. Recommend the stable candidate with the highest sustainable SLO-compliant throughput and sufficient headroom, not the highest utilization or raw tokens/sec.
+
+6. Deliverables, without applying changes
+Provide a recommendation, runtime inventory summary, metric dictionary, reproducible benchmark commands for the installed version, complete scorecard, and measured-versus-inferred findings.
+Propose a minimal configuration patch only. Include expected trade-offs, uncertainties, validation gates, and rollback to the previous image digest/config and routing, with explicit rollback triggers and post-rollback checks.
+End with what remains unmeasured and what authorization is required before execution or deployment.
