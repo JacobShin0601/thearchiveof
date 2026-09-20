@@ -24,7 +24,6 @@ const posts = (await getCollection('posts', ({ data }) =>
   description={`${subsection.name} articles in ${section.name}.`}
   language="en"
   alternateLanguageUrl={`/${section.slug}/${subsection.slug}/`}
-  indexable={posts.length > 0}
 >
   <section class="listing-page shell">
     <header class="category-header">

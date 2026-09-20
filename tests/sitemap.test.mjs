@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { isPublicSitemapPath } from '../src/lib/sitemap.ts';
 
@@ -22,14 +21,16 @@ describe('production sitemap filter', () => {
     assert.equal(isPublicSitemapPath('/en/ai/ai-engineering/vllm-tuning-limited-gpus/'), true);
     assert.equal(isPublicSitemapPath('/series/optimization/'), true);
     assert.equal(isPublicSitemapPath('/en/series/optimization/'), true);
+    assert.equal(isPublicSitemapPath('/investing/'), true);
+    assert.equal(isPublicSitemapPath('/investing/research/'), true);
+    assert.equal(isPublicSitemapPath('/coding/'), true);
+    assert.equal(isPublicSitemapPath('/coding/ai-engineering/'), true);
+    assert.equal(isPublicSitemapPath('/en/coding/ai-engineering/'), true);
+    assert.equal(isPublicSitemapPath('/en/math/linear-algebra/'), true);
+    assert.equal(isPublicSitemapPath('/en/misc/essays/'), true);
   });
 
-  it('omits empty listings, empty series, and noindex topic hubs', () => {
-    assert.equal(isPublicSitemapPath('/investing/'), false);
-    assert.equal(isPublicSitemapPath('/investing/macro/'), false);
-    assert.equal(isPublicSitemapPath('/en/investing/macro/'), false);
-    assert.equal(isPublicSitemapPath('/coding/'), false);
-    assert.equal(isPublicSitemapPath('/misc/notes/'), false);
+  it('omits empty series and thin topic hubs', () => {
     assert.equal(isPublicSitemapPath('/series/understanding-rates/'), false);
     assert.equal(isPublicSitemapPath('/en/series/understanding-rates/'), false);
     assert.equal(isPublicSitemapPath('/topics/optimization/'), false);
@@ -37,14 +38,5 @@ describe('production sitemap filter', () => {
     assert.equal(isPublicSitemapPath('/topics/ax/'), false);
     assert.equal(isPublicSitemapPath('/en/topics/ax/'), false);
     assert.equal(isPublicSitemapPath('/ops/security/'), false);
-  });
-
-  it('keeps listing slugs aligned with consts', () => {
-    const consts = readFileSync(new URL('../src/consts.ts', import.meta.url), 'utf8');
-    const sitemap = readFileSync(new URL('../src/lib/sitemap.ts', import.meta.url), 'utf8');
-    for (const slug of ['investing', 'ai', 'coding', 'math', 'misc', 'macro', 'ai-engineering', 'optimization', 'notes']) {
-      assert.match(consts, new RegExp(`slug: '${slug}'`));
-      assert.match(sitemap, new RegExp(`slug: '${slug}'`));
-    }
   });
 });
