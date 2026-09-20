@@ -159,7 +159,14 @@ const articleKey = post.data.translationKey
       </section>
     )}
 
-    <NewsletterCTA language={post.data.language} />
+    <NewsletterCTA
+      language={post.data.language}
+      source={{
+        source_article: articleKey,
+        source_topic: post.data.primaryTopic ?? post.data.topics[0],
+        language: post.data.language,
+      }}
+    />
     <Comments enabled={post.data.comments} language={post.data.language} />
   </article>
 </BaseLayout>

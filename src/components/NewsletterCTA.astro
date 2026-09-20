@@ -1,8 +1,14 @@
 ---
 import { integrations } from '../site.config';
+import { newsletterFieldValues, type NewsletterAcquisition } from '../lib/growth';
+
 const { newsletter } = integrations;
-interface Props { language?: 'ko' | 'en' }
-const { language = 'ko' } = Astro.props;
+interface Props {
+  language?: 'ko' | 'en';
+  source?: NewsletterAcquisition;
+}
+const { language = 'ko', source } = Astro.props;
+const acquisition = newsletterFieldValues({ language, ...source });
 ---
 
 <aside class="newsletter-cta" aria-labelledby="newsletter-heading">
@@ -16,6 +22,7 @@ const { language = 'ko' } = Astro.props;
   </h2>
   {newsletter.enabled && newsletter.action ? (
     <form action={newsletter.action} method="post">
+      {acquisition.map((field) => <input type="hidden" name={field.name} value={field.value} />)}
       <label for="newsletter-email">{language === 'ko' ? '이메일 주소' : 'Email address'}</label>
       <div>
         <input id="newsletter-email" name="email" type="email" autocomplete="email" required />

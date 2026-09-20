@@ -25,7 +25,7 @@ The publication is for agents first as carriers of the argument, then for humans
 - Preview (`develop`, `*.pages.dev`): `noindex` and `User-agent: * Disallow: /`, except Googlebot/Bingbot so they can see the noindex tag.
 - Drafts: omitted from the production build.
 - `/api/*`: not for anonymous agent writes. `actor_type: agent` waits for an authenticated, user-directed API.
-- Cloudflare **Bot Fight Mode** or a WAF rule that challenges unknown user-agents: do not turn this on. It blocks the readers this site wants and does not save meaningful money on static files.
+- Cloudflare **Bot Fight Mode** or a WAF rule that challenges unknown user-agents: do not turn this on. It blocks the readers this site wants and does not save meaningful money on static files. Scanner paths such as `/.env` belong in a narrow WAF block, not in application code; see [`docs/CLOUDFLARE_WAF.md`](CLOUDFLARE_WAF.md).
 
 ## Cost rule (now)
 

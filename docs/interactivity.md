@@ -16,7 +16,7 @@ Do not add a standalone Worker, Astro SSR, or React for these features.
 | Signal | Status | Action |
 | --- | --- | --- |
 | Cloudflare Web Analytics beacon | Present in `src/components/Analytics.astro`, Production-only, token empty | Enable in the dashboard, then put the token in `src/site.config.ts` |
-| Duplicate custom analytics | None | Do not add another beacon or GA4 |
+| Duplicate custom analytics | None | Do not add another beacon or GA4. Provider-neutral event names live in `src/lib/growth.ts` for a later funnel. |
 | Preview mixed into Production | Prevented: beacon is omitted when `IS_PREVIEW` | Keep Preview hostnames out of the Production Web Analytics site |
 | Sitemap / robots / canonical / hreflang / JSON-LD | Present | Submit the sitemap in Search Console |
 
