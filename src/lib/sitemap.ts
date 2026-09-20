@@ -7,104 +7,20 @@ type Language = 'ko' | 'en';
 
 type PublishedPost = {
   language: Language;
-  section: string;
-  subsection: string;
   series?: string;
   topics: string[];
   pillar: boolean;
 };
 
 type SitemapInventory = {
-  listingPaths: Set<string>;
   seriesPaths: Set<string>;
   indexableTopicPaths: Set<string>;
 };
 
 const postsRoot = fileURLToPath(new URL('../content/posts', import.meta.url));
 
-// Keep these slugs aligned with `src/consts.ts` `SECTIONS`.
-const sections = [
-  {
-    name: 'Investing',
-    slug: 'investing',
-    subsections: [
-      { name: 'Macro', slug: 'macro' },
-      { name: 'Rates & Fixed Income', slug: 'rates' },
-      { name: 'Quant', slug: 'quant' },
-      { name: 'Markets', slug: 'markets' },
-      { name: 'Portfolio', slug: 'portfolio' },
-      { name: 'Research', slug: 'research' },
-    ],
-  },
-  {
-    name: 'AI & AX',
-    slug: 'ai',
-    subsections: [
-      { name: 'Agents', slug: 'agents' },
-      { name: 'RAG', slug: 'rag' },
-      { name: 'LLM', slug: 'llm' },
-      { name: 'AI Engineering', slug: 'ai-engineering' },
-      { name: 'AX', slug: 'ax' },
-      { name: 'Enterprise AI', slug: 'enterprise-ai' },
-      { name: 'Evaluation', slug: 'evaluation' },
-    ],
-  },
-  {
-    name: 'Lab',
-    slug: 'coding',
-    subsections: [
-      { name: 'Projects', slug: 'projects' },
-      { name: 'Experiments', slug: 'experiments' },
-      { name: 'Data & Notebooks', slug: 'data' },
-      { name: 'Agentic Engineering', slug: 'ai-engineering' },
-      { name: 'Tutorials', slug: 'tutorials' },
-    ],
-  },
-  {
-    name: 'Mathematics',
-    slug: 'math',
-    subsections: [
-      { name: 'Probability', slug: 'probability' },
-      { name: 'Statistics', slug: 'statistics' },
-      { name: 'Linear Algebra', slug: 'linear-algebra' },
-      { name: 'Optimization', slug: 'optimization' },
-      { name: 'Financial Mathematics', slug: 'financial-mathematics' },
-    ],
-  },
-  {
-    name: 'Perspectives',
-    slug: 'misc',
-    subsections: [
-      { name: 'Short Notes', slug: 'notes' },
-      { name: 'Reading', slug: 'reading' },
-      { name: 'Career', slug: 'career' },
-      { name: 'Essays', slug: 'essays' },
-    ],
-  },
-] as const;
-
-const listingCandidates = new Set(
-  sections.flatMap((section) => [
-    `/${section.slug}/`,
-    `/en/${section.slug}/`,
-    ...section.subsections.flatMap((subsection) => [
-      `/${section.slug}/${subsection.slug}/`,
-      `/en/${section.slug}/${subsection.slug}/`,
-    ]),
-  ]),
-);
-
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
-function sectionSlug(section: string) {
-  return sections.find((item) => item.name === section)?.slug ?? 'archive';
-}
-
-function subsectionSlug(section: string, subsection: string) {
-  const match = sections.find((item) => item.name === section)?.subsections.find((item) => item.name === subsection);
-  return match?.slug ?? slugify(subsection);
 }
 
 function languagePath(language: Language, rest: string) {
@@ -198,14 +114,8 @@ function loadPublishedPosts() {
     const data = parseFrontmatter(readFileSync(file, 'utf8'));
     if (data.draft === true) return [];
 
-    const section = String(data.section ?? '');
-    const subsection = String(data.subsection ?? '');
-    if (!section || !subsection) return [];
-
     return [{
       language: data.language === 'en' ? 'en' : 'ko',
-      section,
-      subsection,
       series: typeof data.series === 'string' && data.series ? data.series : undefined,
       topics: asStringList(data.topics),
       pillar: data.pillar === true,
@@ -214,16 +124,10 @@ function loadPublishedPosts() {
 }
 
 function buildInventory(): SitemapInventory {
-  const listingPaths = new Set<string>();
   const seriesPaths = new Set<string>();
   const postsByTopic = new Map<string, PublishedPost[]>();
 
   for (const post of loadPublishedPosts()) {
-    listingPaths.add(languagePath(post.language, `/${sectionSlug(post.section)}/`));
-    listingPaths.add(languagePath(
-      post.language,
-      `/${sectionSlug(post.section)}/${subsectionSlug(post.section, post.subsection)}/`,
-    ));
     if (post.series) seriesPaths.add(languagePath(post.language, `/series/${slugify(post.series)}/`));
 
     for (const topic of post.topics) {
@@ -246,7 +150,7 @@ function buildInventory(): SitemapInventory {
     }
   }
 
-  return { listingPaths, seriesPaths, indexableTopicPaths };
+  return { seriesPaths, indexableTopicPaths };
 }
 
 function isSeriesDetail(pathname: string) {
@@ -261,12 +165,12 @@ let inventory: SitemapInventory | undefined;
 
 export function isPublicSitemapPath(pathname: string) {
   const path = normalizePathname(pathname);
+  // Section and subsection hubs stay in the sitemap even before they have posts.
   if (path.startsWith('/ops/')) return false;
 
   inventory ??= buildInventory();
 
   if (isTopicHub(path)) return inventory.indexableTopicPaths.has(path);
   if (isSeriesDetail(path)) return inventory.seriesPaths.has(path);
-  if (listingCandidates.has(path)) return inventory.listingPaths.has(path);
   return true;
 }
