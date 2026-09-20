@@ -16,7 +16,7 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
   .sort((a, b) => (a.data.seriesOrder ?? 999) - (b.data.seriesOrder ?? 999));
 ---
 
-<BaseLayout title={name} description={`${name}: an ordered series from The Archive.`} language="en" alternateLanguageUrl={`/series/${slugify(name)}/`}>
+<BaseLayout title={name} description={`${name}: an ordered series from The Archive.`} language="en" alternateLanguageUrl={`/series/${slugify(name)}/`} indexable={posts.length > 0}>
   <section class="listing-page shell">
     <header>
       <p class="eyebrow"><a href="/en/series/">Series</a> / Learning path</p>
