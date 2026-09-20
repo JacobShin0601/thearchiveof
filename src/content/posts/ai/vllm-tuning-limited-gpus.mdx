@@ -1,0 +1,351 @@
+---
+title: 'vLLM을 튜닝한다는 것은 무엇인가: 제한된 GPU에서 LLM을 서빙하는 방법'
+description: '온프레미스 GPU와 Kubernetes 환경에서 vLLM으로 오픈소스 LLM을 서빙할 때, prefill·decode·KV cache·TTFT·TPOT·queue와 scheduler parameter를 어떻게 함께 보고 튜닝할지 정리한 실전 엔지니어링 글.'
+publishedDate: 2026-09-20
+section: 'AI & AX'
+subsection: 'AI Engineering'
+contentType: implementation
+topics: [enterprise-ai, ai-agents, evaluation]
+primaryTopic: enterprise-ai
+tags: [vllm, kubernetes, gpu, llm-serving, performance-engineering]
+author: 'Jacob Shin'
+language: ko
+translationKey: vllm-tuning-limited-gpus
+draft: true
+featured: false
+comments: false
+freshness: periodic
+lastReviewed: 2026-09-20
+nextReviewDate: 2026-12-20
+references:
+  - title: 'vLLM — Optimization and Tuning'
+    url: https://docs.vllm.ai/en/stable/configuration/optimization/
+    publisher: vLLM
+  - title: 'vLLM — serve CLI'
+    url: https://docs.vllm.ai/en/stable/cli/serve/
+    publisher: vLLM
+  - title: 'vLLM — Production Metrics'
+    url: https://docs.vllm.ai/en/stable/usage/metrics/
+    publisher: vLLM
+  - title: 'Kubernetes — Schedule GPUs'
+    url: https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
+    publisher: Kubernetes
+  - title: 'NVIDIA — DCGM Exporter counters'
+    url: https://github.com/NVIDIA/dcgm-exporter/blob/main/etc/default-counters.csv
+    publisher: NVIDIA
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import VllmDiagrams from '../../../components/VllmDiagrams.astro';
+import VllmAssistantPrompt from '../../../components/VllmAssistantPrompt.astro';
+
+<AnswerBlock question="vLLM을 왜 튜닝해야 할까?">
+  LLM 서빙에서 GPU를 할당했다고 끝나는 것은 아닙니다. 같은 모델과 같은 GPU를 사용하더라도 동시에 몇 개의 요청을 처리할지, 한 iteration에서 몇 개의 token을 처리할지, KV cache에 메모리를 얼마나 배분할지에 따라 처리량과 latency가 크게 달라집니다. 결국 vLLM 튜닝은 GPU utilization을 최대화하는 일이 아니라, 주어진 GPU 안에서 우리 서비스가 요구하는 TTFT, TPOT, throughput과 안정성 사이의 균형점을 찾는 일에 가깝습니다.
+</AnswerBlock>
+
+## 1. 모델을 올린 다음에 시작되는 문제
+
+나는 한국 대기업의 온프레미스 환경에서 오픈소스 LLM을 내부 서비스와 Agent에 제공하는 일을 하고 있다. 국가핵심기술과 관련된 데이터의 보안 요구 때문에 외부 상용 API에 모든 요청을 보낼 수 없다. Kubernetes Pod에 모델을 올리고, vLLM이 제공하는 API를 여러 애플리케이션에서 호출하는 방식이다. 여기서는 특정 조직의 구성이나 수치를 공개하지 않고, 그 환경에서 필요한 판단 방법을 다룬다.
+
+처음에는 모델이 GPU 메모리에 올라가고 답변이 돌아오면 큰 고비를 넘었다고 생각하기 쉽다. 하지만 서비스가 늘어나면 질문이 바뀐다. 긴 문서를 읽는 RAG와 짧은 대화를 같은 자원에서 처리해도 되는가? Agent가 계획, 도구 결과 해석, 최종 답변을 위해 여러 번 모델을 호출하면 부하가 얼마나 늘어나는가? GPU를 바로 추가하기 어려운 상황에서 어디까지 서비스할 수 있는가?
+
+**vLLM은 단순히 모델을 띄워주는 서버가 아니라, 제한된 GPU 자원을 여러 inference request 사이에서 어떻게 나눌지를 결정하는 scheduler이기도 하다.** 따라서 배포의 성공과 운영의 성공은 다른 문제다.
+
+이 글의 목표함수는 명확하다. **서비스의 latency·error SLO를 만족하면서 GPU당 sustainable throughput을 최대화한다.** 여기서 sustainable은 짧은 벤치마크의 최고점이 아니라, 대표 부하를 지속해서 받았을 때 queue가 계속 증가하지 않고 안정적으로 완료할 수 있다는 뜻이다.
+
+> 문서 확인일: 2026-09-20. 공식 `stable` 문서의 V1 설명을 기준으로 작성했다. `stable` URL은 바뀌므로 실제 운영에서는 설치 버전·image digest·CLI help·시작 로그·`/metrics`를 함께 기록해야 한다. 아래 YAML, 부하·SLO·성능 수치는 모두 <strong>illustrative(설명용 가상 예시)</strong>이며 실제 회사의 운영값이나 측정 결과가 아니다.
+
+## 2. Kubernetes Pod 위에 모델을 올리는 구조
+
+가장 작은 경로는 `Internal Application → Kubernetes Service → vLLM Pod → GPU`다. 운영에서는 이 앞에 인증과 요청 제한을 담당하는 gateway를 둘 수 있다.
+
+<VllmDiagrams kind="architecture" />
+
+Deployment는 Pod의 실행 상태를 관리하고 Service는 Pod 교체와 무관하게 접근할 경로를 제공한다. GPU는 드라이버와 device plugin이 준비된 노드에서 확장 리소스로 할당한다. GPU `requests`와 `limits`를 모두 지정하면 같아야 하며, `limits`만 적으면 이를 request로 사용한다. CPU와 메모리도 함께 계획해야 tokenization이나 frontend가 병목이 되는 일을 진단할 수 있다. [Kubernetes GPU scheduling](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/)
+
+다음은 **그대로 배포하기 위한 완성본이 아닌 illustrative manifest**다. 이미지 태그는 승인된 고정 버전으로 치환하고 가능하면 digest까지 고정한다. 모델 파일은 검증된 PVC에 미리 준비하며, CPU·RAM·공유 메모리와 probe 시간은 실제 측정에 맞춘다.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference-example
+spec:
+  replicas: 1
+  # Illustrative: avoids needing a spare GPU during replacement.
+  # Recreate causes downtime; choose an availability plan separately.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: inference-example
+  template:
+    metadata:
+      labels:
+        app: inference-example
+    spec:
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:REPLACE_WITH_PINNED_VERSION
+          command: ["vllm", "serve"]
+          args:
+            - /models/approved-model
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8000"
+            - --tensor-parallel-size
+            - "1"
+            - --max-model-len
+            - "8192"
+            - --gpu-memory-utilization
+            - "0.90"
+            - --max-num-seqs
+            - "64"
+            - --max-num-batched-tokens
+            - "8192"
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: model
+              mountPath: /models
+              readOnly: true
+            - name: shm
+              mountPath: /dev/shm
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 30
+            failureThreshold: 5
+      volumes:
+        - name: model
+          persistentVolumeClaim:
+            claimName: approved-model-pvc
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inference-example
+spec:
+  type: ClusterIP
+  selector:
+    app: inference-example
+  ports:
+    - port: 8000
+      targetPort: http
+```
+
+Startup probe는 모델 로딩·warmup 중 성급한 재시작을 막고, readiness는 트래픽 수신 가능 여부, liveness는 재시작 필요 여부를 판단한다. `/health` 성공은 latency SLO 충족을 보장하지 않는다. 부하 중 응답 지연을 장애로 오인해 재시작이 반복되지 않도록 timeout과 실패 임계값도 검증한다. 메모리 기반 `/dev/shm`은 공짜 공간이 아니므로 컨테이너 메모리 예산에 포함한다. [Kubernetes probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/), [vLLM Kubernetes deployment](https://docs.vllm.ai/en/stable/deployment/k8s/)
+
+Tensor parallelism은 모델 연산을 여러 GPU에 나누는 선택이다. 값을 늘릴 때는 GPU 할당 수, 모델의 지원 조건과 GPU 간 통신 비용을 함께 확인한다. 단순히 replica 수를 늘리는 것과 같지 않다. Replica는 각각 가중치와 cache를 갖는 별도 서버이고, TP는 하나의 모델 실행에 여러 GPU가 협력하는 구조다.
+
+YAML의 `0.90`은 예시로 명시한 값이다. 확인 시점의 [serve CLI](https://docs.vllm.ai/en/stable/cli/serve/#--gpu-memory-utilization)는 기본값을 **0.92**로 안내한다. 이 옵션은 GPU 연산 사용률 목표가 아니라 executor의 **메모리 예산 비율**이다. `--kv-cache-memory-bytes`를 명시하면 그 KV 설정이 우선하므로 두 옵션을 혼동하지 않는다. 최신 태그로 자동 갱신하기보다 검증된 버전을 고정하고 업그레이드마다 재측정한다.
+
+## 3. 왜 inference layer를 REST API로 분리하는가
+
+`Agent A/B · RAG · Chat App → API → vLLM → GPU` 구조에서는 앱 배포와 모델 교체를 분리할 수 있다. 앱마다 가중치를 적재하거나 GPU를 소유하게 만드는 대신, 공통 inference 계층의 용량을 관리한다. Python이든 다른 언어든 같은 HTTP 계약을 사용하고, 인증·rate limit·사용량·관측 경계를 모을 수 있다.
+
+vLLM의 OpenAI-compatible API는 기존 클라이언트 재사용을 돕는다. 다만 모든 모델과 기능이 완전히 같다는 뜻은 아니다. Chat template, 지원 parameter, tool calling, streaming 동작은 고정 버전과 모델로 검증한다. [공식 API 문서](https://docs.vllm.ai/en/stable/serving/online_serving/openai_compatible_server/)
+
+공통 계층은 공유 병목이기도 하다. 요청 수뿐 아니라 입력·출력 token 상한, timeout, 취소 전달, 재시도 횟수와 대기열 한계를 정해야 한 Agent의 폭주가 다른 서비스를 밀어내지 않는다. Streaming 응답을 proxy가 버퍼링하면 GPU가 빠르게 생성해도 사용자는 첫 토큰을 늦게 본다.
+
+`--api-key` 하나를 유일한 보안 경계로 삼지 않는다. 공식 보안 문서는 API key가 모든 endpoint를 보호하지 않는다고 설명한다. Gateway/reverse proxy에서 필요한 경로만 노출하고, NetworkPolicy와 네트워크 격리로 접근을 제한하며, TLS와 사용자별 권한·quota를 별도 설계한다. `/metrics`도 내부 관측 경로로 관리한다. 위 YAML의 ClusterIP만으로 이 보안 구성이 완성되는 것은 아니다. [vLLM Security](https://docs.vllm.ai/en/stable/usage/security/#api-key-authentication-limitations)
+
+## 4. Prefill과 decode는 서로 다른 일을 한다
+
+Prefill은 입력 prompt를 처리하고 첫 출력에 필요한 상태를 만드는 과정이다. 긴 RAG 문서를 넣으면 처음 읽어야 할 token이 많아진다. Decode는 앞서 생성한 token과 저장된 상태를 이용해 다음 token을 생성하는 과정을 반복한다.
+
+<VllmDiagrams kind="timeline" />
+
+일반적으로 prefill은 많은 입력 token을 한꺼번에 처리해 상대적으로 compute-intensive하고, decode는 매 단계 가중치와 KV 상태를 읽는 부담 때문에 memory bandwidth의 영향을 크게 받기 쉽다. 그러나 이는 진단의 출발점이지 모든 hardware·batch·모델에 적용되는 법칙은 아니다. [vLLM tuning guide](https://docs.vllm.ai/en/stable/configuration/optimization/#chunked-prefill)
+
+그래서 “응답이 느리다”만으로는 다음 설정을 정할 수 없다. 첫 글자가 늦게 나오는지, 나오기 시작한 뒤 글자 사이가 느린지를 먼저 분리해야 한다. 긴 prompt와 긴 output은 서로 다른 방식으로 공유 자원을 점유한다.
+
+## 5. KV cache: 동시성의 숨은 메모리 비용
+
+Attention은 이전 token의 key와 value를 재사용한다. 이를 저장한 KV cache가 없으면 이미 처리한 문맥에 대한 계산을 반복해야 한다. 요청이 생성 중인 동안 상태를 유지하므로 가중치가 올라간 뒤 남은 공간이 곧 무한한 동시 처리 공간은 아니다. [vLLM APC 설명](https://docs.vllm.ai/en/stable/features/automatic_prefix_caching/)
+
+직관적으로는 다음과 같이 생각할 수 있다.
+
+```text
+KV cache pressure ≈ active sequences
+                  × sequence length
+                  × model-dependent KV size
+```
+
+Sequence length는 prompt에 지금까지 생성한 output을 더한 길이다. 이 식은 정확한 용량 산식이 아니다. Layer 수, KV head 수, dtype, attention 구조, block 할당, prefix 공유와 parallelism에 따라 달라진다. 용량 계획에는 runtime이 산출한 KV capacity와 실제 peak를 사용한다.
+
+긴 context, 많은 동시 요청, 긴 output이 겹치면 처음에는 잘 시작한 요청도 생성 중 메모리 압박을 키운다. GPU 메모리가 많이 잡혀 있다는 것과 KV pool이 실제로 얼마나 차 있는지도 다르다. vLLM이 미리 확보한 메모리 안에서 cache가 쓰이기 때문이다. 따라서 framebuffer 사용량만으로 concurrency 여유를 판단하지 않는다.
+
+## 6. Continuous batching: 끝난 요청의 자리를 다시 사용한다
+
+요청마다 prompt 길이와 종료 시점이 다르다. 정적인 batch에서 모든 요청이 끝날 때까지 다음 요청을 기다리면 짧은 요청이 비운 자리를 활용하기 어렵다. Continuous batching은 scheduling step마다 완료된 요청을 빼고 실행 가능한 요청을 구성해 빈자리를 활용하는 방식이다.
+
+그러나 빈자리가 생겼다는 것이 즉시 모든 요청을 넣을 수 있다는 뜻은 아니다. Sequence 상한, 이번 step의 token 예산, KV capacity와 다른 제약을 동시에 만족해야 한다. 이 세 가지를 구분하면 “batch size를 늘려라”라는 모호한 조언에서 벗어날 수 있다. [vLLM scheduler config](https://docs.vllm.ai/en/stable/api/vllm/config/scheduler/)
+
+## 7. max_num_seqs와 max_num_batched_tokens는 다른 제한이다
+
+`max_num_seqs`는 한 iteration에 처리할 **sequence 수**의 상한이다. `max_num_batched_tokens`는 한 iteration에 처리할 **token 수**의 상한이다. 둘 다 queue 전체 길이나 초당 요청 수를 뜻하지 않는다. CLI에서는 각각 `--max-num-seqs`, `--max-num-batched-tokens`처럼 하이픈을 쓴다. [serve CLI](https://docs.vllm.ai/en/stable/cli/serve/)
+
+<VllmDiagrams kind="budget" />
+
+Illustrative 예로 일반적인 한-token decode 32개가 있으면 대략 32 token의 이번-step 예산을 쓴다. 여기에 1,000 token prefill chunk를 넣으면 약 1,032 token과 33 sequence 자리가 필요하다. 하지만 decode 요청들이 이미 보유한 과거 문맥의 KV는 그 32 token보다 훨씬 클 수 있다. **이번에 계산하는 token 수와 메모리에 보관하는 token 수는 같지 않다.** Speculative decoding 등에서는 이 단순 계산도 달라진다.
+
+`max_num_seqs`를 늘리면 더 많은 요청을 함께 실행할 기회가 생기는 대신 KV 수요와 step 시간이 커질 수 있다. Token budget을 늘려도 sequence 상한이 막으면 요청 수는 더 늘지 않는다. 반대로 sequence 상한만 높여도 token budget과 KV가 모자라면 기대한 동시성을 얻지 못한다.
+
+두 옵션의 기본값을 하나의 고정 숫자로 외우지 않는다. 현재 [EngineArgs 구현](https://docs.vllm.ai/en/stable/api/vllm/engine/arg_utils/)은 hardware, 사용 맥락과 설정에 따라 값을 결정한다. Benchmark에는 명시값뿐 아니라 최종 resolved config를 남긴다.
+
+## 8. 긴 prompt와 chunked prefill
+
+긴 prefill을 한 번에 처리하는 동안 decode가 기다리면 이미 답변을 받던 사용자의 token 간격이 벌어질 수 있다. Chunked prefill은 긴 입력의 계산을 여러 scheduling step으로 나눠 decode와 함께 다루는 기능이다. 앱에서 문서를 여러 개의 독립 prompt로 쪼개 보내는 것과는 다르며, 한 요청의 문맥은 유지된다.
+
+현재 V1 문서는 가능한 경우 기본 활성화라고 설명한다. 기본 결정은 모델 지원 조건에도 의존하므로 `--enable-chunked-prefill`의 실효 상태를 시작 로그에서 확인한다. 과거 V0의 기본 scheduler 설명을 V1에 그대로 적용하지 않는다. [Chunked prefill](https://docs.vllm.ai/en/stable/configuration/optimization/#chunked-prefill), [지원 조건과 기본값 결정](https://docs.vllm.ai/en/stable/api/vllm/engine/arg_utils/)
+
+## 9. 무엇을 측정할 것인가
+
+Dashboard는 네 그룹을 같은 시간축으로 읽을 수 있어야 한다. 아래는 확인 시점의 공식 V1 metric family다. Counter는 Prometheus endpoint에 통상 `_total`, histogram은 `_bucket`, `_sum`, `_count` 형태로 노출된다. 실제 이름·label·단위는 **해당 Pod의 `/metrics` HELP/TYPE과 sample에서 확정**한다. 과거 V0 이름을 섞거나 없는 metric을 0으로 채우지 않는다. [Production Metrics](https://docs.vllm.ai/en/stable/usage/metrics/)
+
+| 그룹 | 볼 것 | 현재 문서의 metric family |
+|---|---|---|
+| User latency | TTFT / 요청별 TPOT / E2E, p50·p95·p99 | `vllm:time_to_first_token_seconds`, `vllm:request_time_per_output_token_seconds`, `vllm:e2e_request_latency_seconds` |
+| Scheduler | Running / waiting / queue time / preemption | `vllm:num_requests_running`, `vllm:num_requests_waiting`, `vllm:request_queue_time_seconds`, `vllm:num_preemptions` |
+| GPU / KV | KV 점유율, GPU compute·메모리 관측 | `vllm:kv_cache_usage_perc` + DCGM |
+| Throughput | Input / output tok/s, 성공 requests/s | `vllm:prompt_tokens`, `vllm:generation_tokens`, `vllm:request_success`의 rate |
+
+Token 간격 자체는 `vllm:inter_token_latency_seconds`로 별도 관찰한다. KV gauge는 이름에 `perc`가 있어도 <strong>1이 100%</strong>다. 구버전의 `vllm:gpu_cache_usage_perc`를 현재 이름으로 가정하면 안 된다. Prefix 재사용이 있는 경우 input token count가 cached/computed 중 무엇을 포함하는지도 설치 버전의 HELP와 정의로 확인한다.
+
+NVIDIA exporter에서는 `DCGM_FI_DEV_GPU_UTIL`, `DCGM_FI_DEV_FB_USED`, `DCGM_FI_DEV_FB_FREE`, `DCGM_FI_DEV_MEM_COPY_UTIL` 등을 볼 수 있다. 마지막 항목은 framebuffer 용량 비율과 다르며 이를 곧바로 GB/s로 해석하지 않는다. 더 상세한 DRAM profiling 지표는 hardware 지원과 exporter 수집 설정을 확인한 뒤 사용한다. 기본 counter 목록에 없는 항목은 자동으로 수집된다고 가정하지 않는다. [NVIDIA counter 정의](https://github.com/NVIDIA/dcgm-exporter/blob/main/etc/default-counters.csv)
+
+다음 PromQL은 endpoint에서 해당 series와 label이 확인됐다는 전제의 **illustrative query**다. 실제로는 job·모델·배포 label로 대상 범위를 제한한다.
+
+```promql
+histogram_quantile(
+  0.95,
+  sum by (le, model_name) (
+    rate(vllm:time_to_first_token_seconds_bucket[5m])
+  )
+)
+
+sum by (model_name) (rate(vllm:generation_tokens_total[5m]))
+
+sum by (model_name) (increase(vllm:num_preemptions_total[5m]))
+```
+
+Pod별 p95를 평균내지 않고 histogram bucket을 합친 뒤 quantile을 구한다. 관측 수가 적거나 bucket이 거칠면 p99는 불안정하거나 부정확할 수 있다. Fleet 합계와 replica별 부하 편중도 함께 본다. Gateway의 reject·timeout·cancel과 client latency는 서버의 성공 요청 histogram만으로 알 수 없으므로 별도 수집한다.
+
+## 10. TTFT와 TPOT: 첫 대기와 생성 속도를 분리한다
+
+TTFT는 요청 도착부터 첫 token까지의 시간이다. Client에서 잰 값에는 네트워크와 gateway가 포함되며 server metric의 경계와 다를 수 있다. Streaming에서는 내용 없는 첫 이벤트를 첫 token으로 세지 않도록 정의한다.
+
+```text
+TTFT ≈ queue + prefill + scheduling/frontend overhead
+TPOT = (last token time − first token time) / (output tokens − 1)
+```
+
+두 번째 식은 output이 2 token 이상인 요청에 대한 정의다. 1 token 요청의 처리 기준은 따로 기록한다. TPOT는 요청마다 평균을 만든 뒤 분포를 계산하고, ITL은 token 사이의 개별 간격을 관측한다. 따라서 **TPOT p95와 ITL p95는 같은 수치가 아니다.** 전자는 전체 생성 속도를, 후자는 중간에 끊기는 경험을 보완해서 설명한다. Server와 benchmark client의 정의도 일치하는지 확인한다. [vLLM metrics 설계](https://docs.vllm.ai/en/stable/design/metrics/)
+
+| 관측 조합 | 먼저 검증할 가설 | 다음 확인 |
+|---|---|---|
+| TTFT↑ + queue↑ | 도착률이 처리 용량을 초과하거나 admission/scheduler가 막힘 | Offered·completed RPS, queue 증가 추세, replica 편중 |
+| TTFT↑ + queue 낮음 + prompt 김 | Prefill 비용이 지배적일 수 있음 | Prompt 길이별 TTFT, prefill time, cache hit |
+| TTFT 정상 + TPOT 악화 | Decode 동시성·메모리 압박 또는 step 간섭 가능성 | ITL, active sequence, KV, DRAM, preemption |
+
+이는 원인 확정표가 아니라 **가설을 고르는 표**다. 예를 들어 client TTFT만 늘었다면 proxy buffering이나 네트워크도 먼저 살펴야 한다.
+
+## 11. 평균 대신 p95와 p99를 함께 보는 이유
+
+평균은 대부분의 짧은 요청에 가려진 긴 대기를 숨길 수 있다. p95는 관측 요청의 95%가 그 값 이하라는 뜻이며, p99는 더 드문 지연을 보여준다. Sample 수, 시간 구간과 workload 구성이 달라지면 비교도 달라진다.
+
+Agent workflow에서는 여러 LLM call이 직렬로 이어지거나 병렬 호출 중 가장 느린 결과를 기다린다. Illustrative 계산으로 독립적인 10회 호출이 각각 95% 확률로 어떤 경계 안에 들어온다면, 전부 그 안에 들어올 확률은 `0.95^10 ≈ 60%`다. 실제 호출은 부하 때문에 상관될 수 있어 이 계산은 설명용일 뿐이다. 개별 호출의 p95를 더한 값이 workflow p95인 것도 아니다. 모델 호출과 별도로 workflow E2E를 직접 측정해야 한다.
+
+## 12. 실제 숫자의 형태로 판단해 보기
+
+아래 모든 값은 **illustrative이며 실측이 아니다.** 같은 가상 workload·GPU 할당·측정 구간을 놓고 읽는 비교표다. GPU/KV/waiting은 구간 평균을 가정하고, 실제 scorecard에는 peak·추세·분포도 추가한다.
+
+| 지표 | Config A | Config B | Config C |
+|---|---:|---:|---:|
+| max_num_seqs | 32 | 64 | 128 |
+| max_num_batched_tokens | 2,048 | 8,192 | 16,384 |
+| GPU util | 56% | 87% | 96% |
+| KV cache | 48% | 76% | 94% |
+| waiting requests | 17 | 3 | 1 |
+| TTFT p95 | 2.8s | 1.2s | 0.9s |
+| TPOT p95 | 38ms | 44ms | 86ms |
+| Output tok/s | 1,100 | 1,950 | 2,100 |
+| Preemption | 0 | 0 | 발생 |
+
+Illustrative SLO가 TTFT p95 1.5초 미만, TPOT p95 50ms 미만이라면 A는 첫 응답이 늦고 C는 생성 속도 조건을 위반한다. C의 처리량은 B보다 약 7.7% 높지만 TPOT p95는 약 95% 길다. Queue가 짧다는 사실만으로 C를 고르기 어렵다. KV headroom도 작고 preemption 발생 원인과 지속 여부를 확인해야 한다.
+
+B는 **이 두 latency 조건으로는 후보**다. E2E·error·OOM·시간에 따른 queue 추세는 표에 없으므로 아직 최종 승자가 아니다. 그것까지 충족하고 반복 실험에서 안정적이라면 B가 더 좋은 operating point일 수 있다. Preemption 한 번과 지속적인 재계산 폭주도 구분해야 한다.
+
+또한 표에서는 두 parameter가 동시에 달라졌다. 이 표는 선택 논리를 설명할 뿐, 어느 parameter가 개선의 원인인지 증명하지 않는다. 그 질문에는 한 변수씩 바꾸는 실험이 필요하다. 고정된 입력 부하에서 지속적으로 완료되는 처리량은 결국 도착률에 제한되므로, 서로 다른 완료 tok/s를 곧바로 최대 용량으로 읽지 않는다. 처리 중 남은 요청·실패·출력 길이와 부하 sweep까지 확인한다.
+
+## 13. Parameter 변경은 무엇을 얻고 무엇을 내주는가
+
+Chunked prefill 환경에서 작은 token budget은 decode의 ITL에, 큰 budget은 prefill 진행과 TTFT에 유리할 수 있다. 공식 tuning guide가 제시하는 방향이지 workload마다 보장되는 결과는 아니다. [공식 tuning guide](https://docs.vllm.ai/en/stable/configuration/optimization/#performance-tuning-with-chunked-prefill)
+
+내가 실제로 묻고 싶은 것은 “큰 값이 좋은가?”가 아니라 “현재 병목에서 더 큰 step이 유효한가?”다. TTFT가 이미 충분히 좋은데 TPOT만 나빠진다면 prefill을 더 밀어 넣는 실험의 성공 기준부터 다시 정해야 한다.
+
+Sequence 상한을 올릴 때도 같은 방식이다. Queue 감소가 KV pressure·preemption·tail latency 악화보다 가치 있는지 측정한다. Preemption으로 작업을 다시 계산하면 GPU는 바쁜데 유용한 완료량은 떨어질 수 있다. `gpu_memory_utilization` 증가는 headroom을 줄이는 선택이므로 OOM이나 다른 GPU 사용자를 무시한 해결책이 아니다.
+
+Magic number는 없다. 긴 context를 받는 RAG와 짧은 응답의 chat이 같은 값에서 최적이라는 보장도 없다. 하나의 설정으로 SLO를 맞추기 어렵다면 workload별 admission이나 별도 serving pool의 비용을 비교한다.
+
+## 14. 반복되는 prompt와 prefix cache
+
+Enterprise Agent에는 긴 system prompt, 공통 지시, RAG boilerplate가 반복된다. APC는 동일한 prefix의 KV를 재사용해 입력 계산을 줄인다. **의미가 비슷한 문장을 찾는 semantic cache도, 최종 답변 cache도 아니다.** 공통 prefix가 실제 token 단위로 재사용되어야 하며 새로운 output 생성 자체를 없애지 않는다. [Automatic Prefix Caching](https://docs.vllm.ai/en/stable/features/automatic_prefix_caching/)
+
+현재 기본 활성화 결정은 모델 지원 여부를 반영한다. 지원되는 환경에서 CLI `--enable-prefix-caching`과 effective config를 확인한다. 무조건 켜져 있다고 추정하지 않는다. [EngineArgs](https://docs.vllm.ai/en/stable/api/vllm/engine/arg_utils/)
+
+확인된 endpoint에서 `vllm:prefix_cache_hits_total`의 증가량을 `vllm:prefix_cache_queries_total` 증가량으로 나눈 **token 기준** hit ratio와 TTFT를 함께 본다. 분모가 0이면 hit ratio는 관측 불가이지 0%가 아니다. Cold cache, warm cache, 실제 prefix 반복률을 분리하지 않으면 같은 prompt만 반복하는 benchmark가 개선 폭을 과장할 수 있다. [Metric 정의](https://docs.vllm.ai/en/stable/usage/metrics/)
+
+권한이나 사용자별 지시를 합쳐 hit ratio를 높이면 안 된다. Prefix 공유는 데이터 접근 권한을 대신하지 않으며, tenant 간 cache 격리 정책도 유지해야 한다.
+
+## 15. 실전 tuning loop
+
+<VllmDiagrams kind="loop" />
+
+**Step 1 — Workload를 먼저 적는다.** Chat·RAG·Agent별 prompt/output token p50·p95·p99, 도착 RPS와 burst, 동시 요청, Agent당 평균과 tail LLM call 수를 기록한다. 총량이 같아도 한꺼번에 몰리는 요청과 고르게 오는 요청은 다르다.
+
+**Step 2 — SLO를 정한다.** Illustrative 시작점은 `TTFT p95 < 1.5s`, `TPOT p95 < 50ms`, `E2E p95 < 8s`다. Error budget, timeout·취소·거절의 포함 기준도 정한다. 긴 output workload가 E2E 목표와 양립하는지 먼저 확인하고 workload별로 적용한다.
+
+**Step 3 — 현재 config 그대로 baseline을 잰다.** Warmup을 제외하고 같은 dataset·출력 정책·도착 trace·cache 상태로 반복한다. Open-loop RPS sweep은 응답이 느려져도 예정된 요청을 보내 backlog를 드러낸다. Closed-loop 동시성 시험은 느려질수록 도착률도 줄어 과부하를 숨길 수 있으므로 둘의 목적을 구분한다. 부하 생성기 자체의 포화도 점검한다. [vLLM benchmark CLI](https://docs.vllm.ai/en/stable/cli/bench/serve/)
+
+**Step 4 — 병목 가설을 세운다.** GPU low + queue high라면 sequence 상한뿐 아니라 CPU throttling, tokenization, 통신, gateway와 replica 불균형을 본다. GPU/KV high + preemption이면 context·출력·동시성의 조합을 의심한다. GPU high + queue low + latency healthy이면 이미 좋은 지점일 수 있어 utilization을 더 높일 이유가 없다.
+
+**Step 5 — 한 변수만 바꾼다.** 첫 pass에서는 sequence 상한을 고정하고 token budget을 비교한 뒤, 선택한 budget에서 sequence 상한을 비교한다. 상호작용은 두 번째 pass에서 탐색한다. 각 candidate와 부하 단계마다 반복 수, sample 수, 변동 폭을 남기고 SLO를 지키는 지속 가능한 한계를 찾는다.
+
+최종 scorecard에는 offered/admitted/completed RPS, input/output tok/s, 할당 GPU 수로 나눈 처리량, SLO 안에서 완료한 goodput, p50·p95·p99, error, queue 추세, KV peak와 preemption rate가 필요하다. 전체 tok/s가 늘어도 SLO를 위반한 답변이 늘면 서비스 효용은 감소할 수 있다. Rollback 기준과 이전 image/config도 실험 전에 정한다.
+
+## 16. 코딩 어시스턴트에게 무엇을 요청할 것인가
+
+“vLLM을 최적화해 줘”라고만 요청하면 그럴듯한 설정값을 받기 쉽다. 아래 영어 프롬프트는 **관측 → 재현 가능한 실험 → 근거가 있는 제안**을 요구한다. 전체 복사 버튼을 사용하거나 텍스트를 직접 선택할 수 있다. 환경 점검은 읽기 전용으로 시작하며, config patch는 제안만 하고 적용하지 않도록 했다. 운영 부하 시험도 별도 승인된 범위에서만 실행하게 한다.
+
+<VllmAssistantPrompt />
+
+## 17. GPU utilization 자체가 목적함수가 아니다
+
+vLLM 튜닝은 workload를 정하고, benchmark를 재현하고, metric에서 병목 가설을 세우고, parameter 하나를 바꾸어 검증하는 feedback loop다. 설정값보다 중요한 것은 그 값을 선택한 근거다.
+
+높은 utilization과 높은 raw throughput은 유용한 관측값이지만, 서비스가 약속한 응답 시간과 안정성을 대신하지 못한다. 같은 GPU에서 얼마나 많은 유용한 요청을 지속적으로 완료할 수 있는지가 기준이어야 한다.
+
+**모델을 GPU에 올리는 것은 시작일 뿐이다. 실제 inference engineering은 그다음부터 시작된다.**
