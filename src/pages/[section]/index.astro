@@ -17,7 +17,7 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
   .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
 ---
 
-<BaseLayout title={section.name} description={section.description} alternateLanguageUrl={`/en/${section.slug}/`} indexable={posts.length > 0}>
+<BaseLayout title={section.name} description={section.description} alternateLanguageUrl={`/en/${section.slug}/`}>
   <section class="listing-page shell">
     <header class="category-header">
       <p class="eyebrow">Section {section.index}</p>
