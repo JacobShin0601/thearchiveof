@@ -17,8 +17,6 @@ export const TOPIC_CLUSTERS = [...new Set(TOPICS.map((topic) => topic.cluster))]
   topics: TOPICS.filter((topic) => topic.cluster === name).map((topic) => topic.slug),
 }));
 
-export const PLANNED_SERIES = ['Understanding Rates', 'Building AI Agents', 'Math for Markets'] as const;
-
 export const SECTIONS = [
   {
     name: 'Investing',

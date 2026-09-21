@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PostCard from '../components/PostCard.astro';
 import NewsletterCTA from '../components/NewsletterCTA.astro';
-import { PLANNED_SERIES, SECTIONS, seriesPath, TOPIC_CLUSTERS, topicPath } from '../consts';
+import { SECTIONS, seriesPath, TOPIC_CLUSTERS, topicPath } from '../consts';
 import { isVisiblePost } from '../environment';
 
 const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko'))
@@ -12,6 +12,7 @@ const featuredPosts = posts.filter((post) => post.data.featured).slice(0, 3);
 const activeTopics = new Set(posts.flatMap((post) => post.data.topics));
 const activeTopicClusters = TOPIC_CLUSTERS.map((cluster) => ({ ...cluster, topics: cluster.topics.filter((topic) => activeTopics.has(topic)) }))
   .filter((cluster) => cluster.topics.length > 0);
+const activeSeries = [...new Set(posts.flatMap((post) => post.data.series ? [post.data.series] : []))];
 ---
 
 <BaseLayout language="ko" alternateLanguageUrl="/en/">
@@ -91,7 +92,7 @@ const activeTopicClusters = TOPIC_CLUSTERS.map((cluster) => ({ ...cluster, topic
         <a href="/series/">전체 보기 →</a>
       </div>
       <ol class="home-series">
-        {PLANNED_SERIES.map((series, index) => <li><span>{String(index + 1).padStart(2, '0')}</span><a href={seriesPath(series)}>{series}</a></li>)}
+        {activeSeries.map((series, index) => <li><span>{String(index + 1).padStart(2, '0')}</span><a href={seriesPath(series)}>{series}</a></li>)}
       </ol>
     </div>
   </section>
