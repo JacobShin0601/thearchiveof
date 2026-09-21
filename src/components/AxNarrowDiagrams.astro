@@ -1,0 +1,176 @@
+---
+interface Props {
+  kind: 'blade' | 'substitution' | 'feedback' | 'hypothesis';
+  id: string;
+  caption: string;
+  language?: 'ko' | 'en';
+}
+
+const { kind, id, caption, language = 'ko' } = Astro.props;
+const isKo = language === 'ko';
+
+const blade = isKo
+  ? {
+      general: '범용 AI',
+      tasks: ['글쓰기', '코딩', '검색', '분석', '번역', '아이디어', '요약'],
+      generalCaption: '많은 일을 폭넓게 수행',
+      enterprise: 'Enterprise AX',
+      layers: ['조직 맥락', '도메인 논리', '도구', '내부 데이터', '사람의 판단'],
+      outcome: '목적에 맞게 설계한 workflow',
+      enterpriseCaption: '하나의 문제를 깊게 최적화',
+    }
+  : {
+      general: 'General-purpose AI',
+      tasks: ['Writing', 'Coding', 'Search', 'Analysis', 'Translation', 'Ideation', 'Summarization'],
+      generalCaption: 'Many tasks, broadly useful',
+      enterprise: 'Enterprise AX',
+      layers: ['Organizational context', 'Domain logic', 'Tools', 'Internal data', 'Human judgment'],
+      outcome: 'Purpose-built workflow',
+      enterpriseCaption: 'One problem, deeply optimized',
+    };
+
+const substitution = isKo
+  ? {
+      leftTitle: 'Substitution',
+      oldTask: '사람이 수행하던 C',
+      newTask: 'AI가 수행하는 C',
+      leftCaption: 'Substitution은 한 단계의 수행자를 바꾼다.',
+      rightTitle: 'Transformation',
+      question: '이 단계들은 왜 존재하는가?',
+      actions: ['분해', '제거', '통합', '자동화', '예외 전달'],
+      rebuilt: 'Agent + 사람 + 도구 + 데이터',
+      rightCaption: 'Transformation은 workflow 자체를 바꾼다.',
+    }
+  : {
+      leftTitle: 'Substitution',
+      oldTask: 'Human performs C',
+      newTask: 'AI performs C',
+      leftCaption: 'Substitution changes who performs a step.',
+      rightTitle: 'Transformation',
+      question: 'Why do these steps exist?',
+      actions: ['Decompose', 'Remove', 'Merge', 'Automate', 'Escalate'],
+      rebuilt: 'Agent + Human + Tools + Data',
+      rightCaption: 'Transformation changes the workflow itself.',
+    };
+
+const feedback = isKo
+  ? {
+      steps: ['고객 수요', '영업 전망', '내부 수요 집계', '수요 ÷ 현재 MS', '역산된 시장 규모', '미래 시장 전망', '전략·영업 가정'],
+      loop: '다시 내부 수요 전망에 영향',
+      notes: ['낙관 편향 가능성', '시장점유율 가정', '비독립적 검증', '잠재적 feedback loop'],
+    }
+  : {
+      steps: ['Customer demand', 'Sales outlook', 'Internal demand aggregation', 'Demand ÷ current MS', 'Implied market size', 'Future market outlook', 'Strategy / sales assumptions'],
+      loop: 'Feeds back into internal demand',
+      notes: ['Possible optimism bias', 'Market-share assumption', 'Non-independent validation', 'Potential feedback loop'],
+    };
+
+const hypothesis = isKo
+  ? {
+      steps: ['가설', '필요한 증거 정의', 'Agent research'],
+      sources: ['내부 데이터', '외부 데이터', '특허', '경쟁사', '고객 신호'],
+      analysis: ['Python simulation', '시각화', '민감도 + 반대 증거'],
+      decision: '가설이 충분히 지지되는가?',
+      revise: '수정 후 반복',
+      publish: '판단·발행',
+      equationLeft: 'Agent ≠ 보고서 작성기',
+      equationRight: 'Agent = 가설 검증 시스템',
+    }
+  : {
+      steps: ['Hypothesis', 'Evidence definition', 'Agent research'],
+      sources: ['Internal data', 'External data', 'Patents', 'Competitors', 'Customer signals'],
+      analysis: ['Python simulation', 'Visualization', 'Sensitivity + counter-evidence'],
+      decision: 'Is the hypothesis sufficiently supported?',
+      revise: 'Revise and repeat',
+      publish: 'Decide / publish',
+      equationLeft: 'Agent ≠ report writer',
+      equationRight: 'Agent = hypothesis-testing system',
+    };
+---
+
+<figure class={`ax-narrow-diagram ${kind}`} aria-labelledby={id}>
+  <figcaption id={id}>{caption}</figcaption>
+
+  {kind === 'blade' && (
+    <div class="blade-grid">
+      <section class="concept-card general-card">
+        <div class="concept-mark multitool" aria-hidden="true"><i></i><i></i><i></i></div>
+        <p class="kicker">Swiss Army knife</p>
+        <h3>{blade.general}</h3>
+        <ul class="task-cloud">{blade.tasks.map((task) => <li>{task}</li>)}</ul>
+        <p class="diagram-note">{blade.generalCaption}</p>
+      </section>
+      <div class="contrast" aria-hidden="true">vs</div>
+      <section class="concept-card enterprise-card">
+        <div class="concept-mark purpose-blade" aria-hidden="true"><i></i></div>
+        <p class="kicker">Purpose-built blade</p>
+        <h3>{blade.enterprise}</h3>
+        <div class="layer-stack">
+          {blade.layers.map((layer) => <span>{layer}</span>)}
+          <i aria-hidden="true">↓</i>
+          <strong>{blade.outcome}</strong>
+        </div>
+        <p class="diagram-note">{blade.enterpriseCaption}</p>
+      </section>
+    </div>
+  )}
+
+  {kind === 'substitution' && (
+    <div class="comparison-grid">
+      <section class="comparison-card">
+        <p class="kicker">{substitution.leftTitle}</p>
+        <div class="linear-flow" aria-label={substitution.leftTitle}>
+          <span>A</span><i>→</i><span>B</span><i>→</i><span class="task old">{substitution.oldTask}</span><i>→</i><span>D</span><i>→</i><span>E</span>
+        </div>
+        <div class="swap-arrow" aria-hidden="true">↓</div>
+        <div class="replacement">{substitution.newTask}</div>
+        <p class="diagram-note">{substitution.leftCaption}</p>
+      </section>
+      <section class="comparison-card transformed">
+        <p class="kicker">{substitution.rightTitle}</p>
+        <strong class="workflow-question">{substitution.question}</strong>
+        <i class="down" aria-hidden="true">↓</i>
+        <div class="action-cloud">{substitution.actions.map((action) => <span>{action}</span>)}</div>
+        <i class="down" aria-hidden="true">↓</i>
+        <div class="replacement">{substitution.rebuilt}</div>
+        <p class="diagram-note">{substitution.rightCaption}</p>
+      </section>
+    </div>
+  )}
+
+  {kind === 'feedback' && (
+    <div>
+      <div class="loop-flow">
+        {feedback.steps.map((step, index) => (
+          <div class="loop-item">
+            <span>{step}</span>
+            {index < feedback.steps.length - 1 && <i aria-hidden="true">↓</i>}
+          </div>
+        ))}
+        <div class="feedback-return"><i aria-hidden="true">↺</i><strong>{feedback.loop}</strong></div>
+      </div>
+      <ul class="annotation-grid">{feedback.notes.map((note) => <li>{note}</li>)}</ul>
+    </div>
+  )}
+
+  {kind === 'hypothesis' && (
+    <div class="hypothesis-flow">
+      {hypothesis.steps.map((step) => <><div class="flow-node">{step}</div><i class="down" aria-hidden="true">↓</i></>)}
+      <div class="source-cloud">{hypothesis.sources.map((source) => <span>{source}</span>)}</div>
+      <i class="down" aria-hidden="true">↓</i>
+      {hypothesis.analysis.map((step) => <><div class="flow-node analysis-node">{step}</div><i class="down" aria-hidden="true">↓</i></>)}
+      <div class="decision-node">{hypothesis.decision}</div>
+      <div class="decision-branches">
+        <span class="revise">↺ {hypothesis.revise}</span>
+        <span class="publish">✓ {hypothesis.publish}</span>
+      </div>
+      <div class="agent-equation"><span>{hypothesis.equationLeft}</span><strong>{hypothesis.equationRight}</strong></div>
+    </div>
+  )}
+</figure>
+
+<style>
+  .ax-narrow-diagram{--accent:#6759d5;--accent-soft:color-mix(in srgb,var(--accent) 11%,var(--background,#fff));margin:2.75rem 0;padding:1.35rem;border:1px solid var(--border-color,#d8d5ce);border-radius:1rem;background:color-mix(in srgb,var(--card-bg,#fff) 95%,var(--accent) 5%);overflow:hidden}.ax-narrow-diagram figcaption{font-weight:700;margin:0 0 1.15rem;color:var(--text-color,inherit)}.blade-grid,.comparison-grid{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:1rem;align-items:stretch}.comparison-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.concept-card,.comparison-card{padding:1.2rem;border:1px solid var(--border-color,#ddd);border-radius:.85rem;background:var(--background,#fff);display:flex;flex-direction:column}.concept-card h3{margin:.15rem 0 1rem}.kicker{margin:0;color:var(--accent);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;font-weight:800}.contrast{align-self:center;color:var(--muted,#777);font-size:.8rem;font-weight:800;text-transform:uppercase}.concept-mark{height:2.8rem;margin-bottom:.75rem;position:relative}.multitool{width:3.5rem;border:2px solid var(--accent);border-radius:1.5rem}.multitool i{position:absolute;width:1.5rem;height:2px;background:var(--accent);transform-origin:left center;left:2.6rem;top:1.25rem}.multitool i:nth-child(1){transform:rotate(-42deg)}.multitool i:nth-child(2){transform:rotate(0)}.multitool i:nth-child(3){transform:rotate(42deg)}.purpose-blade{width:8rem}.purpose-blade:before{content:"";position:absolute;left:0;top:.6rem;width:5.7rem;height:1.35rem;border:2px solid var(--accent);border-radius:70% 8% 30% 70%;transform:skewX(-18deg)}.purpose-blade i{position:absolute;left:5.8rem;top:1.15rem;width:2rem;height:.45rem;background:var(--accent);border-radius:0 .3rem .3rem 0}.task-cloud,.action-cloud,.source-cloud{display:flex;flex-wrap:wrap;gap:.45rem;margin:0;padding:0;list-style:none}.task-cloud li,.action-cloud span,.source-cloud span{padding:.38rem .58rem;border-radius:999px;background:var(--accent-soft);font-size:.79rem}.diagram-note{margin:auto 0 0;padding-top:1rem;color:var(--muted,#666);font-size:.84rem}.layer-stack{display:grid;gap:.35rem}.layer-stack span,.layer-stack strong{padding:.47rem .65rem;border:1px solid var(--border-color,#ddd);border-radius:.45rem;text-align:center;font-size:.82rem}.layer-stack i,.down{font-style:normal;text-align:center;color:var(--accent)}.layer-stack strong,.replacement{border-color:var(--accent);background:var(--accent);color:#fff}.linear-flow{display:flex;align-items:center;justify-content:center;gap:.32rem;flex-wrap:wrap;margin:1.35rem 0 .65rem}.linear-flow span{min-width:1.85rem;padding:.38rem;border:1px solid var(--border-color,#ddd);border-radius:.4rem;text-align:center;font-size:.78rem}.linear-flow .task{min-width:7.6rem}.linear-flow i{font-style:normal;color:var(--muted,#777)}.swap-arrow{text-align:center;color:var(--accent);font-size:1.2rem}.replacement{align-self:center;padding:.6rem .8rem;border-radius:.55rem;text-align:center;font-size:.84rem}.workflow-question{display:block;margin:1.35rem 0 .5rem;text-align:center}.action-cloud,.source-cloud{justify-content:center}.comparison-card .down{display:block;margin:.45rem}.transformed{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent)}.loop-flow{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding:1rem 0}.loop-item{display:flex;align-items:center;gap:.7rem}.loop-item span{display:grid;place-items:center;min-height:4rem;width:100%;padding:.65rem;border:1px solid var(--border-color,#ddd);border-radius:.65rem;background:var(--background,#fff);text-align:center;font-size:.82rem}.loop-item i{font-style:normal;color:var(--accent);transform:rotate(-90deg)}.feedback-return{grid-column:2/5;display:flex;align-items:center;justify-content:center;gap:.5rem;padding:.7rem;border:1px dashed var(--accent);border-radius:.65rem;color:var(--accent);background:var(--accent-soft);font-size:.82rem}.feedback-return i{font-style:normal;font-size:1.2rem}.annotation-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem;margin:1rem 0 0;padding:0;list-style:none}.annotation-grid li{padding:.55rem;border-left:3px solid var(--accent);background:var(--background,#fff);font-size:.77rem}.hypothesis-flow{display:flex;flex-direction:column;align-items:center;max-width:46rem;margin:auto}.flow-node,.decision-node{width:min(100%,24rem);padding:.65rem .8rem;border:1px solid var(--border-color,#ddd);border-radius:.55rem;background:var(--background,#fff);text-align:center;font-size:.84rem}.analysis-node{border-color:color-mix(in srgb,var(--accent) 45%,var(--border-color,#ddd))}.hypothesis-flow .source-cloud{max-width:42rem}.decision-node{border-color:var(--accent);font-weight:700}.decision-branches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;width:min(100%,32rem);margin-top:.75rem}.decision-branches span{padding:.62rem;border-radius:.55rem;text-align:center;font-size:.82rem}.revise{border:1px dashed var(--accent);color:var(--accent);background:var(--accent-soft)}.publish{background:var(--accent);color:#fff}.agent-equation{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;width:100%;margin-top:1.2rem;padding-top:1.1rem;border-top:1px solid var(--border-color,#ddd)}.agent-equation span,.agent-equation strong{padding:.75rem;border-radius:.55rem;text-align:center;background:var(--background,#fff);font-size:.86rem}.agent-equation strong{background:var(--accent-soft);color:var(--accent)}
+  @media(max-width:760px){.ax-narrow-diagram{padding:1rem;margin:2rem 0}.blade-grid,.comparison-grid{grid-template-columns:1fr}.contrast{text-align:center}.loop-flow{grid-template-columns:1fr;padding:.25rem 0}.loop-item{flex-direction:column;gap:.25rem}.loop-item i{transform:none}.feedback-return{grid-column:auto}.annotation-grid{grid-template-columns:1fr 1fr}.linear-flow{gap:.24rem}.linear-flow .task{min-width:6.8rem}.agent-equation{grid-template-columns:1fr}}
+  @media(max-width:430px){.annotation-grid,.decision-branches{grid-template-columns:1fr}.task-cloud li,.action-cloud span,.source-cloud span{font-size:.74rem}.ax-narrow-diagram figcaption{font-size:.92rem}}
+</style>
