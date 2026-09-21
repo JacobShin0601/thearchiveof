@@ -2,7 +2,7 @@
 import type { GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
-import { postPath, slugify } from '../../../consts';
+import { postPath, seriesDefinition, slugify } from '../../../consts';
 import { isVisiblePost } from '../../../environment';
 
 export const getStaticPaths = (async () => {
@@ -14,14 +14,16 @@ export const getStaticPaths = (async () => {
 const { name } = Astro.props as { name: string };
 const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en' && data.series === name))
   .sort((a, b) => (a.data.seriesOrder ?? 999) - (b.data.seriesOrder ?? 999));
+const description = seriesDefinition(name)?.description.en
+  ?? 'An ordered path from core concepts to implementation and evidence.';
 ---
 
-<BaseLayout title={name} description={`${name}: an ordered series from The Archive.`} language="en" alternateLanguageUrl={`/series/${slugify(name)}/`} indexable={posts.length > 0}>
+<BaseLayout title={name} description={description} language="en" alternateLanguageUrl={`/series/${slugify(name)}/`} indexable={posts.length > 0}>
   <section class="listing-page shell">
     <header>
       <p class="eyebrow"><a href="/en/series/">Series</a> / Learning path</p>
       <h1>{name}</h1>
-      <p>An ordered path from core concepts to implementation and evidence.</p>
+      <p>{description}</p>
     </header>
     {posts.length > 0 ? <ol class="series-articles">
       {posts.map((post, index) => (
