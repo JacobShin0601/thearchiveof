@@ -9,6 +9,23 @@ export { DEFAULT_SOCIAL_IMAGE, resolveSocialImage } from './lib/social-image';
 
 export const CONTENT_TYPES = ['foundation', 'research', 'current', 'implementation', 'perspective'] as const;
 
+export const SERIES = [
+  {
+    name: 'Enterprise AX',
+    description: {
+      ko: 'AI를 도입하는 데서 멈추지 않고, 기업의 업무와 조직을 실제로 바꾸는 방법을 현장 관점에서 다룹니다.',
+      en: 'A field-driven series on moving beyond AI adoption to redesign enterprise work and operating models.',
+    },
+  },
+  {
+    name: 'Optimization',
+    description: {
+      ko: '목적함수와 제약, 상충하는 목표를 실제 의사결정 문제와 연결해 설명합니다.',
+      en: 'Objectives, constraints, and trade-offs explained through practical decision problems.',
+    },
+  },
+] as const;
+
 export const TOPICS = topicRegistry;
 export const TOPIC_CLUSTERS = [...new Set(TOPICS.map((topic) => topic.cluster))].map((name) => ({
   name,
@@ -118,6 +135,10 @@ export function topicPath(topic: string, language: 'ko' | 'en' = 'ko') {
 export function seriesPath(series: string, language: 'ko' | 'en' = 'ko') {
   const prefix = language === 'en' ? '/en' : '';
   return `${prefix}/series/${slugify(series)}/`;
+}
+
+export function seriesDefinition(name: string) {
+  return SERIES.find((series) => series.name === name);
 }
 
 export function labelFromSlug(slug: string) {

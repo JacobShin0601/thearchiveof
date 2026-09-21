@@ -1,0 +1,201 @@
+---
+title: 'Why Enterprise AI Transformation Should Start Narrow'
+description: 'General-purpose AI is a Swiss Army knife; enterprise AX is a purpose-built blade. A Market Intelligence case shows why transformation means redesigning work, not automating it.'
+publishedDate: 2026-09-21
+section: 'AI & AX'
+subsection: 'AX'
+contentType: research
+topics: [ax, enterprise-ai, ai-agents, evaluation]
+primaryTopic: ax
+tags: [ax, enterprise-ai, agentic-workflow, workflow-design, transformation]
+author: 'Jacob Shin'
+language: en
+translationKey: ax-should-start-narrow
+localization:
+  locale: en-US
+  strategy: localized-adaptation
+draft: false
+featured: false
+comments: false
+pillar: false
+freshness: evergreen
+lastReviewed: 2026-09-21
+nextReviewDate: 2027-03-21
+series: 'Enterprise AX'
+seriesOrder: 2
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AxNarrowDiagrams from '../../../../components/AxNarrowDiagrams.astro';
+
+<AnswerBlock question="Why should enterprise AI transformation start narrow?">
+  General-purpose AI such as ChatGPT and Claude can already do an extraordinary range of work. Enterprise transformation is not about building one more general-purpose tool. It is about decomposing a specific workflow and redesigning it around what AI makes possible. The best AX initiative is therefore narrow in scope and deep in effect: it should solve one problem so well that practitioners do not want to return to the old way of working.
+</AnswerBlock>
+
+The list of things a general-purpose AI can do keeps growing. It can write, summarize, and translate. It can search, research, brainstorm, and criticize an argument. It can code, debug, generate SQL, analyze data, and draft a visualization. It can compare documents, process meeting notes, prepare presentation outlines, assist with contract review, understand images, and generate scenarios.
+
+General-purpose AI is a **Swiss Army knife**: one compact tool that is broadly useful across many situations. If that tool is already getting better every few months, should a company spend months and a large budget building another Swiss Army knife?
+
+I think the role of enterprise AX lies elsewhere. If general-purpose AI is a Swiss Army knife, enterprise transformation is closer to forging a purpose-built chef's knife. The goal is not to attach as many features as possible. It is to integrate internal data, domain logic, tools, permissions, and human judgment deeply into one important workflow.
+
+<AxNarrowDiagrams kind="blade" language="en" id="blade-diagram-en" caption="General-purpose AI covers many tasks. Enterprise AX optimizes one important workflow around its actual purpose." />
+
+## A capable model still does not know how your company works
+
+Security is the most obvious reason a company cannot simply paste every problem into a public AI tool. Confidential data and access controls are real constraints. But the deeper constraint is **organizational context**.
+
+Enterprise work is a mixture of internal data, permissions, legacy systems, spreadsheets, internal portals, undocumented rules, historical decisions, and tacit knowledge. The meaning of a number often depends on who produced it, when, and for what decision. The documented process and the process people actually follow may not even be the same.
+
+In many cases, GPT does not fail because it lacks intelligence. It fails because **it does not know how work happens inside this organization**. The differentiator in enterprise AI may therefore be less about the model itself and more about `organizational context + workflow`.
+
+That distinction will matter more as commercial models improve. A generic search or summarization feature that required a custom build today may become a standard model capability tomorrow. A company's decision rules, data lineage, exceptions, permissions, and institutional memory are much harder for a general-purpose product to acquire automatically.
+
+## Substitution is not transformation
+
+Replacing a human in one step with AI can improve productivity. But it may be substitution rather than transformation.
+
+Transformation begins with a different set of questions:
+
+> Why does this step exist? If AI were available from the beginning, would we still need the same sequence and the same output?
+
+The team decomposes the current workflow, removes unnecessary work, merges duplicate steps, and reallocates tasks between machines and people. Inputs, sequence, ownership, output, and review can all change.
+
+<AxNarrowDiagrams kind="substitution" language="en" id="substitution-diagram-en" caption="Substitution changes who performs a step. Transformation changes the workflow itself." />
+
+Giving AI the exact task a person used to perform can be useful automation. It is not automatically AX. **Substitution changes who performs a step. Transformation changes the steps themselves.**
+
+## Transformation needs domain expertise and an outsider's eye
+
+Practitioners must be deeply involved in workflow redesign. They understand the purpose of the work, the exceptions that matter, the customer context, and the judgment behind the official process. Much of that knowledge will never appear in a procedure manual.
+
+At the same time, practitioners are the people most accustomed to the current workflow. A recurring report, an approval step, or a particular way of aggregating data can begin to feel like part of the work's essence simply because it has existed for years. That is not a failure of effort or imagination. It is a natural consequence of familiarity.
+
+Enterprise AX therefore needs `Domain expertise × External decomposition`. An AX practitioner must learn the business well enough to respect what the workflow is trying to accomplish, while remaining willing to question the workflow itself. The job is to take the work apart and rebuild it around a new division of labor between AI and people.
+
+## A generalized Market Intelligence case
+
+Consider a simplified Market Intelligence workflow at a manufacturing company. This is an illustrative case assembled from patterns that can appear in many organizations. It is not the official process or forecasting formula of any specific company.
+
+Suppose the sales organization collects forward customer demand. Those estimates are aggregated into expected company demand. The company then divides its demand by current market share to infer total market size and uses the result as an input to its market outlook and strategy.
+
+$$
+\text{Implied Market Size} \approx \frac{\text{Company Demand}}{\text{Market Share}}
+$$
+
+The arithmetic is intuitive. The workflow around it, however, may contain assumptions that deserve explicit testing.
+
+### 1. Input bias
+
+A sales outlook can include pipeline optimism, projects that are not yet committed, changing customer plans, the same volume appearing in multiple suppliers' opportunity sets, and general opportunity inflation.
+
+That does not mean sales did anything wrong. Uncertainty is structural when future demand is estimated close to the customer. The relevant question is how that uncertainty is adjusted, tracked, and carried into downstream analysis.
+
+### 2. The independence problem
+
+If internal company demand is used to estimate the total market, and that market estimate later becomes evidence for the company's own strategy, an apparently external outlook may still share the same underlying input.
+
+**Having several numbers does not necessarily mean having several independent pieces of information.** Figures in different tables and reports can provide much less validation than they appear to if they all inherit the same assumptions.
+
+### 3. A structural assumption
+
+Dividing by current market share can quietly imply that today's competitive structure will remain reasonably stable. Yet market share can change with competitor capacity, pricing, technology, customer mix, and regional dynamics.
+
+Current market share is not merely a denominator. It is a strong assumption about the future market structure. Once it becomes an input cell, that assumption can disappear from view.
+
+## Agentizing a flawed workflow may only repeat it faster
+
+When these issues interact, they can create a potential feedback loop. Higher internal demand produces a larger implied market. The larger market supports a stronger growth outlook. That outlook then influences strategy and sales assumptions, which can feed back into internal demand.
+
+<AxNarrowDiagrams kind="feedback" language="en" id="feedback-diagram-en" caption="When internal demand and market outlook share assumptions, bias can propagate or circulate. This does not mean the workflow is always wrong." />
+
+The loop is not necessarily an error. Internal demand can contain an early signal that external sources have not yet captured. The risk arises when the signal is treated as independent confirmation without external evidence or sensitivity testing.
+
+If a workflow contains flawed assumptions, agentizing it does not make those assumptions disappear. **It may simply execute them faster and more consistently.**
+
+## Redesign the work around hypothesis testing
+
+The original workflow might be summarized as `Internal demand → Aggregate → Extrapolate → Report`. An AI-native alternative can begin with a hypothesis.
+
+First, define the hypothesis and the evidence that would support or weaken it. An agent can collect approved internal material alongside external data, patents, competitor disclosures, and customer signals. Python can then run scenarios and generate visualizations. The system checks sensitivity and searches for counter-evidence. If the hypothesis is not sufficiently supported, it is revised and tested again.
+
+<AxNarrowDiagrams kind="hypothesis" language="en" id="hypothesis-diagram-en" caption="Design the agent as a repeatable hypothesis-testing system, not a report-writing machine." />
+
+A Python REPL is one of the tools that turns the agent from a prose generator into an analytical system. The workflow might parameterize illustrative variables such as:
+
+- `market_growth`
+- `customer_demand_haircut`
+- `market_share`
+- `competitor_capacity_delay`
+- `price_elasticity`
+
+These names are conceptual examples, not a representation of any company's model. What matters is the behavior they enable. The agent can change values, run scenarios, compare results, create charts, and identify the assumptions to which the conclusion is most sensitive.
+
+The output becomes more useful as well. Instead of saying:
+
+> The AI says the market will grow.
+
+the system can say:
+
+> This outlook follows from assumptions A, B, and C. The conclusion changes if customer-demand haircut or future market share moves beyond these thresholds.
+
+That is not about producing a longer report. It makes the link between assumptions and conclusions visible so that a person can make a better decision.
+
+## An agent should be a hypothesis-testing system, not a report writer
+
+A good Market Intelligence agent may not reproduce the sequence of clicks a person used to perform. It can generate hypotheses, define evidence needs, synthesize internal and external information, run a Python model, compare scenarios, critique its own reasoning, search for counter-evidence, and analyze again.
+
+There is clear value in reducing a three-day report to thirty minutes. But the larger transformation may be to eliminate the task of **producing a report every three days**. The system can update hypotheses and forecasts when new information arrives, then escalate only when the conclusion changes enough to matter.
+
+Human judgment does not disappear. People decide which hypotheses matter, whether the evidence is credible, what strategic context the model cannot capture, and who owns the final decision. An AI-native workflow does not remove judgment; it places judgment where it creates the most value.
+
+## This is why AX should be narrow and sharp
+
+“An agent that transforms all knowledge work across the company” sounds ambitious. It also leaves the data boundary, ownership, success criteria, and actual user unclear.
+
+“Redesign one Market Intelligence forecasting workflow” is narrower. The team can define which data is allowed, what the system may automate, where people review the output, and what quality and usefulness mean.
+
+An “agent that understands every document” is broad. An agent that gathers evidence for a defined decision, tests a hypothesis, and executes a model is sharp.
+
+Narrowing the scope makes several things concrete:
+
+- the data boundary;
+- the workflow and owner;
+- evaluation criteria;
+- human-in-the-loop checkpoints;
+- measurable ROI and adoption.
+
+Evaluation can then go beyond time saved. The team can test whether assumptions remain traceable, whether counter-evidence is actually retrieved, whether scenario changes produce consistent behavior, and whether material changes reach decision-makers in time.
+
+## Narrow does not mean low-value
+
+`Narrow` should not be confused with a tiny RPA task or a micro-automation. The principle is to **constrain the problem boundary while redesigning deeply inside it**.
+
+Even one Market Intelligence workflow can include data collection, hypothesis formation, modeling, simulation, validation, visualization, and human judgment. The boundary is one decision workflow. The depth of transformation can still be substantial.
+
+The right success criterion is not the number of features.
+
+> Do practitioners feel that there is no reason to return to the old way of doing this work?
+
+If the answer is yes, a narrow initiative can create significant value.
+
+## Expansion begins with one undeniable success
+
+Rolling a broad tool out across the company and then pushing adoption through training and campaigns has limits. People will not keep using a system that does not materially change their work.
+
+When a narrow workflow creates overwhelming value, neighboring teams begin asking questions on their own. What data did you connect? Could the same approach work for our decision? Which workflow should we redesign next?
+
+The better pattern is not to start broadly and persuade people to use the system. It is to create **undeniable value in one narrow problem and let that experience spread sideways**. Bottom-up expansion begins with a workflow worth copying.
+
+## AX practitioners design the structure of work
+
+An AX practitioner needs to understand LLMs, agents, RAG, data, and tools. That is only part of the role. The person must also understand the purpose of the work, decompose the process, design evaluation, and allocate responsibility between AI and people.
+
+What an AX practitioner builds is not only a model. It is a **structure of work**: a redesigned workflow assembled with AI as a new component.
+
+General-purpose AI will continue to improve. Many generic features that companies build themselves today may become standard commercial capabilities tomorrow. Competing with general-purpose AI on breadth is unlikely to create a durable advantage.
+
+The enterprise moat lies in using proprietary data, organizational memory, domain logic, workflow, decision context, and human expertise to solve **one important problem exceptionally well**.
+
+If the Swiss Army knife is already excellent, there is little reason to build another one. Choose a narrow problem, then transform it deeply.
+
+**Narrow, sharp AI that changes real work matters more than broad AI that merely looks impressive. If the purpose-built tool is genuinely better, people will start using it without being told. That is when transformation begins.**
