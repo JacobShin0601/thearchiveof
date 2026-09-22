@@ -1,7 +1,7 @@
 import { hashActor, viewerFrom } from '../../../lib/identity.js';
 import { isAllowedOrigin, json, methodNotAllowed, readJson } from '../../../lib/http.js';
 import { isAllowedArticleKey } from '../../../lib/keys.js';
-import { isReaction, isViewerId } from '../../../lib/validate.js';
+import { isArticleKey, isReaction, isViewerId } from '../../../lib/validate.js';
 
 async function countUseful(db, slug) {
   const row = await db.prepare(
@@ -21,10 +21,11 @@ async function viewerRow(db, slug, actorHash) {
 export async function onRequest(context) {
   const { request, env, params } = context;
   if (!isAllowedOrigin(request)) return json({ ok: false, error: 'forbidden_origin' }, 403);
-  if (!env.DB) return json({ ok: false, error: 'unavailable' }, 503);
 
   const slug = params.slug;
-  if (!isAllowedArticleKey(slug)) return json({ ok: false, error: 'invalid_slug' }, 400);
+  if (!isArticleKey(slug)) return json({ ok: false, error: 'invalid_slug' }, 400);
+  if (!isAllowedArticleKey(slug)) return json({ ok: false, error: 'article_not_found' }, 404);
+  if (!env.DB) return json({ ok: false, error: 'unavailable' }, 503);
 
   if (request.method === 'GET') {
     const viewerId = viewerFrom(request);
