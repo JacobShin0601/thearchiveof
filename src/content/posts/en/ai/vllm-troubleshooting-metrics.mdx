@@ -1,0 +1,365 @@
+---
+title: 'Why Is vLLM Slow?'
+subtitle: 'Diagnosing bottlenecks with TTFT, TPOT, and KV cache'
+description: 'A practical guide to diagnosing vLLM serving bottlenecks by reading TTFT, TPOT, queue, prefill, KV-cache, and preemption signals together.'
+publishedDate: 2026-09-24
+section: 'AI & AX'
+subsection: 'AI Engineering'
+contentType: implementation
+topics: [enterprise-ai, evaluation, ai-agents]
+primaryTopic: enterprise-ai
+tags: [vllm, llm-serving, observability, troubleshooting, performance-engineering]
+author: 'Jacob Shin'
+language: en
+localization:
+  locale: en-US
+  strategy: localized-adaptation
+translationKey: vllm-troubleshooting-metrics
+draft: true
+featured: false
+comments: false
+freshness: periodic
+lastReviewed: 2026-09-22
+nextReviewDate: 2026-12-22
+references:
+  - title: 'vLLM — Production Metrics'
+    url: https://docs.vllm.ai/en/stable/usage/metrics/
+    publisher: vLLM
+  - title: 'vLLM — Optimization and Tuning'
+    url: https://docs.vllm.ai/en/stable/configuration/optimization/
+    publisher: vLLM
+  - title: 'vLLM — Automatic Prefix Caching'
+    url: https://docs.vllm.ai/en/stable/features/automatic_prefix_caching/
+    publisher: vLLM
+  - title: 'vLLM — Benchmark Serving'
+    url: https://docs.vllm.ai/en/stable/cli/bench/serve/
+    publisher: vLLM
+  - title: 'Prometheus — Histograms and Summaries'
+    url: https://prometheus.io/docs/practices/histograms/
+    publisher: Prometheus
+  - title: 'NVIDIA — DCGM Exporter counters'
+    url: https://github.com/NVIDIA/dcgm-exporter/blob/main/etc/default-counters.csv
+    publisher: NVIDIA
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import VllmTroubleshootingDiagrams from '../../../../components/VllmTroubleshootingDiagrams.astro';
+
+<AnswerBlock question="Where should I start when vLLM becomes slow?">
+  Do not change configuration after looking at GPU utilization or TTFT alone. First split the request path into queue, prefill, and decode, then read TTFT, queue time, prefill time, TPOT, waiting requests, KV-cache occupancy, and preemption on the same timeline. High TTFT with a growing queue points toward capacity or admission pressure. High TTFT with little queueing and rising prefill time points toward long inputs or poor prefix reuse. Troubleshooting begins with relationships among signals, not one alarming number.
+</AnswerBlock>
+
+## 1. The GPU is at 95 percent. Why is the service still slow?
+
+Users say an agent has become slower. The dashboard shows 95 percent GPU utilization, so the explanation seems obvious: the GPU is full and the service needs more capacity.
+
+That may be true. It is not yet a diagnosis.
+
+Longer retrieved documents may have increased prefill time. A burst of concurrent requests may have created a queue. KV-cache pressure may be forcing requests to be preempted and recomputed. Or utilization may be high while throughput and every latency SLO remain healthy.
+
+“Slow” is one symptom with several possible causes. vLLM troubleshooting should therefore begin before opening the configuration file. **The first task is to locate where a request is spending time.**
+
+This article follows [What is vLLM tuning?](/en/ai/ai-engineering/vllm-tuning-limited-gpus/). The earlier article explained the scheduler, prefill and decode, KV cache, and the main controls. This one turns those concepts into an operational diagnosis sequence.
+
+> Documentation reviewed on September 22, 2026. This article follows the V1 metrics and tuning behavior described by the current vLLM `stable` documentation. Metric names and labels can change across releases; confirm them from the running Pod's `/metrics`, startup logs, and pinned image version. Every incident and number below is illustrative, not a measurement from a particular company.
+
+## 2. Translate “slow” into four different symptoms
+
+Start with the experience, not the infrastructure metric.
+
+1. **Nothing happens for too long.** The first token is late: a TTFT problem.
+2. **The answer starts quickly but streams slowly.** Tokens arrive too far apart: a TPOT or ITL problem.
+3. **Only some requests are extremely slow.** The mean looks fine while p95 or p99 deteriorates: a tail-latency problem.
+4. **Requests do not finish.** Timeouts, OOMs, HTTP 5xx responses, and client cancellations make this a reliability problem.
+
+Mixing these behaviors into one average latency conceals the failure mode. A configuration can improve TTFT while doubling TPOT. A similar mean E2E number does not mean the streaming experience stayed the same.
+
+## 3. Attach metrics to the request lifecycle
+
+<VllmTroubleshootingDiagrams kind="lifecycle" language="en" />
+
+A useful diagnostic model is:
+
+```text
+E2E latency
+≈ queue + prefill + decode + frontend / network overhead
+
+TTFT
+≈ queue + prefill + scheduling / frontend overhead
+```
+
+These are not accounting identities. They are a way to locate a bottleneck. Client-side TTFT includes gateways and the network; a server-side vLLM metric may not. Align the start point and the definition of the first meaningful streaming token before comparing them.
+
+The current vLLM documentation exposes metric families for each stage. Counters normally appear with `_total`; histograms expose `_bucket`, `_sum`, and `_count` samples. Confirm the exact names from HELP, TYPE, and samples on the deployed `/metrics` endpoint. [Production Metrics](https://docs.vllm.ai/en/stable/usage/metrics/)
+
+| Stage | Question | Signals to read together |
+|---|---|---|
+| Queue | How long did the request wait before execution? | `num_requests_waiting`, `request_queue_time_seconds` |
+| Prefill | How expensive was processing the input? | `request_prompt_tokens`, `request_prefill_time_seconds`, TTFT |
+| Decode | Was generation smooth after the first token? | Request TPOT, ITL, `request_decode_time_seconds` |
+| KV memory | Was there enough space to retain active state? | `kv_cache_usage_perc`, preemption |
+| Outcome | Did the request finish inside the SLO? | E2E, success/error, completed throughput |
+
+## 4. Use combinations, not isolated metrics
+
+<VllmTroubleshootingDiagrams kind="signals" language="en" />
+
+The central rule is simple: no single metric proves a root cause.
+
+| Signal combination | First hypothesis to test | Evidence against it |
+|---|---|---|
+| TTFT↑ + queue↑ | Arrival rate exceeds capacity, or admission is constrained | Offered RPS is unchanged and no backlog grows |
+| TTFT↑ + low queue + long prompts | Prefill cost or weaker prefix reuse | Prompt length and prefill time remain stable |
+| Healthy TTFT + TPOT·ITL↑ | Decode concurrency or memory pressure | Active sequences and TPOT do not co-move |
+| KV↑ + preemption↑ | KV shortage and recomputation | Preemption rate is zero and SLOs remain healthy |
+| Low GPU util + queue↑ | CPU, gateway, routing, or another upstream bottleneck | Work is continuously reaching the GPU |
+
+This is not a lookup table for answers. It is a map for choosing the next test.
+
+## 5. Case A — TTFT and queue time rise together
+
+```text
+Incoming requests ↑
+        ↓
+Waiting requests ↑
+        ↓
+Queue time ↑
+        ↓
+TTFT ↑
+```
+
+Do not begin by shortening prompts if requests are already waiting before prefill starts.
+
+Check:
+
+- The gap among offered, admitted, and completed RPS
+- Whether waiting requests spike briefly or accumulate continuously
+- Whether queue time explains the increase in TTFT
+- Whether one replica is receiving disproportionate traffic
+- Whether interactive and batch work share one pool
+- Whether client retries amplify the actual arrival rate
+
+A continuously growing queue suggests that arrivals exceed sustainable capacity. The answer is not automatically a larger batch. Compare admission control, retry budgets, workload separation, routing repair, replicas, and scheduler changes.
+
+A short spike may instead be a burst problem. The same five-minute average RPS can produce a very different p99 when requests arrive within ten seconds. This is why the time axis matters as much as the average.
+
+## 6. Case B — TTFT rises without a meaningful queue
+
+Consider this pattern:
+
+```text
+Queue time ≈ stable
+Prompt tokens p95 ↑
+Prefill time p95 ↑
+TTFT p95 ↑
+TPOT ≈ stable
+```
+
+The model may not be waiting for execution. It may simply be processing more input.
+
+Investigate:
+
+- Whether RAG returns more chunks or tokens
+- Whether system prompts and tool schemas have expanded
+- Whether p50 prompt length is stable while p95 and p99 grow
+- Whether repeated prefixes are actually reused at the token level
+- Whether cold and warm cache traffic are mixed in one panel
+- Whether effective chunked-prefill settings match expectations
+
+Automatic Prefix Caching reuses KV state for an identical token prefix. It is not semantic similarity search and it is not an answer cache. A request-specific timestamp or identifier placed at the front can break reuse for everything that follows. [Automatic Prefix Caching](https://docs.vllm.ai/en/stable/features/automatic_prefix_caching/)
+
+Start by examining retrieval size, context compression, tool schemas, and stable prefix construction. Then compare `max_num_batched_tokens` under the same workload. vLLM documents the direction of the trade-off under chunked prefill: smaller budgets can favor ITL, while larger budgets can move prefill forward and improve TTFT. Treat that as a hypothesis, not a guarantee. [Optimization and Tuning](https://docs.vllm.ai/en/stable/configuration/optimization/#performance-tuning-with-chunked-prefill)
+
+## 7. Case C — The first token is fast, but generation is slow
+
+```text
+TTFT healthy
+TPOT / ITL worse
+Running sequences ↑
+Output tok/s barely improves
+```
+
+This can indicate decode pressure. More active sequences create batching opportunities, but they also retain more KV state and compete for memory bandwidth while generating the next token.
+
+Ask, in order:
+
+1. Did active sequences and TPOT deteriorate at the same time?
+2. Did the output-length distribution change?
+3. Did raising `max_num_seqs` produce meaningful output goodput?
+4. Does batch work share the same pool as interactive decode?
+5. Is request-level TPOT poor while token-level ITL remains acceptable, or are pauses also worse?
+
+A controlled experiment can lower `max_num_seqs` by one step and replay the same trace. If TPOT improves, verify that TTFT and completed throughput still meet their SLOs. If interactive and batch work have incompatible latency requirements, separate serving pools may be clearer than one compromise configuration.
+
+## 8. Case D — KV-cache occupancy and preemption rise together
+
+<VllmTroubleshootingDiagrams kind="kv-pressure" language="en" />
+
+High KV-cache occupancy is not itself an incident. Ninety percent occupancy with healthy SLOs and no preemption may be an efficient operating point. The stronger signal is simultaneous KV pressure, rising preemption, and latency degradation.
+
+The current vLLM V1 documentation explains that requests may be preempted when KV space is insufficient and recomputed after capacity becomes available. This protects forward progress, but repeated preemption and recomputation cost E2E latency. Documented mitigation directions include allocating more KV memory, lowering `max_num_seqs` or `max_num_batched_tokens`, and changing parallelism. [Preemption](https://docs.vllm.ai/en/stable/configuration/optimization/#preemption)
+
+Do not alert on the absolute value of a cumulative counter. A long-lived Pod includes old incidents. Measure `increase` or `rate` over an interval and account for restarts and counter resets.
+
+```text
+sum by (model_name) (
+  increase(vllm:num_preemptions_total[5m])
+)
+```
+
+Segment the affected requests by prompt and output length. A few exceptional contexts that evict the cache call for a different intervention than preemption reproduced by normal concurrency. Context limits, admission policy, and workload routing are as important as scheduler parameters.
+
+## 9. Case E — GPU utilization is low while the queue grows
+
+It is tempting to conclude that a low-utilization GPU can accept a larger batch. The real problem may be that work is not reaching the GPU efficiently.
+
+Possible causes include:
+
+- CPU tokenization or request preprocessing
+- API-gateway latency or proxy buffering
+- Client connection pools and synchronous callers
+- Uneven routing across replicas
+- Network or model-storage stalls
+- A saturated load generator
+- Very small requests dominated by scheduling overhead
+
+GPU utilization is an outcome, not a root cause. Align CPU throttling, gateway latency, admitted RPS, and running and waiting requests on the same timeline. If server TTFT is healthy while client TTFT is slow, inspect the proxy and network first.
+
+Low utilization with no queue and healthy SLOs may simply mean low traffic. That is a capacity-testing question, not an incident. Increase controlled load until the saturation knee appears rather than changing production settings blindly.
+
+## 10. Averages hide incidents
+
+The following before-and-after comparison is illustrative.
+
+| Metric | Before | After |
+|---|---:|---:|
+| Prompt tokens p50 | 850 | 870 |
+| Prompt tokens p95 | 2,400 | 6,100 |
+| Queue time p95 | 120ms | 130ms |
+| Prefill time p95 | 640ms | 1.9s |
+| TTFT p95 | 900ms | 2.2s |
+| TPOT p95 | 42ms | 43ms |
+
+The average prompt may look similar. The long-input tail changed, while queue time and TPOT stayed stable and prefill time moved with TTFT. That pattern makes a particular long-request class a stronger lead than general capacity.
+
+Useful dimensions include:
+
+- Model and replica
+- Workload class such as chat, RAG, or agent
+- Prompt and output length buckets
+- Streaming versus non-streaming
+- Success, cancellation, and timeout
+- Cold versus warm prefix cache
+
+This does not justify unbounded metric cardinality. Do not put user IDs or request IDs in metric labels. Connect detailed incidents through sampled traces and structured logs.
+
+## 11. PromQL is part of the measurement definition
+
+These queries are illustrative and assume the running endpoint confirms the metric names and labels.
+
+```text
+# TTFT p95
+histogram_quantile(
+  0.95,
+  sum by (le, model_name) (
+    rate(vllm:time_to_first_token_seconds_bucket[5m])
+  )
+)
+
+# Queue-time p95
+histogram_quantile(
+  0.95,
+  sum by (le, model_name) (
+    rate(vllm:request_queue_time_seconds_bucket[5m])
+  )
+)
+
+# Five-minute KV average and waiting-request peak
+avg_over_time(vllm:kv_cache_usage_perc[5m])
+max_over_time(vllm:num_requests_waiting[5m])
+```
+
+Averaging a p95 calculated separately for each Pod does not produce a fleet-wide p95. Aggregate compatible histogram buckets first, then calculate the quantile. Keep per-replica panels as well, because a fleet aggregate can hide a hot replica. [Prometheus histograms](https://prometheus.io/docs/practices/histograms/)
+
+A p99 from a short interval with few observations can be unstable. Alerts should include minimum sample counts and duration. A composite signal—KV rising, preemption occurring, and an SLO degrading—is more informative than a standalone `KV > 90%` threshold.
+
+## 12. Write the hypothesis and falsification criteria before changing config
+
+<VllmTroubleshootingDiagrams kind="experiment" language="en" />
+
+For example:
+
+> Hypothesis: More active sequences increased decode pressure and degraded TPOT p95.
+
+The validation plan should be explicit:
+
+- Lower only `max_num_seqs` by one step.
+- Hold dataset, arrival trace, output policy, and cache state constant.
+- Repeat the same duration at least three times after warmup.
+- Compare TTFT, TPOT, ITL, output tok/s, queue, KV occupancy, and preemption.
+- Record errors, timeouts, and backlog remaining at test completion.
+
+Define what would falsify the hypothesis:
+
+- TPOT does not improve when active sequences fall.
+- GPU memory activity and TPOT do not co-move.
+- The gain in TPOT is smaller than the damage to queue time and TTFT.
+- The direction is inconsistent across repeated runs.
+
+If the evidence does not support the hypothesis, reject it. Do not compensate by changing several more parameters. Multiple simultaneous changes may produce a better number while destroying the causal explanation.
+
+## 13. Separate incident response from performance tuning
+
+During an incident, restoring service comes first. Do not run risky experiments against production traffic.
+
+**Immediate mitigation:**
+
+- Tighten admission or rate limits
+- Temporarily separate batch traffic
+- Apply approved context and output limits
+- Restore routing to healthy replicas
+- Roll back to the previous validated configuration
+
+**Root-cause analysis:**
+
+- Preserve workload and configuration snapshots for the incident window
+- Capture counters and logs before restarting
+- Replay representative traces
+- Benchmark one variable at a time
+- Recalculate sustainable capacity inside the SLO
+
+**Prevention:**
+
+- Dashboards and alerts by workload class
+- Recorded config and image-version changes
+- Documented capacity headroom and admission rules
+- Upgrade regression benchmarks
+- A manifest that can be rolled back
+
+The quickest mitigation and the best long-term design do not have to be the same. Lowering concurrency may stop an incident but fail to meet long-term demand.
+
+## 14. Troubleshooting is inference, not parameter adjustment
+
+When vLLM becomes slow, the first action should not be opening the configuration file.
+
+First decide whether the delay occurs before the first token, during generation, only in a long-request tail, or as a failure to complete. Then connect the evidence across queue, prefill, decode, and KV pressure.
+
+TTFT alone does not reveal the cause. Neither does GPU utilization. High KV-cache occupancy alone does not prove a problem.
+
+The useful unit is the relationship among signals:
+
+```text
+Symptom
+   ↓
+Metric combination
+   ↓
+Bottleneck hypothesis
+   ↓
+Controlled experiment
+   ↓
+Accept or reject
+```
+
+Good troubleshooting is not changing parameters quickly. It is forming a hypothesis that explains the observation and testing one variable under the same load.
+
+**Loading a model onto a GPU begins inference engineering. Reading the evidence well enough to locate a bottleneck is what turns that deployment into an operable service.**
