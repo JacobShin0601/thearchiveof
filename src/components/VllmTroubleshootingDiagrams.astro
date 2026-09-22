@@ -1,0 +1,104 @@
+---
+interface Props {
+  kind: 'lifecycle' | 'signals' | 'kv-pressure' | 'experiment';
+  language?: 'ko' | 'en';
+}
+
+const { kind, language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+
+const captions = {
+  lifecycle: ko
+    ? '그림 1. 사용자 증상을 요청 생애주기의 단계로 분해한다'
+    : 'Figure 1. Map the user-visible symptom to the request lifecycle',
+  signals: ko
+    ? '그림 2. 하나의 지표가 아니라 함께 움직이는 신호로 가설을 고른다'
+    : 'Figure 2. Select hypotheses from signals that move together',
+  'kv-pressure': ko
+    ? '그림 3. KV pressure는 재계산과 지연으로 이어질 수 있다'
+    : 'Figure 3. KV pressure can turn into recomputation and latency',
+  experiment: ko
+    ? '그림 4. Troubleshooting은 통제된 가설 검증의 반복이다'
+    : 'Figure 4. Troubleshooting is a controlled hypothesis-testing loop',
+};
+
+const lifecycle = ko
+  ? [
+      ['요청 도착', 'Client · Gateway'],
+      ['Queue', 'waiting · queue time'],
+      ['Prefill', 'prompt · prefill time'],
+      ['첫 토큰', 'TTFT'],
+      ['Decode', 'TPOT · ITL'],
+      ['완료', 'E2E · success'],
+    ]
+  : [
+      ['Request arrives', 'Client · gateway'],
+      ['Queue', 'waiting · queue time'],
+      ['Prefill', 'prompt · prefill time'],
+      ['First token', 'TTFT'],
+      ['Decode', 'TPOT · ITL'],
+      ['Complete', 'E2E · success'],
+    ];
+
+const signals = ko
+  ? [
+      ['TTFT ↑ · Queue ↑', 'Capacity / admission'],
+      ['TTFT ↑ · Queue 낮음', 'Prefill / 긴 입력'],
+      ['TTFT 정상 · TPOT ↑', 'Decode pressure'],
+      ['KV ↑ · Preemption ↑', 'KV 부족 / 재계산'],
+      ['GPU 낮음 · Queue ↑', 'GPU 외부 병목'],
+    ]
+  : [
+      ['TTFT ↑ · Queue ↑', 'Capacity / admission'],
+      ['TTFT ↑ · Queue low', 'Prefill / long input'],
+      ['TTFT healthy · TPOT ↑', 'Decode pressure'],
+      ['KV ↑ · Preemption ↑', 'KV shortage / recompute'],
+      ['GPU low · Queue ↑', 'Upstream bottleneck'],
+    ];
+
+const pressure = ko
+  ? ['동시 sequence 증가', 'KV cache 압력', 'Preemption', 'Recompute', 'E2E · tail latency 증가']
+  : ['More active sequences', 'KV-cache pressure', 'Preemption', 'Recompute', 'Higher E2E · tail latency'];
+
+const experiment = ko
+  ? ['증상 정의', '지표 조합', '병목 가설', '변수 하나 변경', '동일 부하 재측정', '채택 또는 기각']
+  : ['Define symptom', 'Combine signals', 'Form hypothesis', 'Change one variable', 'Replay same load', 'Accept or reject'];
+---
+
+<figure class={`vllm-troubleshooting ${kind}`} aria-labelledby={`vllm-troubleshooting-${kind}-${language}`}>
+  <figcaption id={`vllm-troubleshooting-${kind}-${language}`}>{captions[kind]}</figcaption>
+
+  {kind === 'lifecycle' && (
+    <ol class="flow lifecycle-flow">
+      {lifecycle.map(([label, metric]) => <li><strong>{label}</strong><small>{metric}</small></li>)}
+    </ol>
+  )}
+
+  {kind === 'signals' && (
+    <div class="signal-grid">
+      {signals.map(([observation, hypothesis]) => (
+        <div><strong>{observation}</strong><span>→</span><p>{hypothesis}</p></div>
+      ))}
+    </div>
+  )}
+
+  {kind === 'kv-pressure' && (
+    <ol class="flow pressure-flow">
+      {pressure.map((step) => <li>{step}</li>)}
+    </ol>
+  )}
+
+  {kind === 'experiment' && (
+    <ol class="flow experiment-flow">
+      {experiment.map((step) => <li>{step}</li>)}
+    </ol>
+  )}
+
+  {kind === 'signals' && <p class="note">{ko ? '이 조합은 원인 확정표가 아니라 다음 검증 순서를 정하는 가설 지도다.' : 'These combinations are a hypothesis map, not proof of root cause.'}</p>}
+  {kind === 'kv-pressure' && <p class="note">{ko ? 'KV 사용률이 높다는 사실만으로 장애는 아니다. Preemption과 SLO 악화가 함께 나타나는지 확인한다.' : 'High KV occupancy alone is not an incident. Check whether preemption and SLO degradation rise with it.'}</p>}
+  {kind === 'experiment' && <p class="note">{ko ? '실험마다 workload, cache 상태, duration을 고정하고 첫 pass에서는 한 변수만 바꾼다.' : 'Hold workload, cache state, and duration constant; change one variable in the first pass.'}</p>}
+</figure>
+
+<style>
+  .vllm-troubleshooting{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.9rem;line-height:1.55}.vllm-troubleshooting figcaption{font-weight:700;margin-bottom:1rem}.flow{display:grid;gap:1rem;margin:0;padding:0;list-style:none}.flow li{position:relative;margin:0;padding:.85rem;border:1px solid var(--line);background:var(--paper);min-width:0;text-align:center}.flow li:not(:last-child)::after{content:'→';position:absolute;right:-.85rem;top:34%;color:var(--accent);font-weight:700}.lifecycle-flow{grid-template-columns:repeat(6,minmax(0,1fr))}.lifecycle-flow strong,.lifecycle-flow small{display:block}.lifecycle-flow small{margin-top:.35rem;color:var(--muted);overflow-wrap:anywhere}.pressure-flow{grid-template-columns:repeat(5,minmax(0,1fr))}.experiment-flow{grid-template-columns:repeat(6,minmax(0,1fr))}.experiment-flow li:last-child{border-color:var(--accent)}.signal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.signal-grid>div{display:grid;grid-template-columns:minmax(0,1.2fr) auto minmax(0,1fr);align-items:center;gap:.55rem;padding:.9rem;border-left:3px solid var(--accent);background:var(--paper)}.signal-grid strong{font-family:monospace;font-size:.84rem}.signal-grid span{color:var(--accent)}.signal-grid p{margin:0}.note{margin:1rem 0 0!important;color:var(--muted);font-size:.84rem}@media(max-width:760px){.lifecycle-flow,.pressure-flow,.experiment-flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:'↓';right:50%;top:auto;bottom:-1.25rem}.signal-grid{grid-template-columns:1fr}.vllm-troubleshooting{padding:1rem}}@media(prefers-color-scheme:dark){.vllm-troubleshooting{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
+</style>

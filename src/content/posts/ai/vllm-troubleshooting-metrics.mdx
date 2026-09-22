@@ -1,0 +1,362 @@
+---
+title: 'vLLM은 왜 느려졌을까?'
+subtitle: 'TTFT·TPOT·KV Cache로 병목을 찾는 법'
+description: 'TTFT, TPOT, queue, prefill, KV cache와 preemption을 함께 읽어 vLLM 서빙 병목을 진단하는 실전 troubleshooting guide.'
+publishedDate: 2026-09-24
+section: 'AI & AX'
+subsection: 'AI Engineering'
+contentType: implementation
+topics: [enterprise-ai, evaluation, ai-agents]
+primaryTopic: enterprise-ai
+tags: [vllm, llm-serving, observability, troubleshooting, performance-engineering]
+author: 'Jacob Shin'
+language: ko
+translationKey: vllm-troubleshooting-metrics
+draft: true
+featured: false
+comments: false
+freshness: periodic
+lastReviewed: 2026-09-22
+nextReviewDate: 2026-12-22
+references:
+  - title: 'vLLM — Production Metrics'
+    url: https://docs.vllm.ai/en/stable/usage/metrics/
+    publisher: vLLM
+  - title: 'vLLM — Optimization and Tuning'
+    url: https://docs.vllm.ai/en/stable/configuration/optimization/
+    publisher: vLLM
+  - title: 'vLLM — Automatic Prefix Caching'
+    url: https://docs.vllm.ai/en/stable/features/automatic_prefix_caching/
+    publisher: vLLM
+  - title: 'vLLM — Benchmark Serving'
+    url: https://docs.vllm.ai/en/stable/cli/bench/serve/
+    publisher: vLLM
+  - title: 'Prometheus — Histograms and Summaries'
+    url: https://prometheus.io/docs/practices/histograms/
+    publisher: Prometheus
+  - title: 'NVIDIA — DCGM Exporter counters'
+    url: https://github.com/NVIDIA/dcgm-exporter/blob/main/etc/default-counters.csv
+    publisher: NVIDIA
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import VllmTroubleshootingDiagrams from '../../../components/VllmTroubleshootingDiagrams.astro';
+
+<AnswerBlock question="vLLM이 느려졌을 때 가장 먼저 무엇을 봐야 할까?">
+  GPU utilization이나 TTFT 하나만 보고 설정을 바꾸면 안 됩니다. 먼저 요청을 Queue, Prefill, Decode 단계로 나누고 TTFT, queue time, prefill time, TPOT, waiting requests, KV cache utilization과 preemption을 같은 시간축에서 함께 봐야 합니다. TTFT와 queue가 함께 높다면 capacity 문제를, queue는 낮고 prefill time만 높다면 긴 prompt나 낮은 prefix 재사용률을 먼저 의심할 수 있습니다. Troubleshooting의 핵심은 하나의 수치가 아니라 지표 사이의 관계를 읽는 것입니다.
+</AnswerBlock>
+
+## 1. GPU가 95%인데 왜 답변은 느릴까
+
+사용자가 “요즘 Agent가 느려졌다”고 말한다. Dashboard를 열어보니 GPU utilization은 95%다. 얼핏 보면 원인은 분명해 보인다. GPU가 거의 가득 찼으니 GPU가 부족한 것 같다.
+
+하지만 반드시 그런 것은 아니다.
+
+긴 문서가 들어오면서 prefill 시간이 늘었을 수 있다. 동시 요청이 증가해 queue가 길어진 것일 수 있다. KV cache 공간이 부족해 일부 request가 preempt되고 다시 계산되고 있을 수도 있다. 반대로 GPU utilization은 높아도 처리량과 latency SLO가 모두 건강할 수 있다.
+
+“느리다”는 하나의 현상이지만 원인은 여러 개다. 따라서 vLLM troubleshooting은 parameter의 권장값을 찾는 데서 시작하지 않는다. **요청이 어느 단계에서 시간을 쓰는지 분해하는 데서 시작한다.**
+
+이 글은 앞선 [vLLM 튜닝 글](/ai/ai-engineering/vllm-tuning-limited-gpus/)의 후속편이다. 전편이 scheduler, prefill·decode, KV cache와 주요 설정의 관계를 설명했다면, 이번에는 운영 중 관찰한 증상으로부터 병목 가설을 좁히는 순서를 다룬다.
+
+> 문서 확인일: 2026-09-22. 공식 vLLM `stable` 문서의 V1 metric과 tuning 설명을 기준으로 작성했다. Metric 이름과 label은 버전별로 달라질 수 있으므로 실제 Pod의 `/metrics`, 시작 로그와 고정된 image version을 기준으로 확정해야 한다. 아래 수치와 사건은 모두 설명을 위한 가상 예시이며 특정 회사의 운영 결과가 아니다.
+
+## 2. 먼저 “느리다”를 네 가지 증상으로 나눈다
+
+운영자가 보는 metric보다 먼저 사용자가 경험한 현상을 분류한다.
+
+1. **첫 token이 늦다.** 요청 후 한동안 아무 반응이 없다. TTFT 문제다.
+2. **답변은 시작하지만 생성이 느리다.** 첫 token 이후 문장이 끊기거나 천천히 나온다. TPOT·ITL 문제다.
+3. **일부 요청만 유독 오래 걸린다.** 평균은 정상인데 p95·p99가 튄다. Tail latency 문제다.
+4. **완료되지 않는다.** Timeout, OOM, HTTP 5xx, client cancellation을 포함한 reliability 문제다.
+
+이 구분을 건너뛰면 서로 다른 문제를 하나의 평균 latency로 섞게 된다. 예를 들어 TTFT는 개선됐지만 TPOT가 두 배로 나빠졌다면, “평균 E2E가 비슷하다”는 결론은 streaming 사용자의 경험을 설명하지 못한다.
+
+## 3. 요청의 생애주기와 지표를 연결한다
+
+<VllmTroubleshootingDiagrams kind="lifecycle" />
+
+진단을 위해 요청을 다음처럼 단순화할 수 있다.
+
+```text
+E2E latency
+≈ Queue + Prefill + Decode + frontend / network overhead
+
+TTFT
+≈ Queue + Prefill + scheduling / frontend overhead
+```
+
+이는 정확한 회계식이 아니라 병목의 위치를 찾기 위한 mental model이다. Client가 측정한 TTFT에는 gateway와 network가 포함되지만, vLLM server metric의 경계는 다를 수 있다. 두 수치를 직접 비교하기 전에 측정 시작점과 streaming 첫 이벤트 정의를 맞춘다.
+
+현재 vLLM 문서는 다음 metric family를 제공한다. Counter는 endpoint에서 통상 `_total`, histogram은 `_bucket`, `_sum`, `_count` sample로 노출된다. 실제 series 이름은 실행 중인 `/metrics`의 HELP·TYPE과 sample로 확인한다. [Production Metrics](https://docs.vllm.ai/en/stable/usage/metrics/)
+
+| 단계 | 질문 | 함께 볼 지표 |
+|---|---|---|
+| Queue | GPU 실행 전에 얼마나 기다렸나? | `num_requests_waiting`, `request_queue_time_seconds` |
+| Prefill | 입력을 읽는 데 시간이 얼마나 들었나? | `request_prompt_tokens`, `request_prefill_time_seconds`, TTFT |
+| Decode | 첫 token 이후 생성은 안정적인가? | request TPOT, ITL, `request_decode_time_seconds` |
+| KV memory | 실행 상태를 유지할 공간이 충분한가? | `kv_cache_usage_perc`, preemption |
+| 전체 | 요청이 SLO 안에서 완료됐나? | E2E, success/error, completed throughput |
+
+## 4. 지표 하나가 아니라 조합으로 가설을 고른다
+
+<VllmTroubleshootingDiagrams kind="signals" />
+
+가장 중요한 규칙은 단일 지표로 root cause를 선언하지 않는 것이다.
+
+| 관찰 조합 | 먼저 검증할 가설 | 반대 증거 |
+|---|---|---|
+| TTFT↑ + queue↑ | 도착률이 처리 용량을 초과하거나 admission이 막힘 | Offered RPS가 같고 queue 증가가 없음 |
+| TTFT↑ + queue 낮음 + prompt 김 | Prefill 비용 또는 prefix 재사용 저하 | Prompt 길이와 prefill time이 안정적 |
+| TTFT 정상 + TPOT·ITL↑ | Decode 동시성 또는 memory pressure | Active sequence와 TPOT가 무관 |
+| KV↑ + preemption↑ | KV 공간 부족과 recomputation | Preemption rate가 0이고 SLO도 정상 |
+| GPU util 낮음 + queue↑ | CPU, gateway, routing 또는 scheduler 외부 병목 | GPU에 실제 work가 지속적으로 공급됨 |
+
+이 표는 답을 주는 표가 아니다. **다음에 무엇을 비교할지 결정하는 가설 지도**다.
+
+## 5. Case A — TTFT와 Queue가 함께 증가한다
+
+```text
+Incoming requests ↑
+        ↓
+Waiting requests ↑
+        ↓
+Queue time ↑
+        ↓
+TTFT ↑
+```
+
+이 경우 prompt를 줄이는 것부터 시작하면 안 된다. Request가 prefill에 들어가기 전 이미 기다리고 있을 수 있기 때문이다.
+
+먼저 다음을 확인한다.
+
+- Offered RPS와 admitted·completed RPS의 차이가 커졌는가
+- `num_requests_waiting`이 순간적으로 튀는가, 계속 누적되는가
+- Queue time 증가분이 TTFT 악화를 설명하는가
+- 특정 replica에만 요청이 몰리는가
+- Interactive와 batch 요청이 같은 pool에서 경쟁하는가
+- Client retry가 실제 도착 요청을 증폭시키는가
+
+Queue가 지속적으로 증가한다면 현재 도착률은 sustainable capacity보다 높을 수 있다. 해결책은 무조건 더 큰 batch가 아니다. Admission control, retry budget, workload 분리, routing 수정, replica 확장과 scheduler 설정을 함께 비교해야 한다.
+
+한편 queue가 순간적으로만 튄다면 burst가 원인일 수 있다. 5분 평균 RPS는 같아도 10초 동안 요청이 몰리면 사용자가 경험한 p99는 크게 달라진다. 평균 대신 시간축을 봐야 하는 이유다.
+
+## 6. Case B — Queue는 낮은데 TTFT가 느리다
+
+다음 조합을 생각해보자.
+
+```text
+Queue time ≈ stable
+Prompt tokens p95 ↑
+Prefill time p95 ↑
+TTFT p95 ↑
+TPOT ≈ stable
+```
+
+이 경우 모델이 실행을 기다리는 것이 아니라 긴 입력을 계산하고 있을 가능성이 높다.
+
+확인할 것은 다음과 같다.
+
+- RAG가 반환하는 chunk 수와 전체 token이 늘었는가
+- System prompt와 tool schema가 비대해졌는가
+- Prompt token p50은 같지만 p95·p99만 커졌는가
+- 반복되는 prefix가 token 단위로 실제 재사용되는가
+- Cold·warm cache traffic이 Dashboard에서 섞였는가
+- Chunked prefill의 effective configuration이 예상과 같은가
+
+Automatic Prefix Caching은 동일한 token prefix의 KV를 재사용한다. 의미가 비슷한 문장을 찾는 semantic cache나 완성 답변 cache가 아니다. 따라서 공통 instruction 앞에 request별 timestamp나 ID를 붙이면 이후 문장이 같아도 prefix 재사용이 끊길 수 있다. [Automatic Prefix Caching](https://docs.vllm.ai/en/stable/features/automatic_prefix_caching/)
+
+조치는 retrieval 결과 축소, context compression, tool schema 간소화, 안정적인 prefix 구성부터 검토한다. 그다음 동일 workload에서 `max_num_batched_tokens`를 비교한다. 공식 문서는 chunked prefill에서 작은 token budget이 ITL에, 큰 budget이 prefill 진행과 TTFT에 유리할 수 있다고 설명하지만 workload마다 보장되는 결과는 아니다. [Optimization and Tuning](https://docs.vllm.ai/en/stable/configuration/optimization/#performance-tuning-with-chunked-prefill)
+
+## 7. Case C — 첫 Token은 빠른데 답변 생성이 느리다
+
+```text
+TTFT 정상
+TPOT / ITL 악화
+Running sequences 증가
+Output tok/s 증가폭은 작음
+```
+
+이는 decode pressure의 신호일 수 있다. Decode는 active sequence마다 다음 token을 반복 생성한다. Sequence 수를 늘리면 batching 기회가 생기지만, KV 상태와 model weight를 읽는 경쟁도 커질 수 있다.
+
+확인 순서는 다음과 같다.
+
+1. Active sequence 증가와 TPOT 악화가 같은 시점에 나타났는가
+2. Output 길이 분포가 변했는가
+3. `max_num_seqs`를 높인 뒤 output goodput이 실제로 늘었는가
+4. Batch workload가 interactive decode와 같은 pool을 사용하는가
+5. TPOT는 나쁜데 ITL은 괜찮은지, 중간 pause까지 함께 악화됐는가
+
+가능한 실험은 `max_num_seqs`를 한 단계 낮추고 동일 trace를 재생하는 것이다. TPOT가 개선되더라도 TTFT와 completed throughput이 SLO 안에 남는지 확인한다. Interactive와 batch의 latency 요구가 다르다면 하나의 설정값으로 타협하기보다 serving pool을 나누는 편이 더 명확할 수 있다.
+
+## 8. Case D — KV Cache와 Preemption이 함께 올라간다
+
+<VllmTroubleshootingDiagrams kind="kv-pressure" />
+
+KV cache 사용률이 높다는 사실만으로 장애는 아니다. SLO를 지키며 preemption 없이 90%를 사용하는 것은 효율적인 운영점일 수 있다. 문제는 KV pressure, preemption 증가와 latency 악화가 같은 시간대에 나타날 때다.
+
+현재 vLLM V1 문서는 KV 공간이 부족하면 request를 preempt하고, 여유가 생긴 뒤 recompute할 수 있다고 설명한다. 이는 시스템이 요청을 계속 처리하게 하지만 반복되는 preemption과 recomputation은 E2E latency에 비용을 만든다. 공식 대응 방향은 KV memory 확대, `max_num_seqs` 또는 `max_num_batched_tokens` 축소, parallelism 변경 등이다. [Preemption](https://docs.vllm.ai/en/stable/configuration/optimization/#preemption)
+
+누적 counter의 절대값을 보고 장애라고 판단하지 않는다. 배포 이후 오래 실행된 Pod는 과거 사건을 포함한다. 일정 구간의 `increase`나 `rate`를 보고 Pod restart와 counter reset을 함께 확인한다.
+
+```text
+sum by (model_name) (
+  increase(vllm:num_preemptions_total[5m])
+)
+```
+
+또한 preemption이 발생한 request의 prompt와 output 길이를 분리한다. 소수의 초장문 요청이 cache를 밀어내는지, 일반적인 동시성에서도 재현되는지에 따라 조치가 달라진다. Context 상한, admission policy와 workload routing은 scheduler parameter만큼 중요한 통제 수단이다.
+
+## 9. Case E — GPU Utilization은 낮은데 Queue가 쌓인다
+
+이 상황에서 “GPU가 남으니 batch를 더 키우자”고 결론 내리기 쉽다. 하지만 일이 GPU까지 충분히 도착하지 못하고 있을 수 있다.
+
+가능한 원인은 다음과 같다.
+
+- CPU tokenization 또는 request preprocessing
+- API gateway와 proxy buffering
+- Client connection pool과 동기식 호출
+- Replica 간 load imbalance
+- Network 또는 model storage 문제
+- 부하 생성기 자체의 포화
+- 지나치게 작은 request와 scheduling overhead
+
+GPU utilization은 결과이지 root cause가 아니다. CPU throttling, gateway latency, admitted RPS, running·waiting request를 같은 시간축으로 본다. Server TTFT는 정상인데 client TTFT만 느리다면 proxy buffering이나 network부터 확인해야 한다.
+
+반대로 GPU utilization이 낮고 queue도 없으며 SLO가 건강하다면 단순히 traffic이 적은 것일 수 있다. 이때는 장애 해결이 아니라 추가 부하를 어디까지 안전하게 받을 수 있는지 capacity test를 설계한다.
+
+## 10. 평균은 사건을 숨긴다
+
+다음은 설명을 위한 가상 전후 비교다.
+
+| Metric | Before | After |
+|---|---:|---:|
+| Prompt tokens p50 | 850 | 870 |
+| Prompt tokens p95 | 2,400 | 6,100 |
+| Queue time p95 | 120ms | 130ms |
+| Prefill time p95 | 640ms | 1.9s |
+| TTFT p95 | 900ms | 2.2s |
+| TPOT p95 | 42ms | 43ms |
+
+평균 prompt 길이만 보면 큰 변화가 없어 보일 수 있다. 하지만 p95 입력이 길어졌고 queue와 TPOT는 안정적인 반면 prefill과 TTFT가 함께 늘었다. 이 조합에서는 전체 capacity보다 특정 긴 요청군을 먼저 조사하는 것이 합리적이다.
+
+Dashboard에서 적어도 다음 dimension을 분리한다.
+
+- Model과 replica
+- Chat·RAG·Agent 같은 workload class
+- Prompt와 output 길이 bucket
+- Streaming과 non-streaming
+- Success, cancellation, timeout
+- Cold와 warm prefix cache
+
+Label cardinality를 무제한으로 늘리라는 뜻은 아니다. Request ID나 사용자 ID를 metric label로 넣지 않고, 상세 사건은 sampled trace와 structured log로 연결한다.
+
+## 11. PromQL도 측정 정의의 일부다
+
+다음은 실제 endpoint에서 metric과 label을 확인했다는 전제의 illustrative query다.
+
+```text
+# TTFT p95
+histogram_quantile(
+  0.95,
+  sum by (le, model_name) (
+    rate(vllm:time_to_first_token_seconds_bucket[5m])
+  )
+)
+
+# Queue time p95
+histogram_quantile(
+  0.95,
+  sum by (le, model_name) (
+    rate(vllm:request_queue_time_seconds_bucket[5m])
+  )
+)
+
+# 최근 5분의 KV cache 평균과 waiting peak
+avg_over_time(vllm:kv_cache_usage_perc[5m])
+max_over_time(vllm:num_requests_waiting[5m])
+```
+
+Pod별 p95를 계산한 뒤 평균내면 fleet 전체 p95가 되지 않는다. 동일 bucket 경계를 가진 histogram을 합산한 뒤 quantile을 계산한다. 그러나 fleet 합계만 보면 특정 replica의 hot spot이 숨을 수 있으므로 replica별 panel도 유지한다. [Prometheus histograms](https://prometheus.io/docs/practices/histograms/)
+
+관측 수가 적은 짧은 구간의 p99는 불안정할 수 있다. Alert에는 최소 sample 수와 지속 시간을 함께 둔다. `KV > 90%` 같은 단일 threshold보다 `KV 증가 + preemption 발생 + SLO 악화`의 조합이 더 유용한 이유다.
+
+## 12. 설정을 바꾸기 전에 가설과 반증 조건을 적는다
+
+<VllmTroubleshootingDiagrams kind="experiment" />
+
+예를 들어 다음과 같은 가설을 세울 수 있다.
+
+> 가설: Active sequence 증가가 decode pressure를 높여 TPOT p95를 악화시켰다.
+
+검증 계획은 구체적이어야 한다.
+
+- `max_num_seqs`만 한 단계 낮춘다.
+- Dataset, arrival trace, output policy와 cache 상태를 고정한다.
+- Warmup 이후 같은 duration으로 최소 세 번 반복한다.
+- TTFT, TPOT, ITL, output tok/s, queue, KV와 preemption을 비교한다.
+- Error·timeout과 테스트 종료 시 남은 backlog도 기록한다.
+
+반증 조건도 미리 적는다.
+
+- Active sequence가 줄어도 TPOT가 개선되지 않는다.
+- GPU memory activity와 TPOT 사이에 관계가 없다.
+- TPOT 개선보다 queue와 TTFT 악화가 더 크다.
+- 반복 실행에서 결과 방향이 일관되지 않는다.
+
+결과가 가설을 지지하지 않으면 다른 parameter를 더 바꾸는 것이 아니라 가설을 기각한다. 첫 pass에서 여러 설정을 동시에 바꾸면 원인을 설명할 수 없다.
+
+## 13. 사건 대응과 성능 튜닝을 분리한다
+
+Incident 중에는 service recovery가 우선이다. 위험한 실험을 운영 traffic에서 바로 수행하지 않는다.
+
+**즉시 완화:**
+
+- Admission 또는 rate limit 강화
+- Batch traffic 일시 분리
+- Output·context 상한의 승인된 범위 적용
+- Healthy replica로 routing 복구
+- 이전 검증 config로 rollback
+
+**원인 분석:**
+
+- 사건 구간의 workload와 config snapshot 보존
+- Restart 전 counter와 log 수집
+- 대표 trace 재생
+- 한 변수씩 benchmark
+- SLO 안에서 sustainable capacity 재산정
+
+**재발 방지:**
+
+- Workload class별 dashboard와 alert
+- Config·image version 변경 기록
+- Capacity headroom과 admission 기준 문서화
+- Upgrade 전후 regression benchmark
+- Rollback 가능한 manifest 유지
+
+빠른 완화책과 장기 최적화가 같은 답일 필요는 없다. 예를 들어 동시성을 낮추는 것은 incident를 멈추는 데 유효하지만 장기적으로 필요한 처리량을 충족하지 못할 수 있다.
+
+## 14. Troubleshooting은 Parameter 조정이 아니라 추론 과정이다
+
+vLLM이 느려졌을 때 가장 먼저 할 일은 설정 파일을 여는 것이 아니다.
+
+사용자가 경험하는 느림이 첫 token 이전의 문제인지, token 생성 중의 문제인지, 일부 긴 요청에서만 발생하는 tail 문제인지부터 구분해야 한다. 그다음 Queue, Prefill, Decode와 KV pressure를 따라 지표를 연결한다.
+
+TTFT 하나만으로는 원인을 알 수 없다. GPU utilization 하나만으로도 알 수 없다. KV cache utilization이 높다는 사실만으로도 문제라고 말할 수 없다.
+
+중요한 것은 지표 사이의 관계다.
+
+```text
+Symptom
+   ↓
+Metric combination
+   ↓
+Bottleneck hypothesis
+   ↓
+Controlled experiment
+   ↓
+Accept or reject
+```
+
+좋은 troubleshooting은 parameter를 빠르게 바꾸는 일이 아니다. 관찰한 현상을 설명할 수 있는 가설을 만들고, 같은 부하에서 하나의 변수를 바꿔 그 가설을 검증하는 일이다.
+
+**모델을 GPU에 올리는 것이 inference engineering의 시작이었다면, 지표를 읽고 병목을 구분하는 능력은 그것을 실제 서비스로 운영하기 위한 다음 단계다.**
