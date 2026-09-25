@@ -17,3 +17,4 @@ dist/
 
 # local task scratch files
 work/
+.omc/state/idle-notif-cooldown.json
