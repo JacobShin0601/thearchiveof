@@ -54,11 +54,11 @@ import AgentArchitectureDiagrams from '../../../../components/AgentArchitectureD
 
 ## I learned to build agents with LangGraph
 
-When I built a multi-agent system a few years ago, I started with a graph. Several agents researched, analyzed, and checked material before combining it into a long strategy or research document. I had to decide what state to pass between agents, how much context each role needed, where to return when quality was inadequate, and how to aggregate the result. Conditional edges, retries, fallbacks, and context management were implementation problems, not decoration.
+About a year and a half ago, I used a multi-agent system in the Market Intelligence team to draft a 20-page report for the CSO. The work required more than gathering sources and writing prose. Simulations, scenarios, and sensitivity analyses needed Python calculations, along with logic to connect those calculations. Research and analysis had to feed into the calculations, and the results had to feed back into the report's argument.
+
+Several agents researched, analyzed, and checked material before combining the result. I started designing that flow by drawing a graph. I had to decide where research and calculation outputs belonged in `state`, what context to pass to the next agent, and how to proceed when an intermediate step failed or produced too little. Conditional edges, retries, fallbacks, context management, and aggregation were practical requirements for getting a complete draft, not decoration.
 
 LangGraph was a reasonable choice. It made roles and transitions visible and gave us a vocabulary for failure and recovery. I do not want to rewrite that experience as a mistake. It taught me to treat an agent as a system rather than a string of model calls.
-
-[Personal example needed: add one publishable instance of a difficult state boundary or exception path, without internal architecture or sensitive details.]
 
 ## The graph grew, and something felt off
 
