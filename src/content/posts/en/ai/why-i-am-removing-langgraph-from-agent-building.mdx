@@ -58,7 +58,7 @@ About a year and a half ago, I used a multi-agent system in the Market Intellige
 
 Several agents researched, analyzed, and checked material before combining the result. I started designing that flow by drawing a graph. I had to decide where research and calculation outputs belonged in `state`, what context to pass to the next agent, and how to proceed when an intermediate step failed or produced too little. Conditional edges, retries, fallbacks, context management, and aggregation were practical requirements for getting a complete draft, not decoration.
 
-LangGraph was a reasonable choice. It made roles and transitions visible and gave us a vocabulary for failure and recovery. I do not want to rewrite that experience as a mistake. It taught me to treat an agent as a system rather than a string of model calls.
+At the time, **building an agent and building it with LangGraph felt almost synonymous to me.** It let me take an LLM that would answer a question and stop, and place it inside a workflow that could use tools, pass results forward, and keep working. Roles and state transitions became visible; I could also design where execution should resume after a failure. To me, LangGraph was a major innovation: it helped turn an LLM from an answer engine into a working system. I question how much graph an agent needs today precisely because I learned to build agents that way.
 
 ## The graph grew, and something felt off
 
