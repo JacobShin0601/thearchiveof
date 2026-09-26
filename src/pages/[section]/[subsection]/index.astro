@@ -19,7 +19,7 @@ const posts = (await getCollection('posts', ({ data }) =>
 )).sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
 ---
 
-<BaseLayout title={`${subsection.name} — ${section.name}`} description={`${subsection.name} articles in ${section.name}.`} alternateLanguageUrl={`/en/${section.slug}/${subsection.slug}/`}>
+<BaseLayout title={`${subsection.name} — ${section.name}`} description={`${subsection.name} articles in ${section.name}.`} alternateLanguageUrl={`/en/${section.slug}/${subsection.slug}/`} indexable={posts.length > 0}>
   <section class="listing-page shell">
     <header class="category-header">
       <p class="eyebrow"><a href={`/${section.slug}/`}>{section.name}</a> / Subsection</p>
