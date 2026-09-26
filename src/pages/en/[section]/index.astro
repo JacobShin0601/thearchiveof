@@ -22,6 +22,7 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
   description={section.description}
   language="en"
   alternateLanguageUrl={`/${section.slug}/`}
+  indexable={posts.length > 0}
 >
   <section class="listing-page shell">
     <header class="category-header">
