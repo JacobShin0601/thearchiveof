@@ -1,0 +1,171 @@
+---
+title: "How Does My Dog Know It Is Time for a Walk? An Intuition for Bayesian Statistics"
+subtitle: "From a leash at the door to a sudden move in a stock"
+description: "A dog's evening walk routine and a hypothetical Samsung Electronics price move explain priors, likelihoods, posteriors, sequential updating, and Bayesian statistics."
+publishedDate: 2026-09-26
+section: "Mathematics"
+subsection: "Statistics"
+contentType: "foundation"
+topics:
+  - bayesian-inference
+primaryTopic: bayesian-inference
+tags:
+  - bayes
+  - bayesian-statistics
+  - probability
+  - inference
+  - uncertainty
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "bayesian-statistics-dog-walk"
+localization:
+  locale: en-US
+  strategy: localized-adaptation
+freshness: evergreen
+references:
+  - title: "Bayes' Theorem — STAT 414"
+    url: "https://online.stat.psu.edu/stat414/Lesson06"
+    publisher: "Penn State Department of Statistics"
+  - title: "Bayesian Inference — Lecture Notes 24"
+    url: "https://www.stat.cmu.edu/~larry/%3Dstat705/Lecture24.pdf"
+    publisher: "Carnegie Mellon University"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import BayesianDiagrams from '../../../../components/BayesianDiagrams.astro';
+
+<AnswerBlock question="What is Bayesian statistics?">
+  Bayesian statistics is a way to <strong>update what we know, including our uncertainty, when new data arrive</strong>. We combine a prior distribution, representing information available before the new data, with a likelihood, describing how well possible explanations fit those data. The result is a posterior distribution, which becomes the starting point for the next update.
+</AnswerBlock>
+
+My dog sometimes brings me the leash before I say, “Want to go for a walk?”
+
+The interesting part is the timing. He does not wait for me to pick up the leash. He is already waiting by the door. What did he notice?
+
+At our house, we usually go for a walk **after dinner**. Clearing the table may already be a useful clue. I might close my laptop, stand up, put on socks, change clothes, or take out the shoes I wear on walks. By the time I pick up my phone and keys and head toward the door, he has several clues to work with.
+
+None proves that a walk is coming. I might put on those shoes to run an errand alone. Yet the combination can make a walk increasingly plausible. **I am not claiming that a dog computes conditional probabilities in his head.** Bayesian updating is simply a surprisingly useful way for *us* to describe what appears to be happening: expectations change as evidence arrives.
+
+## An expectation before the next clue
+
+At 3 p.m., with everyone settled at home, an imminent walk may seem unlikely. Immediately after dinner, it seems more likely even before I reach for my shoes.
+
+For illustration, imagine the dog's expectation is `P(walk soon) = 10%` at 3 p.m. and `P(walk soon) = 40%` just after dinner. **These are invented teaching numbers, not measured probabilities.**
+
+The starting belief is the <strong>prior probability</strong>. “Prior” means *before the next piece of evidence*, not before all experience. The after-dinner prior already reflects the time of day and months of repeated evening walks.
+
+A prior need not be a baseless prejudice. It can be how past experience informs today's expectation. A dog newly arrived in our home would not yet know that dinner often precedes a walk.
+
+## One clue becomes the next starting point
+
+Now imagine I close my laptop. Then I put on socks, take out my walk shoes, and head to the door.
+
+<BayesianDiagrams variant="walk" language="en" />
+
+The sequence `40% → 50% → 65% → 85% → 95% → 99%+` is **entirely illustrative**. It is neither a measurement of my dog nor a calculation from the conditional probabilities below. Its purpose is to show the order of the updates.
+
+The belief *after* a clue is the <strong>posterior probability</strong>. When another clue arrives, **the current posterior becomes the new prior**:
+
+> Prior → Evidence → Posterior → New evidence → New posterior → …
+
+We should not merely add the apparent force of each clue. Socks and walking shoes are related behaviors. Counting them as independent signals would count some information twice and produce too much confidence. The meaning of a new clue depends on what has already been observed.
+
+## A frequent clue can still be weak evidence
+
+Suppose I take my phone on 95% of walks. That sounds like a strong signal until you learn that I also take it on 90% of occasions when I do **not** walk the dog. The phone is almost always with me, so it tells the dog very little about *this* decision.
+
+Now suppose I wear my walk shoes on 90% of walks but only 20% of occasions without a walk.
+
+| Invented signal | Chance of seeing it if we walk | Chance of seeing it if we do not walk |
+| --- | ---: | ---: |
+| Walk shoes | 90% | 20% |
+| Phone | 95% | 90% |
+
+All four values are invented. The shoes are more informative because their appearance differs much more between the two possibilities. **A common signal is not necessarily good evidence. What matters is how much more natural it is under one explanation than another.**
+
+If our hypothesis is “we will walk soon” and our evidence is “I put on the walk shoes,” then `P(shoes | walk) = 90%` describes the chance of the evidence *given the hypothesis*. This is the intuition behind the <strong>likelihood</strong>. It is **not** the probability that the hypothesis is true.
+
+## The equation, after the intuition
+
+Bayes' theorem gives the precise relationship between the starting belief, the evidence, and the revised belief.
+
+<BayesianDiagrams variant="formula" language="en" />
+
+$$
+P(A\mid B)=\frac{P(B\mid A)P(A)}{P(B)}
+$$
+
+Let $A$ mean “we will walk soon” and $B$ mean “I put on my walk shoes.” Then $P(A)$ is the prior; $P(B\mid A)$ is the likelihood of that observation if a walk is coming; and $P(A\mid B)$ is the posterior after seeing the shoes. The denominator $P(B)$ accounts for the observation across the possible explanations and normalizes the result.
+
+In a **separate illustrative calculation**, start with a 40% prior. Assume `P(shoes | walk) = 90%` and `P(shoes | no walk) = 20%`. If the shoes are the only new observation, then:
+
+$$
+P(\text{walk}\mid\text{shoes})
+=\frac{0.9\times0.4}{0.9\times0.4+0.2\times0.6}
+=0.75.
+$$
+
+That gives **75%**. The earlier diagram's 85% after the shoes belongs to a *different invented sequence* that also included the laptop and socks. It is not the result of this calculation. Notice the conditional directions: `P(shoes | walk)` is not the same as `P(walk | shoes)`. Even if I often wear those shoes for a walk, seeing them does not guarantee one. The prior matters too.
+
+## What do a dog and Samsung Electronics have in common?
+
+People infer hidden causes from visible clues every day. **Suppose, purely hypothetically, that Samsung Electronics shares suddenly rise 6% during a trading day.** This is not a reference to a real event or date; 6% is an invented number.
+
+What caused the move? Possible explanations include company-specific news, improving expectations for the semiconductor industry, a change in interest rates or exchange rates, purchases by foreign or institutional investors, or positioning and short covering. A price move alone cannot identify the cause.
+
+Now imagine a sequence of **hypothetical evidence**. SK hynix and major semiconductor shares overseas have risen too. That makes an industry-wide explanation more plausible relative to a purely company-specific one. Suppose interest rates, exchange rates, and the broad market have barely moved; a broad macro explanation becomes less compelling. Finally, suppose a new company disclosure or product announcement appears. The company-specific explanation may strengthen again. A real investigation would also check what the news said, when it arrived, and whether traders already expected it.
+
+<BayesianDiagrams variant="hypotheses" language="en" />
+
+We compare how well each competing explanation accounts for the evidence *so far*. Several forces may operate at once. A peer-stock move is a clue, not proof of a common cause.
+
+For the dog, walk shoes can raise the plausibility of a walk. For an investor, a sector-wide rally can raise the plausibility of an industry explanation. Both are attempts to infer something unobserved from something observable:
+
+> Hidden cause or hypothesis → Observable evidence → Revised belief
+
+## A market full of different priors
+
+One can view a financial market as a vast **belief-updating system** in which people with different priors, information, and models keep revising the prices they are willing to offer. Their risk tolerance and time horizons differ too. The same disclosure may prompt one person to buy, another to sell, and a third to hold.
+
+<BayesianDiagrams variant="market" language="en" />
+
+This is **an interpretive analogy**, not a claim that markets perfectly compute Bayes' theorem. Herding, liquidity constraints, leverage, forced sales, positioning, unequal information, transaction costs, reflexivity, and behavioral biases all affect prices. A **market price is not an exact posterior probability**. Still, the lens helps explain how new information can change individual valuations and, through trading decisions, the aggregate price.
+
+It also resists easy stories told *after* a move. When a stock rises, someone says “AI optimism”; when it falls, someone says “profit taking.” A Bayesian habit asks harder questions:
+
+- If AI optimism is the cause, how natural are the peer moves and trading patterns we actually see?
+- Could an improving industry outlook or ordinary order flow produce the same evidence?
+- What future observation would make us revise the current explanation?
+
+Attaching a plausible story after the fact is different from comparing explanations against evidence.
+
+## From a theorem to a statistical method
+
+So far, we have compared a small number of hypotheses: a walk or no walk, company news or an industry shift. Bayesian statistics also lets us represent uncertainty about an *unknown quantity*.
+
+Consider the true conversion rate $p$ of a new service. Before collecting new user data, we can express uncertainty across possible values of $p$ with a <strong>prior distribution</strong>. After observing which users sign up, a likelihood describes how well each possible $p$ fits those outcomes. Combining the two yields a <strong>posterior distribution over $p$</strong>.
+
+> Prior distribution + likelihood of observed data → Posterior distribution
+
+<BayesianDiagrams variant="distribution" language="en" />
+
+Instead of declaring “the conversion rate is exactly 7.3%,” we might say, “Given the current data and assumptions, values around 6–9% seem plausible.” Those numbers are **illustrative wording, not an estimated interval**. A real probability statement would require a specified model, observed data, and a computed posterior. When more users arrive, today's posterior becomes the starting point for the next update.
+
+## Aren't priors subjective?
+
+**They can be.** Especially with little data, a prior choice can affect the result. That is a reason to state it openly and perform a **sensitivity analysis**: does the conclusion survive other reasonable priors? When data are sparse, using relevant prior knowledge may be sensible. With enough informative data and an appropriate model, the likelihood's influence can grow, though there is no universal promise that the prior ceases to matter.
+
+Think again of the dog. A newcomer to our home would not know our dinner-to-walk routine. Repeated evenings could teach him both an expectation about walks and which behaviors signal one. His present starting point reflects previous experience.
+
+In a brief comparison, **frequentist** statistics usually treats the parameter as fixed and describes uncertainty through the behavior of procedures across repeated samples. A **Bayesian** analysis represents uncertainty about the parameter with a distribution and updates that distribution as data arrive. This article is not an argument that one approach always wins. Its central question is simpler: **how should a belief change when new evidence appears?**
+
+## Back at the front door
+
+I do not know whether my dog “knows Bayesian statistics.” But after dinner, as I stand up, put on socks, and take out my shoes, his behavior begins to change. One idea seems clear: **new information changes expectations**.
+
+Bayes is less a formula that tells us what to believe forever than a method for revising what we believe when we learn something new.
+
+**When new information arrives, our beliefs should change. Bayesian statistics may be the mathematics of that ordinary act.**
