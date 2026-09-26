@@ -15,19 +15,19 @@ Do not add a standalone Worker, Astro SSR, or React for these features.
 
 | Signal | Status | Action |
 | --- | --- | --- |
-| Cloudflare Web Analytics beacon | Present in `src/components/Analytics.astro`, Production-only, token empty | Enable in the dashboard, then put the token in `src/site.config.ts` |
+| Cloudflare Web Analytics beacon | Enabled in Cloudflare Pages; one beacon is automatically injected into Production and Preview HTML | Check article paths in Web Analytics after real visits |
 | Duplicate custom analytics | None | Do not add another beacon or GA4 |
-| Preview mixed into Production | Prevented: beacon is omitted when `IS_PREVIEW` | Keep Preview hostnames out of the Production Web Analytics site |
+| Preview mixed into Production | Pages analytics covers the project's `pages.dev` host and custom domain; Preview HTML also has the beacon | Filter by hostname when reviewing readership |
 | Sitemap / robots / canonical / hreflang / JSON-LD | Present | Submit the sitemap in Search Console |
 
 Zone Overview totals (unique visitors, requests, cache) are not enough to judge article usefulness. Use Web Analytics for readership and first-party `/api/events` for interaction.
 
 ### Cloudflare Web Analytics checklist
 
-1. Workers & Pages → thearchiveof → Metrics → Web Analytics → Enable.
-2. Attach **thearchiveof.com** only. Do not attach `*.pages.dev` Preview hosts.
-3. Copy the site token into `src/site.config.ts` → `cloudflareWebAnalyticsToken`.
-4. Confirm Preview HTML has no `static.cloudflareinsights.com` script.
+1. Cloudflare has a Pages analytics site for `thearchiveof.pages.dev` and `thearchiveof.com`, plus a separate zone analytics site for `thearchiveof.com`. Filter to the intended site and hostname when reading reports.
+2. Keep `cloudflareWebAnalyticsToken` empty: a manual token would add a second beacon.
+3. Confirm article HTML contains one `static.cloudflareinsights.com/beacon.min.js` script and that the browser successfully loads it. A browser extension can block it even when the HTML is correct.
+4. Confirm article paths appear under Web Analytics → Pages after real visits; script presence alone does not prove collection.
 
 ### Google Search Console checklist
 
@@ -67,9 +67,7 @@ archive-interactions-preview      → Preview / develop
 archive-interactions-production   → Production / main
 ```
 
-Binding name is `DB` in both environments. Apply `migrations/` to each database.
-
-Do not commit a placeholder `database_id` in `wrangler.toml`. Pages Git deploys will fail with a missing-database error. Create the two D1 databases, bind `DB` in the dashboard, then optionally copy real IDs from `wrangler.d1.example.toml`.
+Binding name is `DB` in both environments. The real database IDs and environment-specific bindings are in `wrangler.toml`; Pages uses that file as the binding source of truth. Both databases were created and the initial two SQL migration files were applied in the D1 dashboard. Before using `wrangler d1 migrations apply` for future changes, reconcile its migration tracking with this manually initialized schema.
 
 ### Identity
 
@@ -114,7 +112,7 @@ Label the control **Interactive equivalent** / **직접 실험**. Do not claim t
 | --- | --- | --- |
 | Drafts | Visible | Hidden |
 | Indexing | `noindex` | Indexable |
-| Web Analytics beacon | Off | On, after token is set |
+| Web Analytics beacon | Automatically injected by Pages | Automatically injected by Pages |
 | D1 | preview database | production database |
 | giscus | Same config; threads follow Preview URLs | Production URLs |
 
@@ -138,24 +136,16 @@ Repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` let CI con
 
 ### D1
 
-1. Workers & Pages → D1 → Create `archive-interactions-preview`.
-2. Create `archive-interactions-production`.
-3. Pages project → Settings → Bindings (not `wrangler.toml`, until the IDs are real):
-   - Preview: `DB` → preview database
-   - Production: `DB` → production database
-4. Pages project → Settings → Environment variables: `INTERACTION_SECRET` (different values per environment).
-5. Apply migrations to both databases:
-
-```sh
-npx wrangler d1 migrations apply archive-interactions-preview
-npx wrangler d1 migrations apply archive-interactions-production
-```
+1. Pages project → Settings → Bindings: verify `DB` points to `archive-interactions-preview` in Preview and `archive-interactions-production` in Production after each deployment. Binding changes are made in `wrangler.toml`, not the dashboard.
+2. Pages project → Settings → Variables and secrets: register `INTERACTION_SECRET` separately in Preview and Production. Keep its values out of git.
+3. Verify both databases contain `article_reactions` and `interaction_events` before serving writes.
 
 Local:
 
 ```sh
-npx wrangler d1 migrations apply archive-interactions-preview --local
-npm run preview:cf
+npx wrangler d1 migrations apply archive-interactions-preview --env preview --local
+npm run build
+npx wrangler pages dev dist --d1 DB=c37a1663-6da5-41ee-90db-22f33d3497bd
 ```
 
 ## Future items (not in this work)
