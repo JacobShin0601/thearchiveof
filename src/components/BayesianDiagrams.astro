@@ -1,0 +1,84 @@
+---
+interface Props { variant: 'walk' | 'formula' | 'hypotheses' | 'market' | 'distribution'; language?: 'ko' | 'en' }
+const { variant, language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+const walk = ko
+  ? [['저녁 식사 직후 · 사전확률', 40], ['노트북을 닫음', 50], ['양말을 신음', 65], ['산책용 운동화', 85], ['현관으로 이동', 95], ['목줄을 듦', 99]]
+  : [['After dinner · prior', 40], ['Closes laptop', 50], ['Puts on socks', 65], ['Walk shoes', 85], ['Heads to the door', 95], ['Picks up the leash', 99]];
+const hypotheses = ko
+  ? [
+      ['삼성전자 자체 호재', '↓', '→', '↑'],
+      ['반도체 업황 기대', '↑', '→', '→'],
+      ['거시경제 변화', '→', '↓', '→'],
+      ['외국인·기관 수급', '→', '→', '→'],
+      ['포지셔닝·기술적 요인', '→', '→', '→'],
+    ]
+  : [
+      ['Company news', '↓', '→', '↑'],
+      ['Semiconductor outlook', '↑', '→', '→'],
+      ['Macro conditions', '→', '↓', '→'],
+      ['Foreign/institutional flow', '→', '→', '→'],
+      ['Positioning/technical', '→', '→', '→'],
+    ];
+---
+
+{variant === 'walk' && <figure class="bayes-figure">
+  <figcaption>{ko ? '강아지의 산책 가능성은 어떻게 바뀔까?' : 'How might the dog’s expectation change?'}</figcaption>
+  <ol class="walk-list">{walk.map(([label, probability]) => <li>
+    <span>{label}</span><div class="track"><span style={`width:${probability}%`}></span></div><strong>{probability}{probability === 99 ? '%+' : '%'}</strong>
+  </li>)}</ol>
+  <p class="note">{ko ? '설명을 위한 가상의 확률입니다. 각 단계는 이전 신호까지 관찰한 뒤의 믿음을 뜻합니다.' : 'Illustrative probabilities only. Each step includes all signals observed so far.'}</p>
+</figure>}
+
+{variant === 'formula' && <figure class="bayes-figure">
+  <figcaption>{ko ? '믿음이 업데이트되는 세 부분' : 'The three parts of an update'}</figcaption>
+  <div class="concept-flow">
+    <div><strong>Prior</strong><span>{ko ? '증거를 보기 전의 믿음' : 'What I believed before'}</span></div>
+    <b aria-hidden="true">×</b>
+    <div><strong>Likelihood</strong><span>{ko ? '가설 아래에서 이 증거가 얼마나 자연스러운가' : 'How well the evidence fits the hypothesis'}</span></div>
+    <b aria-hidden="true">→</b>
+    <div><strong>Posterior</strong><span>{ko ? '증거를 본 뒤의 믿음' : 'What I believe now'}</span></div>
+  </div>
+  <p class="note">{ko ? '정확한 계산에는 가능한 가설 전체에 걸친 정규화가 필요합니다. 아래 베이즈 정리의 분모가 그 역할을 합니다.' : 'The exact calculation also needs normalization across possible hypotheses, supplied by the denominator in Bayes’ theorem below.'}</p>
+</figure>}
+
+{variant === 'hypotheses' && <figure class="bayes-figure">
+  <figcaption>{ko ? '가상 상황: 삼성전자 장중 +6%' : 'Hypothetical: Samsung Electronics rises 6% intraday'}</figcaption>
+  <div class="table-scroll" role="region" aria-label={ko ? '가설별 증거 업데이트 표' : 'Hypothesis update table'} tabindex="0">
+    <table><thead><tr><th scope="col">{ko ? '가능한 설명' : 'Possible explanation'}</th><th scope="col">{ko ? '동종업계 상승' : 'Peers rise'}</th><th scope="col">{ko ? '거시지표 보합' : 'Macro quiet'}</th><th scope="col">{ko ? '회사 뉴스 확인' : 'Company news'}</th></tr></thead>
+    <tbody>{hypotheses.map(([name, a, b, c]) => <tr><th scope="row">{name}</th><td>{a}</td><td>{b}</td><td>{c}</td></tr>)}</tbody></table>
+  </div>
+  <p class="note">{ko ? '↑·↓는 상대적 설득력의 방향만 나타냅니다. 사건과 증거는 모두 가상이며, 화살표는 원인 확정이나 수치화된 확률이 아닙니다.' : 'Arrows show only a possible change in relative plausibility. The event and evidence are invented; arrows are neither proof of cause nor numerical probabilities.'}</p>
+</figure>}
+
+{variant === 'market' && <figure class="bayes-figure">
+  <figcaption>{ko ? '서로 다른 믿음이 가격으로 모이는 과정' : 'Different beliefs meet in a market price'}</figcaption>
+  <div class="market-people">{(ko ? ['투자자 A · 서로 다른 사전 믿음', '투자자 B · 서로 다른 정보', '투자자 C · 서로 다른 모델', '분석가 D · 서로 다른 투자 기간'] : ['Investor A · different prior', 'Investor B · different information', 'Investor C · different model', 'Analyst D · different horizon']).map((item) => <span>{item}</span>)}</div>
+  <div class="market-flow"><span>{ko ? '새 증거' : 'New evidence'}</span><b>→</b><span>{ko ? '평가 수정' : 'Revised valuations'}</span><b>→</b><span>{ko ? '매수 · 매도 · 보유' : 'Buy · sell · hold'}</span><b>→</b><span>{ko ? '시장 가격' : 'Market price'}</span></div>
+  <p class="note">{ko ? '시장은 완벽한 베이지안 기계가 아닙니다. 가격은 정보뿐 아니라 유동성, 제약, 군집행동에도 영향을 받습니다.' : 'Markets are not perfect Bayesian machines. Liquidity, constraints, and herding also affect price.'}</p>
+</figure>}
+
+{variant === 'distribution' && <figure class="bayes-figure">
+  <figcaption>{ko ? '전환율 p에 대한 믿음: 한 점에서 분포로' : 'Beliefs about conversion rate p: a distribution, not one point'}</figcaption>
+  <div class="distribution-grid">
+    <div><strong>Prior</strong><svg viewBox="0 0 240 110" role="img" aria-label={ko ? '넓은 사전분포의 개념도' : 'Conceptual broad prior'}><path d="M8 98 C35 96 45 72 72 49 C93 28 113 25 132 35 C161 49 175 90 232 98" /></svg><span>{ko ? '데이터 전의 불확실성' : 'Uncertainty before data'}</span></div>
+    <div><strong>Likelihood</strong><svg viewBox="0 0 240 110" role="img" aria-label={ko ? '관측 데이터의 우도 개념도' : 'Conceptual likelihood from observed data'}><path d="M8 98 C70 98 95 91 123 48 C139 23 148 24 162 47 C181 82 199 97 232 98" /></svg><span>{ko ? '관측 데이터와의 적합성' : 'Fit with observed data'}</span></div>
+    <div><strong>Posterior</strong><svg viewBox="0 0 240 110" role="img" aria-label={ko ? '갱신된 사후분포의 개념도' : 'Conceptual updated posterior'}><path d="M8 98 C68 98 91 86 116 50 C134 23 149 22 164 48 C182 83 199 98 232 98" /></svg><span>{ko ? '데이터를 본 뒤의 불확실성' : 'Uncertainty after data'}</span></div>
+  </div>
+  <p class="note">{ko ? '모든 곡선은 개념도이며 실제 데이터나 계산 결과가 아닙니다. 세로 높이의 직접 비교도 의도하지 않았습니다.' : 'Conceptual shapes only, not real data or calculated distributions. Vertical heights are not directly comparable.'}</p>
+</figure>}
+
+<style>
+  .bayes-figure{margin:2rem 0;padding:1.35rem;border:1px solid var(--line);background:var(--paper-deep);font-family:var(--sans);font-size:.86rem}
+  figcaption{font-weight:700;margin-bottom:1rem;color:var(--ink)}
+  .note{margin:1rem 0 0;color:var(--muted);font-size:.76rem;line-height:1.55}
+  .walk-list{list-style:none;margin:0;padding:0;display:grid;gap:.65rem}
+  .walk-list li{display:grid;grid-template-columns:minmax(110px,1.45fr) minmax(65px,2fr) 42px;align-items:center;gap:.6rem}
+  .walk-list strong{text-align:right;color:var(--accent)}
+  .track{height:9px;background:var(--paper);border:1px solid var(--line);border-radius:99px;overflow:hidden}.track span{display:block;height:100%;background:var(--accent)}
+  .concept-flow{display:flex;align-items:stretch;gap:.5rem}.concept-flow>div{flex:1;min-width:0;padding:.8rem;background:var(--paper);border:1px solid var(--line);display:grid;gap:.35rem}.concept-flow strong{color:var(--accent)}.concept-flow b{align-self:center;font-size:1.25rem}
+  .table-scroll{overflow-x:auto}.table-scroll:focus-visible{outline:2px solid var(--accent)}table{width:100%;border-collapse:collapse;min-width:490px}th,td{padding:.55rem;border-bottom:1px solid var(--line)}th{text-align:left}td{text-align:center;font-size:1.1rem;color:var(--accent)}thead{font-size:.72rem}
+  .market-people{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem}.market-people span,.market-flow span{background:var(--paper);border:1px solid var(--line);padding:.65rem}.market-flow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:.4rem;margin-top:1rem}.market-flow span{color:var(--accent);font-weight:700}.market-flow b{color:var(--muted)}
+  .distribution-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem}.distribution-grid>div{display:grid;gap:.3rem;padding:.6rem;background:var(--paper);border:1px solid var(--line)}.distribution-grid strong{color:var(--accent)}.distribution-grid svg{width:100%;height:auto;border-bottom:1px solid var(--line)}.distribution-grid path{fill:none;stroke:var(--accent);stroke-width:2.5}.distribution-grid span{font-size:.72rem;color:var(--muted)}
+  @media(max-width:620px){.bayes-figure{padding:1rem}.concept-flow{flex-direction:column}.concept-flow b{text-align:center}.distribution-grid{grid-template-columns:1fr}.distribution-grid svg{max-height:90px}.walk-list li{grid-template-columns:minmax(90px,1.3fr) minmax(55px,1.5fr) 38px;font-size:.75rem}}
+</style>
