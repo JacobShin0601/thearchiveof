@@ -1,0 +1,79 @@
+---
+interface Props {
+  kind: 'tasks' | 'workforces' | 'evolution' | 'frontier';
+  id: string;
+  caption: string;
+  language?: 'ko' | 'en';
+}
+
+const { kind, id, caption, language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+const labels = ko ? {
+  ai: 'AI팀', business: '현업', task: '직무 속 과업', agent: '에이전트가 맡을 수 있는 일', human: '사람이 판단할 일',
+  aiTasks: ['코딩', '테스트', '연동', '평가', '구조 설계'], businessTasks: ['검색', '분석', '보고', '조율', '최종 판단'],
+  humans: '인간 노동력', agents: '에이전트 노동력', analyst: 'Market Intelligence 담당자',
+  research: '리서치 에이전트 × N', simulation: '시뮬레이션 에이전트', critic: '검토 에이전트',
+  aiFrom: '직접 구현', aiTo: ['플랫폼', '구조 설계', '평가', '거버넌스'],
+  businessFrom: '직접 실행', businessTo: ['문제 정의', '맥락', '판단', '책임'], center: 'AX / 워크플로 설계',
+  faster: '이동하기 쉬운 과업', slower: '사람의 검토가 더 필요한 과업',
+  criteria: [
+    ['규칙화 가능성', '규칙을 명확히 쓸 수 있는가'],
+    ['데이터 가용성', '필요한 자료에 접근할 수 있는가'],
+    ['결과 평가', '좋고 나쁜 결과를 구별할 수 있는가'],
+    ['피드백 속도', '오류를 얼마나 빨리 알 수 있는가'],
+    ['실패 비용과 책임', '틀렸을 때의 비용과 책임은 무엇인가'],
+  ],
+} : {
+  ai: 'AI team', business: 'Business team', task: 'Tasks inside jobs', agent: 'Potential agent work', human: 'Human judgment',
+  aiTasks: ['Code', 'Tests', 'Integration', 'Evaluation', 'Architecture'], businessTasks: ['Search', 'Analysis', 'Reports', 'Coordination', 'Final judgment'],
+  humans: 'Human workforce', agents: 'Agent workforce', analyst: 'Market Intelligence analyst',
+  research: 'Research agents × N', simulation: 'Simulation agent', critic: 'Critic agent',
+  aiFrom: 'Direct implementation', aiTo: ['Platform', 'Architecture', 'Evaluation', 'Governance'],
+  businessFrom: 'Manual execution', businessTo: ['Problem definition', 'Context', 'Judgment', 'Accountability'], center: 'AX / Workflow design',
+  faster: 'Easier to delegate', slower: 'More human review',
+  criteria: [
+    ['Codifiability', 'Can rules be specified clearly?'],
+    ['Data availability', 'Is the needed information accessible?'],
+    ['Evaluability', 'Can good output be distinguished from bad?'],
+    ['Feedback speed', 'How soon will an error become visible?'],
+    ['Failure cost & accountability', 'What happens when the result is wrong?'],
+  ],
+};
+---
+
+<figure class={`ax-workforce-diagram ${kind}`} aria-labelledby={id}>
+  <figcaption id={id}>{caption}</figcaption>
+
+  {kind === 'tasks' && <div class="two-col">
+    <section class="panel"><h3>{labels.ai}</h3><p class="eyebrow">{labels.task}</p><div class="chips">{labels.aiTasks.map((item, i) => <span class={i === 4 ? 'human-chip' : 'agent-chip'}>{item}</span>)}</div></section>
+    <section class="panel"><h3>{labels.business}</h3><p class="eyebrow">{labels.task}</p><div class="chips">{labels.businessTasks.map((item, i) => <span class={i > 2 ? 'human-chip' : 'agent-chip'}>{item}</span>)}</div></section>
+    <div class="legend"><span class="dot agent-dot"></span>{labels.agent}<span class="dot human-dot"></span>{labels.human}</div>
+  </div>}
+
+  {kind === 'workforces' && <div class="workforce-layout">
+    <div class="workforce human-force"><p class="eyebrow">{labels.humans}</p><strong>{labels.analyst}</strong></div>
+    <div class="plus" aria-hidden="true">+</div>
+    <div class="workforce agent-force"><p class="eyebrow">{labels.agents}</p><div class="agent-stack"><span>{labels.research}</span><span>{labels.simulation}</span><span>{labels.critic}</span></div></div>
+  </div>}
+
+  {kind === 'evolution' && <div class="evolution-layout">
+    <section class="panel"><p class="eyebrow">{labels.ai}</p><strong>{labels.aiFrom}</strong><span class="arrow" aria-hidden="true">↓</span><div class="chips">{labels.aiTo.map((item) => <span>{item}</span>)}</div></section>
+    <div class="intersection">{labels.center}</div>
+    <section class="panel"><p class="eyebrow">{labels.business}</p><strong>{labels.businessFrom}</strong><span class="arrow" aria-hidden="true">↓</span><div class="chips">{labels.businessTo.map((item) => <span>{item}</span>)}</div></section>
+  </div>}
+
+  {kind === 'frontier' && <div class="frontier-layout">
+    <div class="spectrum"><span>{labels.faster}</span><i aria-hidden="true"></i><span>{labels.slower}</span></div>
+    <ul class="criteria">{labels.criteria.map(([name, question], i) => <li><span class="number">{String(i + 1).padStart(2, '0')}</span><strong>{name}</strong><small>{question}</small></li>)}</ul>
+  </div>}
+</figure>
+
+<style>
+  .ax-workforce-diagram{--accent:#6759d5;--accent-soft:color-mix(in srgb,var(--accent) 11%,var(--background,#fff));margin:2.75rem 0;padding:1.35rem;border:1px solid var(--border-color,#d8d5ce);border-radius:1rem;background:color-mix(in srgb,var(--card-bg,#fff) 95%,var(--accent) 5%);overflow:hidden}
+  figcaption{font-weight:700;margin:0 0 1.2rem;color:var(--text-color,inherit)}
+  .two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem}.panel,.workforce{padding:1.2rem;border:1px solid var(--border-color,#ddd);border-radius:.85rem;background:var(--background,#fff)}.panel h3{margin:0 0 .6rem;font-size:1.05rem}.eyebrow{margin:0 0 .75rem;color:var(--accent);font-size:.76rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.chips{display:flex;gap:.45rem;flex-wrap:wrap}.chips span,.agent-stack span{padding:.45rem .65rem;border-radius:.48rem;background:var(--accent-soft);font-size:.8rem}.chips .human-chip{background:color-mix(in srgb,#c48742 16%,var(--background,#fff))}.legend{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:.45rem;color:var(--muted,#666);font-size:.78rem}.dot{width:.58rem;height:.58rem;border-radius:50%;display:inline-block;margin-left:.6rem}.agent-dot{background:var(--accent)}.human-dot{background:#c48742}
+  .workforce-layout{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1.2fr);gap:.85rem;align-items:center}.workforce{min-height:10.5rem;display:flex;flex-direction:column;justify-content:center}.human-force strong{font-size:1.05rem}.plus{font-size:1.8rem;font-weight:700;color:var(--accent)}.agent-stack{display:grid;gap:.45rem}.agent-stack span{display:block}.evolution-layout{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:.7rem;align-items:stretch}.evolution-layout .panel{text-align:center}.evolution-layout .chips{justify-content:center}.evolution-layout .arrow{display:block;margin:.7rem;color:var(--accent);font-size:1.2rem}.intersection{display:grid;place-items:center;align-self:center;max-width:8rem;padding:.8rem;border-radius:.65rem;background:var(--accent);color:#fff;text-align:center;font-size:.8rem;font-weight:700}
+  .spectrum{display:flex;align-items:center;gap:.8rem;font-size:.8rem;font-weight:700;color:var(--muted,#666)}.spectrum i{height:.55rem;min-width:2rem;flex:1;border-radius:999px;background:linear-gradient(90deg,var(--accent),#c48742)}.criteria{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.55rem;margin:1rem 0 0;padding:0;list-style:none}.criteria li{display:flex;flex-direction:column;gap:.45rem;padding:.8rem;border:1px solid var(--border-color,#ddd);border-radius:.65rem;background:var(--background,#fff)}.criteria .number{color:var(--accent);font-size:.7rem;font-weight:800}.criteria strong{font-size:.84rem;line-height:1.35}.criteria small{color:var(--muted,#666);font-size:.75rem;line-height:1.4}
+  @media(max-width:760px){.ax-workforce-diagram{padding:1rem;margin:2rem 0}.two-col,.workforce-layout,.evolution-layout{grid-template-columns:1fr}.plus{text-align:center}.intersection{max-width:none;width:100%;min-height:2.5rem}.criteria{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:430px){.criteria{grid-template-columns:1fr}.spectrum{font-size:.7rem}.legend{flex-wrap:wrap}}
+</style>
