@@ -1,0 +1,41 @@
+---
+interface Props {
+  kind: 'trajectory' | 'layers' | 'boundary' | 'cost';
+  caption: string;
+  language?: 'ko' | 'en';
+}
+const { kind, caption, language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+---
+
+<figure class="agent-figure">
+  {kind === 'trajectory' && <div class="comparison">
+    <section><span class="eyebrow">Developer-authored graph</span><div class="flow"><b>Plan</b><i>→</i><b>Research</b><i>→</i><b>Critique</b><i>→</i><b>Write</b></div><p>{ko ? '개발자가 경로와 분기를 먼저 정한다' : 'The developer defines the route and branches first'}</p></section>
+    <section class="accent"><span class="eyebrow">Model-generated trajectory</span><div class="flow"><b>Goal</b><i>→</i><b>Search</b><i>↔</i><b>Read</b><i>↔</i><b>Test</b><i>↻</i><b>Revise</b></div><p>{ko ? '모델이 실행 중 결과를 보고 다음 행동을 고른다' : 'The model chooses its next action from live results'}</p></section>
+  </div>}
+  {kind === 'layers' && <div class="layers">
+    <div><strong>Intelligence</strong><span>{ko ? '모델의 추론·도구 선택' : 'Reasoning and tool choice'}</span></div>
+    <div><strong>Agent Runtime</strong><span>{ko ? '반복 루프·맥락·상태 전이 · LangGraph' : 'Loop, context, state transitions · LangGraph'}</span></div>
+    <div><strong>Execution Runtime</strong><span>{ko ? '작업·워크스페이스·격리·수명주기 · AX / Agent Substrate' : 'Tasks, workspaces, isolation, lifecycle · AX / Agent Substrate'}</span></div>
+    <div><strong>Kubernetes / Infra</strong><span>{ko ? '클러스터·컴퓨트·스토리지' : 'Cluster, compute, storage'}</span></div>
+  </div>}
+  {kind === 'boundary' && <div class="comparison">
+    <section class="accent"><span class="eyebrow">Open-ended</span><div class="flow"><b>Search</b><i>↔</i><b>Read</b><i>↔</i><b>Code</b><i>↔</i><b>Test</b><i>↻</i><b>Retry</b></div><p>{ko ? '에이전트 내부: 탐색과 수정의 자유' : 'Inside the agent: freedom to explore and revise'}</p></section>
+    <section><span class="eyebrow">Deterministic</span><div class="flow"><b>Test</b><i>→</i><b>Security</b><i>→</i><b>Approval</b><i>→</i><b>Deploy</b></div><p>{ko ? '시스템 경계: 검증 가능한 순서와 승인' : 'At the boundary: auditable order and approval'}</p></section>
+  </div>}
+  {kind === 'cost' && <div class="cost"><strong>{ko ? 'Agent 추가' : 'More agents'}</strong><i>→</i><span>{ko ? '상태·맥락 경계 증가' : 'More state and context boundaries'}</span><i>→</i><span>{ko ? '실패·재시도 정책 증가' : 'More failures and retry policies'}</span><i>→</i><span>{ko ? '지연·비용·관찰 난도 증가' : 'More latency, cost, and observability work'}</span></div>}
+  <figcaption>{caption}</figcaption>
+</figure>
+
+<style>
+  .agent-figure{margin:2.4rem 0;padding:1.2rem;border:1px solid var(--border-color,#d8d8df);border-radius:1rem;background:color-mix(in srgb,var(--card-bg,#fff) 94%,#6776b8 6%)}
+  .agent-figure figcaption{font-size:.86rem;line-height:1.5;color:var(--text-muted,#5f6571);margin-top:1rem}
+  .comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
+  .comparison section,.layers>div,.cost>*{background:var(--background,#fff);border:1px solid var(--border-color,#ddd);border-radius:.7rem;padding:.85rem;min-width:0}
+  .comparison section.accent{border-color:#6572b7;background:color-mix(in srgb,var(--background,#fff) 87%,#6572b7 13%)}
+  .eyebrow{font-size:.74rem;font-weight:750;text-transform:uppercase;letter-spacing:.05em;color:#5966a6}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem;margin:.8rem 0;line-height:1.6}.flow b{font-size:.79rem;padding:.17rem .36rem;border-radius:.3rem;background:color-mix(in srgb,var(--background,#fff) 76%,#9da8d8 24%);overflow-wrap:anywhere}.flow i,.cost i{font-style:normal;color:#6572b7}.comparison p{font-size:.84rem;margin:0;line-height:1.5}
+  .layers{display:grid;gap:.45rem}.layers>div{display:grid;grid-template-columns:minmax(8rem,1fr) minmax(0,2fr);gap:.5rem;align-items:center}.layers strong{color:#465598}.layers span{font-size:.86rem;line-height:1.5}
+  .cost{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem}.cost>*{font-size:.82rem;line-height:1.45}.cost i{border:0;background:none;padding:0}
+  @media(max-width:640px){.agent-figure{padding:.85rem}.comparison{grid-template-columns:1fr}.layers>div{grid-template-columns:1fr}.flow{gap:.25rem}.cost{display:grid;grid-template-columns:1fr}.cost i{text-align:center}}
+</style>
