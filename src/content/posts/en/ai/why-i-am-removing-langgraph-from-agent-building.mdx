@@ -1,0 +1,153 @@
+---
+title: 'Do Agents Have to Be Graphs? Why I Am Removing LangGraph from My Default Stack'
+subtitle: 'From prescribing every route to designing the environment and boundaries around an agent'
+description: 'After building a multi-agent research system with LangGraph, I am rethinking where explicit graphs belong as models choose more of their own execution paths.'
+publishedDate: 2026-09-26
+section: 'AI & AX'
+subsection: 'AX'
+contentType: perspective
+topics: [ai-agents, langgraph, ax]
+primaryTopic: ai-agents
+tags: [langgraph, ai-agents, agent-architecture, google-ax, multi-agent]
+author: 'Jacob Shin'
+language: en
+translationKey: why-i-am-removing-langgraph-from-agent-building
+localization:
+  locale: en-US
+  strategy: localized-adaptation
+draft: false
+featured: false
+comments: false
+pillar: false
+freshness: periodic
+lastReviewed: 2026-09-26
+nextReviewDate: 2026-12-26
+series: 'Enterprise AX'
+seriesOrder: 3
+references:
+  - title: 'AX README and design'
+    url: 'https://github.com/google/ax'
+    publisher: 'Google GitHub'
+  - title: 'AX concepts and manifests'
+    url: 'https://github.com/google/ax/blob/main/docs/concepts.md'
+    publisher: 'Google GitHub'
+  - title: 'AX runner contract'
+    url: 'https://github.com/google/ax/blob/main/docs/runner.md'
+    publisher: 'Google GitHub'
+  - title: 'About GKE Agent Substrate'
+    url: 'https://docs.cloud.google.com/kubernetes-engine/ai-ml/about-agent-substrate'
+    publisher: 'Google Cloud'
+  - title: 'LangGraph overview'
+    url: 'https://docs.langchain.com/oss/python/langgraph/overview'
+    publisher: 'LangChain'
+  - title: 'LangGraph persistence'
+    url: 'https://docs.langchain.com/oss/python/langgraph/persistence'
+    publisher: 'LangChain'
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AgentArchitectureDiagrams from '../../../../components/AgentArchitectureDiagrams.astro';
+
+<AnswerBlock question="Where does LangGraph belong in today's agent architecture?">
+  Models can increasingly select tools, inspect results, and decide what to do next. That reduces the need for developers to draw every exploratory route in advance. Explicit state transitions still matter at boundaries involving approval, deployment, and recovery. My rule is: <strong>Freedom inside the agent, control at the boundary.</strong>
+</AnswerBlock>
+
+## I learned to build agents with LangGraph
+
+About a year and a half ago, I used a multi-agent system in the Market Intelligence team to draft a 20-page report for the CSO. The work required more than gathering sources and writing prose. Simulations, scenarios, and sensitivity analyses needed Python calculations, along with logic to connect those calculations. Research and analysis had to feed into the calculations, and the results had to feed back into the report's argument.
+
+Several agents researched, analyzed, and checked material before combining the result. I started designing that flow by drawing a graph. I had to decide where research and calculation outputs belonged in `state`, what context to pass to the next agent, and how to proceed when an intermediate step failed or produced too little. Conditional edges, retries, fallbacks, context management, and aggregation were practical requirements for getting a complete draft, not decoration.
+
+At the time, **building an agent and building it with LangGraph felt almost synonymous to me.** It let me take an LLM that would answer a question and stop, and place it inside a workflow that could use tools, pass results forward, and keep working. Roles and state transitions became visible; I could also design where execution should resume after a failure. To me, LangGraph was a major innovation: it helped turn an LLM from an answer engine into a working system. I question how much graph an agent needs today precisely because I learned to build agents that way.
+
+## The graph grew, and something felt off
+
+Adding another agent seems like adding another capability. In practice it also adds an interface. Someone has to define the context it receives, the shape of the previous result, and the ownership of failures and retries. More calls can mean more latency and token cost. Tracing why the final answer emerged becomes harder as the paths multiply.
+
+<AgentArchitectureDiagrams kind="cost" language="en" caption="More agents create more boundaries and operating costs, not just more nodes." />
+
+These costs are not defects unique to graphs. Multi-party work really is complex. The risk is that a neat graph can make a needless role feel justified. My design question shifted from “How should I connect these nodes?” to “Does this work need a separate node or agent at all?”
+
+## The model changed too
+
+Earlier agents often needed developers to specify a route such as `Planner → Researcher → Critic → Writer → Retry`. Models were less reliable at choosing tools, checking intermediate results, or recovering from a failed call. An explicit path compensated for those weaknesses.
+
+With more capable models and tool environments, a single loop can search, read a result, run a test, inspect the output, and revise its plan. Tool selection, multi-step reasoning, result inspection, retries, and self-correction are still imperfect. The narrower claim is that **developers need to predefine fewer of the intermediate routes**.
+
+<AgentArchitectureDiagrams kind="trajectory" language="en" caption="A predefined graph and a trajectory chosen during execution can coexist in one system." />
+
+The question is not simply whether a graph exists. It is who decides the next step: the developer before execution, or the model after seeing a result. A graph can still record execution and support recovery while the model chooses a route inside a bounded part of it.
+
+## From railway to car
+
+The railway is the analogy that helped me understand the shift. With a train, you lay the track first. You define each fork and stopping point. A developer-authored agent graph can work like that track.
+
+A car needs a different design. There is a destination and a road network, but the driver adjusts the route to what happens ahead. The engineering focus moves to road rules, fuel, instruments, operating limits, and brakes. A model-generated trajectory is closer to this: the model responds to the environment, while the system defines the boundaries.
+
+Cars still stop at signals. The analogy does not imply that every workflow should be open-ended. It asks us to distinguish the parts that benefit from exploration from the parts where procedure is the product.
+
+## Why a Pure Python agent loop is interesting again
+
+“Pure Python” does not mean refusing all frameworks. It means owning the core loop and adding the persistence, tracing, tool execution, and approval features the system actually needs. At its simplest, the idea looks like this:
+
+```python
+messages = [{"role": "user", "content": goal}]
+while True:
+    response = model.generate(messages, tools=tools)
+    messages.append(response.message)
+    if response.is_final:
+        return response.text
+    for call in response.tool_calls:
+        result = execute_allowed_tool(call)
+        messages.append(tool_result_message(call, result))
+```
+
+This is conceptual code, not a production implementation. A real service needs limits on steps, time and spending; tool permissions; retries and idempotency; persistence; tracing; context management; approval; and recovery. Owning the loop also means owning those responsibilities. When durable execution, checkpoints, or human review are central requirements, rebuilding what LangGraph already supplies may be the less simple choice. Its [overview](https://docs.langchain.com/oss/python/langgraph/overview) and [persistence guide](https://docs.langchain.com/oss/python/langgraph/persistence) explicitly emphasize these capabilities.
+
+## What Google AX illustrates
+
+What struck me in Google's [AX README](https://github.com/google/ax) and [design](https://github.com/google/ax/blob/main/DESIGN.md) was the location of the questions. AX declares a Task, connects a Workspace, and configures a Model. Its [concepts](https://github.com/google/ax/blob/main/docs/concepts.md) and [manifests](https://github.com/google/ax/blob/main/docs/manifests.md) describe these resources and task lifecycle. The design document also lists Gateway APIs, though I would not present Gateway as a settled user-facing primitive: the repository warns that core concepts and specifications may change before a stable release.
+
+AX is not prescribing “Researcher, then Critic.” It is asking where the agent runs, what workspace and model it receives, what the sandbox may access, and how a task can be observed, paused, and resumed. The [runner contract](https://github.com/google/ax/blob/main/docs/runner.md) describes how the task container prepares the environment and starts the agent command.
+
+The [official GKE Agent Substrate documentation](https://docs.cloud.google.com/kubernetes-engine/ai-ml/about-agent-substrate) goes a level lower. An Actor runs in a Worker sandbox. When idle, its memory and local files can be snapshotted, freeing the Worker, and later restored. Google says restoration takes under a second; that is its product description, not a performance guarantee for my workload. The current documentation also limits general availability to evaluation and non-production use, with production support on an allowlist basis. I treat the scale and speed claims in the [September 2026 announcement](https://cloud.google.com/blog/products/containers-kubernetes/agent-substrate-available-on-gke) as vendor-reported figures.
+
+None of this says that Google has declared graphs unnecessary. It shows that **choosing an agent's reasoning sequence and operating an agent workload are different engineering problems**.
+
+## The layers make the distinction clearer
+
+<AgentArchitectureDiagrams kind="layers" language="en" caption="A conceptual map: LangGraph focuses on state and flow; AX and Agent Substrate focus on execution and lifecycle. Product boundaries can overlap." />
+
+This is my design map, not an official taxonomy. Intelligence covers reasoning and tool selection. An agent runtime manages loops, context, state transitions, interruption, and resumption; LangGraph is strong here. An execution runtime provides the sandbox, workspace, network, resources, and lifecycle; those are the concerns AX and Agent Substrate foreground. Kubernetes and underlying infrastructure sit below.
+
+The layers can be combined. A LangGraph workflow could run inside an isolated execution environment. A small Python loop could run as an AX task. Calling AX a direct LangGraph competitor confuses two useful, partly overlapping questions.
+
+## Where I would still use LangGraph
+
+Consider a coding agent. Searching for files, reading code, editing, testing, and trying again have no universal order. An open loop such as `Search ↔ Read ↔ Code ↔ Test ↔ Retry` is natural. Prewriting an edge for every file and test result would give the developer too much of the model's job.
+
+Now suppose the agent reports that tests passed. A production path may require `Test Passed → Security Check → Human Approval → Production Deploy → Health Check`. A failed health check leads to rollback; a pass leads to Done. The order, approver, deployed version, and compensation steps must be recorded. An explicit graph or state machine is a better fit for that boundary.
+
+<AgentArchitectureDiagrams kind="boundary" language="en" caption="Freedom inside the agent, control at the boundary" />
+
+LangGraph can combine deterministic steps with model-led ones in one graph. Its [official documentation](https://docs.langchain.com/oss/python/langgraph/overview) stresses durable execution, persistence, and human-in-the-loop operation. Waiting for approval and resuming after failure are substantial operating requirements. Payment approval, financial transactions, regulated workflows, irreversible actions, and compensation or rollback follow similar logic. A simple workflow may need only ordinary code or an existing workflow engine; the criterion is how explicitly the state transitions must be managed.
+
+## Autonomy and procedure are different design problems
+
+In open-ended reasoning, new information changes the next action. The agent tries another hypothesis or investigates an unexpected error. Trying to draw every possible branch in advance creates a large graph and takes away decisions the model can now make.
+
+In deterministic workflows, other values dominate. Approval is mandatory. Order matters. Failure must lead to an explainable recovery. “The model will figure it out” is not a sufficient design. We can use both approaches in one system if we name their boundary.
+
+**Freedom inside the agent, control at the boundary.**
+
+## How I now approach agent architecture
+
+I no longer start by counting nodes. I ask which parts are exploration and which parts are procedure. In exploratory work, I provide tools, feedback, time and cost limits, and clear permission boundaries. In procedural work, I specify approvals, state transitions, restart points, and compensation. I also treat the workspace and the environment where the agent runs as a separate design problem.
+
+This connects to the broader point I made in [AX Is About Transformation, Not Just AI](/en/ai/ax/ax-is-transformation/) and [Why Enterprise AI Transformation Should Start Narrow](/en/ai/ax/ax-should-start-narrow/). The question is less how impressive an agent appears than which judgments it may make and which decisions remain a human responsibility.
+
+## Conclusion
+
+Removing LangGraph from my default stack does not mean discarding graphs. I once treated the graph as the basic skeleton of an agent. Now I see it as a precise tool for the boundaries that need it. A small loop can suffice where a model can discover its route. An explicit graph can be simpler and safer where order, approval, and recovery are part of the contract.
+
+The change is in my starting question, not my allegiance to a framework: first see where the agent can find its own way, then lay track where the system truly needs it.
