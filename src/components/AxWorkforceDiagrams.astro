@@ -8,72 +8,122 @@ interface Props {
 
 const { kind, id, caption, language = 'ko' } = Astro.props;
 const ko = language === 'ko';
-const labels = ko ? {
-  ai: 'AI팀', business: '현업', task: '직무 속 과업', agent: '에이전트가 맡을 수 있는 일', human: '사람이 판단할 일',
-  aiTasks: ['코딩', '테스트', '연동', '평가', '구조 설계'], businessTasks: ['검색', '분석', '보고', '조율', '최종 판단'],
-  humans: '인간 노동력', agents: '에이전트 노동력', analyst: 'Market Intelligence 담당자',
-  research: '리서치 에이전트 × N', simulation: '시뮬레이션 에이전트', critic: '검토 에이전트',
-  aiFrom: '직접 구현', aiTo: ['플랫폼', '구조 설계', '평가', '거버넌스'],
-  businessFrom: '직접 실행', businessTo: ['문제 정의', '맥락', '판단', '책임'], center: 'AX / 워크플로 설계',
-  faster: '이동하기 쉬운 과업', slower: '사람의 검토가 더 필요한 과업',
-  criteria: [
-    ['규칙화 가능성', '규칙을 명확히 쓸 수 있는가'],
-    ['데이터 가용성', '필요한 자료에 접근할 수 있는가'],
-    ['결과 평가', '좋고 나쁜 결과를 구별할 수 있는가'],
-    ['피드백 속도', '오류를 얼마나 빨리 알 수 있는가'],
-    ['실패 비용과 책임', '틀렸을 때의 비용과 책임은 무엇인가'],
+const c = ko ? {
+  job: '현재 직무', breakdown: '과업 분해', nextRole: '다시 묶인 역할',
+  delegate: '에이전트에 위임', verify: '함께 검증', decide: '사람이 결정',
+  taskRows: [
+    { team: 'AI팀', current: 'AI 엔지니어', delegate: '코드 · 테스트 · 연동', verify: '평가 · 오류 분석', decide: '구조 · 권한 설계', next: '시스템 설계와 운영' },
+    { team: '현업', current: '시장정보 분석가', delegate: '검색 · 정리 · 초안', verify: '근거 · 가정 점검', decide: '문제 정의 · 최종 판단', next: '맥락과 의사결정' },
   ],
+  taskCaveat: '역할 구분은 예시다. 같은 과업도 위험과 검증 방식에 따라 배분이 달라진다.',
+  aiTeam: 'AI팀', businessTeam: '현업', aiShift: '업무 맥락 이해 ↑', businessShift: 'AI 시스템 이해 ↑',
+  convergence: '워크플로 설계', convergenceNote: '두 팀이 함께 정해야 할 것',
+  sharedDecisions: ['데이터 접근', '평가 기준', '사람에게 넘길 시점', '결과의 책임'],
+  human: '한 명의 담당자', goal: '목표와 가정을 정의', agents: '에이전트가 나누어 수행',
+  agentTasks: [
+    { name: '리서치', output: '근거 수집' },
+    { name: '시뮬레이션', output: '가정 변경' },
+    { name: '검토', output: '반론 찾기' },
+  ],
+  review: '근거 검증 · 최종 판단', loop: '부족하면 반론과 재분석을 요청 ↺',
+  attribution: 'AI 2040의 ‘두 노동력’에서 착안한 The Archive의 개념도. 원본 도표를 복제한 것이 아니다.',
+  exampleA: '문서 요약', exampleB: '최종 승인',
+  frontierRows: [
+    { criterion: '규칙화 가능성', a: '입력과 형식을 지정 가능', b: '상황별 판단 기준이 달라짐' },
+    { criterion: '데이터 가용성', a: '문서가 있으면 접근 가능', b: '암묵지와 외부 맥락도 필요' },
+    { criterion: '결과 평가', a: '원문과 대조 가능', b: '타당성을 사전에 확정하기 어려움' },
+    { criterion: '피드백 속도', a: '검토 즉시 수정 가능', b: '결과가 늦게 드러날 수 있음' },
+    { criterion: '실패 비용과 책임', a: '검토 단계에서 오류 차단', b: '결정 주체가 책임을 짐' },
+  ],
+  outcomeA: '에이전트 초안 + 사람 검증', outcomeB: '에이전트 보조 + 사람 결정',
+  frontierCaveat: '같은 과업도 데이터, 규제, 오류 비용에 따라 달라진다. 직업별 순위나 도입 시점은 아니다.',
 } : {
-  ai: 'AI team', business: 'Business team', task: 'Tasks inside jobs', agent: 'Potential agent work', human: 'Human judgment',
-  aiTasks: ['Code', 'Tests', 'Integration', 'Evaluation', 'Architecture'], businessTasks: ['Search', 'Analysis', 'Reports', 'Coordination', 'Final judgment'],
-  humans: 'Human workforce', agents: 'Agent workforce', analyst: 'Market Intelligence analyst',
-  research: 'Research agents × N', simulation: 'Simulation agent', critic: 'Critic agent',
-  aiFrom: 'Direct implementation', aiTo: ['Platform', 'Architecture', 'Evaluation', 'Governance'],
-  businessFrom: 'Manual execution', businessTo: ['Problem definition', 'Context', 'Judgment', 'Accountability'], center: 'AX / Workflow design',
-  faster: 'Easier to delegate', slower: 'More human review',
-  criteria: [
-    ['Codifiability', 'Can rules be specified clearly?'],
-    ['Data availability', 'Is the needed information accessible?'],
-    ['Evaluability', 'Can good output be distinguished from bad?'],
-    ['Feedback speed', 'How soon will an error become visible?'],
-    ['Failure cost & accountability', 'What happens when the result is wrong?'],
+  job: 'Current job', breakdown: 'Task decomposition', nextRole: 'Recombined role',
+  delegate: 'Delegate to agents', verify: 'Verify together', decide: 'Human decision',
+  taskRows: [
+    { team: 'AI team', current: 'AI engineer', delegate: 'Code · tests · integration', verify: 'Evaluation · error analysis', decide: 'Architecture · permissions', next: 'System design and operation' },
+    { team: 'Business team', current: 'Market Intelligence analyst', delegate: 'Search · synthesis · drafts', verify: 'Evidence · assumptions', decide: 'Problem framing · final call', next: 'Context and decisions' },
   ],
+  taskCaveat: 'These boundaries are illustrative. Risk and review design can change who performs the same task.',
+  aiTeam: 'AI team', businessTeam: 'Business team', aiShift: 'Domain knowledge ↑', businessShift: 'AI system literacy ↑',
+  convergence: 'Workflow design', convergenceNote: 'Decisions the two teams make together',
+  sharedDecisions: ['Data access', 'Evaluation criteria', 'Human escalation', 'Accountability'],
+  human: 'One practitioner', goal: 'Defines the goal and assumptions', agents: 'Agents divide the work',
+  agentTasks: [
+    { name: 'Research', output: 'Collect evidence' },
+    { name: 'Simulation', output: 'Vary assumptions' },
+    { name: 'Critique', output: 'Find counterarguments' },
+  ],
+  review: 'Checks evidence · owns the decision', loop: 'If needed, request critique and another analysis ↺',
+  attribution: 'The Archive’s conceptual diagram, inspired by AI 2040’s two workforces. It does not reproduce AI 2040 artwork.',
+  exampleA: 'Document summary', exampleB: 'Final approval',
+  frontierRows: [
+    { criterion: 'Codifiability', a: 'Inputs and format can be specified', b: 'Criteria vary with the situation' },
+    { criterion: 'Data availability', a: 'Source documents may be accessible', b: 'Tacit and external context also matters' },
+    { criterion: 'Evaluability', a: 'Can be checked against the source', b: 'Validity may be hard to settle in advance' },
+    { criterion: 'Feedback speed', a: 'Can be corrected during review', b: 'Consequences may surface later' },
+    { criterion: 'Failure cost and accountability', a: 'Review can catch an error', b: 'The decision owner remains accountable' },
+  ],
+  outcomeA: 'Agent draft + human review', outcomeB: 'Agent support + human decision',
+  frontierCaveat: 'Data, regulation, and failure costs change the answer even for the same task. This is not a ranking or timeline.',
 };
 ---
 
 <figure class={`ax-workforce-diagram ${kind}`} aria-labelledby={id}>
   <figcaption id={id}>{caption}</figcaption>
 
-  {kind === 'tasks' && <div class="two-col">
-    <section class="panel"><h3>{labels.ai}</h3><p class="eyebrow">{labels.task}</p><div class="chips">{labels.aiTasks.map((item, i) => <span class={i === 4 ? 'human-chip' : 'agent-chip'}>{item}</span>)}</div></section>
-    <section class="panel"><h3>{labels.business}</h3><p class="eyebrow">{labels.task}</p><div class="chips">{labels.businessTasks.map((item, i) => <span class={i > 2 ? 'human-chip' : 'agent-chip'}>{item}</span>)}</div></section>
-    <div class="legend"><span class="dot agent-dot"></span>{labels.agent}<span class="dot human-dot"></span>{labels.human}</div>
+  {kind === 'tasks' && <div class="task-diagram">
+    <div class="task-column-head" aria-hidden="true"><span>{c.job}</span><span>{c.breakdown}</span><span>{c.nextRole}</span></div>
+    {c.taskRows.map((row) => <section class="task-row" aria-label={row.team}>
+      <div class="role-card"><span class="kicker">{row.team}</span><strong>{row.current}</strong></div>
+      <div class="task-sequence">
+        <div class="task-item delegate"><span class="task-label">{c.delegate}</span><strong>{row.delegate}</strong></div>
+        <div class="task-item verify"><span class="task-label">{c.verify}</span><strong>{row.verify}</strong></div>
+        <div class="task-item decide"><span class="task-label">{c.decide}</span><strong>{row.decide}</strong></div>
+      </div>
+      <div class="role-card next"><span class="kicker">{c.nextRole}</span><strong>{row.next}</strong></div>
+    </section>)}
+    <p class="diagram-note">{c.taskCaveat}</p>
   </div>}
 
-  {kind === 'workforces' && <div class="workforce-layout">
-    <div class="workforce human-force"><p class="eyebrow">{labels.humans}</p><strong>{labels.analyst}</strong></div>
-    <div class="plus" aria-hidden="true">+</div>
-    <div class="workforce agent-force"><p class="eyebrow">{labels.agents}</p><div class="agent-stack"><span>{labels.research}</span><span>{labels.simulation}</span><span>{labels.critic}</span></div></div>
+  {kind === 'evolution' && <div class="evolution-diagram">
+    <div class="convergence-inputs">
+      <section class="capability-card"><span class="kicker">{c.aiTeam}</span><strong>{c.aiShift}</strong></section>
+      <section class="capability-card"><span class="kicker">{c.businessTeam}</span><strong>{c.businessShift}</strong></section>
+    </div>
+    <div class="converge-arrows" aria-hidden="true"><span>↘</span><span>↙</span></div>
+    <div class="convergence-core"><strong>{c.convergence}</strong></div>
+    <p class="shared-label">{c.convergenceNote}</p>
+    <ul class="shared-decisions">{c.sharedDecisions.map((item) => <li>{item}</li>)}</ul>
   </div>}
 
-  {kind === 'evolution' && <div class="evolution-layout">
-    <section class="panel"><p class="eyebrow">{labels.ai}</p><strong>{labels.aiFrom}</strong><span class="arrow" aria-hidden="true">↓</span><div class="chips">{labels.aiTo.map((item) => <span>{item}</span>)}</div></section>
-    <div class="intersection">{labels.center}</div>
-    <section class="panel"><p class="eyebrow">{labels.business}</p><strong>{labels.businessFrom}</strong><span class="arrow" aria-hidden="true">↓</span><div class="chips">{labels.businessTo.map((item) => <span>{item}</span>)}</div></section>
+  {kind === 'workforces' && <div class="workforce-diagram">
+    <div class="human-step"><span class="kicker">{c.human}</span><strong>{c.goal}</strong></div>
+    <div class="flow-arrow" aria-hidden="true">↓</div>
+    <section class="agent-stage"><p class="stage-label">{c.agents}</p><div class="agent-columns">
+      {c.agentTasks.map((item) => <div class="agent-card"><strong>{item.name}</strong><span>{item.output}</span></div>)}
+    </div></section>
+    <div class="flow-arrow" aria-hidden="true">↓</div>
+    <div class="human-step result"><span class="kicker">{c.human}</span><strong>{c.review}</strong></div>
+    <p class="feedback-loop">{c.loop}</p>
+    <p class="attribution">{c.attribution}</p>
   </div>}
 
-  {kind === 'frontier' && <div class="frontier-layout">
-    <div class="spectrum"><span>{labels.faster}</span><i aria-hidden="true"></i><span>{labels.slower}</span></div>
-    <ul class="criteria">{labels.criteria.map(([name, question], i) => <li><span class="number">{String(i + 1).padStart(2, '0')}</span><strong>{name}</strong><small>{question}</small></li>)}</ul>
+  {kind === 'frontier' && <div class="frontier-diagram">
+    <div class="matrix-head"><span></span><strong>{c.exampleA}</strong><strong>{c.exampleB}</strong></div>
+    <div class="matrix-body">{c.frontierRows.map((row) => <div class="matrix-row"><strong>{row.criterion}</strong><span>{row.a}</span><span>{row.b}</span></div>)}</div>
+    <div class="matrix-outcomes"><span></span><strong>{c.outcomeA}</strong><strong>{c.outcomeB}</strong></div>
+    <p class="diagram-note">{c.frontierCaveat}</p>
   </div>}
 </figure>
 
 <style>
-  .ax-workforce-diagram{--accent:#6759d5;--accent-soft:color-mix(in srgb,var(--accent) 11%,var(--background,#fff));margin:2.75rem 0;padding:1.35rem;border:1px solid var(--border-color,#d8d5ce);border-radius:1rem;background:color-mix(in srgb,var(--card-bg,#fff) 95%,var(--accent) 5%);overflow:hidden}
-  figcaption{font-weight:700;margin:0 0 1.2rem;color:var(--text-color,inherit)}
-  .two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem}.panel,.workforce{padding:1.2rem;border:1px solid var(--border-color,#ddd);border-radius:.85rem;background:var(--background,#fff)}.panel h3{margin:0 0 .6rem;font-size:1.05rem}.eyebrow{margin:0 0 .75rem;color:var(--accent);font-size:.76rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.chips{display:flex;gap:.45rem;flex-wrap:wrap}.chips span,.agent-stack span{padding:.45rem .65rem;border-radius:.48rem;background:var(--accent-soft);font-size:.8rem}.chips .human-chip{background:color-mix(in srgb,#c48742 16%,var(--background,#fff))}.legend{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:.45rem;color:var(--muted,#666);font-size:.78rem}.dot{width:.58rem;height:.58rem;border-radius:50%;display:inline-block;margin-left:.6rem}.agent-dot{background:var(--accent)}.human-dot{background:#c48742}
-  .workforce-layout{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1.2fr);gap:.85rem;align-items:center}.workforce{min-height:10.5rem;display:flex;flex-direction:column;justify-content:center}.human-force strong{font-size:1.05rem}.plus{font-size:1.8rem;font-weight:700;color:var(--accent)}.agent-stack{display:grid;gap:.45rem}.agent-stack span{display:block}.evolution-layout{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:.7rem;align-items:stretch}.evolution-layout .panel{text-align:center}.evolution-layout .chips{justify-content:center}.evolution-layout .arrow{display:block;margin:.7rem;color:var(--accent);font-size:1.2rem}.intersection{display:grid;place-items:center;align-self:center;max-width:8rem;padding:.8rem;border-radius:.65rem;background:var(--accent);color:#fff;text-align:center;font-size:.8rem;font-weight:700}
-  .spectrum{display:flex;align-items:center;gap:.8rem;font-size:.8rem;font-weight:700;color:var(--muted,#666)}.spectrum i{height:.55rem;min-width:2rem;flex:1;border-radius:999px;background:linear-gradient(90deg,var(--accent),#c48742)}.criteria{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.55rem;margin:1rem 0 0;padding:0;list-style:none}.criteria li{display:flex;flex-direction:column;gap:.45rem;padding:.8rem;border:1px solid var(--border-color,#ddd);border-radius:.65rem;background:var(--background,#fff)}.criteria .number{color:var(--accent);font-size:.7rem;font-weight:800}.criteria strong{font-size:.84rem;line-height:1.35}.criteria small{color:var(--muted,#666);font-size:.75rem;line-height:1.4}
-  @media(max-width:760px){.ax-workforce-diagram{padding:1rem;margin:2rem 0}.two-col,.workforce-layout,.evolution-layout{grid-template-columns:1fr}.plus{text-align:center}.intersection{max-width:none;width:100%;min-height:2.5rem}.criteria{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  @media(max-width:430px){.criteria{grid-template-columns:1fr}.spectrum{font-size:.7rem}.legend{flex-wrap:wrap}}
+  .ax-workforce-diagram{--accent:#6759d5;--accent-soft:color-mix(in srgb,var(--accent) 11%,var(--background,#fff));--ink:var(--text-color,#28252b);--line:var(--border-color,#d8d5ce);margin:2.75rem 0;padding:1.35rem;border:1px solid var(--line);border-radius:1rem;background:color-mix(in srgb,var(--card-bg,#fff) 95%,var(--accent) 5%);color:var(--ink);overflow:hidden}
+  figcaption{font-weight:750;font-size:1rem;line-height:1.5;margin:0 0 1.1rem}.kicker{display:block;color:var(--accent);font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:.35rem}.diagram-note,.attribution{margin:1rem 0 0;color:var(--muted,#666);font-size:.78rem;line-height:1.5}
+  .task-column-head,.task-row{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,2.7fr) minmax(0,.95fr);gap:.6rem;align-items:stretch}.task-column-head{margin-bottom:.4rem;color:var(--muted,#666);font-size:.7rem;font-weight:800;text-align:center}.task-row+.task-row{margin-top:.65rem}.role-card,.task-item,.capability-card,.human-step,.agent-card{border:1px solid var(--line);border-radius:.7rem;background:var(--background,#fff)}.role-card{display:flex;flex-direction:column;justify-content:center;padding:.8rem;min-height:6.5rem}.role-card strong{font-size:.84rem;line-height:1.4}.role-card.next{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:var(--accent-soft)}.task-sequence{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.4rem}.task-item{padding:.65rem;min-width:0}.task-item strong{display:block;font-size:.77rem;line-height:1.4}.task-label{display:block;font-size:.68rem;font-weight:800;margin-bottom:.4rem}.delegate{border-top:3px solid #6759d5}.verify{border-top:3px solid #4f8180}.decide{border-top:3px solid #ac7134}.delegate .task-label{color:#6759d5}.verify .task-label{color:#416f6e}.decide .task-label{color:#95602b}
+  .convergence-inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.capability-card{padding:1rem;text-align:center}.capability-card strong{font-size:.93rem}.converge-arrows{display:flex;justify-content:space-around;max-width:28rem;margin:.25rem auto;color:var(--accent);font-size:1.7rem;line-height:1}.convergence-core{width:min(100%,24rem);margin:auto;padding:.85rem 1rem;border-radius:.65rem;background:var(--accent);color:#fff;text-align:center;font-size:1.05rem}.shared-label{text-align:center;margin:1rem 0 .5rem;font-size:.78rem;color:var(--muted,#666);font-weight:700}.shared-decisions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.5rem;list-style:none;margin:0;padding:0}.shared-decisions li{padding:.55rem;border:1px solid var(--line);border-radius:.45rem;background:var(--background,#fff);text-align:center;font-size:.76rem;line-height:1.35}
+  .workforce-diagram{max-width:46rem;margin:auto}.human-step{display:flex;align-items:center;gap:.7rem;justify-content:center;padding:.85rem}.human-step .kicker{margin:0}.human-step strong{font-size:.91rem}.human-step.result{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:var(--accent-soft)}.flow-arrow{text-align:center;color:var(--accent);font-size:1.35rem;line-height:1.35}.agent-stage{padding:.8rem;border:1px dashed var(--accent);border-radius:.75rem;background:var(--accent-soft)}.stage-label{margin:0 0 .6rem;text-align:center;color:var(--accent);font-weight:800;font-size:.79rem}.agent-columns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}.agent-card{display:grid;gap:.3rem;padding:.75rem;text-align:center}.agent-card strong{font-size:.83rem}.agent-card span{font-size:.74rem;color:var(--muted,#666)}.feedback-loop{width:fit-content;margin:.75rem auto 0;padding:.4rem .75rem;border-radius:999px;color:var(--accent);background:var(--accent-soft);font-size:.76rem;font-weight:700}.attribution{border-top:1px solid var(--line);padding-top:.7rem}
+  .matrix-head,.matrix-row,.matrix-outcomes{display:grid;grid-template-columns:minmax(8.5rem,.75fr) repeat(2,minmax(0,1fr));gap:.5rem;align-items:stretch}.matrix-head{margin-bottom:.4rem}.matrix-head strong{padding:.65rem;border-radius:.55rem;background:var(--accent);color:#fff;text-align:center;font-size:.82rem}.matrix-head strong:last-child{background:#8d633c}.matrix-body{display:grid;gap:.4rem}.matrix-row strong,.matrix-row span,.matrix-outcomes strong{display:flex;align-items:center;padding:.62rem .7rem;border:1px solid var(--line);border-radius:.5rem;background:var(--background,#fff);font-size:.77rem;line-height:1.4}.matrix-row strong{font-size:.75rem}.matrix-row span:nth-child(2){border-left:3px solid var(--accent)}.matrix-row span:nth-child(3){border-left:3px solid #a97a4b}.matrix-outcomes{margin-top:.55rem}.matrix-outcomes strong{background:var(--accent-soft);color:var(--accent);font-size:.77rem}.matrix-outcomes strong:last-child{background:color-mix(in srgb,#a97a4b 15%,var(--background,#fff));color:#7d512f}
+  @media(max-width:760px){.ax-workforce-diagram{padding:1rem;margin:2rem 0}.task-column-head{display:none}.task-row{grid-template-columns:1fr;gap:.4rem}.role-card{min-height:0;padding:.65rem .75rem}.role-card.next{flex-direction:row;align-items:center;justify-content:space-between;gap:.5rem}.role-card.next .kicker{margin:0}.task-sequence{grid-template-columns:repeat(3,minmax(0,1fr))}.shared-decisions{grid-template-columns:repeat(2,minmax(0,1fr))}.matrix-head,.matrix-row,.matrix-outcomes{grid-template-columns:minmax(5rem,.75fr) repeat(2,minmax(0,1fr));gap:.35rem}.matrix-row strong,.matrix-row span,.matrix-outcomes strong{padding:.5rem;font-size:.75rem}}
+  @media(max-width:480px){.task-sequence{grid-template-columns:1fr}.task-item{display:grid;grid-template-columns:6.8rem 1fr;align-items:center;gap:.5rem}.task-label{margin:0;font-size:.75rem}.task-item strong{font-size:.77rem}.convergence-inputs{gap:.45rem}.capability-card{padding:.65rem .4rem}.capability-card strong{font-size:.79rem}.agent-columns{gap:.3rem}.agent-card{padding:.55rem .35rem}.agent-card strong{font-size:.78rem}.agent-card span{font-size:.73rem}.human-step{flex-direction:column;gap:.1rem}.matrix-head{grid-template-columns:repeat(2,minmax(0,1fr))}.matrix-head span{display:none}.matrix-row{grid-template-columns:repeat(2,minmax(0,1fr))}.matrix-row strong{grid-column:1/-1;border:0;background:transparent;padding:.25rem .1rem .05rem;color:var(--accent);font-size:.78rem}.matrix-row span{min-height:3rem}.matrix-outcomes{grid-template-columns:repeat(2,minmax(0,1fr))}.matrix-outcomes span{display:none}.matrix-outcomes strong{font-size:.75rem}}
 </style>
