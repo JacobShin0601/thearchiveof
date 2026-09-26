@@ -100,12 +100,10 @@ $$
 
 Let $A$ mean “we will walk soon” and $B$ mean “I put on my walk shoes.” Then $P(A)$ is the prior; $P(B\mid A)$ is the likelihood of that observation if a walk is coming; and $P(A\mid B)$ is the posterior after seeing the shoes. The denominator $P(B)$ accounts for the observation across the possible explanations and normalizes the result.
 
-In a **separate illustrative calculation**, start with a 40% prior. Assume `P(shoes | walk) = 90%` and `P(shoes | no walk) = 20%`. If the shoes are the only new observation, then:
+In a **separate illustrative calculation**, start with a 40% prior. Assume `P(shoes | walk) = 90%` and `P(shoes | no walk) = 20%`. If the shoes are the only new observation, the numerator 0.36 is `0.9 × 0.4`, and the added denominator term 0.12 is `0.2 × 0.6`:
 
 $$
-P(A\mid B)
-=\frac{0.9\times0.4}{0.9\times0.4+0.2\times0.6}
-=0.75.
+P(A\mid B)=\frac{0.36}{0.36+0.12}=0.75.
 $$
 
 That gives **75%**. The earlier diagram's 85% after the shoes belongs to a *different invented sequence* that also included the laptop and socks. It is not the result of this calculation. Notice the conditional directions: `P(shoes | walk)` is not the same as `P(walk | shoes)`. Even if I often wear those shoes for a walk, seeing them does not guarantee one. The prior matters too.
