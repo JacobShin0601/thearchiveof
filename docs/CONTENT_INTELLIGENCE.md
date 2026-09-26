@@ -8,7 +8,7 @@ Measurement exists to decide what to write, refresh, connect, merge, or stop inv
 
 ### Owner actions that require account access
 
-1. After the custom domain is connected to Production, enable Cloudflare Web Analytics **for thearchiveof.com only** (Workers & Pages → project → Metrics → Web Analytics). Do not attach Preview `*.pages.dev` hosts. Put the site token in `src/site.config.ts`. Do not add a second analytics script.
+1. Cloudflare Pages Web Analytics automatically injects one script into Production and Preview HTML. The Pages analytics site includes `thearchiveof.pages.dev` and `thearchiveof.com`; filter by hostname when reading reports. Keep `cloudflareWebAnalyticsToken` empty in `src/site.config.ts` so the site does not add another script.
 2. Verify the production domain in Google Search Console and submit `https://thearchiveof.com/sitemap-index.xml`. Put the verification code in `src/site.config.ts`.
 3. Once a month, export or copy the relevant Cloudflare and Search Console observations into the monthly review record. Interaction counts (Useful, example runs, language switches) live in the Preview/Production D1 databases; see `docs/interactivity.md`.
 4. Approve editorial decisions that change the author's thesis, merge articles, or remove published URLs.
