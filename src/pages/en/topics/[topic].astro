@@ -20,7 +20,7 @@ const posts = allPosts
     || (b.data.updatedDate ?? b.data.publishedDate).valueOf() - (a.data.updatedDate ?? a.data.publishedDate).valueOf());
 const definition = topicDefinition(topic);
 const pillar = posts.find((post) => post.data.pillar);
-const indexable = Boolean(definition?.indexable && posts.length >= 3 && pillar);
+const indexable = Boolean(definition?.indexable && posts.length >= 2);
 const availableTopics = new Set(allPosts.flatMap((post) => post.data.topics));
 const relatedTopics = definition?.related.filter((related) => availableTopics.has(related)) ?? [];
 const groups = [
