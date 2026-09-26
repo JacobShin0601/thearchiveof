@@ -1,0 +1,116 @@
+---
+title: 'Who Disappears First: The AI Team or the Business Teams?'
+description: 'As agents take on more work, which team changes first? A task-level view of how enterprise AI may reshape both builders and business practitioners.'
+publishedDate: 2026-09-26
+section: 'AI & AX'
+subsection: 'AX'
+contentType: research
+topics: [ax, enterprise-ai, ai-agents]
+primaryTopic: ax
+tags: [ax, enterprise-ai, agents, workflow-design, organization-design]
+author: 'Jacob Shin'
+language: en
+translationKey: who-disappears-first-ai-or-business-teams
+localization:
+  locale: en-US
+  strategy: localized-adaptation
+draft: false
+featured: false
+comments: false
+pillar: false
+freshness: evergreen
+lastReviewed: 2026-09-26
+nextReviewDate: 2027-03-26
+series: 'Enterprise AX'
+seriesOrder: 3
+references:
+  - title: 'AI 2040: Plan A'
+    url: 'https://ai-2040.com/'
+    publisher: 'AI Futures Project'
+  - title: 'Economics of Plan A'
+    url: 'https://ai-2040.com/supplements/economics-of-plan-a'
+    publisher: 'AI Futures Project'
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AxWorkforceDiagrams from '../../../../components/AxWorkforceDiagrams.astro';
+
+<AnswerBlock question="Will AI replace the team building it or the business teams using it first?">
+  Neither department is likely to vanish all at once. Agents can take on tasks embedded in both groups' jobs. The remaining work is then recombined into different roles. AI may redraw the work inside the org chart before it erases boxes from the chart.
+</AnswerBlock>
+
+As a company expands its AI transformation program, excitement is rarely the only response. Fatigue and anxiety grow too. I have seen the argument play out in an anonymous employee forum: the people building AI will be displaced first by coding agents; no, the business teams receiving AI will be displaced first. Each side asks which group is safer.
+
+I suspect the way AX is introduced contributes more to this resistance than AI itself. That deserves a separate article. Here I want to stay with the question the argument raises: **which team disappears first?**
+
+I think the question starts at the wrong level. **AI is more likely to decompose the work inside a job than to erase a department in one move.**
+
+## Jobs change one task at a time
+
+A job is a bundle, not a single activity. A Market Intelligence analyst searches for information, reads documents, reconciles numbers, builds models, forms hypotheses, writes reports, coordinates with other teams, explains conclusions, and supports decisions.
+
+Agents may be able to take on research, synthesis, and first-pass analysis sooner than they can decide which question matters, supply missing market context, or choose between conflicting interpretations. The parts of the job do not move at the same speed.
+
+The familiar story runs `AI → job → replacement`. A more useful lens for enterprise work is `job → task decomposition → partial automation → role redesign`. Instead of asking whether the analyst is replaced, ask how the analyst's bundle of work changes. **Automation begins in the task list before it appears in the org chart.**
+
+<AxWorkforceDiagrams kind="tasks" language="en" id="ax-tasks-en" caption="Tasks move before departments do, and roles are recombined." />
+
+The [Economics of Plan A](https://ai-2040.com/supplements/economics-of-plan-a) also models automation in terms of economically relevant tasks. Its assumptions about the pace and extent of automation are far more aggressive than the claim I am making here. I borrow its unit of analysis, **the task**, not its forecast.
+
+## The AI team is not outside the automation frontier
+
+The argument that AI teams may change early has merit. Code and repositories are digital. Many outputs can be tested, and feedback can arrive quickly. Coding, unit tests, boilerplate, debugging, documentation, integrations, deployment configuration, and evaluation scripts all contain work that agents may take on.
+
+The 2027 chapter of [AI 2040](https://ai-2040.com/) depicts AI companies trying to automate their own AI R&D. That is a scenario premise, not evidence that a particular company's AI team will soon disappear. It does challenge the comfortable idea that the people building AI are automatically the safest from its effects.
+
+As agents do more implementation work, an AI team's center of gravity can shift. Someone still has to select the workflows worth changing, design the agent architecture, route models, govern data access, secure the system, evaluate outputs, monitor failures, set cost limits, and decide when a human must step in. Platform and workflow design become as important as building an individual model or application.
+
+**The more code AI writes, the more the AI team may resemble a systems design group rather than a coding group.** Automating tasks inside that team is different from eliminating the function it serves.
+
+## Business teams have to reassemble their work too
+
+Practitioners can spend less time searching, repeating analyses, monitoring signals, running simulations, and drafting reports. That does not settle the rest of the job.
+
+Recognizing a constraint the customer never stated, choosing plausible assumptions, handling an exception, and aligning stakeholders all depend on organizational context. Above all, **producing an answer and being accountable for it are different things.**
+
+This does not mean every practitioner must keep gathering every source or making every slide by hand. More time may go to defining the goal, delegating work to agents, checking the output, asking for a counterargument, and helping make the decision. A role dominated by execution can become one weighted toward context, judgment, and accountability.
+
+<AxWorkforceDiagrams kind="evolution" language="en" id="ax-evolution-en" caption="The two teams meet in workflow design." />
+
+## What if one person works with a small agent workforce?
+
+[AI 2040's Plan A](https://ai-2040.com/) imagines a 2027 world with two workforces, people and AI agents. Its 2028 chapter describes many white-collar jobs as involving the management of agents. The authors explicitly describe Plan A as a scenario used to communicate and stress-test policy recommendations, not their best-guess prediction of what will happen. I would not turn its dates into a corporate forecast.
+
+But scale that thought experiment down to one company. A Market Intelligence analyst might ask several research agents to investigate different sources, a simulation agent to vary assumptions, and a critic agent to look for holes. The person no longer needs to perform every step directly. Their work moves toward setting direction and taking responsibility for the quality of the result.
+
+<AxWorkforceDiagrams kind="workforces" language="en" id="ax-workforces-en" caption="One person directs several agents, then verifies their work." />
+
+Headcount alone may then become a poor measure of capacity: human capacity and agent capacity work together. More agents do not automatically produce better answers, though. Give several agents a mistaken goal and the mistakes may multiply just as quickly. Nor should we assume every office worker becomes an "agent manager." The mix of direct work and delegation will vary by task.
+
+## Which tasks move first?
+
+I would examine five properties of a task: **how clearly its rules can be specified, whether the required data is digital and available, how well the output can be evaluated, how quickly feedback arrives, and how costly failure is to the people who own the decision.**
+
+<AxWorkforceDiagrams kind="frontier" language="en" id="ax-frontier-en" caption="The same five questions lead to different divisions of labor." />
+
+Drafting code or summarizing documents may move relatively quickly when inputs and outputs can be checked. Negotiation and final approval, where context and accountability are substantial, call for more careful adoption. These are task properties, not fixed rankings of professions. Even when the technology is capable, data access, cost, evaluation, and organizational acceptance affect when it can be used in practice.
+
+## A role can survive while headcount changes
+
+Saying both functions remain important does **not** mean their staffing stays constant. Either group might produce the same output with fewer people. It might also use the same number of people to do work that previously cost too much time or money to attempt.
+
+Technology alone does not decide whether a productivity gain becomes cost reduction or output expansion. Strategy, demand, and competition matter. Skipping this question while saying "people will still have a role" would miss a real source of anxiety.
+
+The boundary between the two groups may also become less clear. AI teams need deeper domain knowledge; business teams need greater fluency in what AI systems can do and how they fail. Titles such as AX Architect, AI Product Owner, or Domain AI Lead may appear, but the titles are incidental. What matters is the **ability to design workflows where technology and domain knowledge meet**.
+
+## Could both groups eventually disappear?
+
+I cannot rule out a much more distant world in which nearly all cognitive labor is automated. The [Economics of Plan A](https://ai-2040.com/supplements/economics-of-plan-a) explores an aggressive scenario in which AI and robots can perform almost all economically relevant tasks. Its authors acknowledge that their expectations about AI capability differ sharply from those of most mainstream economists. On that time horizon, I do not know.
+
+My claim is narrower: in enterprise AX today, the useful unit to observe and redesign is more often the **task** than the department. Human organizations may not be safe forever, but "which department gets deleted first?" is a poor guide to the changes we need to make now.
+
+So which disappears first, the AI team or the business teams?
+
+**Probably neither as a whole. The tasks people perform inside both groups are more likely to move first.** AI teams may shift from implementation toward platforms and systems design. Business teams may shift from manual execution toward problem definition and judgment.
+
+Perhaps AI's most immediate organizational effect is not deciding whether people exist in the company. It is changing where they spend their time.
