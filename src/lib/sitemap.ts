@@ -7,17 +7,34 @@ type Language = 'ko' | 'en';
 
 type PublishedPost = {
   language: Language;
+  section?: string;
+  subsection?: string;
   series?: string;
   topics: string[];
-  pillar: boolean;
 };
 
 type SitemapInventory = {
+  sectionPaths: Set<string>;
+  subsectionPaths: Set<string>;
   seriesPaths: Set<string>;
   indexableTopicPaths: Set<string>;
 };
 
 const postsRoot = fileURLToPath(new URL('../content/posts', import.meta.url));
+const sectionSlugs: Record<string, string> = {
+  Investing: 'investing',
+  'AI & AX': 'ai',
+  Lab: 'coding',
+  Mathematics: 'math',
+  Perspectives: 'misc',
+};
+const subsectionSlugOverrides: Record<string, string> = {
+  'Rates & Fixed Income': 'rates',
+  'Data & Notebooks': 'data',
+  'Agentic Engineering': 'ai-engineering',
+  'Short Notes': 'notes',
+};
+const knownSectionSlugs = new Set(Object.values(sectionSlugs));
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -116,18 +133,29 @@ function loadPublishedPosts() {
 
     return [{
       language: data.language === 'en' ? 'en' : 'ko',
+      section: typeof data.section === 'string' ? data.section : undefined,
+      subsection: typeof data.subsection === 'string' ? data.subsection : undefined,
       series: typeof data.series === 'string' && data.series ? data.series : undefined,
       topics: asStringList(data.topics),
-      pillar: data.pillar === true,
     }];
   });
 }
 
 function buildInventory(): SitemapInventory {
+  const sectionPaths = new Set<string>();
+  const subsectionPaths = new Set<string>();
   const seriesPaths = new Set<string>();
   const postsByTopic = new Map<string, PublishedPost[]>();
 
   for (const post of loadPublishedPosts()) {
+    const sectionSlug = post.section ? sectionSlugs[post.section] : undefined;
+    if (sectionSlug) {
+      sectionPaths.add(languagePath(post.language, `/${sectionSlug}/`));
+      if (post.subsection) {
+        const subsectionSlug = subsectionSlugOverrides[post.subsection] ?? slugify(post.subsection);
+        subsectionPaths.add(languagePath(post.language, `/${sectionSlug}/${subsectionSlug}/`));
+      }
+    }
     if (post.series) seriesPaths.add(languagePath(post.language, `/series/${slugify(post.series)}/`));
 
     for (const topic of post.topics) {
@@ -145,12 +173,12 @@ function buildInventory(): SitemapInventory {
     const language: Language = key.startsWith('en:') ? 'en' : 'ko';
     const topic = key.slice(language.length + 1);
     const definition = registry.get(topic);
-    if (definition?.indexable && topicPosts.length >= 3 && topicPosts.some((post) => post.pillar)) {
+    if (definition?.indexable && topicPosts.length >= 2) {
       indexableTopicPaths.add(languagePath(language, `/topics/${slugify(topic)}/`));
     }
   }
 
-  return { seriesPaths, indexableTopicPaths };
+  return { sectionPaths, subsectionPaths, seriesPaths, indexableTopicPaths };
 }
 
 function isSeriesDetail(pathname: string) {
@@ -161,16 +189,25 @@ function isTopicHub(pathname: string) {
   return /^\/(?:en\/)?topics\/[^/]+\/$/.test(pathname);
 }
 
+function sectionHubDepth(pathname: string) {
+  const parts = pathname.split('/').filter(Boolean);
+  if (parts[0] === 'en') parts.shift();
+  if (!parts[0] || !knownSectionSlugs.has(parts[0])) return 0;
+  return parts.length;
+}
+
 let inventory: SitemapInventory | undefined;
 
 export function isPublicSitemapPath(pathname: string) {
   const path = normalizePathname(pathname);
-  // Section and subsection hubs stay in the sitemap even before they have posts.
   if (path.startsWith('/ops/')) return false;
 
   inventory ??= buildInventory();
 
   if (isTopicHub(path)) return inventory.indexableTopicPaths.has(path);
   if (isSeriesDetail(path)) return inventory.seriesPaths.has(path);
+  const sectionDepth = sectionHubDepth(path);
+  if (sectionDepth === 1) return inventory.sectionPaths.has(path);
+  if (sectionDepth === 2) return inventory.subsectionPaths.has(path);
   return true;
 }
