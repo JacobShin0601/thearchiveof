@@ -1,0 +1,83 @@
+---
+title: "A Profit Beat, a Falling Stock: What Can the Data Tell Us?"
+subtitle: "An interactive look at Samsung's July 2026 earnings guidance"
+description: "Compare Samsung's earnings-day return with the KOSPI and SK hynix, then change the assumed earnings estimate to see what a surprise can and cannot explain."
+publishedDate: 2026-09-27
+section: "Lab"
+subsection: "Experiments"
+contentType: "research"
+topics:
+  - bayesian-inference
+  - portfolio
+primaryTopic: bayesian-inference
+tags:
+  - earnings-surprise
+  - event-study
+  - samsung-electronics
+  - market-expectations
+  - data-visualization
+draft: true
+language: "en"
+translationKey: "samsung-earnings-event-lab"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+dataSources:
+  - "Samsung Electronics earnings guidance, 2026-07-07"
+  - "Reuters/LSEG SmartEstimate, 2026-07-07"
+  - "aikstockdata historical-close API (underlying FSC open data portal), checked 2026-09-27"
+methodology: "Daily close returns are rebased to the July 6, 2026 close. Simple differences versus a comparator are descriptive, not causal effects or formal market-model abnormal returns."
+dataThrough: 2026-09-22
+freshness: time-sensitive
+lastReviewed: 2026-09-27
+nextReviewDate: 2026-10-27
+references:
+  - title: "Samsung Electronics Announces Earnings Guidance for Second Quarter 2026"
+    url: "https://news.samsung.com/global/samsung-electronics-announces-earnings-guidance-for-second-quarter-2026"
+    publisher: "Samsung Electronics"
+  - title: "Samsung flags 19-fold jump in profit, but shares slump"
+    url: "https://www.investing.com/news/stock-market-news/samsung-flags-19fold-jump-in-profit-but-shares-slump-on-jitters-ai-boom-may-stall-4783723"
+    publisher: "Reuters"
+  - title: "Korean Stock Data API and licence"
+    url: "https://aikstockdata.com/en/api"
+    publisher: "aikstockdata"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import SamsungEarningsLab from '../../../../components/interactive/SamsungEarningsLab.astro';
+
+<AnswerBlock question="Can one earnings-day chart tell us why a stock fell?">
+  **No.** It can first separate the stock's observed move from what happened to the market and a close peer. Samsung guided to profit above one published estimate on July 7, 2026, while its stock, the KOSPI, and SK hynix all fell. This Lab lets us compare those observations and identify what remains unexplained.
+</AnswerBlock>
+
+Our [efficient-markets essay](/en/investing/markets/efficient-markets-bayesian-lens/) used this Samsung announcement to discuss the idea of news being “already priced in.” Here we slow down and inspect the numbers.
+
+On July 7, 2026, Samsung **guided** to second-quarter revenue of about **₩171 trillion** and operating profit of about **₩89.4 trillion**. The profit figure exceeded the **₩87.3 trillion** LSEG SmartEstimate cited by Reuters by about **₩2.1 trillion**, or **2.4%**. Its shares nevertheless closed at **₩296,000**, down from **₩318,000** the previous session: roughly **−6.9%**. The KOSPI fell about **4.9%**, and SK hynix about **6.1%** that day. [Samsung guidance](https://news.samsung.com/global/samsung-electronics-announces-earnings-guidance-for-second-quarter-2026), [Reuters reporting](https://www.investing.com/news/stock-market-news/samsung-flags-19fold-jump-in-profit-but-shares-slump-on-jitters-ai-boom-may-stall-4783723), [historical-close API](https://aikstockdata.com/en/api)
+
+“Profit beat the estimate” and “the shares fell” are both true. The word **because** between them requires more evidence.
+
+## Explore the event
+
+The chart loads historical daily closes for Samsung, SK hynix, and the KOSPI from the [aikstockdata API](https://aikstockdata.com/en/api), whose underlying price source is Korea's Financial Services Commission open data portal. The key figures above and the argument below remain readable if the API is unavailable. **Daily closes cannot show what happened in the minutes immediately after the announcement.**
+
+<SamsungEarningsLab language="en" />
+
+## What changes with the comparator?
+
+Subtracting the KOSPI's roughly **−4.9%** from Samsung's roughly **−6.9%** yields a simple **−2.0 percentage-point** difference on announcement day. It tells us that the whole market fell sharply. It does **not** mean earnings guidance caused precisely two percentage points of Samsung's decline. Samsung itself is part of the KOSPI, and the stock does not normally move one-for-one with the index.
+
+Switch to SK hynix and the shared semiconductor selloff becomes visible. SK hynix is not a perfect counterfactual for what Samsung would have done without the announcement: the firms differ, and both could react to the same industry and market news.
+
+Looking at prices around a dated announcement is an **event study**. Our simple difference is not a formal abnormal-return estimate or a causal effect. A fuller study would estimate normal market sensitivity from earlier data and check for other news in the event window. [Reserve Bank of Australia event-study methodology](https://www.rba.gov.au/publications/rdp/2004/2004-02/methodology.html)
+
+## Changing an estimate does not change history
+
+The second control changes an assumed operating-profit estimate. It computes:
+
+**Surprise = (announced profit ÷ assumed estimate − 1) × 100**
+
+Using the **₩87.3 trillion** LSEG estimate cited by Reuters gives about **+2.4%**. Assume instead **₩90 trillion**, and the same announcement becomes a roughly **−0.7%** surprise. This is a thought experiment about the benchmark you bring to the news. It does not rewrite the historical consensus or identify the cause of the actual share-price decline. [Reuters/LSEG](https://www.investing.com/news/stock-market-news/samsung-flags-19fold-jump-in-profit-but-shares-slump-on-jitters-ai-boom-may-stall-4783723)
+
+Reuters reported elevated prior expectations, worries about the durability of AI spending, and a wider chip selloff; one analyst also pointed to disappointment with revenue. A single profit estimate cannot summarize **everything** investors had priced in. [Reuters reporting](https://www.investing.com/news/stock-market-news/samsung-flags-19fold-jump-in-profit-but-shares-slump-on-jitters-ai-boom-may-stall-4783723)
+
+The modest but useful conclusion: **good earnings, an earnings surprise, and the day's stock return are different measurements.** Putting them side by side sharpens the question. One episode cannot test how much was priced in or settle the efficient-market hypothesis. That would require a consistently assembled sample of announcement times, pre-announcement estimates, and prices across many quarters.
