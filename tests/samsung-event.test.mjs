@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { eventRows, surprisePercent } from '../src/lib/samsung-event.ts';
+import { eventRows, preEventReturn, surprisePercent } from '../src/lib/samsung-event.ts';
 
 describe('Samsung earnings Lab calculations', () => {
   const samsung = [['20260703', 309500], ['20260706', 318000], ['20260707', 296000], ['20260708', 277500]];
@@ -26,5 +26,15 @@ describe('Samsung earnings Lab calculations', () => {
     assert.ok(Math.abs(surprisePercent(89.4, 87.3) - 2.4055) < .001);
     assert.ok(Math.abs(surprisePercent(89.4, 90) + .6667) < .001);
     assert.ok(Number.isNaN(surprisePercent(89.4, 0)));
+  });
+
+  it('keeps the broad view asymmetric and calculates the pre-event move', () => {
+    const start = Date.UTC(2026, 4, 8);
+    const rows = Array.from({ length: 72 }, (_, i) => [new Date(start + i * 86_400_000).toISOString().slice(0, 10).replaceAll('-', ''), 100 + i]);
+    const broad = eventRows(rows, rows, rows, 60);
+    assert.equal(broad.length, 71);
+    assert.equal(broad.findIndex((row) => row.date === '20260707'), 60);
+    assert.equal(broad.at(-1).date, '20260717');
+    assert.ok(Math.abs(preEventReturn(broad[0].samsung) - ((159 / 100 - 1) * 100)) < .00001);
   });
 });

@@ -34,6 +34,7 @@ const ko = language === 'ko';
       <div class="segmented">
         <label><input type="radio" name="window" value="5" checked /><span>±5</span></label>
         <label><input type="radio" name="window" value="10" /><span>±10</span></label>
+        <label><input type="radio" name="window" value="60" /><span>{ko ? '60일 전부터' : '60 days back'}</span></label>
         <span class="trading-days">{ko ? '거래일' : 'trading days'}</span>
       </div>
     </fieldset>
@@ -48,25 +49,37 @@ const ko = language === 'ko';
       <svg data-chart viewBox="0 0 760 340" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
       <p data-loading>{ko ? '시세 API에서 종가를 불러오는 중입니다…' : 'Loading closes from the price API…'}</p>
     </div>
-    <p class="chart-note">{ko ? '수익률은 7월 6일 종가를 0%로 놓고 계산합니다. 발표일의 하루 수익률은 별도로 아래에 표시합니다.' : 'Returns are rebased to the July 6 close. The one-day announcement return is shown separately below.'}</p>
+    <p class="chart-note">{ko ? '모든 점은 7월 6일 종가 대비입니다. 7월 7일 점만 발표 당일 하루 수익률과 같습니다.' : 'Every point is relative to the July 6 close. Only the July 7 point is also a one-day announcement return.'}</p>
   </div>
+
+  <div class="pre-window" aria-live="polite"><span data-pre-label>{ko ? '발표 전 5거래일' : 'Five trading days before'}</span><strong data-pre-return>−1.5%</strong><small>{ko ? '선택한 첫날 종가 → 7월 6일 종가. 기간을 넓혀도 선반영 여부가 자동으로 증명되지는 않습니다.' : 'First displayed close → July 6 close. A wider window does not itself prove pre-pricing.'}</small></div>
 
   <div class="readout" aria-live="polite">
     <div><span>{ko ? '선택한 날짜' : 'Selected date'}</span><strong data-date>2026.07.07</strong></div>
     <div><span>{ko ? '삼성전자 누적' : 'Samsung cumulative'}</span><strong data-samsung>−6.9%</strong></div>
     <div><span data-comparator-label>KOSPI {ko ? '누적' : 'cumulative'}</span><strong data-comparator>−4.9%</strong></div>
-    <div class="difference"><span>{ko ? '단순 차이' : 'Simple difference'}</span><strong data-difference>−2.0%p</strong></div>
+    <div class="difference"><span>{ko ? '두 수익률의 차이' : 'Return difference'}</span><strong data-difference>−2.0%p</strong></div>
   </div>
-  <label class="day-picker"><span>{ko ? '날짜를 움직여 보기' : 'Move through dates'}</span><input data-day type="range" min="0" max="10" value="5" disabled /><small>{ko ? '왼쪽: 발표 전 · 가운데: 7월 7일 · 오른쪽: 발표 후' : 'Left: before · center: July 7 · right: after'}</small></label>
+  <label class="day-picker"><span>{ko ? '날짜를 움직여 보기' : 'Move through dates'}</span><input data-day type="range" min="0" max="10" value="5" disabled /><small>{ko ? '선택 날짜의 7월 6일 대비 수익률을 보여줍니다.' : 'Shows each selected date relative to the July 6 close.'}</small></label>
 
   <details class="data-details"><summary>{ko ? '날짜별 수익률 표 보기' : 'View daily returns table'}</summary><div class="table-scroll"><table><caption>{ko ? '7월 6일 종가를 기준으로 한 누적 수익률' : 'Cumulative returns from the July 6 close'}</caption><thead><tr><th scope="col">{ko ? '날짜' : 'Date'}</th><th scope="col">{ko ? '삼성전자' : 'Samsung'}</th><th scope="col" data-table-benchmark>KOSPI</th><th scope="col">{ko ? '단순 차이' : 'Difference'}</th></tr></thead><tbody data-rows></tbody></table></div></details>
 
+  <div class="different-measures">
+    <span class="chart-overline">02 / THREE DIFFERENT QUESTIONS</span>
+    <h4>{ko ? '숫자가 다르면 묻는 질문도 다르다' : 'Different numbers, different questions'}</h4>
+    <div class="measure-grid">
+      <div><span>{ko ? '영업이익 서프라이즈' : 'Profit surprise'}</span><strong>+2.4%</strong><p>{ko ? '이번 분기 영업이익이 LSEG 예상치보다 얼마나 높았나?' : 'How far above one LSEG estimate was this quarter’s profit?'}</p></div>
+      <div><span>{ko ? '삼성전자 주가' : 'Samsung share price'}</span><strong>−6.9%</strong><p>{ko ? '미래 이익·위험·할인율을 담은 가격이 하루에 얼마나 바뀌었나?' : 'How much did the price of future cash flows and risk move in one day?'}</p></div>
+      <div><span>{ko ? '시장과의 차이' : 'Versus the market'}</span><strong>−2.0%p</strong><p>{ko ? '같은 날 KOSPI 수익률과 얼마나 달랐나? 원인별 기여도는 아니다.' : 'How different was it from the KOSPI that day? This is not causal attribution.'}</p></div>
+    </div>
+  </div>
+
   <div class="experiment">
-    <div class="experiment-heading"><span class="chart-overline">02 / EXPECTATION LAB</span><h4>{ko ? '예상치를 바꾸면 서프라이즈가 달라진다' : 'Change the estimate; change the surprise'}</h4></div>
+    <div class="experiment-heading"><span class="chart-overline">03 / ONE-NUMBER THOUGHT EXPERIMENT</span><h4>{ko ? '영업이익 예상치 하나만 바꿔 보기' : 'Change one profit estimate'}</h4></div>
     <label for="profit-estimate">{ko ? '가정한 영업이익 예상치' : 'Assumed operating-profit estimate'} <strong data-estimate>87.3</strong>{ko ? '조 원' : ' tn won'}</label>
     <input id="profit-estimate" data-estimate-input type="range" min="80" max="96" step="0.1" value="87.3" />
     <div class="experiment-axis"><span>₩80tn</span><span>{ko ? '실제 89.4조 원' : 'Actual ₩89.4tn'}</span><span>₩96tn</span></div>
-    <div class="experiment-result"><span>{ko ? '계산상 서프라이즈' : 'Calculated surprise'}</span><strong data-surprise>+2.4%</strong><p>{ko ? '실제 삼성전자 당일 수익률 −6.9%는 움직이지 않습니다. 예상치를 바꾸는 것은 가정이지, 과거 주가를 다시 계산하는 것이 아닙니다.' : 'Samsung’s actual −6.9% daily return does not move. Changing the assumed estimate does not rerun history.'}</p></div>
+    <div class="experiment-result"><span>{ko ? '이 영업이익 수치만의 계산상 서프라이즈' : 'Surprise in this profit figure alone'}</span><strong data-surprise>+2.4%</strong><p>{ko ? '실제 삼성전자 당일 수익률 −6.9%는 움직이지 않습니다. 매출, 향후 전망, 위험, 수급에 대한 시장의 기대는 이 슬라이더에 들어 있지 않습니다.' : 'Samsung’s actual −6.9% daily return does not move. This slider excludes revenue, future outlook, risk, and positioning.'}</p></div>
     <button class="reset-estimate" type="button">{ko ? '당시 LSEG 예상치로 되돌리기' : 'Reset to the reported LSEG estimate'}</button>
   </div>
 
@@ -74,7 +87,7 @@ const ko = language === 'ko';
 </section>
 
 <script>
-  import { difference, eventRows, surprisePercent, type PriceSeries } from '../../lib/samsung-event';
+  import { difference, eventRows, preEventReturn, surprisePercent, type PriceSeries } from '../../lib/samsung-event';
 
   const endpoints = {
     samsung: 'https://aikstockdata.com/data/public/s/005930_history.json',
@@ -142,6 +155,9 @@ const ko = language === 'ko';
       const rows = eventRows(samsung, hynix, kospi, readWindow());
       if (!rows.length) return;
       const eventIndex = rows.findIndex((row) => row.date === '20260707');
+      const preDays = eventIndex;
+      root.querySelector<HTMLElement>('[data-pre-label]')!.textContent = ko ? `발표 전 ${preDays}거래일` : `${preDays} trading days before`;
+      root.querySelector<HTMLElement>('[data-pre-return]')!.textContent = format(preEventReturn(rows[0].samsung));
       day.max = String(rows.length - 1);
       day.value = String(eventIndex);
       day.disabled = false;
@@ -209,5 +225,7 @@ const ko = language === 'ko';
   .experiment{background:#eaf0e8;border-radius:16px;padding:1rem 1.1rem;margin-top:1.4rem}.experiment label{display:block;margin-top:1.1rem;font-size:.88rem}.experiment label strong{font-variant-numeric:tabular-nums}.experiment-axis{display:flex;justify-content:space-between;color:var(--muted);font-size:.7rem}.experiment-result{margin-top:1rem;background:#fff;border-radius:12px;padding:.8rem 1rem;display:grid;gap:.2rem}.experiment-result span{font-size:.78rem;color:var(--muted)}.experiment-result strong{color:var(--ink);font-size:1.65rem;font-variant-numeric:tabular-nums}.experiment-result p{margin:0;color:var(--muted);font-size:.78rem}.reset-estimate{margin-top:.8rem;padding:.5rem .7rem;border:1px solid #a9bca9;background:transparent;border-radius:8px;color:var(--ink);font:inherit;font-size:.8rem;cursor:pointer}.reset-estimate:hover{background:#fff}.source-line{font-size:.72rem;color:var(--muted);line-height:1.5;margin:1.1rem 0 0}.source-line a{color:var(--ink)}
   @media(max-width:620px){.lab-heading{display:block}.lab-badge{display:inline-block;margin-top:.7rem}.fact-grid{grid-template-columns:1fr 1fr}.fact-grid>div:last-child{grid-column:span 2}.readout{grid-template-columns:1fr 1fr}.lab-controls{display:block}.lab-controls fieldset+fieldset{margin-top:.9rem}.chart-heading{display:block}.legend{margin-top:.55rem}.chart-frame,.chart-frame svg{min-height:190px}}
   .experiment-axis{position:relative}.experiment-axis span:nth-child(2){position:absolute;left:58.75%;transform:translateX(-50%);white-space:nowrap}
+  .pre-window{margin:.75rem 0 1.15rem;padding:.75rem 1rem;background:#e8efe8;border-left:3px solid #315b45;border-radius:0 10px 10px 0;display:grid;grid-template-columns:1fr auto;gap:.1rem .5rem}.pre-window span{font-size:.8rem;color:var(--muted);font-weight:700}.pre-window strong{font-size:1.35rem;color:var(--ink);font-variant-numeric:tabular-nums}.pre-window small{grid-column:1/-1;color:var(--muted);font-size:.75rem;line-height:1.45}.different-measures{margin-top:1.35rem;padding:1.1rem;background:#fff;border:1px solid var(--line);border-radius:16px}.different-measures h4{margin:.3rem 0 .9rem;font-size:1.1rem}.measure-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem}.measure-grid>div{padding:.7rem;border:1px solid var(--line);border-radius:10px;display:grid;align-content:start;gap:.2rem}.measure-grid span{font-size:.75rem;color:var(--muted)}.measure-grid strong{font-size:1.3rem;font-variant-numeric:tabular-nums}.measure-grid p{margin:.1rem 0 0;font-size:.75rem;line-height:1.45;color:var(--muted)}
   @media(max-width:620px){.chart-frame{overflow-x:auto;min-height:260px}.chart-frame svg{min-width:620px;min-height:260px}}
+  @media(max-width:620px){.measure-grid{grid-template-columns:1fr}.measure-grid>div{grid-template-columns:1fr auto;align-items:center}.measure-grid p{grid-column:1/-1}.segmented{flex-wrap:wrap}}
 </style>
