@@ -1,0 +1,213 @@
+---
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+---
+
+<section class="earnings-lab" data-samsung-lab data-language={language} aria-labelledby="lab-title">
+  <div class="lab-heading">
+    <div>
+      <p class="lab-kicker">THE ARCHIVE / LAB 01</p>
+      <h3 id="lab-title">{ko ? '좋은 실적, 하락한 주가' : 'A profit beat, a falling share price'}</h3>
+      <p>{ko ? '2026년 7월 7일을 중심으로 비교 기준을 바꿔 보세요.' : 'Change the comparison around July 7, 2026.'}</p>
+    </div>
+    <span class="lab-badge">{ko ? '실제 일별 종가' : 'Actual daily closes'}</span>
+  </div>
+
+  <div class="fact-grid" aria-label={ko ? '확인된 발표 당일 수치' : 'Verified announcement-day figures'}>
+    <div><span>{ko ? '잠정 영업이익' : 'Guided operating profit'}</span><strong>{ko ? '89.4조 원' : '₩89.4tn'}</strong><small>{ko ? 'LSEG 예상치 87.3조 원' : 'LSEG estimate ₩87.3tn'}</small></div>
+    <div><span>{ko ? '컨센서스 대비' : 'Versus consensus'}</span><strong class="positive">+2.4%</strong><small>{ko ? '영업이익 기준' : 'Operating profit'}</small></div>
+    <div><span>{ko ? '삼성전자 당일' : 'Samsung that day'}</span><strong class="negative">−6.9%</strong><small>{ko ? '전일 종가 대비' : 'Close to close'}</small></div>
+  </div>
+
+  <div class="lab-controls">
+    <fieldset>
+      <legend>{ko ? '비교 대상' : 'Compare with'}</legend>
+      <div class="segmented">
+        <label><input type="radio" name="benchmark" value="kospi" checked /><span>KOSPI</span></label>
+        <label><input type="radio" name="benchmark" value="hynix" /><span>{ko ? 'SK하이닉스' : 'SK hynix'}</span></label>
+        <label><input type="radio" name="benchmark" value="none" /><span>{ko ? '삼성전자만' : 'Samsung only'}</span></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>{ko ? '관찰 범위' : 'Window'}</legend>
+      <div class="segmented">
+        <label><input type="radio" name="window" value="5" checked /><span>±5</span></label>
+        <label><input type="radio" name="window" value="10" /><span>±10</span></label>
+        <span class="trading-days">{ko ? '거래일' : 'trading days'}</span>
+      </div>
+    </fieldset>
+  </div>
+
+  <div class="chart-shell">
+    <div class="chart-heading">
+      <div><span class="chart-overline">01 / EVENT WINDOW</span><h4>{ko ? '발표 전날 종가 = 0%' : 'Previous close = 0%'}</h4></div>
+      <div class="legend"><span><i class="swatch samsung"></i>{ko ? '삼성전자' : 'Samsung'}</span><span data-benchmark-legend><i class="swatch benchmark"></i>KOSPI</span></div>
+    </div>
+    <div class="chart-frame" role="img" aria-label={ko ? '발표일 전후 삼성전자와 비교 대상의 누적 수익률 선 차트. 아래 표에 동일한 수치가 제공됩니다.' : 'Line chart of Samsung and comparator returns around the announcement. Equivalent values are in the table below.'}>
+      <svg data-chart viewBox="0 0 760 340" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+      <p data-loading>{ko ? '시세 API에서 종가를 불러오는 중입니다…' : 'Loading closes from the price API…'}</p>
+    </div>
+    <p class="chart-note">{ko ? '수익률은 7월 6일 종가를 0%로 놓고 계산합니다. 발표일의 하루 수익률은 별도로 아래에 표시합니다.' : 'Returns are rebased to the July 6 close. The one-day announcement return is shown separately below.'}</p>
+  </div>
+
+  <div class="readout" aria-live="polite">
+    <div><span>{ko ? '선택한 날짜' : 'Selected date'}</span><strong data-date>2026.07.07</strong></div>
+    <div><span>{ko ? '삼성전자 누적' : 'Samsung cumulative'}</span><strong data-samsung>−6.9%</strong></div>
+    <div><span data-comparator-label>KOSPI {ko ? '누적' : 'cumulative'}</span><strong data-comparator>−4.9%</strong></div>
+    <div class="difference"><span>{ko ? '단순 차이' : 'Simple difference'}</span><strong data-difference>−2.0%p</strong></div>
+  </div>
+  <label class="day-picker"><span>{ko ? '날짜를 움직여 보기' : 'Move through dates'}</span><input data-day type="range" min="0" max="10" value="5" disabled /><small>{ko ? '왼쪽: 발표 전 · 가운데: 7월 7일 · 오른쪽: 발표 후' : 'Left: before · center: July 7 · right: after'}</small></label>
+
+  <details class="data-details"><summary>{ko ? '날짜별 수익률 표 보기' : 'View daily returns table'}</summary><div class="table-scroll"><table><caption>{ko ? '7월 6일 종가를 기준으로 한 누적 수익률' : 'Cumulative returns from the July 6 close'}</caption><thead><tr><th scope="col">{ko ? '날짜' : 'Date'}</th><th scope="col">{ko ? '삼성전자' : 'Samsung'}</th><th scope="col" data-table-benchmark>KOSPI</th><th scope="col">{ko ? '단순 차이' : 'Difference'}</th></tr></thead><tbody data-rows></tbody></table></div></details>
+
+  <div class="experiment">
+    <div class="experiment-heading"><span class="chart-overline">02 / EXPECTATION LAB</span><h4>{ko ? '예상치를 바꾸면 서프라이즈가 달라진다' : 'Change the estimate; change the surprise'}</h4></div>
+    <label for="profit-estimate">{ko ? '가정한 영업이익 예상치' : 'Assumed operating-profit estimate'} <strong data-estimate>87.3</strong>{ko ? '조 원' : ' tn won'}</label>
+    <input id="profit-estimate" data-estimate-input type="range" min="80" max="96" step="0.1" value="87.3" />
+    <div class="experiment-axis"><span>₩80tn</span><span>{ko ? '실제 89.4조 원' : 'Actual ₩89.4tn'}</span><span>₩96tn</span></div>
+    <div class="experiment-result"><span>{ko ? '계산상 서프라이즈' : 'Calculated surprise'}</span><strong data-surprise>+2.4%</strong><p>{ko ? '실제 삼성전자 당일 수익률 −6.9%는 움직이지 않습니다. 예상치를 바꾸는 것은 가정이지, 과거 주가를 다시 계산하는 것이 아닙니다.' : 'Samsung’s actual −6.9% daily return does not move. Changing the assumed estimate does not rerun history.'}</p></div>
+    <button class="reset-estimate" type="button">{ko ? '당시 LSEG 예상치로 되돌리기' : 'Reset to the reported LSEG estimate'}</button>
+  </div>
+
+  <p class="source-line">{ko ? '시세: 한국주식데이터 API(원천: 금융위원회 공공데이터포털), 일별 확정 종가. 발표·컨센서스: 삼성전자, Reuters. 과거 자료를 조회하며 실시간 시세가 아닙니다.' : 'Closes: aikstockdata API (underlying source: Korea FSC open data portal). Announcement and consensus: Samsung and Reuters. Historical, not real-time data.'} <a href="https://aikstockdata.com/en/api">{ko ? 'API·이용 조건' : 'API and terms'}</a></p>
+</section>
+
+<script>
+  import { difference, eventRows, surprisePercent, type PriceSeries } from '../../lib/samsung-event';
+
+  const endpoints = {
+    samsung: 'https://aikstockdata.com/data/public/s/005930_history.json',
+    hynix: 'https://aikstockdata.com/data/public/s/000660_history.json',
+    index: 'https://aikstockdata.com/data/public/market_index_history.json',
+  };
+  const NS = 'http://www.w3.org/2000/svg';
+  const make = (tag: string, attributes: Record<string, string> = {}) => {
+    const node = document.createElementNS(NS, tag);
+    Object.entries(attributes).forEach(([name, value]) => node.setAttribute(name, value));
+    return node;
+  };
+  const format = (n: number, suffix = '%') => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(1)}${suffix}`;
+  const dateLabel = (date: string) => `${date.slice(0, 4)}.${date.slice(4, 6)}.${date.slice(6, 8)}`;
+
+  async function fetchJson(url: string) {
+    const response = await fetch(url, { mode: 'cors' });
+    if (!response.ok) throw new Error(`Price API HTTP ${response.status}`);
+    return response.json();
+  }
+
+  function draw(svg: SVGSVGElement, rows: ReturnType<typeof eventRows>, benchmark: 'kospi' | 'hynix' | 'none', ko: boolean) {
+    svg.replaceChildren();
+    const values = rows.flatMap((row) => benchmark === 'none' ? [row.samsung] : [row.samsung, row[benchmark]]);
+    const min = Math.floor((Math.min(...values, 0) - 2) / 5) * 5;
+    const max = Math.ceil((Math.max(...values, 0) + 2) / 5) * 5;
+    const x = (i: number) => 62 + i * (680 / Math.max(rows.length - 1, 1));
+    const y = (v: number) => 282 - (v - min) / (max - min) * 230;
+    for (let tick = Math.ceil(min / 5) * 5; tick <= max; tick += 5) {
+      const line = make('line', { x1: '62', x2: '742', y1: String(y(tick)), y2: String(y(tick)), stroke: tick === 0 ? '#aaa99f' : '#e1dfd7', 'stroke-width': tick === 0 ? '1.5' : '1' });
+      svg.append(line);
+      const label = make('text', { x: '48', y: String(y(tick) + 4), 'text-anchor': 'end', fill: '#73756e', 'font-size': '12' }); label.textContent = `${tick}%`; svg.append(label);
+    }
+    const eventIndex = rows.findIndex((row) => row.date === '20260707');
+    if (eventIndex >= 0) {
+      const band = make('rect', { x: String(x(eventIndex) - 14), y: '40', width: '28', height: '242', fill: '#edf0e8' });
+      svg.insertBefore(band, svg.firstChild);
+      const event = make('text', { x: String(x(eventIndex)), y: '31', 'text-anchor': 'middle', fill: '#46664f', 'font-size': '12', 'font-weight': '700' });
+      event.textContent = ko ? '실적 발표' : 'GUIDANCE'; svg.append(event);
+    }
+    const plot = (key: 'samsung' | 'kospi' | 'hynix', color: string, width: string) => {
+      const path = make('path', { d: rows.map((row, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(row[key]).toFixed(1)}`).join(' '), fill: 'none', stroke: color, 'stroke-width': width, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+      svg.append(path);
+      rows.forEach((row, i) => {
+        if (i === eventIndex || i === 0 || i === rows.length - 1) svg.append(make('circle', { cx: String(x(i)), cy: String(y(row[key])), r: i === eventIndex ? '5' : '3', fill: color, stroke: '#fff', 'stroke-width': '1.5' }));
+      });
+    };
+    if (benchmark !== 'none') plot(benchmark, '#a6a295', '2.5');
+    plot('samsung', '#315b45', '3.5');
+    for (const i of [0, eventIndex, rows.length - 1]) {
+      if (i < 0) continue;
+      const label = make('text', { x: String(x(i)), y: '317', 'text-anchor': i === 0 ? 'start' : i === rows.length - 1 ? 'end' : 'middle', fill: '#73756e', 'font-size': '12' });
+      label.textContent = `${rows[i].date.slice(4, 6)}.${rows[i].date.slice(6, 8)}`; svg.append(label);
+    }
+  }
+
+  function init(root: HTMLElement, samsung: PriceSeries, hynix: PriceSeries, kospi: PriceSeries) {
+    const ko = root.dataset.language !== 'en';
+    const benchmarkName = (benchmark: string) => benchmark === 'kospi' ? 'KOSPI' : ko ? 'SK하이닉스' : 'SK hynix';
+    const readBenchmark = () => (root.querySelector<HTMLInputElement>('input[name="benchmark"]:checked')?.value ?? 'kospi') as 'kospi' | 'hynix' | 'none';
+    const readWindow = () => Number(root.querySelector<HTMLInputElement>('input[name="window"]:checked')?.value ?? 5);
+    const day = root.querySelector<HTMLInputElement>('[data-day]')!;
+    const render = () => {
+      const benchmark = readBenchmark();
+      const rows = eventRows(samsung, hynix, kospi, readWindow());
+      if (!rows.length) return;
+      const eventIndex = rows.findIndex((row) => row.date === '20260707');
+      day.max = String(rows.length - 1);
+      day.value = String(eventIndex);
+      day.disabled = false;
+      root.querySelector<HTMLElement>('[data-benchmark-legend]')!.hidden = benchmark === 'none';
+      if (benchmark !== 'none') root.querySelector<HTMLElement>('[data-benchmark-legend]')!.lastChild!.textContent = benchmarkName(benchmark);
+      draw(root.querySelector<SVGSVGElement>('[data-chart]')!, rows, benchmark, ko);
+      const table = root.querySelector<HTMLTableSectionElement>('[data-rows]')!;
+      table.replaceChildren(...rows.map((row) => {
+        const tr = document.createElement('tr');
+        const values = [dateLabel(row.date), format(row.samsung), benchmark === 'none' ? '—' : format(row[benchmark]), benchmark === 'none' ? '—' : format(difference(row.samsung, row[benchmark]), ko ? '%p' : ' pp')];
+        values.forEach((value, i) => { const cell = document.createElement(i === 0 ? 'th' : 'td'); cell.textContent = value; if (i === 0) cell.setAttribute('scope', 'row'); tr.append(cell); });
+        if (row.date === '20260707') tr.classList.add('event-row');
+        return tr;
+      }));
+      root.querySelector<HTMLElement>('[data-table-benchmark]')!.textContent = benchmark === 'none' ? '—' : benchmarkName(benchmark);
+      const select = () => {
+        const row = rows[Number(day.value)] ?? rows[eventIndex];
+        root.querySelector<HTMLElement>('[data-date]')!.textContent = dateLabel(row.date);
+        root.querySelector<HTMLElement>('[data-samsung]')!.textContent = format(row.samsung);
+        root.querySelector<HTMLElement>('[data-comparator-label]')!.textContent = benchmark === 'none' ? (ko ? '비교 대상 없음' : 'No comparator') : `${benchmarkName(benchmark)} ${ko ? '누적' : 'cumulative'}`;
+        root.querySelector<HTMLElement>('[data-comparator]')!.textContent = benchmark === 'none' ? '—' : format(row[benchmark]);
+        root.querySelector<HTMLElement>('[data-difference]')!.textContent = benchmark === 'none' ? '—' : format(difference(row.samsung, row[benchmark]), ko ? '%p' : ' pp');
+        root.querySelectorAll<HTMLTableRowElement>('[data-rows] tr').forEach((tr, i) => tr.classList.toggle('selected-row', i === Number(day.value)));
+      };
+      day.oninput = select;
+      select();
+    };
+    root.querySelectorAll<HTMLInputElement>('input[name="benchmark"], input[name="window"]').forEach((input) => input.addEventListener('change', render));
+    root.querySelector<HTMLElement>('[data-loading]')!.remove();
+    render();
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-samsung-lab]').forEach(async (root) => {
+    const estimate = root.querySelector<HTMLInputElement>('[data-estimate-input]')!;
+    const updateEstimate = () => {
+      const value = Number(estimate.value);
+      root.querySelector<HTMLElement>('[data-estimate]')!.textContent = value.toFixed(1);
+      root.querySelector<HTMLElement>('[data-surprise]')!.textContent = format(surprisePercent(89.4, value));
+    };
+    estimate.addEventListener('input', updateEstimate);
+    root.querySelector<HTMLButtonElement>('.reset-estimate')!.addEventListener('click', () => { estimate.value = '87.3'; updateEstimate(); });
+    try {
+      const [s, h, k] = await Promise.all([fetchJson(endpoints.samsung), fetchJson(endpoints.hynix), fetchJson(endpoints.index)]);
+      const valid = (rows: unknown): rows is PriceSeries => Array.isArray(rows) && rows.every((row) => Array.isArray(row) && typeof row[0] === 'string' && typeof row[1] === 'number');
+      if (!valid(s.rows) || !valid(h.rows) || !valid(k.series?.['코스피']?.rows)) throw new Error('Unexpected price API schema');
+      const event = eventRows(s.rows, h.rows, k.series['코스피'].rows, 5).find((row) => row.date === '20260707');
+      if (!event || Math.abs(event.samsung + 6.9) > .2 || Math.abs(event.kospi + 4.9) > .2 || Math.abs(event.hynix + 6.1) > .2) throw new Error('Price API differs from verified event-day closes');
+      init(root, s.rows, h.rows, k.series['코스피'].rows);
+    } catch (error) {
+      const loading = root.querySelector<HTMLElement>('[data-loading]');
+      if (loading) loading.textContent = root.dataset.language === 'en' ? 'Price API unavailable. The verified announcement-day figures above remain available.' : '시세 API에 연결하지 못했습니다. 위의 발표 당일 검증 수치는 그대로 확인할 수 있습니다.';
+      console.error('Samsung earnings lab:', error);
+    }
+  });
+</script>
+
+<style>
+  .earnings-lab{--ink:#20382c;--muted:#666b62;--line:#d9ddd2;--soft:#f3f5ef;background:#f7f8f4;border:1px solid var(--line);border-radius:22px;padding:clamp(1rem,3vw,2rem);margin:2rem 0;color:#242b25;box-shadow:0 12px 35px rgba(23,45,31,.06)}
+  .lab-heading,.chart-heading{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start}.lab-heading h3{font-size:clamp(1.5rem,3vw,2.2rem);line-height:1.2;margin:.2rem 0}.lab-heading p{margin:.45rem 0 0;color:var(--muted)}.lab-kicker,.chart-overline{font:700 .72rem/1.3 ui-monospace,monospace;letter-spacing:.12em;color:#4e6857}.lab-badge{white-space:nowrap;border:1px solid #cbd7c9;background:#eaf1e8;border-radius:999px;color:#365c42;padding:.35rem .65rem;font-size:.75rem;font-weight:700}
+  .fact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin:1.6rem 0}.fact-grid>div{background:#fff;border:1px solid var(--line);border-radius:14px;padding:.9rem;display:grid;gap:.15rem}.fact-grid span,.readout span{font-size:.78rem;color:var(--muted)}.fact-grid strong{font-size:clamp(1.4rem,3.3vw,2rem);font-variant-numeric:tabular-nums;line-height:1.25}.fact-grid small{font-size:.72rem;color:var(--muted)}.positive{color:#2e6850}.negative{color:#9b4b3e}
+  .lab-controls{display:flex;flex-wrap:wrap;gap:1.2rem;margin:1.4rem 0}.lab-controls fieldset{border:0;padding:0;margin:0}.lab-controls legend{font-size:.78rem;font-weight:700;margin-bottom:.4rem;color:var(--muted)}.segmented{display:flex;align-items:center;gap:.25rem}.segmented label{position:relative;cursor:pointer}.segmented input{position:absolute;opacity:0;inset:0}.segmented span:not(.trading-days){display:block;border:1px solid var(--line);background:#fff;border-radius:8px;padding:.45rem .7rem;font-size:.85rem;font-weight:600}.segmented input:checked+span{background:var(--ink);border-color:var(--ink);color:#fff}.segmented input:focus-visible+span{outline:3px solid #82ac8c;outline-offset:2px}.trading-days{font-size:.75rem;color:var(--muted);padding-left:.3rem}
+  .chart-shell{background:#fff;border:1px solid var(--line);border-radius:17px;padding:1rem}.chart-heading h4,.experiment h4{font-size:1.08rem;margin:.22rem 0}.legend{display:flex;gap:.9rem;flex-wrap:wrap;font-size:.78rem;color:var(--muted)}.legend span{display:inline-flex;align-items:center;gap:.3rem}.swatch{display:inline-block;width:15px;height:3px;border-radius:4px}.swatch.samsung{background:#315b45}.swatch.benchmark{background:#a6a295}.chart-frame{position:relative;min-height:260px}.chart-frame svg{display:block;width:100%;height:auto;min-height:260px}.chart-frame p{position:absolute;inset:0;display:grid;place-items:center;background:rgba(255,255,255,.9);color:var(--muted);text-align:center}.chart-note{font-size:.75rem;color:var(--muted);margin:0}
+  .readout{display:grid;grid-template-columns:repeat(4,1fr);gap:.55rem;margin:1rem 0}.readout>div{border-left:2px solid #ccd7ca;padding:.2rem .6rem;display:grid;gap:.15rem}.readout strong{font-size:1.15rem;font-variant-numeric:tabular-nums}.readout .difference{border-color:#315b45}.day-picker{display:grid;gap:.35rem;font-size:.85rem;font-weight:700}.day-picker input,.experiment input{width:100%;accent-color:#315b45}.day-picker small{font-size:.72rem;font-weight:400;color:var(--muted)}
+  .data-details{margin:1rem 0;border-top:1px solid var(--line);padding-top:.8rem}.data-details summary{cursor:pointer;font-weight:700;font-size:.85rem}.table-scroll{overflow:auto;max-height:330px}.data-details table{width:100%;border-collapse:collapse;font-size:.78rem;font-variant-numeric:tabular-nums}.data-details caption{text-align:left;color:var(--muted);padding:.6rem 0}.data-details th,.data-details td{padding:.4rem;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.data-details th:first-child{text-align:left}.data-details tr.event-row{background:#eaf1e8}.data-details tr.selected-row{outline:2px solid #719278;outline-offset:-2px}
+  .experiment{background:#eaf0e8;border-radius:16px;padding:1rem 1.1rem;margin-top:1.4rem}.experiment label{display:block;margin-top:1.1rem;font-size:.88rem}.experiment label strong{font-variant-numeric:tabular-nums}.experiment-axis{display:flex;justify-content:space-between;color:var(--muted);font-size:.7rem}.experiment-result{margin-top:1rem;background:#fff;border-radius:12px;padding:.8rem 1rem;display:grid;gap:.2rem}.experiment-result span{font-size:.78rem;color:var(--muted)}.experiment-result strong{color:var(--ink);font-size:1.65rem;font-variant-numeric:tabular-nums}.experiment-result p{margin:0;color:var(--muted);font-size:.78rem}.reset-estimate{margin-top:.8rem;padding:.5rem .7rem;border:1px solid #a9bca9;background:transparent;border-radius:8px;color:var(--ink);font:inherit;font-size:.8rem;cursor:pointer}.reset-estimate:hover{background:#fff}.source-line{font-size:.72rem;color:var(--muted);line-height:1.5;margin:1.1rem 0 0}.source-line a{color:var(--ink)}
+  @media(max-width:620px){.lab-heading{display:block}.lab-badge{display:inline-block;margin-top:.7rem}.fact-grid{grid-template-columns:1fr 1fr}.fact-grid>div:last-child{grid-column:span 2}.readout{grid-template-columns:1fr 1fr}.lab-controls{display:block}.lab-controls fieldset+fieldset{margin-top:.9rem}.chart-heading{display:block}.legend{margin-top:.55rem}.chart-frame,.chart-frame svg{min-height:190px}}
+  .experiment-axis{position:relative}.experiment-axis span:nth-child(2){position:absolute;left:58.75%;transform:translateX(-50%);white-space:nowrap}
+  @media(max-width:620px){.chart-frame{overflow-x:auto;min-height:260px}.chart-frame svg{min-width:620px;min-height:260px}}
+</style>
