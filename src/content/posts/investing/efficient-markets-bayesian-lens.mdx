@@ -66,6 +66,7 @@ references:
 
 import AnswerBlock from '../../../components/AnswerBlock.astro';
 import EMHDiagrams from '../../../components/EMHDiagrams.astro';
+import LabLinkCard from '../../../components/LabLinkCard.astro';
 
 <AnswerBlock question="‘킹반영’은 왜 그럴듯할까?">
   시장가격은 먼저 정보를 찾고 해석한 사람들이 실제 주문을 낸 결과다. 그래서 내가 발견한 정보가 이미 가격에 어느 정도 들어가 있을 수 있다. 다만 가격은 정답이나 정확한 베이즈 사후확률이 아니다. 기대뿐 아니라 위험, 유동성, 포지션, 거래 제약도 함께 반영한다.
@@ -89,7 +90,7 @@ import EMHDiagrams from '../../../components/EMHDiagrams.astro';
 
 <EMHDiagrams variant="surprise" language="ko" />
 
-이날의 삼성전자·SK하이닉스·KOSPI 종가를 직접 비교하고 싶다면 [Lab의 실적 발표일 데이터 실험](/coding/experiments/samsung-earnings-event-lab/)에서 기준을 바꿔 볼 수 있다.
+<LabLinkCard href="/coding/experiments/samsung-earnings-event-lab/" language="ko" />
 
 ## 금리 인하도, 물가도 기대와 함께 읽는다
 
