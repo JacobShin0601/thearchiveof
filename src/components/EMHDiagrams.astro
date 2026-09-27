@@ -3,7 +3,7 @@ interface Props { variant: 'timeline' | 'surprise' | 'market' | 'participants' |
 const { variant, language } = Astro.props;
 const ko = language === 'ko';
 const copy = ko ? {
-  timeline: ['숫자형 정보 발표', '기계·기관이 확인', '주문과 가격 이동', '내가 기사를 읽음'],
+  timeline: ['숫자형 정보 발표', '봇·기관이 확인', '주문과 가격 이동', '내가 기사를 읽음'],
   surprise: [
     ['실적', '실제 영업이익 89.4조 원', '컨센서스 87.3조 원', '삼성전자 · 2026.7.7'],
     ['금리', '25bp 인하', '예상된 인하 · 이후 경로는 재평가', 'Fed · 2025.10.29'],
@@ -18,7 +18,7 @@ const copy = ko ? {
   edges: ['정보', '해석', '모형', '행동', '시간 지평'],
   loop: ['가격 차이 발견', '분석', '거래', '가격 조정', '기회 축소'],
 } : {
-  timeline: ['Numeric release', 'Machines and desks process it', 'Orders move prices', 'I read the story'],
+  timeline: ['Numeric release', 'Bots and desks process it', 'Orders move prices', 'I read the story'],
   surprise: [
     ['Earnings', 'Actual profit ₩89.4tn', 'Consensus ₩87.3tn', 'Samsung · Jul 7, 2026'],
     ['Rates', '25 bp cut', 'Cut expected · path repriced', 'Fed · Oct 29, 2025'],
