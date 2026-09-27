@@ -1,6 +1,7 @@
 export const ARTICLE_KEYS = [
   "ax-is-transformation",
   "ax-should-start-narrow",
+  "bayesian-statistics-dog-walk",
   "multi-objective-optimization-battery-supply-chain",
   "pareto-optimization-dinner-with-friends",
   "vllm-tuning-limited-gpus",
