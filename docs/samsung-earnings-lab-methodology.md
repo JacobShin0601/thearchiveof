@@ -20,9 +20,11 @@ The Samsung and KOSPI figures match contemporaneous [Reuters reporting](https://
 
 - Dates are intersected across Samsung, SK hynix, and KOSPI; the event is 2026-07-07.
 - Each plotted return is `(close on date / close on 2026-07-06 - 1) * 100`.
+- The short views cover ±5 or ±10 trading dates. The wider view covers 60 trading dates before the event and 10 after. The pre-event card measures `July 6 close / first displayed close - 1`. The window is set before reading its result; the 10-day decline (−10.0%) and 60-day rise (+61.8%) must both be shown to avoid cherry-picking a pre-pricing story.
 - The simple difference is Samsung's rebased return minus the selected comparator's rebased return, in percentage points. This is descriptive. It is not a market-model abnormal return, sector-neutral return, or causal estimate.
-- The user can view ±5 or ±10 trading dates around the event and access the same values in a table.
+- The user can access the chart values in a table.
 - The estimate slider changes only the calculated profit surprise. The historical price series never changes.
+- A profit surprise is the relative difference between one quarter's operating profit and one LSEG estimate. The share-price return reflects a change in the value of future cash flows and risk; the two percentages are not directly comparable.
 - Daily closes cannot identify intraday response or all news and positioning that affected the day. One event cannot test EMH.
 
 The API is an enhancement: article text and announcement-day facts remain in static HTML. If the API cannot be reached or its event-day values fail the cross-check, the interactive chart displays an error message instead of silently substituting invented prices.
