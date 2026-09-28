@@ -1,0 +1,174 @@
+---
+title: "Efficient Markets Through a Bayesian Lens: Why Does Everything Seem Priced In?"
+description: "Samsung earnings, a Fed cut, and CPI surprises lead to a Bayesian view of how investors update beliefs, place orders, and shape prices."
+publishedDate: 2026-09-27
+section: "Investing"
+subsection: "Markets"
+contentType: "research"
+topics:
+  - bayesian-inference
+  - inflation
+primaryTopic: bayesian-inference
+tags:
+  - efficient-market-hypothesis
+  - bayesian-thinking
+  - market-expectations
+  - price-discovery
+  - alpha
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "en"
+translationKey: "efficient-markets-bayesian-lens"
+localization:
+  locale: en-US
+  strategy: localized-adaptation
+freshness: time-sensitive
+lastReviewed: 2026-09-27
+nextReviewDate: 2026-10-27
+dataThrough: 2026-09-27
+methodology: "Official releases establish earnings, policy, and CPI figures. Reuters/AP establish contemporaneous consensus and market snapshots. Coincident price moves do not identify a single cause. Diagrams are conceptual."
+references:
+  - title: "Samsung Electronics Announces Earnings Guidance for Second Quarter 2026"
+    url: "https://news.samsung.com/global/samsung-electronics-announces-earnings-guidance-for-second-quarter-2026"
+    publisher: "Samsung Electronics"
+  - title: "Samsung flags 19-fold jump in profit, but shares slump"
+    url: "https://www.investing.com/news/stock-market-news/samsung-flags-19fold-jump-in-profit-but-shares-slump-on-jitters-ai-boom-may-stall-4783723"
+    publisher: "Reuters"
+  - title: "S. Korea's KOSPI tumbles nearly 5% as chipmakers slump"
+    url: "https://www.marketscreener.com/news/s-korea-s-kospi-tumbles-8-triggering-circuit-breakers-for-sixth-time-this-year-ce7f5edbdf8ef122"
+    publisher: "Reuters"
+  - title: "FOMC statement, October 29, 2025"
+    url: "https://www.federalreserve.gov/newsevents/pressreleases/monetary20251029a.htm"
+    publisher: "Federal Reserve"
+  - title: "FOMC minutes, October 28–29, 2025"
+    url: "https://www.federalreserve.gov/monetarypolicy/fomcminutes20251029.htm"
+    publisher: "Federal Reserve"
+  - title: "Chair Powell press conference, October 29, 2025"
+    url: "https://www.federalreserve.gov/mediacenter/files/FOMCpresconf20251029.pdf"
+    publisher: "Federal Reserve"
+  - title: "Consumer Price Index, June 2026"
+    url: "https://www.bls.gov/news.release/archives/cpi_07142026.htm"
+    publisher: "U.S. Bureau of Labor Statistics"
+  - title: "CPI comes in cool, soothing markets"
+    url: "https://www.investing.com/news/economic-indicators/cpi-comes-in-cool-soothing-markets-4791058"
+    publisher: "Reuters"
+  - title: "Advances in Artificial Intelligence: Implications for Capital Market Activities"
+    url: "https://www.imf.org/-/media/files/publications/gfsr/2024/october/english/ch3.pdf"
+    publisher: "IMF"
+  - title: "Speed, Algorithmic Trading, and Market Quality around Macroeconomic News Announcements"
+    url: "https://repub.eur.nl/pub/38199"
+    publisher: "Tinbergen Institute"
+  - title: "Efficient Capital Markets: A Review of Theory and Empirical Work"
+    url: "https://people.hec.edu/rosu/wp-content/uploads/sites/43/2023/09/Fama-Efficient-capital-markets-1970.pdf"
+    publisher: "Eugene F. Fama, Journal of Finance"
+  - title: "On the Impossibility of Informationally Efficient Markets"
+    url: "https://www.pims.math.ca/files/Grossman_Stiglitz1980.pdf"
+    publisher: "Grossman and Stiglitz, American Economic Review"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import EMHDiagrams from '../../../../components/EMHDiagrams.astro';
+import LabLinkCard from '../../../../components/LabLinkCard.astro';
+
+<AnswerBlock question="Why does everything seem priced in?">
+  Prices reflect orders from people who find and interpret information before we do. A discovery can therefore be new to me and old to the market. But the price is neither an oracle nor a precise Bayesian posterior: risk, liquidity, positioning, and constraints matter too.
+</AnswerBlock>
+
+On the Korean finance channel Shuka World, you may hear the playful expression *king-ban-yeong*: an exaggerated version of “already priced in.” The joke goes, “That good news you just found? The market knew.”
+
+I once took the joke almost literally. How did institutional investors and hedge funds seem to know early enough to invest first? I would anticipate stronger semiconductor demand, only to find chip stocks had rallied already. I would expect a rate cut to lift equities, and nothing would happen. Then a company would report spectacular profit, and its shares would fall. It felt as if the market had read my mind before I had finished the thought.
+
+To make sense of that feeling, start with a day when earnings and the share price went in opposite directions.
+
+<EMHDiagrams variant="timeline" language="en" />
+
+## A record profit, followed by a falling share price
+
+On July 7, 2026, Samsung Electronics <strong>guided</strong> to second-quarter revenue of about <strong>₩171 trillion</strong> and operating profit of about <strong>₩89.4 trillion</strong>. The latter compared with ₩4.68 trillion a year earlier and beat the <strong>₩87.3 trillion</strong> LSEG SmartEstimate cited by Reuters by about <strong>₩2.1 trillion</strong>, or <strong>2.4%</strong>. Yet Samsung shares closed <strong>6.9% lower</strong> that day. SK Hynix fell <strong>6.1%</strong> and the KOSPI <strong>4.9%</strong>. These were preliminary figures, not the later final results. [Samsung guidance](https://news.samsung.com/global/samsung-electronics-announces-earnings-guidance-for-second-quarter-2026), [Reuters estimate](https://www.investing.com/news/stock-market-news/samsung-flags-19fold-jump-in-profit-but-shares-slump-on-jitters-ai-boom-may-stall-4783723), [Reuters closing report](https://www.marketscreener.com/news/s-korea-s-kospi-tumbles-8-triggering-circuit-breakers-for-sixth-time-this-year-ce7f5edbdf8ef122)
+
+How can a profit beat accompany a decline? The earnings number is only one input into a price that already reflects beliefs about future profits. Published consensus can be beaten while some investors had hoped for even more or disliked the revenue mix. Reuters reported elevated expectations, doubts about the durability of AI data-center spending, a wider semiconductor selloff, and profit-taking. Those are reported interpretations, <strong>not proof that any one factor caused a particular share of the drop</strong>. [Reuters earnings analysis](https://www.investing.com/news/stock-market-news/samsung-flags-19fold-jump-in-profit-but-shares-slump-on-jitters-ai-boom-may-stall-4783723), [Reuters market report](https://www.marketscreener.com/news/s-korea-s-kospi-tumbles-8-triggering-circuit-breakers-for-sixth-time-this-year-ce7f5edbdf8ef122)
+
+<strong>Good results do not guarantee a rising stock.</strong> Markets grade the gap between outcomes and expectations. And “expectations” are wider than one consensus estimate: forward guidance, existing positions, and appetite for risk also count.
+
+<EMHDiagrams variant="surprise" language="en" />
+
+<LabLinkCard href="/en/coding/experiments/samsung-earnings-event-lab/" language="en" />
+
+## A rate cut can change expectations about future cuts
+
+The Federal Reserve's October 29, 2025 meeting makes the point in another market. The FOMC cut its target range <strong>25 basis points to 3.75–4.00%</strong>. The Fed's own minutes say investors had expected an October cut and another in December, although the December outcome was uncertain. At his press conference, Chair Powell emphasized that another cut was not assured. The S&P 500 ended almost flat; AP reported the 10-year Treasury yield at <strong>4.07%</strong>, up from <strong>3.99%</strong> the previous day. [FOMC statement](https://www.federalreserve.gov/newsevents/pressreleases/monetary20251029a.htm), [minutes](https://www.federalreserve.gov/monetarypolicy/fomcminutes20251029.htm), [Powell transcript](https://www.federalreserve.gov/mediacenter/files/FOMCpresconf20251029.pdf), [AP market report](https://apnews.com/article/69291796738e739611fa7415a43cff02)
+
+The important update was not simply *cut or no cut*. It was the distribution of possible <strong>future rate paths</strong>. A long-bond yield also responds to other forces, so this one-day change is an illustration rather than a clean estimate of Powell's effect. This is a historical <strong>2025 cut</strong> example; the Fed's [September 2026 decision](https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm) was a <strong>25-basis-point increase</strong>.
+
+## “Inflation is high” and “inflation beat the forecast” are different statements
+
+The US <strong>June 2026 CPI</strong>, released July 14, rose <strong>3.5% year over year</strong>. That was still a sizable rise in consumer prices, but it was <strong>0.3 percentage point below</strong> the <strong>3.8%</strong> Reuters survey forecast. Month over month, CPI fell <strong>0.4%</strong> versus a forecast <strong>0.1%</strong> decline. In Reuters' snapshot after the release, the S&P 500 was <strong>up 0.3%</strong>, the Nasdaq <strong>up 0.6%</strong>, and the two-year Treasury yield <strong>down 7 basis points</strong>. These were intraday observations, not closing returns or proof that CPI alone caused them. Lower energy prices were a major part of the headline decline. [BLS release](https://www.bls.gov/news.release/archives/cpi_07142026.htm), [Reuters forecasts and market snapshot](https://www.investing.com/news/economic-indicators/cpi-comes-in-cool-soothing-markets-4791058)
+
+The <strong>newer August CPI</strong> came in at <strong>3.4% year over year</strong>, matching the Reuters headline consensus; June gives us a cleaner illustration of a surprise. [BLS August release](https://www.bls.gov/news.release/archives/cpi_09112026.htm), [Reuters consensus](https://www.marketscreener.com/news/august-core-inflation-reading-boosts-rate-hike-expectations-ce785bdfdc8af027)
+
+<strong>“Inflation is high” and “inflation is higher than expected” answer different questions.</strong> The conceptual shorthand is *evidence minus expectation equals surprise*. That is a comparison, not a formula that predicts a stock's next tick.
+
+## Watching prices brought Bayesian statistics to mind
+
+In [the preceding article on Bayesian statistics](/en/math/statistics/bayesian-statistics-dog-walk/), my dog brings the leash before I ask whether he wants to go out. Dinner ends, I close my laptop, and I put on my walking shoes. Each clue can change his apparent expectation: <strong>prior → evidence → posterior</strong>. We did not claim to measure the dog's beliefs or catch him performing probability calculations.
+
+An investor can be described with the same vocabulary. Imagine she assigns a <strong>60%</strong> chance that strong AI-memory demand will persist into next year. Fresh price data take her to <strong>70%</strong>, hyperscaler spending plans to <strong>78%</strong>, and a rival's capacity expansion back to <strong>68%</strong>. <strong>Every number is invented for illustration</strong>, not an estimate from market data or a Bayesian calculation. The point is sequential revision, with care not to count correlated evidence twice.
+
+## Now imagine millions of investors doing that
+
+They bring different priors, information sets, models, time horizons, and tolerance for risk. The same release may make one investor buy, another wait, and a third sell into strength. <strong>The dog brings a leash. The investor places an order.</strong> Orders meet in an order book, trades occur, and prices change.
+
+<EMHDiagrams variant="market" language="en" />
+
+The market price can be seen as the outcome of different judgments colliding with real money behind them. It is <strong>not</strong> a mathematically exact posterior probability of an event. Shares price future cash flows under discount rates, risk, liquidity, leverage, positions, and trading constraints.
+
+## Translating “already priced in” into Bayesian language
+
+The evidence I have just discovered—say, continued demand for AI memory—may already be part of other investors' current beliefs. So the question is not only <strong>“Am I right?”</strong> It is also <strong>“What does the market already believe, and where might my judgment be better?”</strong>
+
+<strong>Being right may not be enough. You may have to be more right than the market.</strong> This is about the hurdle for excess returns, not a recommendation to trade Samsung or any other asset. A correct prediction can still earn little if the outcome was reflected in the price or if costs and risk overwhelm the gain.
+
+## What faster machines can and cannot do
+
+The IMF's 2024 report estimates that <strong>about 70% of US equity trading</strong> is algorithmic. That wide category includes automated execution and routing. It does <strong>not</strong> mean AI independently makes 70% of investment decisions. The popular “80% of the market is bots” line has no stable meaning without a definition and source. [IMF report](https://www.imf.org/-/media/files/publications/gfsr/2024/october/english/ch3.pdf), [IMF measurement note](https://www.imf.org/-/media/files/publications/tnm/2025/english/tnmea2025016.pdf)
+
+Structured releases can reward speed. A [study by Scholtus, van Dijk, and Frijns](https://repub.eur.nl/pub/38199) examined order-level Nasdaq data for an S&P 500 ETF around US macro releases in <strong>2009–11</strong>. In that sample, a <strong>300-millisecond</strong> delay reduced measured returns to the studied strategy by <strong>3.08%</strong> relative to immediate execution. This is historical evidence for speed sensitivity, not a claim about today's latency or every headline. By the time I read a numeric release, some systems may already have parsed it, compared it with a consensus estimate, and sent orders. A manager's tone, strategic nuance, or geopolitical narrative is harder to turn into a reliable number.
+
+<EMHDiagrams variant="participants" language="en" />
+
+## The efficient-market hypothesis, at last
+
+Eugene Fama's classic review asks how efficiently prices incorporate information. A useful practical version of the <strong>efficient-market hypothesis (EMH)</strong> is this: readily available information gets into prices quickly enough that it is hard to earn persistent <strong>risk-adjusted excess returns after costs</strong> from that information alone. EMH does <strong>not</strong> say every observed price is always correct. [Fama, 1970](https://people.hec.edu/rosu/wp-content/uploads/sites/43/2023/09/Fama-Efficient-capital-markets-1970.pdf)
+
+| Form | Information considered |
+| --- | --- |
+| Weak | Past prices and trading data |
+| Semi-strong | Public information as well |
+| Strong | Private information too—an especially demanding theoretical benchmark |
+
+Testing the idea is hard because deciding what counts as an *excess* return requires a separate model of normal compensation for risk. Fama later stressed this [joint-hypothesis problem](https://doi.org/10.1111/j.1540-6261.1991.tb04636.x).
+
+## Why markets can be more efficient than they look
+
+There is no central brain. People search, build models, challenge prices, and commit capital. If they spot a gap and trade on it, the price moves and the opportunity can shrink.
+
+<EMHDiagrams variant="loop" language="en" />
+
+<strong>Markets may become efficient partly because participants keep doubting them.</strong> This is a mechanism for information to enter prices, not proof that every market at every moment is efficient.
+
+## A market is not a perfect Bayesian machine
+
+The analogy has limits. Investors herd and cling to bad models. A leveraged fund can be forced to sell when it would rather buy. Short-sale constraints and transaction costs can keep a mispricing alive. Information is unevenly distributed, and one person's trade may change another's expectations. <strong>Market price is not the true posterior.</strong> It is closer to a collective state formed by beliefs and constraints expressed through real orders.
+
+Where, then, might alpha come from? An <strong>information edge</strong>, a better <strong>interpretation</strong> of shared facts, a better <strong>model</strong>, the <strong>behavioral</strong> ability to withstand a crowd, or a longer <strong>horizon</strong>. None automatically delivers returns after competition, costs, and risk.
+
+<EMHDiagrams variant="alpha" language="en" />
+
+<strong>Alpha may come from finding information others lack, or from forming a better posterior from information everyone can see.</strong>
+
+## One paradox for the next article
+
+If prices already contain *all* information perfectly, why would anyone pay for data or hire analysts? If no one researches companies, who puts information into prices? [Grossman and Stiglitz asked this in 1980](https://www.pims.math.ca/files/Grossman_Stiglitz1980.pdf). Their question deserves its own article.
+
+Finding that your best idea has already moved the price can be dispiriting. Yet that price was made by other people: some thought of it earlier, some had different information, some interpreted the same facts faster, and some backed their view with money. <strong>Perhaps markets are efficient not because they know everything, but because everyone is trying to know something first.</strong>

@@ -14,6 +14,10 @@ describe('production sitemap filter', () => {
     assert.equal(isPublicSitemapPath('/ai/'), true);
     assert.equal(isPublicSitemapPath('/ai/ax/'), true);
     assert.equal(isPublicSitemapPath('/math/optimization/'), true);
+    assert.equal(isPublicSitemapPath('/investing/'), true);
+    assert.equal(isPublicSitemapPath('/investing/markets/'), true);
+    assert.equal(isPublicSitemapPath('/coding/'), true);
+    assert.equal(isPublicSitemapPath('/coding/experiments/'), true);
     assert.equal(isPublicSitemapPath('/misc/essays/'), true);
     assert.equal(isPublicSitemapPath('/topics/optimization/'), true);
     assert.equal(isPublicSitemapPath('/en/topics/optimization/'), true);
@@ -32,9 +36,7 @@ describe('production sitemap filter', () => {
     assert.equal(isPublicSitemapPath('/en/series/understanding-rates/'), false);
     assert.equal(isPublicSitemapPath('/topics/langgraph/'), false);
     assert.equal(isPublicSitemapPath('/en/topics/langgraph/'), false);
-    assert.equal(isPublicSitemapPath('/investing/'), false);
     assert.equal(isPublicSitemapPath('/investing/research/'), false);
-    assert.equal(isPublicSitemapPath('/coding/'), false);
     assert.equal(isPublicSitemapPath('/coding/ai-engineering/'), false);
     assert.equal(isPublicSitemapPath('/en/coding/ai-engineering/'), false);
     assert.equal(isPublicSitemapPath('/en/math/linear-algebra/'), false);
