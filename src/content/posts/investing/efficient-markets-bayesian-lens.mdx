@@ -1,0 +1,167 @@
+---
+title: "베이즈의 렌즈로 보는 효율적 시장가설: '킹반영'은 왜 계속 일어날까?"
+description: "삼성전자 실적, Fed 결정, CPI 발표에서 출발해 서로 다른 투자자의 판단이 거래와 가격으로 모이는 과정을 베이즈의 언어로 살펴봅니다."
+publishedDate: 2026-09-27
+section: "Investing"
+subsection: "Markets"
+contentType: "research"
+topics:
+  - bayesian-inference
+  - inflation
+primaryTopic: bayesian-inference
+tags:
+  - efficient-market-hypothesis
+  - bayesian-thinking
+  - market-expectations
+  - price-discovery
+  - alpha
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "ko"
+translationKey: "efficient-markets-bayesian-lens"
+freshness: time-sensitive
+lastReviewed: 2026-09-27
+nextReviewDate: 2026-10-27
+dataThrough: 2026-09-27
+methodology: "공식 발표로 실적·정책·물가 수치를 확인하고, 발표 당시 컨센서스와 시장 반응은 Reuters/AP를 교차 확인했다. 시장 반응은 인과관계의 증거가 아니라 동시 관찰이다. 개념도는 실제 거래 데이터가 아니다."
+references:
+  - title: "Samsung Electronics Announces Earnings Guidance for Second Quarter 2026"
+    url: "https://news.samsung.com/global/samsung-electronics-announces-earnings-guidance-for-second-quarter-2026"
+    publisher: "Samsung Electronics"
+  - title: "Samsung flags 19-fold jump in profit, but shares slump"
+    url: "https://www.investing.com/news/stock-market-news/samsung-flags-19fold-jump-in-profit-but-shares-slump-on-jitters-ai-boom-may-stall-4783723"
+    publisher: "Reuters"
+  - title: "S. Korea's KOSPI tumbles nearly 5% as chipmakers slump"
+    url: "https://www.marketscreener.com/news/s-korea-s-kospi-tumbles-8-triggering-circuit-breakers-for-sixth-time-this-year-ce7f5edbdf8ef122"
+    publisher: "Reuters"
+  - title: "FOMC statement, October 29, 2025"
+    url: "https://www.federalreserve.gov/newsevents/pressreleases/monetary20251029a.htm"
+    publisher: "Federal Reserve"
+  - title: "FOMC minutes, October 28–29, 2025"
+    url: "https://www.federalreserve.gov/monetarypolicy/fomcminutes20251029.htm"
+    publisher: "Federal Reserve"
+  - title: "Chair Powell press conference, October 29, 2025"
+    url: "https://www.federalreserve.gov/mediacenter/files/FOMCpresconf20251029.pdf"
+    publisher: "Federal Reserve"
+  - title: "Consumer Price Index, June 2026"
+    url: "https://www.bls.gov/news.release/archives/cpi_07142026.htm"
+    publisher: "U.S. Bureau of Labor Statistics"
+  - title: "CPI comes in cool, soothing markets"
+    url: "https://www.investing.com/news/economic-indicators/cpi-comes-in-cool-soothing-markets-4791058"
+    publisher: "Reuters"
+  - title: "Advances in Artificial Intelligence: Implications for Capital Market Activities"
+    url: "https://www.imf.org/-/media/files/publications/gfsr/2024/october/english/ch3.pdf"
+    publisher: "IMF"
+  - title: "Speed, Algorithmic Trading, and Market Quality around Macroeconomic News Announcements"
+    url: "https://repub.eur.nl/pub/38199"
+    publisher: "Tinbergen Institute"
+  - title: "Efficient Capital Markets: A Review of Theory and Empirical Work"
+    url: "https://people.hec.edu/rosu/wp-content/uploads/sites/43/2023/09/Fama-Efficient-capital-markets-1970.pdf"
+    publisher: "Eugene F. Fama, Journal of Finance"
+  - title: "On the Impossibility of Informationally Efficient Markets"
+    url: "https://www.pims.math.ca/files/Grossman_Stiglitz1980.pdf"
+    publisher: "Grossman and Stiglitz, American Economic Review"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import EMHDiagrams from '../../../components/EMHDiagrams.astro';
+import LabLinkCard from '../../../components/LabLinkCard.astro';
+
+<AnswerBlock question="‘킹반영’은 왜 그럴듯할까?">
+  시장가격은 먼저 정보를 찾고 해석한 사람들이 실제 주문을 낸 결과다. 그래서 내가 발견한 정보가 이미 가격에 어느 정도 들어가 있을 수 있다. 다만 가격은 정답이나 정확한 베이즈 사후확률이 아니다. 기대뿐 아니라 위험, 유동성, 포지션, 거래 제약도 함께 반영한다.
+</AnswerBlock>
+
+슈카월드를 보다 보면 종종 ‘킹반영’이라는 표현을 듣게 된다. ‘선반영’에 킹이나 갓을 붙인 인터넷식 과장이다. 뜻은 대략 이렇다. <strong>“네가 방금 발견한 그 호재? 시장은 이미 알고 있다.”</strong>
+
+재밌는 말인데, 나는 한때 실제로 ‘킹반영’이 있다고 믿었다. 기관투자자나 헤지펀드는 도대체 어떻게 알고 미리 투자하는 걸까? 반도체 업황이 좋아질 것 같다고 생각했는데 반도체주는 이미 올랐다. 금리 인하가 주식에 좋겠다고 생각했는데도 가격은 별 반응이 없다. 정말 좋은 실적이 나왔는데 주가가 떨어지기도 한다. 그럴 때면 시장이 내 생각을 먼저 읽은 것만 같았다.
+
+그 의문을 풀어보려면, 먼저 실제 숫자와 주가가 엇갈린 날을 봐야 한다.
+
+<EMHDiagrams variant="timeline" language="ko" />
+
+## 좋은 실적이 나왔는데 왜 주가는 떨어졌을까?
+
+2026년 7월 7일 삼성전자는 2분기 <strong>잠정</strong> 매출 약 <strong>171조 원</strong>, 영업이익 약 <strong>89.4조 원</strong>을 발표했다. 전년 동기 영업이익 4.68조 원과 비교하면 놀라운 증가다. 영업이익은 Reuters가 인용한 LSEG SmartEstimate <strong>87.3조 원</strong>도 약 <strong>2.1조 원</strong>, <strong>2.4%</strong> 웃돌았다. 그런데 삼성전자 주가는 그날 <strong>6.9% 하락</strong>했다. SK하이닉스는 <strong>6.1%</strong>, KOSPI는 <strong>4.9%</strong> 내렸다. [삼성전자 잠정실적](https://news.samsung.com/global/samsung-electronics-announces-earnings-guidance-for-second-quarter-2026), [Reuters 실적·컨센서스](https://www.investing.com/news/stock-market-news/samsung-flags-19fold-jump-in-profit-but-shares-slump-on-jitters-ai-boom-may-stall-4783723), [Reuters 장 마감](https://www.marketscreener.com/news/s-korea-s-kospi-tumbles-8-triggering-circuit-breakers-for-sixth-time-this-year-ce7f5edbdf8ef122)
+
+<strong>실적이 좋으면 주가가 올라야 하는 것 아닌가?</strong> 주식은 이미 알려진 성적표 자체보다, 앞으로의 이익에 대해 형성된 기대와 새 정보의 차이에 민감하다. 영업이익이 컨센서스를 넘었다는 사실과 더 높은 비공식 기대나 매출 구성에 대한 실망이 동시에 존재할 수 있다. Reuters는 당시 높아진 기대, AI 데이터센터 투자 지속성에 대한 우려, 반도체주 전반의 매도와 차익실현을 보도했다. 이는 시장 참가자들의 설명이지 하락 원인을 하나로 증명한 결과는 아니다. [Reuters 분석](https://www.investing.com/news/stock-market-news/samsung-flags-19fold-jump-in-profit-but-shares-slump-on-jitters-ai-boom-may-stall-4783723), [Reuters 시장 보도](https://www.marketscreener.com/news/s-korea-s-kospi-tumbles-8-triggering-circuit-breakers-for-sixth-time-this-year-ce7f5edbdf8ef122)
+
+<strong>좋은 실적 ≠ 반드시 주가 상승.</strong> 주식시장은 성적표를 보는 곳이라기보다, 예상치와 실제치의 차이를 채점하는 곳에 가깝다. 단, 그 ‘예상치’는 발표된 컨센서스 숫자 하나보다 넓다. 향후 전망, 이미 쌓인 포지션, 시장 전체의 위험 선호까지 들어간다.
+
+<EMHDiagrams variant="surprise" language="ko" />
+
+<LabLinkCard href="/coding/experiments/samsung-earnings-event-lab/" language="ko" />
+
+## 금리 인하도, 물가도 기대와 함께 읽는다
+
+조금 시계를 돌려 2025년 10월 29일을 보자. Fed는 기준금리 목표 범위를 <strong>25bp 내려 3.75~4.00%</strong>로 정했다. Fed 회의록은 당시 투자자들이 그 인하를 예상했고 12월 추가 인하도 기대했지만, 후자에는 불확실성이 있었다고 기록한다. Powell 의장은 기자회견에서 12월 인하가 기정사실이 아니라고 말했다. S&P 500은 이날 거의 보합으로 마감했고, 미국 10년물 국채 수익률은 전일 <strong>3.99%</strong>에서 <strong>4.07%</strong>로 올랐다고 AP는 보도했다. [FOMC 결정](https://www.federalreserve.gov/newsevents/pressreleases/monetary20251029a.htm), [회의록](https://www.federalreserve.gov/monetarypolicy/fomcminutes20251029.htm), [Powell 발언](https://www.federalreserve.gov/mediacenter/files/FOMCpresconf20251029.pdf), [AP 시장 반응](https://apnews.com/article/69291796738e739611fa7415a43cff02)
+
+이 사례에서 새로 평가된 것은 당장의 25bp 인하만이 아니라 <strong>다음 회의들에서 금리가 어떻게 움직일지</strong>였다. 시장은 한 번의 금리 결정보다 미래 금리 경로의 여러 가능성을 업데이트한다. 이것은 2025년의 인하 사례다. <strong>2026년 9월 Fed는 반대로 25bp 인상</strong>했으므로, 이를 현재 정책 방향으로 읽어서는 안 된다. [2026년 9월 FOMC](https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm)
+
+물가도 같다. 2026년 7월 14일 발표된 <strong>6월 미국 CPI</strong>는 전년보다 <strong>3.5% 상승</strong>했지만, Reuters의 사전 조사 <strong>3.8%</strong>보다 <strong>0.3%포인트 낮았다</strong>. 전월 대비로는 <strong>0.4% 하락</strong>해 예상한 <strong>0.1% 하락</strong>보다 약했다. 발표 직후 Reuters 시장 스냅샷에서 S&P 500은 <strong>0.3%</strong>, Nasdaq은 <strong>0.6%</strong> 올랐고 2년물 수익률은 <strong>7bp</strong> 내렸다. 이 수치는 그 시점의 관찰이지 종가나 CPI 단독 효과의 추정치는 아니다. 에너지 가격 하락도 헤드라인 수치에 크게 기여했다. [BLS 발표](https://www.bls.gov/news.release/archives/cpi_07142026.htm), [Reuters 예상·시장 반응](https://www.investing.com/news/economic-indicators/cpi-comes-in-cool-soothing-markets-4791058)
+
+<strong>CPI가 높다는 뉴스와 CPI가 시장 예상보다 높다는 뉴스는 같은 말이 아니다.</strong> 여기서는 물가상승률이 여전히 3.5%라는 사실과 시장 예상보다 낮았다는 사실이 동시에 참이다. 이후 더 최근인 <strong>8월 CPI는 전년비 3.4%</strong>였지만, 헤드라인은 Reuters 컨센서스와 같았다. 대비가 선명한 6월 사례를 택한 이유다. [BLS 8월 CPI](https://www.bls.gov/news.release/archives/cpi_09112026.htm), [Reuters 컨센서스](https://www.marketscreener.com/news/august-core-inflation-reading-boosts-rate-hike-expectations-ce785bdfdc8af027)
+
+## 가격을 보다가 베이즈 통계학이 떠올랐다
+
+[지난 베이즈 통계학 글](/math/statistics/bayesian-statistics-dog-walk/)에서 우리 집 강아지는 내가 “산책 가자”고 말하기 전에 목줄을 물고 왔다. 저녁 식사, 노트북을 닫는 모습, 운동화 같은 단서를 보고 산책 가능성에 대한 판단을 조금씩 바꾸는 상황이었다. <strong>Prior → Evidence → Posterior.</strong> 실제 강아지의 확률 계산을 측정했다는 뜻은 아니었다.
+
+삼성전자 실적을 보는 투자자도 비슷한 틀로 설명할 수 있다. 가령 ‘AI 메모리 수요가 내년에도 강할 가능성’을 <strong>60%</strong>로 보던 사람이 새 가격 데이터를 보고 <strong>70%</strong>, 대형 고객의 투자 계획을 보고 <strong>78%</strong>, 경쟁사의 증설 계획을 보고 <strong>68%</strong>로 수정했다고 해보자. <strong>모두 설명을 위해 만든 값</strong>이며 실제 분석 결과나 베이즈 공식으로 계산한 확률이 아니다. 핵심은 새 정보가 들어오면 기존 판단을 고친다는 점이다. 서로 연관된 정보를 두 번 세지 않는 주의도 필요하다.
+
+## 그런데 시장에는 이런 사람이 수백만 명 있다
+
+그들은 서로 다른 사전 판단, 정보, 모형, 투자 기간, 위험 감수 성향을 가진다. 같은 실적을 보고도 어떤 사람은 강한 매수 근거로, 다른 사람은 차익실현의 계기로, 또 다른 사람은 그냥 관망할 이유로 읽는다. <strong>강아지는 목줄을 물고 온다. 투자자는 주문을 낸다.</strong> 주문이 호가창에서 만나 거래가 이루어지고 가격이 바뀐다.
+
+<EMHDiagrams variant="market" language="ko" />
+
+시장가격을 <strong>서로 다른 판단들이 실제 돈을 걸고 충돌한 결과</strong>라고 볼 수 있다. 하지만 가격 자체가 어떤 사건의 정확한 베이즈 사후확률이라는 뜻은 아니다. 주식 가격은 확률 하나가 아니라 미래 현금흐름, 할인율, 위험, 유동성, 레버리지, 포지션과 제약이 얽힌 숫자다.
+
+## ‘킹반영’을 베이즈의 언어로 번역하면
+
+내가 방금 새 증거라고 발견한 ‘AI 메모리 수요가 계속 늘 것’이라는 생각이 시장 참가자들의 기존 판단에 이미 상당 부분 들어가 있을 수 있다. 그러면 질문은 <strong>“내가 맞는가?”</strong>에서 끝나지 않는다. <strong>“시장도 이미 그렇게 생각하는가? 내 생각이 어디에서, 얼마나 더 나은가?”</strong>가 남는다.
+
+<strong>투자는 맞는 것만으로 부족할 수 있다. 시장보다 더 맞아야 한다.</strong> 이 문장은 매수·매도 권유가 아니다. 이미 알려진 방향을 맞혀도, 그 결과가 가격에 충분히 담겼거나 비용과 위험을 넘지 못하면 초과수익이 없을 수 있다는 뜻이다.
+
+## 빠른 뉴스에는 빠른 주문이 따라온다
+
+국제통화기금(IMF)의 2024년 보고서는 미국 주식 거래의 <strong>약 70%</strong>를 알고리즘 거래로 추정한다. 여기에는 정해진 규칙에 따른 주문 집행과 라우팅 등 폭넓은 자동화가 포함된다. <strong>70%의 거래를 AI가 독자적으로 투자판단한다는 뜻은 아니다.</strong> ‘미국장은 80%가 봇’이라는 말은 정의와 출처 없이 인용하기 어렵다. [IMF 보고서](https://www.imf.org/-/media/files/publications/gfsr/2024/october/english/ch3.pdf), [IMF 측정 설명](https://www.imf.org/-/media/files/publications/tnm/2025/english/tnmea2025016.pdf)
+
+숫자형 발표에는 속도가 특히 중요하다. 미국 거시지표 발표 뒤 S&P 500 ETF의 주문 데이터를 분석한 [Scholtus·van Dijk·Frijns의 연구](https://repub.eur.nl/pub/38199)는 해당 표본에서 즉시 집행보다 <strong>300밀리초</strong> 늦으면 관련 전략의 수익이 <strong>3.08%</strong> 줄었다고 보고했다. 2009~2011년 자료에 관한 결과이지 오늘날 모든 뉴스가 그 속도로 완전히 반영된다는 뜻은 아니다. 내가 기사를 읽고 “이건 호재인데?”라고 생각하는 동안 일부 숫자형 발표는 기계가 읽고 컨센서스와 비교해 주문을 냈을 수 있다. 경영진의 어조, 장기 전략, 지정학적 파장처럼 해석이 필요한 이야기는 훨씬 느리고 불분명할 수 있다.
+
+<EMHDiagrams variant="participants" language="ko" />
+
+## 그래서 효율적 시장가설은 무엇을 말하나
+
+여기서야 <strong>효율적 시장가설(EMH)</strong>을 소개할 수 있다. 유진 파마의 고전적 정리는 가격이 관련 정보에 얼마나 빨리 반응하는지 묻는다. 실용적인 직관은 이렇다. <strong>이용 가능한 정보가 빠르게 가격에 들어가므로, 그 정보만으로 위험과 비용을 감안한 초과수익을 지속적으로 얻기 어렵다.</strong> ‘모든 가격은 언제나 옳다’는 선언은 아니다. [Fama, 1970](https://people.hec.edu/rosu/wp-content/uploads/sites/43/2023/09/Fama-Efficient-capital-markets-1970.pdf)
+
+| 형태 | 반영 대상으로 보는 정보 |
+| --- | --- |
+| 약형 | 과거 가격·거래 정보 |
+| 준강형 | 공개 정보까지 |
+| 강형 | 사적 정보까지 — 현실의 사실로 가정하기보다 강한 이론적 기준 |
+
+검증도 쉽지 않다. ‘초과수익’인지 판단하려면 어떤 위험에 대한 보상을 정상 수익으로 볼지 별도의 모형이 필요하다. 파마도 이를 [결합가설 문제](https://doi.org/10.1111/j.1540-6261.1991.tb04636.x)로 다뤘다.
+
+## 왜 시장은 생각보다 효율적인가
+
+중앙에 모든 것을 아는 두뇌가 있어서가 아니다. 누군가 가격과 가치의 차이를 의심하고, 자료를 찾고, 모델을 만들고, 실제 자금을 걸기 때문이다. 그 거래가 가격을 움직이면 처음 발견한 기회는 작아진다.
+
+<EMHDiagrams variant="loop" language="ko" />
+
+<strong>시장 효율성은 참가자들이 시장을 믿기 때문에 생기는 것이 아니라, 참가자들이 끊임없이 시장을 의심하기 때문에 만들어지는 것일 수 있다.</strong> 이것은 시장이 언제나 효율적이라는 증명이 아니라, 효율성이 생겨날 수 있는 경쟁 메커니즘에 대한 설명이다.
+
+## 시장은 완벽한 베이지안 머신이 아니다
+
+위 비유에는 분명한 한계가 있다. 투자자는 군집행동을 하고, 잘못된 모형을 고집하며, 자금 압박 때문에 원치 않는 때에 매도하기도 한다. 공매도 제약과 거래비용은 잘못된 가격을 바로잡는 거래를 막을 수 있다. 정보도 사람마다 다르고, 거래 자체가 다른 사람의 기대를 바꾸는 반사적 과정도 일어난다. <strong>시장가격 ≠ 참인 사후확률.</strong> 오히려 시장 참여자들이 각자의 믿음과 제약 아래 실제 돈을 걸어 만들어낸 집단적 상태값에 가깝다.
+
+그렇다면 알파는 어디에서 올까? 남보다 먼저 얻는 <strong>정보</strong>, 같은 자료를 다르게 읽는 <strong>해석</strong>, 인과관계를 더 잘 잡는 <strong>모형</strong>, 과열과 공포를 견디는 <strong>행동</strong>, 기다릴 수 있는 <strong>시간 지평</strong>에서 나올 수 있다. 다만 이 어느 것도 자동으로 수익이 되지는 않는다. 거래비용, 경쟁자의 반응, 위험을 넘어서야 한다.
+
+<EMHDiagrams variant="alpha" language="ko" />
+
+<strong>알파란 남들이 모르는 정보를 찾는 능력일 수도 있지만, 같은 정보를 보고 더 나은 사후 판단을 만드는 능력일 수도 있다.</strong>
+
+## 마지막으로 남는 역설
+
+모든 정보가 이미 가격에 완벽하게 들어 있다면, 누가 비싼 데이터를 사고 애널리스트를 고용해 기업을 분석할까? 아무도 분석하지 않으면 누가 정보를 가격에 반영할까? 이것이 [Grossman과 Stiglitz가 1980년에 제기한 문제](https://www.pims.math.ca/files/Grossman_Stiglitz1980.pdf)다. 다음 글에서 더 길게 다뤄볼 만하다.
+
+좋은 아이디어를 떠올렸는데 이미 주가가 올라 있다면 허탈하다. 하지만 그 가격을 만든 것은 신비한 시장의 신이 아니다. 나보다 먼저 같은 생각을 한 사람, 다른 정보를 가진 사람, 같은 정보를 더 빨리 해석한 사람, 그리고 실제 돈을 건 사람들의 흔적이다. <strong>시장은 모든 것을 알고 있어서 효율적인 것이 아니라, 모두가 남보다 먼저 알고 싶어 하기 때문에 효율적일지도 모른다.</strong>
