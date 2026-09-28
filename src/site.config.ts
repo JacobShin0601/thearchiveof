@@ -4,11 +4,11 @@ export const integrations = {
   cloudflareWebAnalyticsToken: '',
   googleSiteVerification: '',
   giscus: {
-    enabled: false,
-    repo: '',
-    repoId: '',
-    category: '',
-    categoryId: '',
+    enabled: true,
+    repo: 'JacobShin0601/thearchiveof',
+    repoId: 'R_kgDOUJZT8g',
+    category: 'Announcements',
+    categoryId: 'DIC_kwDOUJZT8s4DGjG3',
   },
   newsletter: {
     enabled: false,
