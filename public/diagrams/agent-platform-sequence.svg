@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 860" role="img" aria-labelledby="title desc">
+  <title id="title">Platform First versus Production First</title>
+  <desc id="desc">The platform-first path imagines abstractions before encountering production exceptions. The production-first path begins with a narrow problem and extracts a platform from repeated production patterns.</desc>
+  <defs>
+    <marker id="leftArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#8b4c36"/></marker>
+    <marker id="rightArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#335f4b"/></marker>
+  </defs>
+  <rect width="1200" height="860" fill="#f2f0e9"/>
+  <text x="68" y="68" fill="#1c201d" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="32" font-weight="700">Platform First vs Production First</text>
+  <text x="68" y="103" fill="#676b64" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18">The sequence determines what your abstractions are made of</text>
+  <line x1="600" y1="135" x2="600" y2="795" stroke="#c9c6bc" stroke-width="2" stroke-dasharray="7 10"/>
+
+  <g font-family="Inter,ui-sans-serif,system-ui,sans-serif">
+    <text x="320" y="162" text-anchor="middle" fill="#8b4c36" font-size="23" font-weight="800">PLATFORM FIRST</text>
+    <text x="880" y="162" text-anchor="middle" fill="#335f4b" font-size="23" font-weight="800">PRODUCTION FIRST</text>
+
+    <g text-anchor="middle" font-size="17" font-weight="680">
+      <rect x="125" y="194" width="390" height="62" fill="#f8f7f2" stroke="#bc8a78" stroke-width="2"/><text x="320" y="232" fill="#1c201d">Observe Many Requirements</text>
+      <path d="M320 257V282" stroke="#8b4c36" stroke-width="2.5" marker-end="url(#leftArrow)"/>
+      <rect x="125" y="290" width="390" height="62" fill="#f8f7f2" stroke="#bc8a78" stroke-width="2"/><text x="320" y="328" fill="#1c201d">Imagine Common Abstractions</text>
+      <path d="M320 353V378" stroke="#8b4c36" stroke-width="2.5" marker-end="url(#leftArrow)"/>
+      <rect x="125" y="386" width="390" height="62" fill="#f8f7f2" stroke="#bc8a78" stroke-width="2"/><text x="320" y="424" fill="#1c201d">Build Flexible Platform</text>
+      <path d="M320 449V474" stroke="#8b4c36" stroke-width="2.5" marker-end="url(#leftArrow)"/>
+      <rect x="125" y="482" width="390" height="62" fill="#f8f7f2" stroke="#bc8a78" stroke-width="2"/><text x="320" y="520" fill="#1c201d">Support Many Use Cases</text>
+      <path d="M320 545V570" stroke="#8b4c36" stroke-width="2.5" marker-end="url(#leftArrow)"/>
+      <rect x="125" y="578" width="390" height="62" fill="#eadbd5" stroke="#8b4c36" stroke-width="2"/><text x="320" y="616" fill="#703b2b">Discover Production Exceptions</text>
+      <path d="M320 641V666" stroke="#8b4c36" stroke-width="2.5" marker-end="url(#leftArrow)"/>
+      <rect x="125" y="674" width="390" height="62" fill="#8b4c36"/><text x="320" y="712" fill="#fff">Complexity Explosion</text>
+
+      <rect x="685" y="194" width="390" height="58" fill="#f8f7f2" stroke="#86a795" stroke-width="2"/><text x="880" y="230" fill="#1c201d">Pick One Narrow Problem</text>
+      <path d="M880 253V271" stroke="#335f4b" stroke-width="2.5" marker-end="url(#rightArrow)"/>
+      <rect x="685" y="279" width="390" height="58" fill="#f8f7f2" stroke="#86a795" stroke-width="2"/><text x="880" y="315" fill="#1c201d">Deploy</text>
+      <path d="M880 338V356" stroke="#335f4b" stroke-width="2.5" marker-end="url(#rightArrow)"/>
+      <rect x="685" y="364" width="390" height="58" fill="#f8f7f2" stroke="#86a795" stroke-width="2"/><text x="880" y="400" fill="#1c201d">Observe Failures</text>
+      <path d="M880 423V441" stroke="#335f4b" stroke-width="2.5" marker-end="url(#rightArrow)"/>
+      <rect x="685" y="449" width="390" height="58" fill="#f8f7f2" stroke="#86a795" stroke-width="2"/><text x="880" y="485" fill="#1c201d">Fix &amp; Repeat</text>
+      <path d="M880 508V526" stroke="#335f4b" stroke-width="2.5" marker-end="url(#rightArrow)"/>
+      <rect x="685" y="534" width="390" height="58" fill="#f8f7f2" stroke="#86a795" stroke-width="2"/><text x="880" y="570" fill="#1c201d">Find Repeated Patterns</text>
+      <path d="M880 593V611" stroke="#335f4b" stroke-width="2.5" marker-end="url(#rightArrow)"/>
+      <rect x="685" y="619" width="390" height="58" fill="#f8f7f2" stroke="#86a795" stroke-width="2"/><text x="880" y="655" fill="#1c201d">Extract Building Blocks</text>
+      <path d="M880 678V696" stroke="#335f4b" stroke-width="2.5" marker-end="url(#rightArrow)"/>
+      <rect x="685" y="704" width="390" height="76" fill="#335f4b"/><text x="880" y="733" fill="#fff" font-size="21" font-weight="800">Platform</text>
+    </g>
+    <rect x="793" y="744" width="174" height="26" rx="13" fill="#dce8e2"/>
+    <text x="880" y="762" text-anchor="middle" fill="#274b3b" font-size="12" font-weight="800" letter-spacing=".6">EARN THE PLATFORM</text>
+
+    <text x="320" y="814" text-anchor="middle" fill="#8b4c36" font-size="17" font-weight="750">Abstraction before experience</text>
+    <text x="880" y="814" text-anchor="middle" fill="#335f4b" font-size="17" font-weight="750">Experience before abstraction</text>
+  </g>
+</svg>
