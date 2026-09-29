@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" role="img" aria-labelledby="title desc">
+  <title id="title">기업용 조합형 에이전트 플랫폼</title>
+  <desc id="desc">도구와 작업 지침이 모듈이 되고, 모듈이 에이전트 실행을 구성하며, 동적 조정이 문제를 분해하고 실행 그래프를 만든다.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#335f4b"/></marker>
+  </defs>
+  <rect width="1200" height="820" fill="#f2f0e9"/>
+  <text x="68" y="68" fill="#1c201d" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="32" font-weight="700">기업용 조합형 에이전트 플랫폼</text>
+  <text x="68" y="103" fill="#676b64" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18">당시 플랫폼 구조가 합리적이었던 이유</text>
+
+  <g font-family="Inter,ui-sans-serif,system-ui,sans-serif">
+    <rect x="68" y="142" width="1064" height="130" fill="#f8f7f2" stroke="#c9c6bc" stroke-width="2"/>
+    <text x="95" y="179" fill="#335f4b" font-size="14" font-weight="800" letter-spacing="2">01 · 도구</text>
+    <text x="95" y="213" fill="#1c201d" font-size="20" font-weight="700">개발자가 제공하는 기능</text>
+    <g font-size="19" font-weight="650" text-anchor="middle" fill="#1c201d">
+      <rect x="420" y="177" width="145" height="54" rx="27" fill="#e8e4da"/><text x="492" y="211">검색</text>
+      <rect x="583" y="177" width="145" height="54" rx="27" fill="#e8e4da"/><text x="655" y="211">데이터베이스</text>
+      <rect x="746" y="177" width="145" height="54" rx="27" fill="#e8e4da"/><text x="818" y="211">Python</text>
+      <rect x="909" y="177" width="145" height="54" rx="27" fill="#e8e4da"/><text x="981" y="211">API</text>
+    </g>
+
+    <path d="M600 273V310" stroke="#335f4b" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="68" y="319" width="1064" height="130" fill="#f8f7f2" stroke="#c9c6bc" stroke-width="2"/>
+    <text x="95" y="356" fill="#335f4b" font-size="14" font-weight="800" letter-spacing="2">02 · 모듈</text>
+    <text x="95" y="390" fill="#1c201d" font-size="20" font-weight="700">재사용 가능한 업무 기능</text>
+    <rect x="420" y="350" width="634" height="69" fill="#e8e4da"/>
+    <text x="737" y="380" text-anchor="middle" fill="#1c201d" font-size="21" font-weight="750">도구 + 작업 지침</text>
+    <text x="737" y="405" text-anchor="middle" fill="#676b64" font-size="15">예시 · 3C 분석 모듈</text>
+
+    <path d="M600 450V487" stroke="#335f4b" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="68" y="496" width="1064" height="130" fill="#f8f7f2" stroke="#c9c6bc" stroke-width="2"/>
+    <text x="95" y="533" fill="#335f4b" font-size="14" font-weight="800" letter-spacing="2">03 · 에이전트 실행</text>
+    <text x="95" y="567" fill="#1c201d" font-size="20" font-weight="700">모듈 조합</text>
+    <rect x="420" y="527" width="300" height="69" fill="#e8e4da"/>
+      <text x="570" y="557" text-anchor="middle" fill="#1c201d" font-size="20" font-weight="750">순차 실행</text>
+      <text x="570" y="582" text-anchor="middle" fill="#676b64" font-size="14">조사 → 분석 → 종합</text>
+    <rect x="738" y="527" width="316" height="69" fill="#e8e4da"/>
+      <text x="896" y="557" text-anchor="middle" fill="#1c201d" font-size="20" font-weight="750">다중 에이전트</text>
+      <text x="896" y="582" text-anchor="middle" fill="#676b64" font-size="14">전문가 병렬 실행 + 종합</text>
+
+    <path d="M600 627V664" stroke="#335f4b" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="68" y="673" width="1064" height="94" fill="#1c201d"/>
+    <text x="95" y="708" fill="#b8d1c5" font-size="14" font-weight="800" letter-spacing="2">04 · 동적 조정</text>
+    <text x="95" y="742" fill="#ffffff" font-size="19" font-weight="700">실행 시점 작업 흐름 생성</text>
+    <g fill="#ffffff" font-size="20" font-weight="700" text-anchor="middle">
+      <text x="514" y="730">분해</text><text x="636" y="730" fill="#9fc0b0">→</text>
+      <text x="714" y="730">계획</text><text x="790" y="730" fill="#9fc0b0">→</text>
+      <text x="913" y="730">실행 그래프 구성</text>
+    </g>
+  </g>
+  <text x="600" y="805" text-anchor="middle" fill="#335f4b" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" font-weight="800">한 번 만들고, 여러 작업 흐름으로 조합한다.</text>
+</svg>
