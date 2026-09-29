@@ -1,0 +1,273 @@
+---
+title: 'Why Our Agent Platform Got Off to a Rocky Start'
+subtitle: 'From a convincing demo to a predictable production system'
+description: 'Our agent platform worked in demos but stumbled in production. A retrospective on predictability, trust debt, and earning abstractions through deployment.'
+publishedDate: 2026-09-29
+section: 'AI & AX'
+subsection: 'AX'
+contentType: perspective
+topics: [ai-agents, enterprise-ai, ax, evaluation]
+primaryTopic: ai-agents
+tags: [agent-platform, production-engineering, orchestration, reliability, trust]
+author: 'Jacob Shin'
+language: en
+translationKey: we-built-the-agent-platform-too-early
+localization:
+  locale: en-US
+  strategy: localized-adaptation
+draft: false
+featured: false
+comments: false
+pillar: false
+freshness: periodic
+lastReviewed: 2026-09-29
+nextReviewDate: 2027-03-29
+series: 'Enterprise AX'
+seriesOrder: 4
+dataSources:
+  - 'Official guidance and field reports on enterprise AI and agent design, operations, evaluation, and risk management'
+  - 'Official product documentation for OpenAI Codex, Anthropic Claude Code, and Cursor'
+methodology: 'The argument is grounded in my experience operating an enterprise agent platform. I cross-checked current coding-agent capabilities and principles for agent design, operations, evaluation, and risk management against official sources. I excluded details that could identify the company or project, along with unsupported industry-wide statistics.'
+references:
+  - title: 'Why enterprise AI gets stuck in pilot mode'
+    url: 'https://www.wonderful.ai/blog-articles/why-enterprise-ai-gets-stuck-in-pilot-mode'
+    publisher: 'Wonderful'
+  - title: 'Let the Field Build the Product'
+    url: 'https://www.wonderful.ai/blog-articles/let-the-field-build-the-product'
+    publisher: 'Wonderful'
+  - title: 'A practical guide to building agents'
+    url: 'https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/'
+    publisher: 'OpenAI'
+  - title: 'Building Effective AI Agents'
+    url: 'https://www.anthropic.com/engineering/building-effective-agents'
+    publisher: 'Anthropic'
+  - title: 'How we built our multi-agent research system'
+    url: 'https://www.anthropic.com/engineering/multi-agent-research-system'
+    publisher: 'Anthropic'
+  - title: 'Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile'
+    url: 'https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence'
+    publisher: 'NIST'
+  - title: 'Generative AI Lens — AWS Well-Architected Framework'
+    url: 'https://docs.aws.amazon.com/wellarchitected/latest/generative-ai-lens/generative-ai-lens.html'
+    publisher: 'AWS'
+  - title: 'Codex'
+    url: 'https://openai.com/codex/'
+    publisher: 'OpenAI'
+  - title: 'Claude Code overview'
+    url: 'https://docs.anthropic.com/en/docs/claude-code/overview'
+    publisher: 'Anthropic'
+  - title: 'Cursor documentation'
+    url: 'https://cursor.com/docs'
+    publisher: 'Cursor'
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AgentPlatformDiagrams from '../../../../components/AgentPlatformDiagrams.astro';
+
+<AnswerBlock question="Why did our enterprise agent platform struggle at first?">
+  The architecture was reasonable, but we had abstracted before production had shown us which problems actually repeated. Coding agents made the prototype look complete long before evaluation, permissions, state, recovery, observability, and operations were ready. The system improved when we narrowed autonomy, made intermediate contracts explicit, instrumented failures, and extracted shared capabilities only after repeated deployment. <strong>The sequence is Experienced → Repeated → Abstracted.</strong>
+</AnswerBlock>
+
+When I looked across the AI requests coming from inside the company, many of them converged on the same basic pattern:
+
+1. Understand complex internal documents.
+2. Combine them with external market, competitor, or financial information.
+3. Apply a defined analytical framework to produce an insight.
+
+A typical request might combine an internal business plan, recent competitor results, and market data into a 3C analysis. The subject and deliverable changed, but much of the underlying capability was shared. It seemed wasteful to build a separate application for every request. Why not expose those capabilities as reusable building blocks and let people compose them?
+
+That reasoning led naturally to a platform.
+
+<AgentPlatformDiagrams kind="platform" language="en" id="composable-platform" caption="A composable enterprise agent architecture built from Tools, Modules, Agent Runs, and Dynamic Orchestration. The diagram shows why the platform approach was a rational choice at the time." />
+
+At the bottom were **Tools** supplied by developers: internal document search, web search, database queries, Python, external APIs, financial data, and internal systems.
+
+Above them were **Modules**. A user could combine several Tools with task instructions to create a reusable business capability. Internal search, market search, competitor search, and an analysis instruction could become a 3C Analysis Module. A Module was not merely a saved prompt. It was a goal-oriented unit intended to be used again.
+
+Several Modules could be connected into an **Agent Run**. Market research could feed competitor analysis, which could feed internal capability analysis and then synthesis. Specialist agents could also work in parallel before a synthesis agent combined their output.
+
+At the top was **Dynamic Orchestration**. Given a complex request, the system would decompose the problem, find the necessary Modules and Tools, infer dependencies, create a sequential or parallel workflow, and, when useful, build a multi-agent DAG at runtime.
+
+> Build once, compose many workflows.
+
+This was a coherent architecture. Shared capabilities could be built once and applied to multiple workflows. New demands could be answered quickly, and users could retain some freedom in how they assembled the system. The original decision was not foolish. The problem was that production still had too much to teach us.
+
+## The prototype had stopped looking like a prototype
+
+Coding agents such as Claude Code, Cursor, and Codex can read and edit repositories, run commands, execute tests, and carry a substantial engineering task across multiple steps. Their official descriptions position them as agents for software work, not just autocomplete. That shift makes it possible to build an AI application that reads documents, searches, calls tools, coordinates agents, and presents a polished interface in days rather than months.
+
+That is genuine progress. It also compresses the appearance of success.
+
+Modern prototypes do not look unfinished. They can use real data, explain a plan in natural language, move across systems, and present an answer in a credible interface. To someone who did not build the system, nearly every visible signal says that the product is almost done. This is not a failure of management judgment. It is a structural consequence of increasingly convincing prototypes.
+
+I think of this as **the Prototype Illusion**.
+
+<AgentPlatformDiagrams kind="illusion" language="en" id="prototype-illusion" caption="Visible capability can appear complete early, while production readiness has a much longer tail. The space between the curves is the Demo-to-Production Gap." />
+
+Visible capability rises quickly. Connect a model, write a prompt, add tool calling, and polish the interface, and the result can be remarkable. Production readiness rises much more slowly. Evaluation, permissions, security, state, recovery, latency, monitoring, audit, operating procedures, and trust all have a long tail.
+
+The sentence I now use is:
+
+> **AI coding has compressed the cost of building demos, not the cost of operating systems.**
+
+Coding agents have lowered implementation costs substantially. They have not eliminated the different kind of work required to make a system behave consistently in real workflows. The distance between those two curves is the **Demo-to-Production Gap**.
+
+## Architecture was not the hardest problem. Predictability was.
+
+As the platform moved closer to production, the central question changed from “What can it do?” to “How can we make its behavior predictable?”
+
+Consider tool selection. Why would the same question trigger internal search first in one run and web search first in another? Improving a Tool description could fix routing for one use case while damaging another. A model update could move a boundary that had previously seemed stable.
+
+Decomposition varied too. One run might divide a problem into three steps while another produced seven. Every subtask could look reasonable in isolation, yet a different order or dependency structure could change the final result. Context loss and intermediate hallucination made the problem worse. A small error from an early stage could be passed to the next agent as a fact, allowing later stages to construct an increasingly polished answer on top of a false premise.
+
+Composition created its own failures. Module A and Module B could each perform well in isolation, yet quality would fall when A's output became B's input. A result that was perfectly readable to a person might not match the schema B expected. Uncertainty expressed by A might disappear at the boundary. Component quality did not guarantee workflow quality.
+
+Recovery was harder still:
+
+- If a Tool times out, should the system retry only that node or plan the workflow again?
+- After a partial retry, which state should be retained and which should be discarded?
+- If an external action completed but its response was lost, is it safe to call it again?
+- If one parallel branch fails, should the workflow proceed with the remaining results?
+- Where should an invalid intermediate answer be stopped before it reaches another Agent?
+
+Authentication, authorization, logging, observability, output validation, document variance, API failure, and model changes all interacted with these questions. More autonomy increased capability, but it also expanded the space of possible failures.
+
+The hardest question became simple to state:
+
+> **How do you make an agent predictable?**
+
+The system became substantially more stable over roughly three months of real use, failure, and revision. That stability did not come from the elegance of the original diagram. It came from small constraints and recovery mechanisms added after we learned which failures actually repeated.
+
+## What moved the system forward
+
+There was no single better prompt or model that fixed the platform. Reliability improved when we turned recurring failure modes into explicit system responsibilities.
+
+First, we removed autonomy where it did not create business value. Runtime planning was no longer the default for every request. High-frequency workflows received a narrower set of allowed Tools and execution paths. When the required output schema was known, the agent did not get to invent a new one. Reducing freedom was not a retreat in capability. It was the removal of variance the task did not need.
+
+Second, we made contracts between Modules explicit. We structured the fields, sources, uncertainty, and validation status that the next stage needed. An intermediate output that failed those checks could be stopped or repaired before another Agent consumed it. A result that looked plausible to a person was no longer assumed to be safe input for the next node.
+
+Retry also became more than “send the same call again.” We distinguished failures that justified a node-level retry from failures that required re-planning. Calls with external side effects received idempotency controls and execution state. Long-running workflows received checkpoints so that partial recovery would not corrupt state.
+
+We narrowed observability and evaluation around actual use cases. For each run, we traced Tool selection, decomposition, intermediate outputs, validation decisions, latency, and retry reasons. Instead of pretending that one large benchmark represented every question, we added production failures to use-case-specific evaluation sets. Changes to a model, prompt, or Tool description had to survive those regression cases.
+
+Finally, the interface stopped disguising failure as completion. When evidence was insufficient or a Tool failed, the system showed what had completed, what remained uncertain, and when a person needed to take over. Reliability does not mean succeeding every time. It also means stopping and recovering in a predictable way.
+
+Three months later, the agent itself had not become perfect. We had become more precise about which freedoms to allow, which state to retain, which results to accept, and where to escalate based on production evidence.
+
+The broader lesson was a production feedback loop: deploy a narrow workflow, observe failures in context, fix the boundary or control that failed, and carry the reusable solution into the next workflow. That loop is how a platform earns its shape. It is not a blueprint completed before deployment, but operating knowledge accumulated through deployment.
+
+## Users do not experience your architecture
+
+Engineers understand why an enterprise agent is difficult. It must respect complex permissions, process inconsistent document formats, connect internal and external systems, and preserve state across a long workflow.
+
+Users do not grade that complexity. Their comparison is not another internal system. It is ChatGPT or Claude.
+
+Even if an internal Agent is attempting a harder task, the judgment is straightforward when it produces one strange answer, takes too long, varies sharply between identical questions, selects the wrong Tool, or behaves in a way the user cannot understand: “It still doesn't work.”
+
+That judgment is not unfair. The user is evaluating a work experience, not an architecture diagram.
+
+> **Users do not experience your architecture. They experience your failures.**
+
+Enterprise agents operate under more constraints than a general chatbot. They must connect to internal systems, enforce permissions, understand proprietary documents, and execute business workflows. Yet the benchmark for interaction quality has already been set by the best consumer AI products. Closing that gap is a large part of enterprise agent engineering.
+
+## The last ten percent below the waterline
+
+The visible parts of a demo are the model, prompt, tool calling, search, agent reasoning, multi-agent collaboration, and interface. All of them matter. But the conditions that let a system survive in production are mostly below the surface.
+
+<AgentPlatformDiagrams kind="iceberg" language="en" id="agent-iceberg" caption="What makes the demo impressive is above the water. What makes it survive in real work is below it." />
+
+Without evaluation, a team cannot tell an improvement from a regression. Without observability, it can see that a run failed but not where or why. Weak authorization can turn a technically good answer into a security incident. A missing retry policy makes a transient error fatal; a careless retry policy can execute the same external action twice. Without human escalation, admitting uncertainty still leaves the work unfinished.
+
+That is why I use this expression:
+
+> **The last 10% of engineering can determine 90% of perceived reliability.**
+
+Those figures are rhetorical, not measured statistics. The point is that the operational and control layers that look like the final margin of a demo can determine most of the reliability a user actually perceives.
+
+## The Trust Debt of launching too early
+
+After seeing the demo, one of our executives appears to have concluded that the system would resonate with senior leadership. The planned launch timeline was then cut in half, and we released the system to a relatively broad audience far more abruptly than intended. It worked technically, but it had not yet reached the level of reliability we wanted.
+
+In retrospect, this happens inside companies more often than many teams expect. A persuasive demo is treated as evidence not only that the technology is promising, but that the product is nearly ready to ship. Time reserved for validation is then absorbed into the business timeline.
+
+Many early users left. We later stabilized quality, improved the experience, and found better-fitting use cases, but bringing those users back required much more effort than acquiring their attention the first time.
+
+I call this **Trust Debt**.
+
+Technical debt borrows future engineering cost to move faster today. Trust Debt borrows future adoption cost by exposing an immature experience too widely.
+
+Trust in an AI system is asymmetric. Several good answers rarely convince someone to entrust it with important work immediately. A few serious failures at important moments can make them leave quickly. Even after the system improves, the memory that “I tried it before and it didn't work” can arrive before a fresh evaluation.
+
+Rollout is therefore not merely a distribution decision. It is a design choice about learning speed and trust preservation. A narrow problem and a controlled group of users let a team observe failures closely while limiting the blast radius. A broad launch produces more feedback, but it also exposes every unknown failure mode at once.
+
+## Production Before Platform
+
+Our original sequence looked like this:
+
+**Many Requirements → Common Abstraction → Platform → Many Use Cases**
+
+Observe similarities, design the abstraction, build the platform, and place many use cases on top. The logic is clean, but it has one weakness: requirements that sound similar in a meeting are not necessarily the problems that repeat in production.
+
+If I were starting again, I would reverse the sequence.
+
+<AgentPlatformDiagrams kind="sequence" language="en" id="platform-vs-production" caption="Platform First imagines abstractions before experience. Production First extracts building blocks from repeated failures and fixes." />
+
+I would not begin with “an AI Agent that writes strategy reports.” I would reduce it to something like this:
+
+> Read an internal business plan and the latest results from five specified competitors, then produce a 3C analysis in a fixed template.
+
+Limit the data sources. Limit the Tools. Fix the output schema. Limit autonomy. Define the decision the result is supposed to support, and bring that single workflow to production quality.
+
+I would not turn every problem from the first use case into a platform feature. Some problems are local exceptions. I would see whether the same issue appears in a second use case. If it repeats in a third, then it has earned consideration as a common capability.
+
+> **Experienced → Repeated → Abstracted**
+
+This is not an argument against abstraction. It is an argument for a higher standard of evidence.
+
+If three use cases all need to search only approved sources, permission-aware retrieval may deserve to become a building block. If all three must validate and resume long-running workflows, durable state and checkpoints may belong in a shared layer. But if one workflow has an unusual reporting format, forcing it into a universal Module specification can fill the entire platform with exceptions.
+
+The principle is:
+
+> **The right abstraction should be discovered, not imagined.**
+
+## When should a platform be built?
+
+“Do not build the platform first” does not mean eliminating the platform team or treating every use case as disposable. Some common foundations are required from the beginning. Authentication, audit, data boundaries, and deployment standards are constraints the enterprise must respect even in the first use case.
+
+What needs to exist early is a **minimum viable control plane**, not a universal abstraction capable of expressing every imagined workflow.
+
+Before extracting something into the platform, I would ask:
+
+1. Has this problem actually repeated across distinct production use cases?
+2. Is the underlying cause the same, or do the cases only look similar?
+3. Will the shared capability improve quality or speed for each use case?
+4. Is there an owner and operating budget for the abstraction?
+5. Is there an escape hatch when the abstraction does not fit?
+
+Three repetitions are not a magical threshold. What matters is that abstraction is supported by observed production evidence rather than advance speculation.
+
+## Earn the platform
+
+At first, I wanted one platform to solve the many AI demands appearing across the enterprise. That ambition remains appealing, and parts of it were valid. But the shape of a useful platform was revealed more accurately by repeated production failures than by the original list of requirements.
+
+If I were starting again, I would choose one problem.
+
+I would solve that problem all the way through.
+
+I would look for what repeated in the second problem.
+
+If it repeated again in the third, I would finally turn it into an abstraction.
+
+Only then would I call it a platform.
+
+> **Don’t start by building the platform. Earn the platform through production.**
+
+## Key Takeaways
+
+- Coding agents have lowered the cost of implementing demos, not the full cost of operating production systems.
+- The central engineering challenge for an enterprise agent is predictability, not raw capability.
+- Reliability improved when autonomy narrowed, Module contracts became explicit, retry and state were designed deliberately, and production failures became regression tests.
+- Users judge the frequency and recovery of failures, not the sophistication of the architecture behind them.
+- A broad, premature launch can create Trust Debt that slows adoption even after the product improves.
+- The right abstraction should be extracted from problems that repeat across distinct production use cases.
+- A platform is better understood as the result of **Production → Learning → Repetition → Productization** than as a prerequisite for deployment.

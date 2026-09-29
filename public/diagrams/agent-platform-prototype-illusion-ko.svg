@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" role="img" aria-labelledby="title desc">
+  <title id="title">프로토타입의 착시</title>
+  <desc id="desc">눈에 보이는 기능은 빠르게 상승하지만 실제 운영 준비도는 천천히 상승한다. 두 곡선 사이가 데모와 실제 운영의 간극이다.</desc>
+  <defs>
+    <linearGradient id="gap" x1="0" x2="1"><stop offset="0" stop-color="#dce8e2" stop-opacity=".9"/><stop offset="1" stop-color="#eadbd5" stop-opacity=".55"/></linearGradient>
+    <marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#676b64"/></marker>
+  </defs>
+  <rect width="1200" height="820" fill="#f2f0e9"/>
+  <text x="68" y="68" fill="#1c201d" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="32" font-weight="700">프로토타입의 착시</text>
+  <text x="68" y="103" fill="#676b64" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18">완성도 높은 데모는 눈에 보이는 진척을 압축할 뿐 운영 성숙도를 압축하지 않는다</text>
+
+  <line x1="140" y1="620" x2="1100" y2="620" stroke="#676b64" stroke-width="2" marker-end="url(#axisArrow)"/>
+  <line x1="140" y1="620" x2="140" y2="150" stroke="#676b64" stroke-width="2" marker-end="url(#axisArrow)"/>
+  <text x="620" y="681" text-anchor="middle" fill="#676b64" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" font-weight="650">엔지니어링 노력 / 성숙도</text>
+  <text transform="translate(55 405) rotate(-90)" text-anchor="middle" fill="#676b64" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" font-weight="650">체감 완성도</text>
+  <g stroke="#c9c6bc" stroke-dasharray="5 9"><line x1="140" y1="505" x2="1090" y2="505"/><line x1="140" y1="390" x2="1090" y2="390"/><line x1="140" y1="275" x2="1090" y2="275"/></g>
+
+  <path d="M140 620 C210 430 270 265 385 215 C530 153 820 148 1080 146 L1080 205 C930 214 770 235 650 286 C520 342 420 435 350 515 C270 560 205 593 140 620Z" fill="url(#gap)"/>
+  <path d="M140 620 C210 430 270 265 385 215 C530 153 820 148 1080 146" fill="none" stroke="#335f4b" stroke-width="7" stroke-linecap="round"/>
+  <path d="M140 620 C260 588 310 548 360 505 C445 431 530 355 650 286 C770 235 930 214 1080 205" fill="none" stroke="#8b4c36" stroke-width="7" stroke-linecap="round"/>
+
+  <g font-family="Inter,ui-sans-serif,system-ui,sans-serif">
+    <rect x="790" y="112" width="275" height="48" rx="24" fill="#335f4b"/><text x="928" y="143" text-anchor="middle" fill="#fff" font-size="17" font-weight="750">눈에 보이는 기능</text>
+    <rect x="790" y="256" width="300" height="48" rx="24" fill="#8b4c36"/><text x="940" y="287" text-anchor="middle" fill="#fff" font-size="17" font-weight="750">실제 운영 준비도</text>
+    <g fill="#1c201d" font-size="15" font-weight="650">
+      <circle cx="210" cy="422" r="6" fill="#335f4b"/><text x="224" y="428">프로토타입</text>
+      <circle cx="274" cy="302" r="6" fill="#335f4b"/><text x="289" y="308">도구 호출</text>
+      <circle cx="357" cy="227" r="6" fill="#335f4b"/><text x="372" y="233">에이전트</text>
+      <circle cx="500" cy="175" r="6" fill="#335f4b"/><text x="515" y="181">완성도 높은 데모</text>
+      <circle cx="365" cy="500" r="6" fill="#8b4c36"/><text x="380" y="506">평가</text>
+      <circle cx="500" cy="374" r="6" fill="#8b4c36"/><text x="515" y="380">신뢰성</text>
+      <circle cx="654" cy="283" r="6" fill="#8b4c36"/><text x="669" y="289">보안</text>
+      <circle cx="821" cy="226" r="6" fill="#8b4c36"/><text x="836" y="232">운영</text>
+      <circle cx="1020" cy="210" r="6" fill="#8b4c36"/><text x="1035" y="216">신뢰</text>
+    </g>
+    <text x="625" y="330" text-anchor="middle" fill="#676b64" font-size="17" font-weight="800" letter-spacing=".5">데모와 실제 운영의 간극</text>
+  </g>
+
+  <rect x="205" y="708" width="790" height="68" fill="#1c201d"/>
+  <text x="600" y="736" text-anchor="middle" fill="#fff" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="19" font-weight="750">AI 코딩은 데모를 만드는 비용을 낮췄다.</text>
+  <text x="600" y="761" text-anchor="middle" fill="#b8d1c5" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18">실제 운영 비용까지 없애지는 않았다.</text>
+  <text x="1090" y="802" text-anchor="end" fill="#676b64" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="12">개념도 — 측정된 데이터가 아님</text>
+</svg>
