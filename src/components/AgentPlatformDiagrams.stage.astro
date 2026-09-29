@@ -1,0 +1,102 @@
+---
+interface Props {
+  kind: 'platform' | 'illusion' | 'iceberg' | 'sequence';
+  id?: string;
+  caption: string;
+  language?: 'ko' | 'en';
+}
+
+const { kind, id, caption, language = 'ko' } = Astro.props;
+const sources = {
+  platform: '/diagrams/agent-platform-composable.svg',
+  illusion: '/diagrams/agent-platform-prototype-illusion.svg',
+  iceberg: '/diagrams/agent-platform-iceberg.svg',
+  sequence: '/diagrams/agent-platform-sequence.svg',
+};
+const labels = {
+  ko: {
+    platform: 'Tools, modules, agent runs, dynamic orchestration으로 구성된 에이전트 플랫폼 구조',
+    illusion: 'Visible capability와 production readiness 사이의 demo-to-production gap',
+    iceberg: '데모에서 보이는 요소와 production 운영에 필요한 요소를 나눈 빙산 그림',
+    sequence: 'Platform First와 Production First 접근법 비교',
+  },
+  en: {
+    platform: 'Enterprise agent platform composed of tools, modules, agent runs, and dynamic orchestration',
+    illusion: 'The demo-to-production gap between visible capability and production readiness',
+    iceberg: 'The visible layer of an agent demo and the operational layer required in production',
+    sequence: 'Comparison of Platform First and Production First approaches',
+  },
+};
+const label = labels[language][kind];
+const scrollHint = language === 'en' ? 'Scroll horizontally to view the full diagram' : '가로로 움직여 전체 도표 보기';
+---
+
+<figure class="agent-platform-diagram" id={id}>
+  <figcaption>{caption}</figcaption>
+  <div class="diagram-scroll" tabindex="0" aria-label={`${label}. ${scrollHint}.`}>
+    <img src={sources[kind]} alt={label} loading="lazy" decoding="async" />
+  </div>
+  <p class="scroll-hint" aria-hidden="true">← {scrollHint} →</p>
+</figure>
+
+<style>
+  .agent-platform-diagram {
+    margin: 2.75rem 0;
+    padding: 1.15rem;
+    border: 1px solid var(--line, #c9c6bc);
+    background: color-mix(in srgb, var(--paper, #f2f0e9) 88%, white 12%);
+  }
+
+  .agent-platform-diagram figcaption {
+    margin: 0 0 1rem;
+    color: var(--ink, #1c201d);
+    font-family: var(--sans, sans-serif);
+    font-size: .92rem;
+    font-weight: 700;
+    line-height: 1.6;
+  }
+
+  .diagram-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-color: var(--accent, #335f4b) transparent;
+    scrollbar-width: thin;
+  }
+
+  .diagram-scroll:focus-visible {
+    outline: 2px solid var(--accent, #335f4b);
+    outline-offset: 4px;
+  }
+
+  .diagram-scroll img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .scroll-hint {
+    display: none;
+    margin: .65rem 0 0;
+    color: var(--muted, #676b64);
+    font-family: var(--sans, sans-serif);
+    font-size: .7rem;
+    letter-spacing: .05em;
+    text-align: center;
+  }
+
+  @media (max-width: 760px) {
+    .agent-platform-diagram {
+      margin: 2rem calc(50% - 50vw);
+      padding: 1rem max(1rem, calc((100vw - 680px) / 2));
+      border-inline: 0;
+    }
+
+    .diagram-scroll img {
+      width: 760px;
+      max-width: none;
+    }
+
+    .scroll-hint { display: block; }
+  }
+</style>
