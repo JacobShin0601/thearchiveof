@@ -3,9 +3,10 @@ interface Props {
   kind: 'platform' | 'illusion' | 'iceberg' | 'sequence';
   id?: string;
   caption: string;
+  language?: 'ko' | 'en';
 }
 
-const { kind, id, caption } = Astro.props;
+const { kind, id, caption, language = 'ko' } = Astro.props;
 const sources = {
   platform: '/diagrams/agent-platform-composable.svg',
   illusion: '/diagrams/agent-platform-prototype-illusion.svg',
@@ -13,19 +14,29 @@ const sources = {
   sequence: '/diagrams/agent-platform-sequence.svg',
 };
 const labels = {
-  platform: 'Tools, modules, agent runs, dynamic orchestration으로 구성된 에이전트 플랫폼 구조',
-  illusion: 'Visible capability와 production readiness 사이의 demo-to-production gap',
-  iceberg: '데모에서 보이는 요소와 production 운영에 필요한 요소를 나눈 빙산 그림',
-  sequence: 'Platform First와 Production First 접근법 비교',
+  ko: {
+    platform: 'Tools, modules, agent runs, dynamic orchestration으로 구성된 에이전트 플랫폼 구조',
+    illusion: 'Visible capability와 production readiness 사이의 demo-to-production gap',
+    iceberg: '데모에서 보이는 요소와 production 운영에 필요한 요소를 나눈 빙산 그림',
+    sequence: 'Platform First와 Production First 접근법 비교',
+  },
+  en: {
+    platform: 'Enterprise agent platform composed of tools, modules, agent runs, and dynamic orchestration',
+    illusion: 'The demo-to-production gap between visible capability and production readiness',
+    iceberg: 'The visible layer of an agent demo and the operational layer required in production',
+    sequence: 'Comparison of Platform First and Production First approaches',
+  },
 };
+const label = labels[language][kind];
+const scrollHint = language === 'en' ? 'Scroll horizontally to view the full diagram' : '가로로 움직여 전체 도표 보기';
 ---
 
 <figure class="agent-platform-diagram" id={id}>
   <figcaption>{caption}</figcaption>
-  <div class="diagram-scroll" tabindex="0" aria-label={`${labels[kind]}. 모바일에서는 가로로 스크롤할 수 있습니다.`}>
-    <img src={sources[kind]} alt={labels[kind]} loading="lazy" decoding="async" />
+  <div class="diagram-scroll" tabindex="0" aria-label={`${label}. ${scrollHint}.`}>
+    <img src={sources[kind]} alt={label} loading="lazy" decoding="async" />
   </div>
-  <p class="scroll-hint" aria-hidden="true">← 가로로 움직여 전체 도표 보기 →</p>
+  <p class="scroll-hint" aria-hidden="true">← {scrollHint} →</p>
 </figure>
 
 <style>
@@ -89,4 +100,3 @@ const labels = {
     .scroll-hint { display: block; }
   }
 </style>
-

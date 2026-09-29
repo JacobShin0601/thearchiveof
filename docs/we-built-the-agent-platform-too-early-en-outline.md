@@ -1,8 +1,8 @@
-# English localization outline — We Built the Agent Platform Too Early
+# English localization outline — Why Our Agent Platform Got Off to a Rocky Start
 
 ## Editorial intent
 
-- **Working title:** We Built the Agent Platform Too Early
+- **Final title:** Why Our Agent Platform Got Off to a Rocky Start
 - **Alternate title:** Building Agents Got Easy. Production Didn't.
 - **Series:** Enterprise AX
 - **Format:** Engineering retrospective + enterprise AX essay
@@ -90,4 +90,3 @@ A durable enterprise agent platform is usually discovered through production rat
 | OpenAI, Codex | reviewed 2026-09-29 | Current coding-agent positioning |
 | Anthropic, Claude Code overview | reviewed 2026-09-29 | Current coding-agent capabilities |
 | Cursor documentation | reviewed 2026-09-29 | Current coding-agent capabilities |
-
