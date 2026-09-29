@@ -8,6 +8,7 @@ export const ARTICLE_KEYS = [
   "samsung-earnings-event-lab",
   "vllm-troubleshooting-metrics",
   "vllm-tuning-limited-gpus",
+  "we-built-the-agent-platform-too-early",
   "what-is-optimization-dinner-with-friends",
   "who-disappears-first-ai-or-business-teams",
   "why-i-am-removing-langgraph-from-agent-building",
