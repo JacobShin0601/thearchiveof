@@ -22,31 +22,31 @@ nextReviewDate: 2027-03-29
 series: 'Enterprise AX'
 seriesOrder: 4
 dataSources:
-  - '기업 AI의 운영과 현장 배포에 관한 외부 사례'
+  - '기업용 AI와 에이전트의 설계·운영·평가·위험관리에 관한 공식 가이드와 현장 사례'
   - 'OpenAI Codex, Anthropic Claude Code, Cursor 공식 제품 문서'
-methodology: '개인의 기업용 에이전트 운영 경험을 중심으로 논지를 구성하고, 코딩 에이전트의 현재 기능과 외부 기업 AI 운영 사례는 공식 원문으로 교차 확인했다. 회사나 프로젝트를 특정할 수 있는 세부사항과 근거가 불명확한 업계 수치는 제외했다.'
+methodology: '개인의 기업용 에이전트 운영 경험을 중심으로 논지를 구성하고, 코딩 에이전트의 현재 기능과 에이전트 설계·운영·평가·위험관리 원칙은 공식 원문으로 교차 확인했다. 회사나 프로젝트를 특정할 수 있는 세부사항과 근거가 불명확한 업계 수치는 제외했다.'
 references:
   - title: 'Why enterprise AI gets stuck in pilot mode'
     url: 'https://www.wonderful.ai/blog-articles/why-enterprise-ai-gets-stuck-in-pilot-mode'
     publisher: 'Wonderful'
-  - title: 'The Execution Gap No Model Can Close'
-    url: 'https://www.wonderful.ai/blog-articles/the-execution-gap-no-model-can-close'
-    publisher: 'Wonderful'
-  - title: 'The Hard Part of AI Agents Isn’t Building Them'
-    url: 'https://www.wonderful.ai/blog-articles/the-hard-part-of-ai-agents-isn%E2%80%99t-building-them'
-    publisher: 'Wonderful'
-  - title: 'The Learning Curve You Can’t Skip'
-    url: 'https://www.wonderful.ai/blog-articles/the-learning-curve-you-can%E2%80%99t-skip'
-    publisher: 'Wonderful'
-  - title: 'Building an AI Platform Won’t Transform Your Business'
-    url: 'https://www.wonderful.ai/blog-articles/building-an-ai-platform-won%E2%80%99t-transform-your-business'
-    publisher: 'Wonderful'
   - title: 'Let the Field Build the Product'
     url: 'https://www.wonderful.ai/blog-articles/let-the-field-build-the-product'
     publisher: 'Wonderful'
-  - title: 'FDE: The Engineers Owning The Last Mile'
-    url: 'https://www.wonderful.ai/blog-articles/owning-the-last-mile'
-    publisher: 'Wonderful'
+  - title: 'A practical guide to building agents'
+    url: 'https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/'
+    publisher: 'OpenAI'
+  - title: 'Building Effective AI Agents'
+    url: 'https://www.anthropic.com/engineering/building-effective-agents'
+    publisher: 'Anthropic'
+  - title: 'How we built our multi-agent research system'
+    url: 'https://www.anthropic.com/engineering/multi-agent-research-system'
+    publisher: 'Anthropic'
+  - title: 'Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile'
+    url: 'https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence'
+    publisher: 'NIST'
+  - title: 'Generative AI Lens — AWS Well-Architected Framework'
+    url: 'https://docs.aws.amazon.com/wellarchitected/latest/generative-ai-lens/generative-ai-lens.html'
+    publisher: 'AWS'
   - title: 'Codex'
     url: 'https://openai.com/codex/'
     publisher: 'OpenAI'
@@ -185,7 +185,9 @@ import AgentPlatformDiagrams from '../../../components/AgentPlatformDiagrams.ast
 
 ## 너무 이른 공개가 만든 Trust Debt
 
-내부 일정과 경영 일정 때문에 시스템은 충분히 성숙하기 전에 비교적 넓은 사용자에게 공개됐다. 기술적으로는 작동했지만 우리가 원하는 신뢰성에는 아직 도달하지 못한 상태였다.
+데모를 본 우리 쪽 임원은 이 시스템이 상위 경영진에게도 충분히 설득력 있게 보일 수 있다고 판단했던 것 같다. 그 뒤 출시 일정은 원래 계획의 절반으로 줄었고, 우리는 당초 계획과 달리 시스템을 매우 서둘러 비교적 넓은 사용자에게 공개하게 됐다. 기술적으로는 작동했지만 우리가 원하는 신뢰성에는 아직 도달하지 못한 상태였다.
+
+돌이켜보면 이런 일은 회사에서 생각보다 자주 일어난다. 설득력 있는 데모가 기술의 가능성뿐 아니라 배포 준비도까지 보여 주는 것으로 받아들여지면서, 검증을 위해 남겨 둔 시간이 사업 일정에 흡수된다.
 
 그 결과 초기 사용자 중 상당수가 이탈했다. 이후 품질을 안정화하고 사용자 경험을 개선하고 적합한 업무를 다시 발굴했지만, 사용자를 되돌리는 일은 처음 사용자를 모으는 일보다 어려웠다.
 
