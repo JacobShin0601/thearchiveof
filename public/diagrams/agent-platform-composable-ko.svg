@@ -15,7 +15,7 @@
     <g font-size="19" font-weight="650" text-anchor="middle" fill="#1c201d">
       <rect x="420" y="177" width="145" height="54" rx="27" fill="#e8e4da"/><text x="492" y="211">검색</text>
       <rect x="583" y="177" width="145" height="54" rx="27" fill="#e8e4da"/><text x="655" y="211">데이터베이스</text>
-      <rect x="746" y="177" width="145" height="54" rx="27" fill="#e8e4da"/><text x="818" y="211">Python</text>
+      <rect x="746" y="177" width="145" height="54" rx="27" fill="#e8e4da"/><text x="818" y="211">파이썬</text>
       <rect x="909" y="177" width="145" height="54" rx="27" fill="#e8e4da"/><text x="981" y="211">API</text>
     </g>
 
