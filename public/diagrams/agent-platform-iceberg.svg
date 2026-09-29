@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 840" role="img" aria-labelledby="title desc">
+  <title id="title">Enterprise Agent Iceberg</title>
+  <desc id="desc">Models, prompts, tool calling, agent architecture and user interface are visible above water. Evaluation, security, operations and change management form the larger structure below.</desc>
+  <defs>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dce8e2"/><stop offset="1" stop-color="#adcbbb"/></linearGradient>
+    <linearGradient id="ice" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9ece6"/><stop offset="1" stop-color="#9dbbab"/></linearGradient>
+  </defs>
+  <rect width="1200" height="840" fill="#f2f0e9"/>
+  <text x="68" y="68" fill="#1c201d" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="32" font-weight="700">Enterprise Agent Iceberg</text>
+  <text x="68" y="103" fill="#676b64" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18">The visible demo is the smallest part of production readiness</text>
+
+  <rect x="0" y="340" width="1200" height="430" fill="url(#sea)"/>
+  <path d="M0 340 C130 328 220 352 340 340 C475 327 565 352 700 338 C830 325 965 355 1200 337" fill="none" stroke="#668f7b" stroke-width="4"/>
+  <text x="1050" y="321" fill="#335f4b" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="800" letter-spacing="1">WATERLINE</text>
+
+  <path d="M395 338 L485 195 L565 228 L618 145 L675 231 L758 199 L815 338 Z" fill="#f8f7f2" stroke="#9eb5aa" stroke-width="2"/>
+  <path d="M394 341 L815 341 L1050 716 L170 716 Z" fill="url(#ice)" stroke="#6f9b85" stroke-width="2"/>
+
+  <g font-family="Inter,ui-sans-serif,system-ui,sans-serif" text-anchor="middle">
+    <text x="605" y="174" fill="#335f4b" font-size="14" font-weight="800" letter-spacing="1.5">WHAT EVERYONE SEES</text>
+    <text x="604" y="254" fill="#1c201d" font-size="18" font-weight="700">Model · Prompt · Tool Calling</text>
+    <text x="604" y="282" fill="#1c201d" font-size="18" font-weight="700">Agent Architecture · UI</text>
+  </g>
+
+  <text x="600" y="393" text-anchor="middle" fill="#274b3b" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="800" letter-spacing="1.7">WHAT PRODUCTION REQUIRES</text>
+  <g font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="17" font-weight="650" fill="#263c32">
+    <g>
+      <circle cx="320" cy="445" r="4" fill="#335f4b"/><text x="335" y="451">Evaluation</text>
+      <circle cx="320" cy="484" r="4" fill="#335f4b"/><text x="335" y="490">Observability</text>
+      <circle cx="320" cy="523" r="4" fill="#335f4b"/><text x="335" y="529">Authentication</text>
+      <circle cx="320" cy="562" r="4" fill="#335f4b"/><text x="335" y="568">Authorization</text>
+      <circle cx="320" cy="601" r="4" fill="#335f4b"/><text x="335" y="607">State Management</text>
+      <circle cx="320" cy="640" r="4" fill="#335f4b"/><text x="335" y="646">Retry &amp; Failure Recovery</text>
+      <circle cx="320" cy="679" r="4" fill="#335f4b"/><text x="335" y="685">Change Management</text>
+    </g>
+    <g>
+      <circle cx="650" cy="445" r="4" fill="#335f4b"/><text x="665" y="451">Security &amp; Audit</text>
+      <circle cx="650" cy="484" r="4" fill="#335f4b"/><text x="665" y="490">Latency &amp; Infrastructure</text>
+      <circle cx="650" cy="523" r="4" fill="#335f4b"/><text x="665" y="529">Monitoring</text>
+      <circle cx="650" cy="562" r="4" fill="#335f4b"/><text x="665" y="568">Cost Control</text>
+      <circle cx="650" cy="601" r="4" fill="#335f4b"/><text x="665" y="607">Versioning</text>
+      <circle cx="650" cy="640" r="4" fill="#335f4b"/><text x="665" y="646">Human Escalation</text>
+    </g>
+  </g>
+
+  <rect x="120" y="758" width="960" height="58" fill="#1c201d"/>
+  <text x="600" y="783" text-anchor="middle" fill="#fff" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="17" font-weight="750">What makes the demo impressive is above the water.</text>
+  <text x="600" y="805" text-anchor="middle" fill="#b8d1c5" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16">What makes it survive is below it.</text>
+</svg>
+
