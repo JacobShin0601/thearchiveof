@@ -7,18 +7,24 @@ interface Props {
 }
 
 const { kind, id, caption, language = 'ko' } = Astro.props;
-const sources = {
+const sourcesEn = {
   platform: '/diagrams/agent-platform-composable.svg',
   illusion: '/diagrams/agent-platform-prototype-illusion.svg',
   iceberg: '/diagrams/agent-platform-iceberg.svg',
   sequence: '/diagrams/agent-platform-sequence.svg',
 };
+const sourcesKo = {
+  platform: '/diagrams/agent-platform-composable-ko.svg',
+  illusion: '/diagrams/agent-platform-prototype-illusion-ko.svg',
+  iceberg: '/diagrams/agent-platform-iceberg-ko.svg',
+  sequence: '/diagrams/agent-platform-sequence-ko.svg',
+};
 const labels = {
   ko: {
-    platform: 'Tools, modules, agent runs, dynamic orchestration으로 구성된 에이전트 플랫폼 구조',
-    illusion: 'Visible capability와 production readiness 사이의 demo-to-production gap',
-    iceberg: '데모에서 보이는 요소와 production 운영에 필요한 요소를 나눈 빙산 그림',
-    sequence: 'Platform First와 Production First 접근법 비교',
+    platform: '도구, 모듈, 에이전트 실행, 동적 조정으로 구성된 기업용 에이전트 플랫폼 구조',
+    illusion: '눈에 보이는 기능과 실제 운영 준비도 사이의 데모와 실제 운영 간극',
+    iceberg: '에이전트 데모에서 보이는 요소와 실제 운영에 필요한 요소를 나눈 빙산 그림',
+    sequence: '플랫폼 우선과 운영 우선 접근법 비교',
   },
   en: {
     platform: 'Enterprise agent platform composed of tools, modules, agent runs, and dynamic orchestration',
@@ -28,6 +34,7 @@ const labels = {
   },
 };
 const label = labels[language][kind];
+const sources = language === 'en' ? sourcesEn : sourcesKo;
 const scrollHint = language === 'en' ? 'Scroll horizontally to view the full diagram' : '가로로 움직여 전체 도표 보기';
 ---
 
