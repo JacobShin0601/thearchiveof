@@ -25,31 +25,31 @@ nextReviewDate: 2027-03-29
 series: 'Enterprise AX'
 seriesOrder: 4
 dataSources:
-  - 'External field reports on enterprise AI deployment and operations'
+  - 'Official guidance and field reports on enterprise AI and agent design, operations, evaluation, and risk management'
   - 'Official product documentation for OpenAI Codex, Anthropic Claude Code, and Cursor'
-methodology: 'The argument is grounded in my experience operating an enterprise agent platform. I cross-checked current coding-agent capabilities and external observations about enterprise AI operations against official sources. I excluded details that could identify the company or project, along with unsupported industry-wide statistics.'
+methodology: 'The argument is grounded in my experience operating an enterprise agent platform. I cross-checked current coding-agent capabilities and principles for agent design, operations, evaluation, and risk management against official sources. I excluded details that could identify the company or project, along with unsupported industry-wide statistics.'
 references:
   - title: 'Why enterprise AI gets stuck in pilot mode'
     url: 'https://www.wonderful.ai/blog-articles/why-enterprise-ai-gets-stuck-in-pilot-mode'
     publisher: 'Wonderful'
-  - title: 'The Execution Gap No Model Can Close'
-    url: 'https://www.wonderful.ai/blog-articles/the-execution-gap-no-model-can-close'
-    publisher: 'Wonderful'
-  - title: 'The Hard Part of AI Agents Isn’t Building Them'
-    url: 'https://www.wonderful.ai/blog-articles/the-hard-part-of-ai-agents-isn%E2%80%99t-building-them'
-    publisher: 'Wonderful'
-  - title: 'The Learning Curve You Can’t Skip'
-    url: 'https://www.wonderful.ai/blog-articles/the-learning-curve-you-can%E2%80%99t-skip'
-    publisher: 'Wonderful'
-  - title: 'Building an AI Platform Won’t Transform Your Business'
-    url: 'https://www.wonderful.ai/blog-articles/building-an-ai-platform-won%E2%80%99t-transform-your-business'
-    publisher: 'Wonderful'
   - title: 'Let the Field Build the Product'
     url: 'https://www.wonderful.ai/blog-articles/let-the-field-build-the-product'
     publisher: 'Wonderful'
-  - title: 'FDE: The Engineers Owning The Last Mile'
-    url: 'https://www.wonderful.ai/blog-articles/owning-the-last-mile'
-    publisher: 'Wonderful'
+  - title: 'A practical guide to building agents'
+    url: 'https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/'
+    publisher: 'OpenAI'
+  - title: 'Building Effective AI Agents'
+    url: 'https://www.anthropic.com/engineering/building-effective-agents'
+    publisher: 'Anthropic'
+  - title: 'How we built our multi-agent research system'
+    url: 'https://www.anthropic.com/engineering/multi-agent-research-system'
+    publisher: 'Anthropic'
+  - title: 'Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile'
+    url: 'https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence'
+    publisher: 'NIST'
+  - title: 'Generative AI Lens — AWS Well-Architected Framework'
+    url: 'https://docs.aws.amazon.com/wellarchitected/latest/generative-ai-lens/generative-ai-lens.html'
+    publisher: 'AWS'
   - title: 'Codex'
     url: 'https://openai.com/codex/'
     publisher: 'OpenAI'
@@ -186,7 +186,9 @@ Those figures are rhetorical, not measured statistics. The point is that the ope
 
 ## The Trust Debt of launching too early
 
-Internal timing and management commitments led us to release the system to a relatively broad audience before it had reached the reliability we wanted. It worked technically, but it was not yet dependable enough.
+After seeing the demo, one of our executives appears to have concluded that the system would resonate with senior leadership. The planned launch timeline was then cut in half, and we released the system to a relatively broad audience far more abruptly than intended. It worked technically, but it had not yet reached the level of reliability we wanted.
+
+In retrospect, this happens inside companies more often than many teams expect. A persuasive demo is treated as evidence not only that the technology is promising, but that the product is nearly ready to ship. Time reserved for validation is then absorbed into the business timeline.
 
 Many early users left. We later stabilized quality, improved the experience, and found better-fitting use cases, but bringing those users back required much more effort than acquiring their attention the first time.
 
