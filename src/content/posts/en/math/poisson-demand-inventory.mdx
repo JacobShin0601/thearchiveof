@@ -1,0 +1,325 @@
+---
+title: "The Chicken Sold Out at 2 PM"
+subtitle: "A Poisson view of demand and inventory"
+description: "A café queue and a Chuseok chicken stockout explain Poisson demand, stockout probability, expected lost sales, and inventory decisions."
+publishedDate: 2026-09-30
+section: "Mathematics"
+subsection: "Statistics"
+contentType: "foundation"
+topics:
+  - supply-chain
+  - optimization
+primaryTopic: supply-chain
+tags:
+  - poisson-distribution
+  - probability
+  - inventory
+  - demand-modeling
+  - operations-research
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "poisson-demand-inventory"
+localization:
+  locale: "en-US"
+  defaultContext: "Chuseok is Korea's major autumn holiday; BHC is a Korean fried-chicken franchise, and Kwakssak King is one of its menu items."
+  strategy: "localized-adaptation"
+freshness: evergreen
+lastReviewed: 2026-09-30
+nextReviewDate: 2027-09-30
+references:
+  - title: "The Poisson Distribution — STAT 414"
+    url: "https://online.stat.psu.edu/stat414/Lesson12.html"
+    publisher: "Penn State Department of Statistics"
+  - title: "Poisson Processes — Discrete Stochastic Processes, Chapter 2"
+    url: "https://ocw.mit.edu/courses/6-262-discrete-stochastic-processes-spring-2011/3a19ce0e02d0008877351bfa24f3716a_MIT6_262S11_chap02.pdf"
+    publisher: "MIT OpenCourseWare"
+  - title: "Compound Poisson Processes"
+    url: "https://stats.libretexts.org/Bookshelves/Probability_Theory/Probability_Mathematical_Statistics_and_Stochastic_Processes_%28Siegrist%29/14%3A_The_Poisson_Process/14.07%3A_Compound_Poisson_Processes"
+    publisher: "Statistics LibreTexts"
+  - title: "Newsvendor Inventory Problem"
+    url: "https://ocw.mit.edu/courses/15-772j-d-lab-supply-chains-fall-2014/6952be57b43aa185119c6f114908bcc5_MIT15_772JF14_Newsboy.pdf"
+    publisher: "MIT OpenCourseWare"
+  - title: "Separation of Perishable Inventories in Offline Retailing Through Transshipment"
+    url: "https://pubsonline.informs.org/doi/10.1287/opre.2021.2144"
+    publisher: "Operations Research"
+  - title: "Explain Contribution Margin and Calculate Contribution Margin per Unit"
+    url: "https://openstax.org/books/principles-managerial-accounting/pages/3-1-explain-contribution-margin-and-calculate-contribution-margin-per-unit-contribution-margin-ratio-and-total-contribution-margin"
+    publisher: "OpenStax"
+  - title: "Poisson Regression — STAT 462"
+    url: "https://online.stat.psu.edu/stat462/node/209/"
+    publisher: "Penn State Department of Statistics"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import PoissonInventoryDiagrams from '../../../../components/PoissonInventoryDiagrams.astro';
+import PoissonInventoryExplorer from '../../../../components/interactive/PoissonInventoryExplorer.astro';
+
+<AnswerBlock question="What is the Poisson distribution?">
+  The Poisson distribution describes <strong>how many times an event occurs within a fixed interval of time or space</strong>. Given an average count λ, it assigns probabilities to zero, one, two, and every other possible count. It is often used for count data such as customer arrivals, orders, server errors, and insurance claims.
+</AnswerBlock>
+
+Imagine sitting in a café, waiting for a friend.
+
+With nothing else to do, you watch the door. Nobody enters during one ten-minute interval. Five people arrive during another. After about an hour, the café seems to receive an average of three customers every ten minutes.
+
+What is the probability that **exactly two** people enter during the next ten minutes? That nobody does? That at least five do?
+
+The average alone cannot answer those questions.
+
+## An average of three does not promise three next time
+
+Write the average arrival count as:
+
+$$
+\lambda = 3 \text{ customers per 10 minutes}.
+$$
+
+An average of three does not mean exactly three customers will arrive in the next ten minutes. The realized count could be zero, one, two, five, or occasionally seven.
+
+<PoissonInventoryDiagrams variant="arrivals" language="en" />
+
+The average compresses all of those outcomes into one number. But staffing a counter or planning seats requires more than the center of the distribution. We want to know **how plausible zero, one, two, three, and every other count are**. That is what a probability distribution gives us.
+
+The Poisson distribution is one of the basic models for event counts within an interval. Its probability mass function is:
+
+$$
+P(X=k)=\frac{e^{-\lambda}\lambda^k}{k!}.
+$$
+
+- $\lambda$ is the average number of events in the interval.
+- $k$ is a realized count.
+- $P(X=k)$ is the probability of exactly $k$ events.
+
+With $\lambda=3$, the probability of no arrival in the next ten minutes is about **5.0%**. The probability of exactly two is about **22.4%**, while the probability of five or more is about **18.5%**. Two and three happen to be equally likely.
+
+<PoissonInventoryDiagrams variant="distribution" language="en" />
+
+We will not derive why $e$ and a factorial appear. The useful intuition is simpler: **even when we know the average event count, the next interval still varies; the Poisson distribution assigns probabilities to that variation.**
+
+## When is a Poisson model a reasonable start?
+
+Reality is not obliged to obey “the Poisson law.” The better question is whether a Poisson approximation is useful enough for a particular slice of reality. It is a natural starting point when:
+
+- we count events in a defined interval of time or space;
+- the average rate does not change dramatically within that interval;
+- counts in non-overlapping intervals are not strongly dependent; and
+- simultaneous batches do not dominate behavior at very short time scales.
+
+We do not need to prove that café customers never coordinate. But if lunch peaks, group arrivals, or promotions create obvious clustering, a simple Poisson model may miss important variation. A model is not a photocopy of reality. It is a compression that must be adequate for the decision at hand.
+
+## The distribution starts to matter when money enters
+
+Counting café arrivals is a tidy example. The gap between an average and a distribution feels different when it turns into a missed sale.
+
+During Korea's recent Chuseok holiday, I planned to pick up *Kwakssak King* from the BHC fried-chicken location near my home. I called at about 2 PM. The store had already run out of the ingredients for that menu item. Someone at the store said they were considering whether they could borrow supplies from a nearby location.
+
+Rather than wait, I checked another nearby BHC. It had stock, so I ordered delivery from that location and ate the chicken after all. I could not buy it from the store near my home, but I did not abandon the product. I had experienced something similar during a previous holiday.
+
+I do not know that store's ordering system or supply constraints. Headquarters logistics, ordering caps, storage space, shelf life, or an unexpected demand surge could all have mattered. A 2 PM stockout is not enough evidence to declare that somebody ordered badly.
+
+Still, it made me wonder:
+
+> How many units of that ingredient should the store have prepared?
+
+## A café and a chicken store ask the same kind of question
+
+At the café, we asked how many customers would arrive in the next ten minutes. At the chicken store, we ask how many orders will arrive over the remaining hours. Both are **count processes**.
+
+If orders arrive at a constant average rate of $\lambda=5$ per hour, we might model the count over $t$ hours as:
+
+$$
+N(t)\sim \operatorname{Poisson}(\lambda t).
+$$
+
+Over two hours, expected demand is $5\times2=10$ orders. The realized count need not be ten; it might be seven or fourteen.
+
+Now consider an illustrative scenario that has **nothing to do with actual sales at any BHC location**. Suppose expected demand over the remaining holiday hours is 30 orders:
+
+$$
+D\sim \operatorname{Poisson}(30).
+$$
+
+Does an average of 30 mean 30 units of inventory are enough? No. Thirty is only the center of the distribution. We need a different question:
+
+> If the store prepares $Q$ units, what is the probability of a stockout?
+
+Let $D$ be demand and $Q$ inventory. The stockout probability is:
+
+$$
+P(D>Q).
+$$
+
+It is simply the probability that demand exceeds available stock. Under the illustrative $D\sim\operatorname{Poisson}(30)$ model, inventory of $Q=30$ produces a stockout probability of about **45.2%**. Stocking the mean still leaves the store short in almost half of the modeled periods.
+
+<PoissonInventoryDiagrams variant="stockout" language="en" />
+
+## “Avoid a stockout on 95% of days”
+
+Suppose the store sets a service-level target. Here, we will define it simply as the probability of no shortage during the remaining period, $P(D\le Q)$.
+
+> We want to avoid a stockout on 95% of comparable days.
+
+That target requires an upper quantile of the demand distribution, not just its mean. In this illustrative model, **$Q=39$ is the first quantity for which $P(D\le Q)\ge95\%$**. With 35 units, stockout probability is about 15.7%; with 40, it falls to about 3.2%.
+
+This is not a recommended order quantity. We have not modeled waste, replenishment, lead time, product substitution, or transfers between stores. The important move is conceptual: **the store can express its target as tolerable stockout risk rather than average demand.**
+
+## I was a customer who actually moved to another store
+
+At least one customer intended to buy but went elsewhere because the nearby store lacked inventory: me. From the focal store's perspective, this was an observed **lost sale**. From the BHC brand's perspective, however, the transaction moved to another franchise location rather than disappearing. The unit of analysis—store or network—matters.
+
+How many more customers like me arrived that afternoon?
+
+When demand exceeds inventory, the excess is potential lost sales. We can write it as:
+
+$$
+\operatorname{LostSales}=\left(D-Q\right)^+,
+$$
+
+where $(x)^+=\max(x,0)$. If demand is 38 and inventory is 35, the excess is three. If demand is 32, it is zero. Averaging that excess across every possible demand realization, weighted by its probability, gives expected lost sales:
+
+$$
+E[\operatorname{LostSales}]
+=E\left[\left(D-Q\right)^+\right]
+=\sum_{d=Q+1}^{\infty}(d-Q)P(D=d).
+$$
+
+<PoissonInventoryDiagrams variant="lost-sales" language="en" />
+
+Under the same illustrative model, $Q=35$ has a **15.7%** stockout probability but expected excess demand of only about **0.57 orders**. “What is the chance of any shortage?” and “How large is the average shortage?” are different questions.
+
+### What if inventory is already zero at 2 PM?
+
+If the average order rate after 2 PM is $\lambda$ and $T$ hours remain, expected demand is $\lambda T$. When inventory is zero—and under the strong assumption that none of those customers substitute to another product—expected lost demand over the rest of the day is also $\lambda T$.
+
+In reality, some customers choose another menu item, return tomorrow, move to another store, or abandon the purchase. Estimating the store's true loss therefore requires **within-store substitution, abandonment, and return probabilities**. My experience is one observed transfer to another location, not an estimate of those rates.
+
+## Lost contribution can be more useful than lost revenue
+
+If unit price is $p$, the simplest expected lost-revenue calculation is:
+
+$$
+\text{Expected Lost Revenue}
+=p\times E\left[\left(D-Q\right)^+\right].
+$$
+
+For an economic decision, **contribution margin** may be more informative than the full selling price. Had the store fulfilled one more order, it would also have incurred ingredients, packaging, payment, platform, and other volume-linked costs.
+
+Let unit contribution be $m=\text{unit price}-\text{unit variable cost}$. Then:
+
+$$
+\text{Expected Lost Contribution}
+=m\times E\left[\left(D-Q\right)^+\right].
+$$
+
+An accurate calculation would still need to determine which costs truly vary with the order and how discounts or platform fees apply. The useful distinction is simply that a lost selling price is not the same as a lost profit.
+
+<PoissonInventoryExplorer language="en" />
+
+## Why not stock as much as possible?
+
+Holding 100 units might make stockouts nearly disappear. It would introduce a different set of costs.
+
+| Too little inventory | Too much inventory |
+| --- | --- |
+| Lost sales and contribution | Spoilage and disposal |
+| Customers move to another store | Storage and handling |
+| A poor experience may reduce return visits | Working capital is tied up |
+| Emergency transfers or procurement | Shelf-life risk |
+
+Inventory can therefore be framed as a balance between two expected costs:
+
+$$
+\text{Expected Cost}(Q)
+=\text{Expected Underage Cost}
++\text{Expected Overage Cost}.
+$$
+
+Push this logic further and we reach the **newsvendor problem**, which chooses an order quantity under uncertain single-period demand by balancing the cost of having too little against the cost of having too much. In the language of [the earlier introduction to optimization](/en/math/optimization/what-is-optimization-dinner-with-friends/), the demand distribution describes how the world might vary; the newsvendor model takes that distribution and asks what we should do.
+
+A natural sequel is: **How many units should the store order, exactly? — The Newsvendor Problem.**
+
+## Chuseok should not inherit an ordinary-day λ
+
+So far, we have assumed a constant event rate within an interval. But there is no reason for an ordinary weekday's $\lambda$ to equal a Chuseok afternoon's $\lambda$.
+
+- holiday and family-sized orders;
+- changes in dining and delivery demand;
+- nearby stores closing;
+- sharper lunch and dinner peaks;
+- promotions and app exposure;
+- weather and recurring holiday patterns.
+
+These features can change the average rate. More realistically, the rate itself varies over time:
+
+$$
+\lambda=\lambda(t).
+$$
+
+This leads to a **non-homogeneous Poisson process**. Rather than multiplying one constant rate by elapsed time, expected orders from time $a$ to $b$ accumulate the varying rate:
+
+$$
+E[N(b)-N(a)]=\int_a^b \lambda(t)\,dt.
+$$
+
+<PoissonInventoryDiagrams variant="rates" language="en" />
+
+Choosing the right $\lambda$ can matter more than choosing the Poisson distribution. One grand average mixing weekdays, Fridays, weekends, public holidays, Chuseok, Lunar New Year, time of day, and promotions may be useless for a Chuseok afternoon.
+
+One stockout can be bad luck. If similar stockouts recur under similar conditions, it becomes reasonable to ask how demand is segmented and which service level guides inventory. Two personal experiences still do not establish that the store's forecasting model or operating policy is flawed.
+
+<PoissonInventoryDiagrams variant="depletion" language="en" />
+
+## Is borrowing from another store a bad strategy?
+
+Moving excess inventory from location B to a short location A is a form of **lateral transshipment**: inventory moves between locations at the same stage of a supply network to match surplus with shortage.
+
+Borrowing from a neighboring store is not inherently bad. It can be a sensible form of risk pooling, using the network's inventory rather than forcing every location to carry a large safety stock. But two arrangements are different:
+
+- a planned **network inventory strategy** that accounts for demand, transfer time, and cost; and
+- an improvised emergency call after each stockout.
+
+One remark on the phone cannot tell me which arrangement the store had. Transfer quality, responsibility, franchise settlement, and delivery delay would also matter.
+
+## One order need not consume one unit
+
+We have treated every order as if it consumed one unit of inventory. Real orders can contain one chicken, two chickens, or several menu items. The **number of order arrivals** and the **quantity of ingredients consumed** are different variables.
+
+If order count is $N\sim\operatorname{Poisson}(\mu)$ and order $i$ contains quantity $Y_i$, total demand can be written as:
+
+$$
+S=\sum_{i=1}^{N}Y_i.
+$$
+
+This is the idea behind a **compound Poisson model**: model how many orders arrive separately from the quantity attached to each order. We will stop at the concept. Adding ingredient-level consumption and menu combinations quickly turns this into a multi-item inventory problem.
+
+## Where a simple Poisson model breaks
+
+Poisson is a useful baseline, not a certificate of correctness. Its assumptions can fail when:
+
+- lunch and dinner peaks change the rate quickly;
+- group orders or promotions create clusters;
+- delivery-app exposure changes suddenly;
+- orders depend on word of mouth or shared gatherings;
+- stockouts censor demand that would otherwise have arrived; or
+- order quantities vary materially.
+
+A simple Poisson distribution has equal mean and variance. If observed variance is much larger—**overdispersion**—we can first investigate a time-varying rate and hidden heterogeneity, then consider a different count model such as the Negative Binomial. The goal is not complexity for its own sake. It is knowing where the simple model is wrong.
+
+## How many more customers like me were there?
+
+One missed chicken was probably not a large loss for the nearby store. I ordered from another BHC a few blocks away and ate it happily.
+
+For the store owner, though, the important fact is not that I was one customer.
+
+> How many more customers like me were there that afternoon?
+
+Average sales cannot answer that question. We need to know how demand varies, the probability that $Q$ units run out, the average number of orders that go unfilled, and how the cost of those shortages compares with leftover inventory.
+
+[The earlier essay on Bayesian statistics](/en/math/statistics/bayesian-statistics-dog-walk/) asked how uncertain judgments should change when evidence arrives. Here we take another step. Once uncertainty is expressed as a distribution, it can be translated into the language of physical inventory and economic cost.
+
+**Inventory management may be less about predicting exactly how much will sell than deciding while respecting how wrong that prediction can be.**
+
+Related topics: [Supply Chain](/en/topics/supply-chain/) · [Optimization](/en/topics/optimization/)
