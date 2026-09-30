@@ -3,6 +3,7 @@ export const ARTICLE_KEYS = [
   "ax-should-start-narrow",
   "bayesian-statistics-dog-walk",
   "efficient-markets-bayesian-lens",
+  "from-retrieval-engineering-to-task-engineering",
   "multi-objective-optimization-battery-supply-chain",
   "pareto-optimization-dinner-with-friends",
   "samsung-earnings-event-lab",

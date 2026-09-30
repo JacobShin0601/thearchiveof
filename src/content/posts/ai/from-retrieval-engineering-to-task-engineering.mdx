@@ -1,0 +1,263 @@
+---
+title: 'From Retrieval Engineering to Task Engineering'
+subtitle: 'RAG가 Agent가 될 때, AI 엔지니어링의 중심은 어떻게 이동하는가'
+description: '정보를 잘 찾는 시스템에서 금융 리서치 과업을 완수하는 시스템으로, RAG 이후 Agent Engineering의 추상화와 평가 단위가 어떻게 바뀌는지 살펴본다.'
+publishedDate: 2026-09-28
+section: 'AI & AX'
+subsection: 'AX'
+contentType: research
+topics: [ai-agents, rag, evaluation, enterprise-ai]
+primaryTopic: ai-agents
+tags: [rag, agent-engineering, task-engineering, investment-research, evaluation]
+author: 'Jacob Shin'
+language: ko
+translationKey: from-retrieval-engineering-to-task-engineering
+draft: true
+featured: false
+comments: false
+pillar: false
+freshness: periodic
+lastReviewed: 2026-09-28
+nextReviewDate: 2026-12-28
+dataThrough: 2026-09-28
+methodology: 'RAG 원 논문, 정보검색 연구, AI 기업의 공식 엔지니어링 문서와 금융기관 사례를 비교하고 투자 리서치 업무에 맞는 평가 계층을 제안했다.'
+series: 'Enterprise AX'
+seriesOrder: 4
+references:
+  - title: 'Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks'
+    url: 'https://arxiv.org/abs/2005.11401'
+    publisher: 'NeurIPS'
+  - title: 'RAGAS: Automated Evaluation of Retrieval Augmented Generation'
+    url: 'https://aclanthology.org/2024.eacl-demo.16/'
+    publisher: 'EACL'
+  - title: 'Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods'
+    url: 'https://research.google/pubs/reciprocal-rank-fusion-outperforms-condorcet-and-individual-rank-learning-methods/'
+    publisher: 'SIGIR'
+  - title: 'Create a Hybrid Query in Azure AI Search'
+    url: 'https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query'
+    publisher: 'Microsoft Learn'
+  - title: 'Building Effective AI Agents'
+    url: 'https://www.anthropic.com/engineering/building-effective-agents'
+    publisher: 'Anthropic'
+  - title: 'A Practical Guide to Building Agents'
+    url: 'https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf'
+    publisher: 'OpenAI'
+  - title: 'Evaluate Agent Workflows'
+    url: 'https://developers.openai.com/api/docs/guides/agent-evals'
+    publisher: 'OpenAI'
+  - title: 'Demystifying Evals for AI Agents'
+    url: 'https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents'
+    publisher: 'Anthropic'
+  - title: 'Tools Specification'
+    url: 'https://modelcontextprotocol.io/specification/2025-06-18/server/tools'
+    publisher: 'Model Context Protocol'
+  - title: 'Backtesting & Simulation'
+    url: 'https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/backtesting-and-simulation'
+    publisher: 'CFA Institute'
+  - title: 'EDGAR Timestamps'
+    url: 'https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps'
+    publisher: 'U.S. SEC'
+  - title: 'How Balyasny Asset Management Built an AI Research Engine'
+    url: 'https://openai.com/index/balyasny-asset-management/'
+    publisher: 'OpenAI'
+  - title: 'Morgan Stanley Uses AI Evals to Shape the Future of Financial Services'
+    url: 'https://openai.com/index/morgan-stanley/'
+    publisher: 'OpenAI'
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import TaskEngineeringDiagrams from '../../../components/TaskEngineeringDiagrams.astro';
+
+<AnswerBlock question="RAG가 Agent가 되면 AI 엔지니어링에서 무엇이 달라지는가?">
+  RAG engineering은 정보를 정확히 찾는 일을 최적화했다. Agent engineering은 그 기반 위에서 <strong>과업을 끝까지, 반복 가능하게 완수하는 일</strong>을 최적화한다. 모델의 능력이 커질수록 엔지니어의 중심 과제는 실행 경로를 모두 코딩하는 일에서 task, environment, tools, constraints와 evaluation을 설계하는 일로 이동한다.
+</AnswerBlock>
+
+몇 년 전 기업용 생성형 AI를 만든다는 것은 대체로 RAG를 잘 만든다는 뜻이었다. 문서를 어떻게 자를지, 어떤 embedding model을 쓸지, vector index를 어떻게 구성할지, BM25와 vector search를 어떻게 합칠지, 검색 결과를 어떤 reranker에 통과시킬지가 중요한 설계 문제였다.
+
+이 문제들이 사라진 것은 아니다. 오히려 이제는 Agent가 판단할 때 의존하는 기반 계층이 되었다. 달라진 것은 **엔지니어링의 병목이 스택의 위쪽으로 이동하고 있다는 점**이다.
+
+<TaskEngineeringDiagrams kind="stack" caption="Embedding과 retrieval에서 task와 evaluation으로. 병목이 스택의 위쪽으로 이동하고 있다." />
+
+RAG 시대의 핵심 질문이 “관련 문서를 제대로 찾았는가?”였다면, Agent 시대의 질문은 “주어진 환경과 제약 안에서 과업을 안정적으로 완수했는가?”가 된다. 모델은 workflow 안의 한 부품에서 점차 workflow를 실행하는 runtime에 가까워지고 있다.
+
+다만 이것은 Agent가 RAG보다 우월하다거나 workflow를 모두 없애자는 주장이 아니다. 결정론이 필요한 곳은 여전히 코드로 고정해야 한다. 변화의 본질은 **우리가 직접 통제해야 할 것과 모델에 위임할 것의 경계가 이동한다는 것**이다.
+
+## 우리는 Retrieval Engineer였다
+
+RAG의 출발점은 모델의 parameter 안에만 지식을 저장하는 대신 외부의 non-parametric memory를 검색해 생성 과정에 공급하는 것이었다. 2020년 [RAG 논문](https://arxiv.org/abs/2005.11401)은 이 구조가 지식 업데이트와 provenance 문제를 다루는 방법임을 보여주었다.
+
+하지만 이를 실제 서비스로 옮기면 수많은 선택지가 생긴다.
+
+- chunk size와 overlap은 얼마로 할 것인가
+- 표와 본문, 각주와 제목을 같은 방식으로 자를 것인가
+- dense embedding만 쓸 것인가, BM25를 결합할 것인가
+- metadata filtering을 검색 전후 어느 시점에 적용할 것인가
+- query rewriting과 multi-query retrieval을 사용할 것인가
+- 서로 다른 결과 목록을 RRF로 합칠 것인가
+- reranker에 몇 개의 후보를 보낼 것인가
+- 제한된 context window를 어떤 문서에 배분할 것인가
+
+금융 문서는 한 가지 검색 방식으로 다루기 어렵다. `AAPL`, ISIN, 회계 계정명, 특정 제품명처럼 **정확한 문자열이 중요한 질의**가 있는 반면, “생산능력 확대를 위해 회사가 어떤 투자를 하고 있는가?”처럼 **의미가 중요한 질의**도 있다. 전자는 lexical search가 강하고 후자는 semantic search가 강하다.
+
+그래서 실무에서는 두 검색을 병렬로 실행하고 RRF로 결과를 합치는 hybrid search가 자연스러운 선택이 된다. [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query)도 keyword와 vector query를 함께 실행하고 RRF로 통합한다. RRF 자체는 [2009년 SIGIR 연구](https://research.google/pubs/reciprocal-rank-fusion-outperforms-condorcet-and-individual-rank-learning-methods/)에서 제안된 오래된 rank-fusion 기법이다. 여러 검색 질의를 생성해 결과를 합치는 [RAG-Fusion](https://arxiv.org/abs/2402.03367)도 이 계열의 접근이다.
+
+그 뒤에는 semantic reranking이 붙는다. 여기서 중요한 사실은 reranker가 전체 corpus를 다시 찾는 것이 아니라 1차 검색이 올린 후보만 재정렬한다는 점이다. [Microsoft의 semantic ranker 설명](https://learn.microsoft.com/en-us/azure/search/semantic-search-overview)처럼 최초 검색에서 빠진 10-K의 핵심 주석은 아무리 좋은 reranker도 되살릴 수 없다.
+
+결국 production RAG는 “vector DB를 붙인 chatbot”이 아니라 여러 단계의 정보검색 시스템이었다.
+
+## RAG가 엔지니어링이 된 순간
+
+좋은 RAG 팀은 최종 답변만 보고 “그럴듯하다”고 판단하지 않았다. 실제 질문을 반영한 평가 세트를 만들고 `Query → Relevant Documents/Chunks → Expected Answer`를 연결했다. 그리고 pipeline을 분해했다.
+
+| 계층 | 질문 | 대표 지표 |
+|---|---|---|
+| Retrieval | 필요한 근거를 찾았는가 | Hit Rate@K, Recall@K, Precision@K |
+| Ranking | 중요한 근거를 위에 올렸는가 | MRR, NDCG |
+| Context | 생성에 유효한 문맥을 공급했는가 | Context Precision, Context Recall |
+| Generation | 문맥에 충실하고 질문에 답했는가 | Faithfulness, Relevance, Correctness |
+| End-to-end | 사용자의 문제를 해결했는가 | Task-specific score, expert review |
+
+[RAGAS](https://aclanthology.org/2024.eacl-demo.16/)를 비롯한 평가 연구도 retrieval, context, generation을 다른 차원으로 측정하는 방향을 정립했다. 최종 답변이 틀렸을 때 원인이 검색 누락인지, 순위 문제인지, context truncation인지, generation hallucination인지 알아야 고칠 수 있기 때문이다.
+
+단계별 지표를 보되 최종 과업과의 연결도 놓치면 안 된다. 2026년의 한 [production-style 연구](https://arxiv.org/abs/2603.02153)에서는 RAG-Fusion이 raw recall을 높였지만 reranking budget과 context truncation을 거친 뒤에는 이점이 사라졌다. 검색 계층의 개선이 곧바로 답변 품질의 개선을 뜻하지는 않는다.
+
+**RAG engineering matured when we stopped evaluating only the final answer.**
+
+RAG가 제대로 된 engineering discipline이 된 순간은 최종 문장의 인상을 평가하는 대신 `retrieval → ranking → context → generation`을 분리해 진단하기 시작한 때였다.
+
+## 초기 Agent는 Intelligence를 Harness에 넣었다
+
+초기 Agent 시스템에서는 모델만 믿고 긴 과업을 맡기기 어려웠다. 그래서 엔지니어는 상당한 intelligence를 모델 바깥의 harness에 구현했다.
+
+`Planner → Retriever → Financial Analyst → Critic → Writer`
+
+혹은 LangGraph로 `분류 → 검색 → 분석 → 비평 → 재시도 → 보고서`의 상태 전이와 조건문을 명시했다. 엔지니어는 어떤 Agent를 둘지, 어떤 순서로 호출할지, 실패하면 몇 번 재시도할지, 언제 critique를 실행할지, 어느 tool을 쓸지를 미리 결정했다. 모델의 불안정성을 코드로 둘러싸는 harness engineering이었다.
+
+이 접근은 여전히 유효하다. Anthropic의 [Building Effective AI Agents](https://www.anthropic.com/engineering/building-effective-agents)는 미리 정의한 코드 경로를 따르는 시스템을 workflow, 모델이 자신의 과정과 tool 사용을 동적으로 결정하는 시스템을 agent로 구분한다. 예측 가능성이 필요한 과업에는 workflow가, 유연한 판단이 필요한 과업에는 agent가 더 적합하다.
+
+즉 중요한 변화는 graph를 버리는 것이 아니다. [이전 글](/ai/ax/why-i-am-removing-langgraph-from-agent-building/)에서 말했듯 **고정해야 할 경로만 고정하는 것**이다.
+
+## 금융에서는 Harness가 더 중요했다
+
+금융 리서치 Agent는 단순한 web search Agent가 아니다. SEC·DART 공시, earnings transcript, 시장 데이터, consensus, 내부 리서치, 뉴스, SQL, Python, valuation model이 하나의 작업 환경을 이룬다. 각 데이터에는 라이선스, 권한, 시점, 단위, 통화, 수정 이력이라는 제약이 붙는다.
+
+Tool 설계부터 쉽지 않다. `get_financial_data()` 같은 범용 tool은 interface가 단순하지만 의미가 모호해진다. 반대로 `get_income_statement()`, `get_consensus()`, `get_management_guidance()`, `get_price_history()`처럼 지나치게 잘게 나누면 비슷한 tool이 늘어나 선택 오류가 생길 수 있다. [OpenAI의 Agent 설계 가이드](https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf)도 tool의 개수보다 이름, parameter, description의 중복과 모호성이 선택 성능에 더 큰 문제일 수 있다고 지적한다.
+
+따라서 Tool/MCP engineering은 단순한 API wrapping이 아니다. input/output schema, permission, timeout, retry, idempotency, provenance, source metadata를 함께 설계해야 한다. [MCP 명세](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)도 schema validation, access control, rate limit, timeout과 logging을 tool 계층의 핵심 요구사항으로 둔다.
+
+초기 금융 Agent engineering의 목표는 이렇게 요약할 수 있었다.
+
+> **Make the model operate safely inside a carefully engineered harness.**
+
+## 그런데 모델이 좋아졌다
+
+최근 reasoning model은 decomposition, planning, tool selection, replanning, error recovery와 장시간 실행을 과거보다 더 많이 자체 수행한다. OpenAI는 Agent를 LLM이 workflow execution을 관리하고 상태에 따라 tool을 선택하며 실패를 수정하는 시스템으로 설명한다. Anthropic도 현대의 augmented LLM이 검색 질의를 만들고 적절한 tool을 선택하며 무엇을 보존할지 결정할 수 있다고 말한다.
+
+그러면 예전에 만든 복잡한 workflow가 오히려 모델의 탐색 능력을 제한하는 순간이 생긴다.
+
+예전에는 “공시를 먼저 검색하고 경쟁사를 비교한 뒤 마지막에 Critic Agent를 실행하라”고 지시했다. Task-based Agent에서는 다음과 같이 바꿀 수 있다.
+
+> 2026년 7월 31일까지 공개된 정보만 사용해 이번 분기 마진 하락이 기존 투자 가설을 훼손하는지 판단하라. 가격·제품 믹스·원재료·가동률 가설을 비교하고 경쟁사 두 곳을 확인하라. 모든 수치 주장에는 출처와 기준 시점을 붙이고, 결론을 반증할 조건을 제시하라.
+
+두 번째 지시는 덜 구체적인 것이 아니다. **절차 대신 목적, 제약, 성공 기준을 더 정확히 명세한 것**이다. Agent에게 Tools, Data, Constraints, Memory/State, Evaluation Criteria를 제공하되, 증거를 찾는 순서와 중간 가설의 수정은 더 많이 위임한다.
+
+이것이 Task Engineering이다.
+
+<TaskEngineeringDiagrams kind="runtime" caption="RAG는 pipeline을 최적화하고, Agent는 환경을 탐색한다." />
+
+## Workflow Engineering에서 Task Engineering으로
+
+| | RAG | Early Agent | Task-based Agent |
+|---|---|---|---|
+| 입력 | Query | Workflow | Task |
+| 제어 | Retrieval pipeline | Engineer | Model + constraints |
+| 중심 추상화 | Document/chunk | Agent/node | Task/environment |
+| 지식 접근 | Vector index | Tools | Tools + environment |
+| 최적화 대상 | Retrieval quality | Orchestration | Task completion |
+| 디버그 단위 | Query/answer | Node/tool call | Trajectory/outcome |
+| 평가 | Hit@K, faithfulness | Step success | Task success + reliability |
+
+> **The model is becoming less like a component inside the workflow and more like the runtime of the workflow.**
+
+자율성은 목적이 아니라 수단이다. 결제, 주문, 권한 변경, 공식 수치 계산처럼 오차 허용도가 낮고 절차가 명확한 구간은 deterministic code와 validation으로 감싸야 한다. 반대로 어떤 문서를 더 읽을지, 상충하는 설명 중 무엇을 검증할지처럼 모든 분기를 미리 열거하기 어려운 구간은 모델이 탐색하도록 두는 편이 낫다.
+
+좋은 Task-based Agent는 자유로운 Agent가 아니라 **자유의 경계가 명확한 Agent**다.
+
+## Agent 시대에도 Eval이 핵심이다
+
+Agent 개발 초기의 토론은 architecture에 몰리기 쉽다. Single agent인가 multi-agent인가. LangGraph인가 pure Python인가. MCP를 쓸 것인가. 하지만 시스템이 성숙할수록 질문은 하나로 수렴한다.
+
+> **Does it reliably complete the task?**
+
+Agent는 최종 답변뿐 아니라 실행 궤적을 남긴다. `Task → Trial → Trajectory → Outcome`을 함께 봐야 한다. 예를 들어 리서치 궤적은 `공시 검색 → 주석 확인 → Python 계산 → 경쟁사 검색 → 가설 수정 → transcript 확인 → 결론`으로 이어질 수 있다.
+
+[OpenAI의 Agent eval 문서](https://developers.openai.com/api/docs/guides/agent-evals)는 model call, tool call, guardrail, handoff를 포함한 end-to-end trace를 먼저 평가하고, 이후 반복 가능한 dataset과 eval run으로 확장하는 방식을 권한다.
+
+좋은 trajectory가 반드시 좋은 outcome을 보장하지는 않고 예상과 다른 trajectory가 반드시 나쁜 것도 아니다. 평가의 목표는 “정답 경로를 그대로 따라 했는가”가 아니라 “금지된 행동 없이 필요한 증거를 모아 검증 가능한 결론에 도달했는가”여야 한다.
+
+<TaskEngineeringDiagrams kind="research-loop" caption="투자 리서치는 검색이 아니라 증거를 통해 가설을 수정하는 반복 과정이다." />
+
+## Investment Research Agent Evaluation Stack
+
+금융투자 Agent에는 일반적인 정확도보다 더 촘촘한 평가 계층이 필요하다. 다음은 내가 제안하는 8단계 stack이다.
+
+| Level | 평가 대상 | 핵심 질문 |
+|---|---|---|
+| L1 | Tool correctness | 올바른 tool을 올바른 인자와 권한으로 호출했는가? |
+| L2 | Data correctness | 숫자, 단위, 통화, 기간과 기업 식별자가 맞는가? |
+| L3 | Point-in-time correctness | 판단 시점에 실제로 알 수 있었던 정보만 사용했는가? |
+| L4 | Evidence coverage | 주요 근거와 반대 근거를 충분히 조사했는가? |
+| L5 | Hypothesis quality | 경쟁 가설을 만들고 구분 가능한 방식으로 검증했는가? |
+| L6 | Groundedness | 각 중요 주장과 수치를 원문까지 추적할 수 있는가? |
+| L7 | Task outcome | 요청된 리서치 목적과 의사결정 형식을 충족했는가? |
+| L8 | Reliability | 반복 실행에서도 성공하며 치명적 오류의 꼬리가 통제되는가? |
+
+<TaskEngineeringDiagrams kind="evaluation" caption="도구와 데이터의 무결성을 먼저 확인한 뒤 reasoning과 outcome을 평가한다." />
+
+이 stack은 단순한 점수표가 아니라 실패 원인을 찾기 위한 diagnostic hierarchy다. 잘못된 투자 결론이 나왔을 때 L5 reasoning을 바로 고치기 전에 L2의 단위 오류나 L3의 미래 데이터 누출부터 확인해야 한다.
+
+또한 L7의 task outcome을 사후 수익률과 동일시해서는 안 된다. 좋은 판단도 손실을 낼 수 있고 나쁜 판단도 우연히 수익을 낼 수 있다. 리서치 Agent의 outcome 평가는 **당시 이용 가능한 정보로 요구된 분석을 완결했고, 결론과 불확실성 및 반증 조건을 올바르게 제시했는가**를 측정해야 한다. P&L은 별도의 장기 검증 계층이다.
+
+## 금융에서 가장 중요한 것: Point-in-Time Truth
+
+일반적인 QA는 “답이 맞았는가?”를 묻는다. 투자 리서치는 한 가지를 더 물어야 한다.
+
+> **Could the agent have known it at that time?**
+
+2026년 1월 10일의 투자 판단을 재현하면서 1월 15일에 수정된 consensus, 1월 20일에 공개된 filing, 나중에 restate된 financial data를 사용하면 답변 자체는 정확해 보여도 연구로서는 실패다. Quant backtest의 look-ahead bias가 Research Agent에서도 그대로 발생한다. [CFA Institute](https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/backtesting-and-simulation)도 look-ahead bias를 backtesting에서 경계해야 할 핵심 편향으로 다룬다.
+
+따라서 데이터 모델에는 하나의 `date`가 아니라 최소한 다음 시간 축이 필요하다.
+
+| 필드 | 의미 |
+|---|---|
+| `event_time` | 경제적 사건 또는 실적 기간이 발생한 시점 |
+| `published_at` | 발행자가 정보를 발표한 시점 |
+| `available_at` | Agent의 데이터 소스에서 실제 조회 가능해진 시점 |
+| `ingested_at` | 내부 시스템이 정보를 수집한 시점 |
+| `revision_at` | 정정, 재작성 또는 vendor 수정이 반영된 시점 |
+
+[SEC EDGAR](https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps)만 보더라도 보고기간 종료일, 공식 filing date, acceptance date/time, 사후 변경일은 서로 다른 필드다. `period_end = 2025-12-31`인 재무제표가 2026년 2월에 공개되었다면 2026년 1월의 Agent가 그것을 알고 있었던 것처럼 행동해서는 안 된다.
+
+Point-in-time correctness는 단순한 metadata hygiene가 아니다. 투자 Agent의 정직성을 결정하는 기능 요구사항이다.
+
+## Reliability가 Demo보다 중요하다
+
+Agent는 같은 task를 반복해도 서로 다른 문서를 읽고 다른 순서로 tool을 사용한다. 한 번의 멋진 결과만으로는 production readiness를 증명할 수 없다.
+
+Anthropic의 [Agent eval 가이드](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)는 이 차이를 `pass@k`와 `pass^k`로 설명한다. `pass@k`는 k번 중 한 번이라도 성공할 확률이고 `pass^k`는 k번 모두 성공할 확률이다. 회당 성공률이 75%라면 세 번 모두 성공할 확률은 약 42%에 불과하다.
+
+아이디어 생성이나 후보 탐색에서는 여러 번 중 한 번의 성공이 유용할 수 있다. 그러나 고객에게 전달되는 투자 보고서, 위험 한도 점검, 규제 문서 검토에서는 반복 일관성이 더 중요하다. 평균 정확도만 볼 것이 아니라 치명적 오류의 빈도와 심각도도 함께 봐야 한다.
+
+> **Finance does not need an agent that can produce a brilliant report. It needs an agent that does not occasionally produce a dangerously wrong one.**
+
+금융권의 실제 도입 사례도 결국 eval로 돌아온다. 공개된 사례에 따르면 [Morgan Stanley](https://openai.com/index/morgan-stanley/)는 AI use case를 배포하기 전에 실제 업무 사례와 전문가 피드백으로 평가했고, 검색과 요약 평가를 확장하면서 시스템을 넓혔다. [Balyasny](https://openai.com/index/balyasny-asset-management/)는 내부 benchmark와 proprietary financial data를 이용해 12개 이상의 차원에서 모델을 평가한다고 설명한다. 두 자료 모두 OpenAI가 공개한 고객 사례이므로 독립 검증 결과가 아니라 vendor-reported evidence로 읽어야 한다.
+
+## 한 단계 위를 평가하라
+
+RAG는 우리에게 최종 답변을 믿지 말고 그 답을 만든 retrieval을 평가하라고 가르쳤다. Agent는 같은 교훈을 한 단계 위에서 반복하게 만든다.
+
+앞으로 Agent engineer의 핵심 역량은 더 복잡한 graph를 그리는 능력만이 아닐 것이다. 좋은 task를 명세하고, 모델이 사용할 환경과 tool을 설계하고, 필요한 곳에 결정론적 경계를 세우고, 실행 궤적과 결과를 반복 평가하는 능력이 된다.
+
+검색은 여전히 중요하다. Tool과 MCP도 중요하다. Workflow와 harness도 사라지지 않는다. 다만 이 모든 것은 더 이상 그 자체가 목적이 아니다. 하나의 과업을 안전하고 검증 가능하게 완수하기 위한 하위 계층이 된다.
+
+> **RAG taught us to evaluate retrieval instead of trusting the final answer. Agents will force us to do the same thing one level higher: evaluate the task, not the demo.**
