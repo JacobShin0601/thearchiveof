@@ -1,0 +1,268 @@
+---
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+---
+
+<section class="poisson-lab" data-poisson-lab data-language={language} aria-labelledby={`poisson-lab-title-${language}`}>
+  <header class="lab-header">
+    <div>
+      <p class="kicker">THE ARCHIVE / LAB 02</p>
+      <h3 id={`poisson-lab-title-${language}`}>{ko ? '평균수요를 재고 의사결정으로 바꾸기' : 'Turn average demand into an inventory decision'}</h3>
+      <p>{ko ? '푸아송 수요분포, 품절위험, 서비스 수준과 부족·과잉비용을 한 화면에서 비교합니다.' : 'Compare Poisson demand, stockout risk, service level, and shortage-versus-leftover cost in one place.'}</p>
+    </div>
+    <span class="badge">{ko ? '교육용 모형' : 'Educational model'}</span>
+  </header>
+
+  <div class="assumption-strip">
+    <span>{ko ? '도착 과정' : 'Arrivals'} <strong>Poisson</strong></span>
+    <span>{ko ? '주문 1건' : 'One order'} <strong>= {ko ? '재고 1단위' : 'one unit'}</strong></span>
+    <span>{ko ? '재보충' : 'Replenishment'} <strong>{ko ? '없음' : 'none'}</strong></span>
+  </div>
+
+  <div class="profile-control">
+    <fieldset>
+      <legend>{ko ? '시간대별 수요 모양' : 'Within-period demand shape'}</legend>
+      <div class="segments">
+        <label><input type="radio" name={`profile-${language}`} value="steady" checked /><span>{ko ? '일정' : 'Steady'}</span></label>
+        <label><input type="radio" name={`profile-${language}`} value="lunch" /><span>{ko ? '점심 집중' : 'Lunch peak'}</span></label>
+        <label><input type="radio" name={`profile-${language}`} value="holiday" /><span>{ko ? '명절 두 번의 피크' : 'Holiday peaks'}</span></label>
+      </div>
+    </fieldset>
+    <p>{ko ? '세 프로필은 전체 기대수요가 같도록 정규화했습니다. 기간 말 품절확률은 같지만, 재고가 소진되는 시간은 달라질 수 있습니다.' : 'All three profiles are normalized to the same total expected demand. End-of-period stockout risk is unchanged, but depletion timing can differ.'}</p>
+  </div>
+
+  <div class="control-grid">
+    <label><span>{ko ? '시간당 평균 주문률 λ' : 'Average orders per hour, λ'}</span><input name="rate" type="number" min="0.1" max="30" step="0.1" value="5" /></label>
+    <label><span>{ko ? '남은 시간 T' : 'Hours remaining, T'}</span><input name="hours" type="number" min="0.5" max="12" step="0.5" value="6" /></label>
+    <label><span>{ko ? '현재 재고 Q' : 'Current inventory, Q'}</span><input name="inventory" type="number" min="0" max="300" step="1" value="35" /></label>
+    <label class="range-control"><span>{ko ? '목표 비품절 서비스 수준' : 'Target no-stockout service level'} <output data-out="target">95%</output></span><input name="target" type="range" min="80" max="99.5" step="0.5" value="95" /></label>
+    <label><span>{ko ? '단위 부족비용 Cᵤ (원)' : 'Underage cost Cᵤ (KRW)'}</span><input name="underage" type="number" min="0" max="1000000" step="1000" value="9000" /></label>
+    <label><span>{ko ? '단위 잔여비용 Cₒ (원)' : 'Overage cost Cₒ (KRW)'}</span><input name="overage" type="number" min="0" max="1000000" step="1000" value="4000" /></label>
+  </div>
+
+  <div class="headline-results" aria-live="polite">
+    <div><span>{ko ? '기대수요 λT' : 'Expected demand λT'}</span><strong data-out="mean">30.00</strong></div>
+    <div><span>{ko ? '현재 품절확률' : 'Current stockout risk'}</span><strong data-out="stockout">15.74%</strong></div>
+    <div><span>{ko ? '기대 판매손실' : 'Expected shortage'}</span><strong data-out="shortage">0.57</strong></div>
+    <div><span>{ko ? '기대 잔여재고' : 'Expected leftover'}</span><strong data-out="leftover">5.57</strong></div>
+  </div>
+
+  <div class="recommendations">
+    <article><span>01 / {ko ? '평균 기준' : 'Mean rule'}</span><h4 data-out="meanQ">30</h4><p>{ko ? '기대수요를 반올림한 재고. 불확실성의 꼬리를 반영하지 않습니다.' : 'Rounded expected demand. It ignores the upper tail.'}</p></article>
+    <article class="featured"><span>02 / {ko ? '서비스 수준 기준' : 'Service-level rule'}</span><h4 data-out="serviceQ">39</h4><p><output data-out="targetCopy">95%</output>{ko ? ' 비품절확률을 처음 만족하는 최소 재고입니다.' : ' is the first quantity meeting the no-stockout target.'}</p></article>
+    <article><span>03 / {ko ? '비용 기준' : 'Cost rule'}</span><h4 data-out="costQ">33</h4><p>{ko ? '입력한 부족·잔여비용 아래 기대 불일치비용을 최소화합니다.' : 'Minimizes expected mismatch cost under the entered costs.'}</p></article>
+  </div>
+
+  <div class="chart-grid">
+    <section class="chart-card">
+      <div class="chart-title"><div><span>01 / DEMAND DISTRIBUTION</span><h4>{ko ? '평균 하나가 아니라 가능한 수요 전체' : 'The full range of demand, not one average'}</h4></div><div class="legend"><i></i>{ko ? '재고 초과 수요' : 'Demand above Q'}</div></div>
+      <div class="svg-scroll"><svg data-distribution viewBox="0 0 760 310" role="img" aria-label={ko ? '푸아송 수요분포와 현재 재고선' : 'Poisson demand distribution and current inventory line'}></svg></div>
+    </section>
+    <section class="chart-card">
+      <div class="chart-title"><div><span>02 / INVENTORY COST CURVE</span><h4>{ko ? '재고가 너무 적어도, 너무 많아도 비용이 든다' : 'Both too little and too much inventory cost money'}</h4></div></div>
+      <div class="svg-scroll"><svg data-cost viewBox="0 0 760 280" role="img" aria-label={ko ? '재고별 기대 부족·잔여비용 곡선' : 'Expected shortage and leftover cost by inventory'}></svg></div>
+    </section>
+  </div>
+
+  <section class="simulation-card">
+    <div class="simulation-heading">
+      <div><span>03 / 100 SIMULATED PERIODS</span><h4>{ko ? '같은 평균으로 100번 영업해 보기' : 'Run 100 periods with the same average'}</h4></div>
+      <button type="button" data-rerun>{ko ? '다시 시뮬레이션' : 'Run again'}</button>
+    </div>
+    <div class="simulation-summary" aria-live="polite"><strong data-out="simStockouts">—</strong><span>{ko ? '번 품절' : 'stockouts'}</span><small>{ko ? '이론상 품절확률' : 'Exact probability'} <b data-out="exactRisk">15.74%</b></small></div>
+    <div class="dot-grid" data-dots aria-label={ko ? '100번의 모의 영업 결과' : 'One hundred simulated operating periods'}></div>
+    <div class="sample-path">
+      <p>{ko ? '마지막 모의 영업의 시간대별 주문' : 'Orders by time block in the last simulated period'}</p>
+      <div data-path></div>
+      <small data-path-note>{ko ? '총수요와 재고 소진 시점을 보여줍니다.' : 'Shows total demand and when inventory would run out.'}</small>
+    </div>
+  </section>
+
+  <details class="comparison-table">
+    <summary>{ko ? '세 재고 기준의 숫자 비교' : 'Compare the three inventory rules'}</summary>
+    <div class="table-scroll"><table>
+      <thead><tr><th>{ko ? '기준' : 'Rule'}</th><th>Q</th><th>{ko ? '품절확률' : 'Stockout risk'}</th><th>{ko ? '기대 부족' : 'Expected shortage'}</th><th>{ko ? '기대 잔여' : 'Expected leftover'}</th><th>{ko ? '기대비용' : 'Expected cost'}</th></tr></thead>
+      <tbody data-comparison></tbody>
+    </table></div>
+  </details>
+
+  <p class="model-note">{ko
+    ? 'Illustrative model · 입력값은 실제 BHC나 특정 점포의 자료가 아닙니다. 주문 독립성, 주문당 재고 1단위, 기간 중 재보충 없음, 알려진 λ를 가정합니다. 비용 기준 재고는 단순 단일기간 Newsvendor 직관을 사용합니다.'
+    : 'Illustrative model · Inputs are not data from BHC or any store. The model assumes independent orders, one inventory unit per order, no replenishment, and a known λ. The cost rule uses a simplified single-period newsvendor intuition.'}</p>
+</section>
+
+<script>
+  import { costOptimalInventory, expectedLeftover, expectedMismatchCost, expectedShortage, poissonPmf, poissonQuantile, stockoutProbability } from '../../lib/poisson-inventory';
+  import { track } from '../../scripts/track';
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const make = (tag: string, attributes: Record<string, string> = {}) => {
+    const node = document.createElementNS(NS, tag);
+    Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, value));
+    return node;
+  };
+  const profiles: Record<string, number[]> = { steady: [1, 1, 1, 1], lunch: [.45, 1.85, 1.1, .6], holiday: [.7, 1.45, .55, 1.3] };
+  const money = (value: number, locale: string) => new Intl.NumberFormat(locale, { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(value);
+
+  function rng(seed: number) {
+    let state = seed >>> 0;
+    return () => ((state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296);
+  }
+  function samplePoisson(mean: number, random: () => number) {
+    const threshold = Math.exp(-mean);
+    let product = 1;
+    let count = 0;
+    do { count += 1; product *= random(); } while (product > threshold);
+    return count - 1;
+  }
+  function textNode(tag: string, value: string, attributes: Record<string, string> = {}) {
+    const node = make(tag, attributes); node.textContent = value; return node;
+  }
+
+  function drawDistribution(svg: SVGSVGElement, mean: number, inventory: number, ko: boolean) {
+    svg.replaceChildren();
+    const sd = Math.sqrt(mean);
+    const start = Math.max(0, Math.floor(mean - 4 * sd));
+    const end = Math.max(start + 10, Math.ceil(mean + 4 * sd));
+    const values = Array.from({ length: end - start + 1 }, (_, i) => ({ k: start + i, p: poissonPmf(mean, start + i) }));
+    const max = Math.max(...values.map((d) => d.p));
+    const x = (k: number) => 58 + (k - start) / Math.max(1, end - start) * 660;
+    const y = (p: number) => 250 - p / max * 190;
+    [0, .5, 1].forEach((ratio) => {
+      const yy = 250 - ratio * 190;
+      svg.append(make('line', { x1: '52', x2: '728', y1: String(yy), y2: String(yy), stroke: '#dfe2da', 'stroke-width': '1' }));
+      svg.append(textNode('text', `${(max * ratio * 100).toFixed(1)}%`, { x: '46', y: String(yy + 4), 'text-anchor': 'end', fill: '#73776f', 'font-size': '11' }));
+    });
+    const width = Math.max(3, 620 / values.length);
+    values.forEach(({ k, p }) => svg.append(make('rect', { x: String(x(k) - width / 2), y: String(y(p)), width: String(width), height: String(250 - y(p)), rx: '2', fill: k > inventory ? '#b85d50' : '#52755e' })));
+    if (inventory >= start && inventory <= end) {
+      const qx = x(inventory) + width / 2;
+      svg.append(make('line', { x1: String(qx), x2: String(qx), y1: '44', y2: '258', stroke: '#253d2e', 'stroke-width': '2', 'stroke-dasharray': '5 4' }));
+      svg.append(textNode('text', `Q=${inventory}`, { x: String(qx + 6), y: '39', fill: '#253d2e', 'font-size': '12', 'font-weight': '700' }));
+    }
+    [start, Math.round(mean), end].forEach((k) => svg.append(textNode('text', String(k), { x: String(x(k)), y: '276', 'text-anchor': 'middle', fill: '#73776f', 'font-size': '11' })));
+    svg.append(textNode('text', ko ? '기간 수요 D' : 'Period demand D', { x: '390', y: '300', 'text-anchor': 'middle', fill: '#73776f', 'font-size': '12' }));
+  }
+
+  function drawCost(svg: SVGSVGElement, mean: number, inventory: number, underage: number, overage: number, optimum: number, ko: boolean) {
+    svg.replaceChildren();
+    const end = Math.max(12, Math.ceil(mean + 4 * Math.sqrt(mean) + 5));
+    const rows = Array.from({ length: end + 1 }, (_, q) => ({ q, cost: expectedMismatchCost(mean, q, underage, overage) }));
+    const max = Math.max(...rows.map((row) => row.cost), 1);
+    const x = (q: number) => 58 + q / end * 660;
+    const y = (cost: number) => 228 - cost / max * 178;
+    [0, .5, 1].forEach((ratio) => {
+      const yy = 228 - ratio * 178;
+      svg.append(make('line', { x1: '52', x2: '728', y1: String(yy), y2: String(yy), stroke: '#dfe2da', 'stroke-width': '1' }));
+    });
+    svg.append(make('path', { d: rows.map((row, i) => `${i ? 'L' : 'M'}${x(row.q).toFixed(1)} ${y(row.cost).toFixed(1)}`).join(' '), fill: 'none', stroke: '#315b45', 'stroke-width': '3', 'stroke-linejoin': 'round' }));
+    const mark = (q: number, color: string, label: string) => {
+      if (q > end) return;
+      const cost = rows[q]?.cost ?? expectedMismatchCost(mean, q, underage, overage);
+      svg.append(make('circle', { cx: String(x(q)), cy: String(y(cost)), r: '5', fill: color, stroke: '#fff', 'stroke-width': '2' }));
+      svg.append(textNode('text', label, { x: String(x(q)), y: String(Math.max(18, y(cost) - 12)), 'text-anchor': 'middle', fill: color, 'font-size': '11', 'font-weight': '700' }));
+    };
+    mark(optimum, '#9b4b3e', `${ko ? '비용 최소' : 'Min cost'} Q=${optimum}`);
+    if (inventory !== optimum) mark(inventory, '#6f756e', `${ko ? '현재' : 'Current'} Q=${inventory}`);
+    [0, Math.round(end / 2), end].forEach((q) => svg.append(textNode('text', String(q), { x: String(x(q)), y: '252', 'text-anchor': 'middle', fill: '#73776f', 'font-size': '11' })));
+    svg.append(textNode('text', ko ? '재고 Q' : 'Inventory Q', { x: '390', y: '275', 'text-anchor': 'middle', fill: '#73776f', 'font-size': '12' }));
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-poisson-lab]').forEach((root) => {
+    const ko = root.dataset.language !== 'en';
+    const locale = ko ? 'ko-KR' : 'en-US';
+    let seed = 20261001;
+    let tracked = false;
+    const value = (name: string) => Number(root.querySelector<HTMLInputElement>(`[name="${name}"]`)?.value ?? 0);
+    const write = (name: string, text: string) => { const node = root.querySelector<HTMLElement>(`[data-out="${name}"]`); if (node) node.textContent = text; };
+    const profile = () => root.querySelector<HTMLInputElement>(`input[name="profile-${root.dataset.language}"]:checked`)?.value ?? 'steady';
+
+    const simulate = (mean: number, inventory: number) => {
+      const random = rng(seed);
+      const weights = profiles[profile()] ?? profiles.steady;
+      const means = weights.map((weight) => mean * weight / 4);
+      const totals: number[] = [];
+      let lastPath: number[] = [];
+      for (let run = 0; run < 100; run += 1) {
+        const path = means.map((blockMean) => samplePoisson(blockMean, random));
+        totals.push(path.reduce((sum, count) => sum + count, 0));
+        lastPath = path;
+      }
+      const dots = root.querySelector<HTMLElement>('[data-dots]')!;
+      dots.replaceChildren(...totals.map((demand, index) => {
+        const dot = document.createElement('span');
+        dot.className = demand > inventory ? 'stockout' : 'enough';
+        dot.title = `${ko ? '모의 기간' : 'Period'} ${index + 1}: D=${demand}`;
+        return dot;
+      }));
+      write('simStockouts', String(totals.filter((demand) => demand > inventory).length));
+      const pathRoot = root.querySelector<HTMLElement>('[data-path]')!;
+      let remaining = inventory;
+      pathRoot.replaceChildren(...lastPath.map((orders, index) => {
+        const block = document.createElement('div');
+        remaining -= orders;
+        block.className = remaining < 0 ? 'depleted' : '';
+        block.innerHTML = `<span>${ko ? `${index + 1}구간` : `Block ${index + 1}`}</span><strong>${orders}</strong><small>${ko ? '잔여' : 'left'} ${Math.max(0, remaining)}</small>`;
+        return block;
+      }));
+      const total = lastPath.reduce((sum, count) => sum + count, 0);
+      root.querySelector<HTMLElement>('[data-path-note]')!.textContent = ko ? `총수요 ${total}건 · ${total > inventory ? '기간 중 품절' : '재고 내에서 충족'}` : `Total demand ${total} · ${total > inventory ? 'stockout during the period' : 'fulfilled within inventory'}`;
+    };
+
+    const render = (resimulate = true) => {
+      const rate = Math.min(30, Math.max(.1, value('rate')));
+      const hours = Math.min(12, Math.max(.5, value('hours')));
+      const inventory = Math.min(300, Math.max(0, Math.round(value('inventory'))));
+      const target = Math.min(.995, Math.max(.8, value('target') / 100));
+      const underage = Math.max(0, value('underage'));
+      const overage = Math.max(0, value('overage'));
+      const mean = rate * hours;
+      const stockout = stockoutProbability(mean, inventory);
+      const shortage = expectedShortage(mean, inventory);
+      const leftover = expectedLeftover(mean, inventory);
+      const meanQ = Math.round(mean);
+      const serviceQ = poissonQuantile(mean, target);
+      const costQ = costOptimalInventory(mean, underage, overage);
+      write('target', `${(target * 100).toFixed(target * 100 % 1 ? 1 : 0)}%`);
+      write('targetCopy', `${(target * 100).toFixed(target * 100 % 1 ? 1 : 0)}%`);
+      write('mean', mean.toFixed(2)); write('stockout', `${(stockout * 100).toFixed(2)}%`); write('exactRisk', `${(stockout * 100).toFixed(2)}%`);
+      write('shortage', shortage.toFixed(2)); write('leftover', leftover.toFixed(2));
+      write('meanQ', String(meanQ)); write('serviceQ', String(serviceQ)); write('costQ', String(costQ));
+      drawDistribution(root.querySelector<SVGSVGElement>('[data-distribution]')!, mean, inventory, ko);
+      drawCost(root.querySelector<SVGSVGElement>('[data-cost]')!, mean, inventory, underage, overage, costQ, ko);
+      const labels = ko ? ['평균', '서비스 수준', '비용 최소'] : ['Mean', 'Service level', 'Cost minimum'];
+      const quantities = [meanQ, serviceQ, costQ];
+      const tbody = root.querySelector<HTMLTableSectionElement>('[data-comparison]')!;
+      tbody.replaceChildren(...quantities.map((q, index) => {
+        const tr = document.createElement('tr');
+        const cells = [labels[index], String(q), `${(stockoutProbability(mean, q) * 100).toFixed(2)}%`, expectedShortage(mean, q).toFixed(2), expectedLeftover(mean, q).toFixed(2), money(expectedMismatchCost(mean, q, underage, overage), locale)];
+        cells.forEach((cell, cellIndex) => { const node = document.createElement(cellIndex === 0 ? 'th' : 'td'); node.textContent = cell; if (cellIndex === 0) node.setAttribute('scope', 'row'); tr.append(node); });
+        return tr;
+      }));
+      if (resimulate) simulate(mean, inventory);
+    };
+
+    root.querySelectorAll<HTMLInputElement>('input').forEach((input) => input.addEventListener('input', () => {
+      render(input.type !== 'range' || input.name === 'target');
+      if (!tracked) { track('code_run', { articleSlug: 'poisson-demand-inventory-lab', language: ko ? 'ko' : 'en', component: 'poisson-demand-inventory-lab-v1' }); tracked = true; }
+    }));
+    root.querySelector<HTMLButtonElement>('[data-rerun]')!.addEventListener('click', () => { seed = Math.floor(Math.random() * 4294967295); render(true); });
+    render(true);
+  });
+</script>
+
+<style>
+  .poisson-lab{--ink:#20382c;--muted:#686d65;--line:#d9ddd3;--soft:#f2f5ef;--accent:#315b45;--risk:#b85d50;margin:2rem 0;padding:clamp(1rem,3vw,2rem);border:1px solid var(--line);border-radius:22px;background:#f8f9f5;color:#242b25;font-family:var(--sans);box-shadow:0 12px 35px rgba(23,45,31,.06)}
+  .lab-header,.chart-title,.simulation-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}.lab-header h3{margin:.2rem 0;font:700 clamp(1.55rem,3vw,2.25rem)/1.2 var(--serif)}.lab-header p:not(.kicker){margin:.45rem 0 0;color:var(--muted)}.kicker,.chart-title span,.simulation-heading span{margin:0;color:#4e6857;font:700 .68rem/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em}.badge{white-space:nowrap;border:1px solid #cbd7c9;border-radius:999px;background:#eaf1e8;padding:.35rem .65rem;color:#365c42;font-size:.75rem;font-weight:700}
+  .assumption-strip{display:flex;flex-wrap:wrap;gap:.45rem;margin:1.35rem 0}.assumption-strip span{border:1px solid var(--line);border-radius:999px;background:#fff;padding:.36rem .65rem;color:var(--muted);font-size:.72rem}.assumption-strip strong{color:var(--ink)}
+  .profile-control{display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:end;padding:1rem;border:1px solid var(--line);border-radius:14px;background:#fff}.profile-control fieldset{border:0;padding:0;margin:0}.profile-control legend{margin-bottom:.45rem;color:var(--muted);font-size:.76rem;font-weight:700}.profile-control p{margin:0;color:var(--muted);font-size:.75rem;line-height:1.5}.segments{display:flex;flex-wrap:wrap;gap:.3rem}.segments label{position:relative;cursor:pointer}.segments input{position:absolute;opacity:0}.segments span{display:block;border:1px solid var(--line);border-radius:8px;padding:.42rem .65rem;background:#fff;font-size:.78rem;font-weight:700}.segments input:checked+span{border-color:var(--ink);background:var(--ink);color:#fff}.segments input:focus-visible+span{outline:3px solid #82ac8c;outline-offset:2px}
+  .control-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;margin:1rem 0}.control-grid label{display:grid;grid-template-columns:1fr auto;align-items:center;gap:.5rem;border:1px solid var(--line);border-radius:10px;background:#fff;padding:.7rem}.control-grid span{color:var(--muted);font-size:.72rem}.control-grid input[type="number"]{width:104px;min-height:38px;border:1px solid var(--line);border-radius:7px;background:#fff;padding:.35rem .45rem;color:var(--ink);font:inherit;text-align:right}.range-control{grid-template-columns:1fr!important}.range-control input{width:100%;accent-color:var(--accent)}.range-control output{float:right;color:var(--accent);font-weight:800}
+  .headline-results{display:grid;grid-template-columns:repeat(4,1fr);margin:1.1rem 0;border-top:1px solid var(--line);border-left:1px solid var(--line)}.headline-results>div{display:grid;gap:.25rem;min-height:86px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff;padding:.75rem}.headline-results span{color:var(--muted);font-size:.72rem}.headline-results strong{align-self:end;color:var(--accent);font-size:1.25rem;font-variant-numeric:tabular-nums}
+  .recommendations{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin:1rem 0 1.3rem}.recommendations article{border:1px solid var(--line);border-radius:14px;background:#fff;padding:.9rem}.recommendations article.featured{border-color:#8ba08e;background:#edf3eb}.recommendations span{color:var(--muted);font:700 .65rem/1.3 ui-monospace,monospace;letter-spacing:.08em}.recommendations h4{margin:.2rem 0;color:var(--ink);font-size:2rem;font-variant-numeric:tabular-nums}.recommendations p{margin:0;color:var(--muted);font-size:.75rem;line-height:1.5}
+  .chart-grid{display:grid;gap:1rem}.chart-card,.simulation-card{border:1px solid var(--line);border-radius:16px;background:#fff;padding:1rem}.chart-title h4,.simulation-heading h4{margin:.22rem 0;font-size:1.05rem}.legend{display:flex;align-items:center;gap:.35rem;color:var(--muted);font-size:.72rem}.legend i{width:12px;height:12px;border-radius:3px;background:var(--risk)}.svg-scroll{overflow-x:auto}.chart-card svg{display:block;width:100%;min-width:620px;height:auto}
+  .simulation-card{margin-top:1rem}.simulation-heading button{border:1px solid #a9bca9;border-radius:8px;background:transparent;padding:.5rem .7rem;color:var(--ink);font:inherit;font-size:.78rem;cursor:pointer}.simulation-heading button:hover{background:var(--soft)}.simulation-summary{display:flex;align-items:baseline;gap:.35rem;margin:1rem 0 .7rem}.simulation-summary strong{color:var(--risk);font-size:2rem}.simulation-summary span{font-weight:700}.simulation-summary small{margin-left:auto;color:var(--muted)}.dot-grid{display:grid;grid-template-columns:repeat(20,1fr);gap:4px}.dot-grid span{aspect-ratio:1;border-radius:2px;background:#a8c0ad}.dot-grid span.stockout{background:var(--risk)}.sample-path{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}.sample-path>p{margin:0 0 .55rem;color:var(--muted);font-size:.75rem;font-weight:700}.sample-path>div{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem}.sample-path>div>div{display:grid;gap:.12rem;border-radius:9px;background:var(--soft);padding:.6rem}.sample-path>div>div.depleted{background:#f5e7e4}.sample-path span,.sample-path small{color:var(--muted);font-size:.68rem}.sample-path strong{font-size:1.2rem}.sample-path>small{display:block;margin-top:.5rem}
+  .comparison-table{margin-top:1rem}.comparison-table summary{cursor:pointer;color:var(--ink);font-weight:700}.table-scroll{overflow:auto}.comparison-table table{width:100%;margin-top:.7rem;border-collapse:collapse;font-size:.75rem;font-variant-numeric:tabular-nums}.comparison-table th,.comparison-table td{padding:.48rem;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.comparison-table th:first-child{text-align:left}.model-note{margin:1rem 0 0;color:var(--muted);font-size:.7rem;line-height:1.55}
+  @media(max-width:760px){.control-grid{grid-template-columns:1fr 1fr}.headline-results{grid-template-columns:1fr 1fr}.recommendations{grid-template-columns:1fr}.profile-control{grid-template-columns:1fr}.dot-grid{grid-template-columns:repeat(10,1fr)}}
+  @media(max-width:520px){.poisson-lab{padding:1rem}.lab-header{display:block}.badge{display:inline-block;margin-top:.7rem}.control-grid{grid-template-columns:1fr}.control-grid input[type="number"]{width:92px}.simulation-heading{display:block}.simulation-heading button{margin-top:.65rem}.sample-path>div{grid-template-columns:1fr 1fr}.simulation-summary{flex-wrap:wrap}.simulation-summary small{width:100%;margin-left:0}}
+</style>
