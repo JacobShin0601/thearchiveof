@@ -1,0 +1,86 @@
+---
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+---
+
+<section class="queue-explorer" data-component="contact-center-queue-explorer-v1" data-language={language}>
+  <p class="eyebrow">{ko ? '직접 실험' : 'Interactive equivalent'}</p>
+  <h3>{ko ? 'AI 이관율과 상담사 수를 바꿔보자' : 'Change the AI handoff rate and human staffing'}</h3>
+  <p>{ko
+    ? '독립적인 푸아송 도착, 일정한 이관확률, 지수분포 처리시간과 고객 이탈이 없는 M/M/c 대기열을 가정한 교육용 계산기입니다.'
+    : 'This educational calculator assumes independent Poisson arrivals, a constant handoff probability, exponential handling times, and an M/M/c queue without abandonment.'}</p>
+
+  <div class="queue-inputs">
+    <label>{ko ? '전체 문의 λ (건/시간)' : 'All contacts, λ (per hour)'}<input type="number" name="contacts" min="1" max="1000" step="1" value="100" /></label>
+    <label>{ko ? '인간 상담사 이관율 p' : 'Human handoff rate, p'}<input type="range" name="handoff" min="1" max="100" step="1" value="20" /><output data-out="handoff">20%</output></label>
+    <label>{ko ? '평균 처리시간 AHT (분)' : 'Average handle time (min)'}<input type="number" name="aht" min="1" max="120" step="1" value="12" /></label>
+    <label>{ko ? '인간 상담사 수 c' : 'Human agents, c'}<input type="number" name="agents" min="1" max="200" step="1" value="7" /></label>
+    <label>{ko ? '목표 응답시간 (분)' : 'Target answer time (min)'}<input type="number" name="target" min="0" max="60" step="0.5" value="5" /></label>
+  </div>
+
+  <div class="queue-results" aria-live="polite">
+    <div><span>{ko ? '인간 상담 도착률 pλ' : 'Human arrival rate, pλ'}</span><strong data-out="humanRate">20.0/시간</strong></div>
+    <div><span>{ko ? '평균 이관 간격' : 'Mean handoff interval'}</span><strong data-out="interarrival">3.00분</strong></div>
+    <div><span>{ko ? '제공 부하' : 'Offered load'}</span><strong data-out="load">4.00 Erlangs</strong></div>
+    <div><span>{ko ? '상담사 가동률' : 'Agent utilization'}</span><strong data-out="utilization">57.1%</strong></div>
+    <div><span>{ko ? '평균 대기시간' : 'Average wait'}</span><strong data-out="averageWait">0.54분</strong></div>
+    <div><span>{ko ? '목표시간 내 연결확률' : 'Answer probability within target'}</span><strong data-out="serviceLevel">96.1%</strong></div>
+  </div>
+
+  <p class="queue-status" data-out="status">{ko ? '이 단순 모형에서는 대기열이 안정적입니다.' : 'The queue is stable under this simplified model.'}</p>
+  <p class="queue-note">{ko
+    ? '실제 인력계획에는 시간대별 수요, 상담 유형별 처리시간, 고객 이탈, 휴식·교육·후처리, 숙련도와 스케줄 제약이 필요합니다. 이관율이 낮아도 이관 상담이 더 복잡하면 AHT가 길어질 수 있습니다.'
+    : 'Real workforce planning also needs interval-level demand, contact-type handling times, abandonment, breaks, training, after-call work, skill mix, and schedule constraints. Lower handoff volume can still come with longer handling times.'}</p>
+</section>
+
+<script>
+  import { track } from '../../scripts/track';
+  import { erlangC, humanHandoffRate, meanInterarrivalMinutes } from '../../lib/contact-center-queue';
+
+  function render(root: HTMLElement, trackChange = false) {
+    const value = (name: string) => Number(root.querySelector<HTMLInputElement>(`[name="${name}"]`)?.value ?? 0);
+    const contacts = Math.max(0, value('contacts'));
+    const handoffShare = Math.min(1, Math.max(0, value('handoff') / 100));
+    const aht = Math.max(0.1, value('aht'));
+    const agents = Math.max(1, Math.round(value('agents')));
+    const target = Math.max(0, value('target'));
+    const humanRate = humanHandoffRate(contacts, handoffShare);
+    const interarrival = meanInterarrivalMinutes(humanRate);
+    const metrics = erlangC(humanRate, aht, agents, target);
+    const language = root.dataset.language === 'en' ? 'en' : 'ko';
+    const write = (name: string, text: string) => {
+      const output = root.querySelector<HTMLElement>(`[data-out="${name}"]`);
+      if (output) output.textContent = text;
+    };
+    const perHour = language === 'ko' ? '/시간' : '/hr';
+    const minutes = language === 'ko' ? '분' : ' min';
+    write('handoff', `${Math.round(handoffShare * 100)}%`);
+    write('humanRate', `${humanRate.toFixed(1)}${perHour}`);
+    write('interarrival', Number.isFinite(interarrival) ? `${interarrival.toFixed(2)}${minutes}` : '—');
+    write('load', `${metrics.offeredLoad.toFixed(2)} Erlangs`);
+    write('utilization', `${(metrics.utilization * 100).toFixed(1)}%`);
+    write('averageWait', metrics.stable ? `${metrics.averageWaitMinutes.toFixed(2)}${minutes}` : '∞');
+    write('serviceLevel', metrics.stable ? `${(metrics.serviceLevel * 100).toFixed(1)}%` : '0.0%');
+    write('status', metrics.stable
+      ? (language === 'ko' ? '이 단순 모형에서는 대기열이 안정적입니다.' : 'The queue is stable under this simplified model.')
+      : (language === 'ko' ? '처리능력이 평균 도착률 이하라 대기열이 안정되지 않습니다.' : 'Capacity is at or below the mean arrival rate, so the queue is unstable.'));
+    root.classList.toggle('is-unstable', !metrics.stable);
+    if (trackChange) track('code_run', { articleSlug: 'exponential-distribution-ai-handoff', language, component: 'contact-center-queue-explorer-v1' });
+  }
+
+  document.querySelectorAll<HTMLElement>('.queue-explorer').forEach((root) => {
+    render(root);
+    let tracked = false;
+    root.addEventListener('input', () => {
+      render(root, !tracked);
+      tracked = true;
+    });
+  });
+</script>
+
+<style>
+  .queue-explorer{margin:2.2rem 0;padding:1.35rem;border:1px solid var(--ink);background:var(--paper-deep);font-family:var(--sans);font-size:.82rem;line-height:1.55}.queue-explorer h3{margin:.5rem 0 .4rem;font-family:var(--serif);font-size:1.45rem}.queue-explorer>p:not(.eyebrow):not(.queue-status){color:var(--muted)}.queue-inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin:1.25rem 0}.queue-inputs label{display:grid;grid-template-columns:1fr auto;gap:.45rem;align-items:center;padding:.7rem;background:var(--paper);border:1px solid var(--line);color:var(--muted);font-size:.72rem}.queue-inputs input[type="number"]{width:112px;min-height:38px;padding:.35rem .5rem;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;text-align:right}.queue-inputs input[type="range"]{grid-column:1 / -1;width:100%;accent-color:var(--accent)}.queue-inputs output{color:var(--accent);font-weight:700}.queue-results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}.queue-results>div{display:grid;gap:.35rem;min-height:88px;padding:.8rem;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--paper)}.queue-results span{color:var(--muted);font-size:.68rem}.queue-results strong{align-self:end;color:var(--accent);font-size:1.02rem;font-variant-numeric:tabular-nums}.queue-status{margin:.9rem 0 0;padding:.65rem .75rem;border-left:3px solid var(--accent);background:var(--paper);font-weight:700}.queue-explorer.is-unstable .queue-status{border-color:#9b5038;color:#7a3826}.queue-note{margin:.9rem 0 0;font-size:.7rem}
+  @media(max-width:620px){.queue-explorer{padding:1rem}.queue-inputs{grid-template-columns:1fr}.queue-results{grid-template-columns:repeat(2,minmax(0,1fr))}.queue-inputs input[type="number"]{width:96px}}
+</style>
+
