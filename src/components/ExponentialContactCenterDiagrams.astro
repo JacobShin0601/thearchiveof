@@ -1,0 +1,121 @@
+---
+interface Props {
+  variant: 'handoff' | 'waiting' | 'memoryless' | 'staffing' | 'hazard';
+  language: 'ko' | 'en';
+}
+
+const { variant, language } = Astro.props;
+const ko = language === 'ko';
+const handoffDots = Array.from({ length: 20 }, (_, index) => ({ human: index >= 16 }));
+const staffingRows = [
+  { agents: 5, wait: 6.65, service: 63.5 },
+  { agents: 6, wait: 1.71, service: 87.6 },
+  { agents: 7, wait: 0.54, service: 96.1 },
+];
+
+const captions = ko ? {
+  handoff: 'Illustrative · 시간당 전체 문의 100건, 인간 상담사 이관율 20%를 단순화한 그림이다. 실제 고객센터 자료가 아니다.',
+  waiting: '인간 상담사 이관률이 시간당 20건이면 평균 이관 간격은 3분이다. 평균은 규칙적인 시간표가 아니다.',
+  memoryless: '일정한 발생률을 가정하면 이미 기다린 시간과 무관하게 앞으로의 조건부 대기시간 분포는 같다.',
+  staffing: 'Illustrative · 시간당 이관 20건, 평균 처리시간 12분, 이탈이 없는 M/M/c 모형의 계산이다.',
+  hazard: 'Conceptual illustration · 일정한 hazard는 지수분포의 가정이다. 장애와 금융환경에서는 위험이 상태에 따라 달라질 수 있다.',
+} : {
+  handoff: 'Illustrative · The diagram simplifies 100 contacts per hour and a 20% human handoff rate. It is not contact-center data.',
+  waiting: 'At 20 human handoffs per hour, the mean interval is three minutes. A mean is not a timetable.',
+  memoryless: 'Under a constant-rate assumption, the conditional distribution of the remaining wait does not depend on time already waited.',
+  staffing: 'Illustrative · An M/M/c calculation with 20 handoffs per hour, 12-minute average handling time, and no abandonment.',
+  hazard: 'Conceptual illustration · Constant hazard is an exponential-model assumption. Incidents and financial conditions can make risk state-dependent.',
+};
+---
+
+<figure class="exponential-figure" aria-label={variant}>
+  {variant === 'handoff' && (
+    <div class="handoff-diagram">
+      <div class="handoff-head">
+        <strong>{ko ? '전체 문의' : 'All contacts'}</strong>
+        <span>λ = 100 / hour</span>
+      </div>
+      <div class="dot-grid" role="img" aria-label={ko ? '20개 중 16개는 AI 해결, 4개는 인간 이관' : 'Sixteen of twenty contacts resolved by AI and four handed to humans'}>
+        {handoffDots.map(({ human }) => <i class:list={{ human }}></i>)}
+      </div>
+      <div class="handoff-key">
+        <span><i></i>{ko ? 'AI 안에서 처리 80%' : 'Contained by AI 80%'}</span>
+        <span><i class="human"></i>{ko ? '인간 상담사 이관 20%' : 'Human handoff 20%'}</span>
+        <strong>λ<sub>H</sub> = pλ = 20 / hour</strong>
+      </div>
+    </div>
+  )}
+
+  {variant === 'waiting' && (
+    <div class="waiting-diagram">
+      <p class="mini-title">{ko ? '다음 이관까지의 시간' : 'Time to the next handoff'}</p>
+      <svg viewBox="0 0 680 250" role="img" aria-label={ko ? '평균 3분인 지수분포의 생존곡선' : 'Exponential survival curve with a three-minute mean'}>
+        <path class="axis" d="M62 24 V202 H646"></path>
+        <path class="curve" d="M62 34 C105 77 154 111 212 139 S345 180 646 199"></path>
+        <path class="guide" d="M62 142 H208 V202"></path>
+        <text x="14" y="39">100%</text><text x="20" y="147">36.8%</text>
+        <text x="193" y="225">3 min</text><text x="590" y="225">t</text>
+        <text x="286" y="78">P(T &gt; t) = e<tspan baseline-shift="super">−λt</tspan></text>
+      </svg>
+      <div class="waiting-callout">
+        <span>{ko ? '평균 이관 간격' : 'Mean handoff interval'}</span>
+        <strong>E[T<sub>H</sub>] = 1 / 20 hour = 3 min</strong>
+      </div>
+    </div>
+  )}
+
+  {variant === 'memoryless' && (
+    <div class="memoryless-diagram">
+      <p class="mini-title">{ko ? '10분 기다린 뒤에도 시계는 같은 모양으로 다시 시작한다' : 'After ten quiet minutes, the same-shaped clock starts again'}</p>
+      <div class="memory-row">
+        <span>{ko ? '처음부터' : 'From the start'}</span>
+        <div><i style="width:63.2%"></i><b>{ko ? '앞으로 3분 안에 이관될 확률 63.2%' : '63.2% chance within the next 3 min'}</b></div>
+      </div>
+      <div class="memory-row waited">
+        <span>{ko ? '이미 10분 대기' : 'Already waited 10 min'}</span>
+        <div><i style="width:63.2%"></i><b>{ko ? '앞으로 3분 안에 이관될 조건부확률 63.2%' : 'Conditional chance in the next 3 min: 63.2%'}</b></div>
+      </div>
+      <p class="memory-equation">P(T &gt; s+t | T &gt; s) = P(T &gt; t)</p>
+    </div>
+  )}
+
+  {variant === 'staffing' && (
+    <div class="staffing-diagram">
+      <p class="mini-title">{ko ? '상담사 수와 5분 내 연결확률' : 'Agents and probability of answer within five minutes'}</p>
+      {staffingRows.map((row) => (
+        <div class="staffing-row">
+          <span>{row.agents}{ko ? '명' : ' agents'}</span>
+          <div><i style={`width:${row.service}%`}></i></div>
+          <strong>{row.service.toFixed(1)}%</strong>
+          <small>{ko ? `평균 대기 ${row.wait.toFixed(2)}분` : `${row.wait.toFixed(2)} min avg wait`}</small>
+        </div>
+      ))}
+    </div>
+  )}
+
+  {variant === 'hazard' && (
+    <div class="hazard-diagram">
+      <p class="mini-title">{ko ? '같은 “기다림”이라도 위험의 시계는 다를 수 있다' : 'Different waiting problems can run on different risk clocks'}</p>
+      <svg viewBox="0 0 680 320" role="img" aria-label={ko ? '일정한 위험, 장애로 급등하는 위험, 금융상태에 따라 움직이는 위험 비교' : 'Comparison of constant, incident-spiking, and financial-state-dependent hazard'}>
+        <path class="axis" d="M68 24 V270 H646"></path>
+        <path class="constant" d="M68 210 H646"></path>
+        <path class="incident" d="M68 238 C210 238 282 236 340 230 C365 224 378 74 402 70 C426 73 441 206 470 226 C520 238 580 238 646 238"></path>
+        <path class="cycle" d="M68 246 C128 240 164 219 210 225 S288 238 330 195 S407 123 452 143 S540 205 646 156"></path>
+        <text x="18" y="34">h(t)</text><text x="608" y="294">t</text>
+      </svg>
+      <div class="hazard-key">
+        <span class="constant-key">{ko ? '지수분포: 일정' : 'Exponential: constant'}</span>
+        <span class="incident-key">{ko ? '서비스 장애: 급등' : 'Service incident: spike'}</span>
+        <span class="cycle-key">{ko ? '금융환경: 상태 의존' : 'Financial conditions: state-dependent'}</span>
+      </div>
+    </div>
+  )}
+
+  <figcaption>{captions[variant]}</figcaption>
+</figure>
+
+<style>
+  .exponential-figure{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);font-family:var(--sans);font-size:.82rem;line-height:1.5}.exponential-figure figcaption{margin-top:1rem;color:var(--muted);font-size:.74rem}.mini-title{margin:0 0 1rem;color:var(--ink);font-weight:700}.handoff-head,.handoff-key{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem 1rem}.handoff-head span{color:var(--muted)}.dot-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:.55rem;margin:1.1rem 0}.dot-grid i,.handoff-key i{display:block;width:100%;aspect-ratio:1;border-radius:50%;background:var(--accent)}.dot-grid i.human,.handoff-key i.human{background:#9b5038}.handoff-key i{display:inline-block;width:11px;margin-right:.35rem;vertical-align:-1px}.handoff-key span{color:var(--muted)}.handoff-key strong{margin-left:auto}.waiting-diagram svg,.hazard-diagram svg{display:block;width:100%;height:auto;background:var(--paper)}.axis{fill:none;stroke:var(--line);stroke-width:1.5}.curve{fill:none;stroke:var(--accent);stroke-width:4}.guide{fill:none;stroke:#9b5038;stroke-width:1.5;stroke-dasharray:5 4}.waiting-diagram text,.hazard-diagram text{fill:var(--muted);font:12px var(--sans)}.waiting-callout{display:flex;justify-content:space-between;gap:1rem;margin-top:.8rem;padding:.75rem;background:var(--paper);border:1px solid var(--line)}.waiting-callout span{color:var(--muted)}.memoryless-diagram{display:grid;gap:.85rem}.memory-row{display:grid;grid-template-columns:115px 1fr;align-items:center;gap:.8rem}.memory-row>span{color:var(--muted)}.memory-row>div{position:relative;height:42px;background:var(--paper);border:1px solid var(--line)}.memory-row i{display:block;height:100%;background:color-mix(in srgb,var(--accent) 72%,transparent)}.memory-row.waited i{background:color-mix(in srgb,#9b5038 72%,transparent)}.memory-row b{position:absolute;inset:0;display:grid;place-items:center;font-size:.7rem}.memory-equation{margin:.4rem 0 0;text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.staffing-diagram{display:grid;gap:.75rem}.staffing-row{display:grid;grid-template-columns:58px 1fr 52px 112px;align-items:center;gap:.65rem}.staffing-row>div{height:22px;background:var(--paper);border:1px solid var(--line)}.staffing-row i{display:block;height:100%;background:var(--accent)}.staffing-row strong{text-align:right;color:var(--accent)}.staffing-row small{color:var(--muted)}.hazard-diagram .constant,.hazard-diagram .incident,.hazard-diagram .cycle{fill:none;stroke-width:4}.hazard-diagram .constant{stroke:var(--accent)}.hazard-diagram .incident{stroke:#9b5038}.hazard-diagram .cycle{stroke:#80692f}.hazard-key{display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem 1.2rem;margin-top:.8rem;color:var(--muted);font-size:.7rem}.hazard-key span::before{content:'';display:inline-block;width:20px;height:3px;margin-right:.35rem;vertical-align:middle;background:var(--accent)}.hazard-key .incident-key::before{background:#9b5038}.hazard-key .cycle-key::before{background:#80692f}
+  @media(max-width:600px){.exponential-figure{padding:.9rem}.dot-grid{gap:.35rem}.handoff-key strong{width:100%;margin-left:0}.waiting-callout{display:grid}.memory-row{grid-template-columns:1fr}.staffing-row{grid-template-columns:48px 1fr 48px}.staffing-row small{grid-column:2 / -1}.hazard-key{justify-content:flex-start}}
+</style>
+

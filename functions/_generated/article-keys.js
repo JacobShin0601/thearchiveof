@@ -3,6 +3,7 @@ export const ARTICLE_KEYS = [
   "ax-should-start-narrow",
   "bayesian-statistics-dog-walk",
   "efficient-markets-bayesian-lens",
+  "exponential-distribution-ai-handoff",
   "multi-objective-optimization-battery-supply-chain",
   "pareto-optimization-dinner-with-friends",
   "poisson-demand-inventory",
