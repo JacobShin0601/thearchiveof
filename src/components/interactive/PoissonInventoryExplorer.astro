@@ -1,0 +1,94 @@
+---
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+---
+
+<section class="poisson-explorer" data-component="poisson-inventory-explorer-v1" data-language={language}>
+  <p class="eyebrow">{ko ? '직접 실험' : 'Interactive equivalent'}</p>
+  <h3>{ko ? '평균, 재고, 이탈률을 바꿔보자' : 'Change the rate, inventory, and lost-sale share'}</h3>
+  <p>{ko
+    ? '독립적인 주문 도착과 일정한 구간 평균을 가정한 교육용 계산기입니다. 특정 브랜드나 점포의 수요·수익성을 추정하지 않습니다.'
+    : 'This educational calculator assumes independent arrivals and a constant rate over the selected interval. It does not estimate demand or economics for any brand or store.'}</p>
+
+  <div class="explorer-inputs">
+    <label>{ko ? '시간당 주문률 λ' : 'Orders per hour, λ'}<input type="number" name="rate" min="0.1" max="20" step="0.1" value="5" /></label>
+    <label>{ko ? '남은 시간 T' : 'Hours remaining, T'}<input type="number" name="hours" min="0.1" max="12" step="0.1" value="6" /></label>
+    <label>{ko ? '재고 Q' : 'Inventory, Q'}<input type="number" name="inventory" min="0" max="240" step="1" value="35" /></label>
+    <label>{ko ? '단위 판매가 p (원)' : 'Unit price, p (KRW)'}<input type="number" name="price" min="0" max="1000000" step="1000" value="23000" /></label>
+    <label>{ko ? '단위 공헌이익 m (원)' : 'Unit contribution, m (KRW)'}<input type="number" name="margin" min="0" max="1000000" step="1000" value="9000" /></label>
+    <label>{ko ? '재고 부족 시 점포 이탈률' : 'Store lost-sale share'}<input type="range" name="lostShare" min="0" max="100" step="5" value="100" /><output data-out="lostShare">100%</output></label>
+  </div>
+
+  <div class="explorer-results" aria-live="polite">
+    <div><span>{ko ? '기대수요 λT' : 'Expected demand λT'}</span><strong data-out="mean">30.00</strong></div>
+    <div><span>{ko ? '품절확률 P(D > Q)' : 'Stockout probability P(D > Q)'}</span><strong data-out="stockout">15.74%</strong></div>
+    <div><span>{ko ? '기대 초과수요' : 'Expected excess demand'}</span><strong data-out="excess">0.57</strong></div>
+    <div><span>{ko ? '기대 lost sales' : 'Expected lost sales'}</span><strong data-out="lost">0.57</strong></div>
+    <div><span>{ko ? '기대 매출 손실' : 'Expected lost revenue'}</span><strong data-out="revenue">₩13,163</strong></div>
+    <div><span>{ko ? '기대 공헌이익 손실' : 'Expected lost contribution'}</span><strong data-out="contribution">₩5,151</strong></div>
+  </div>
+
+  <p class="explorer-note">{ko
+    ? '이탈률은 초과수요 중 이 점포에서 다른 메뉴로 대체되지 않고 실제 매출이 사라지는 비율로 단순화했습니다. 재방문, 교차판매, 주문 수량, 가격·마진 차이는 반영하지 않습니다.'
+    : 'The lost-sale share is a simplified fraction of excess demand that does not substitute to another item at this store. Repeat visits, cross-selling, order size, and price or margin variation are excluded.'}</p>
+</section>
+
+<script>
+  import { track } from '../../scripts/track';
+
+  function poissonCdf(mean: number, k: number) {
+    if (k < 0) return 0;
+    let probability = Math.exp(-mean);
+    let total = probability;
+    for (let i = 1; i <= k; i += 1) {
+      probability *= mean / i;
+      total += probability;
+    }
+    return Math.min(1, total);
+  }
+
+  function render(root: HTMLElement, trackChange = false) {
+    const value = (name: string) => Number(root.querySelector<HTMLInputElement>(`[name="${name}"]`)?.value ?? 0);
+    const rate = Math.max(0.1, value('rate'));
+    const hours = Math.max(0.1, value('hours'));
+    const inventory = Math.max(0, Math.round(value('inventory')));
+    const price = Math.max(0, value('price'));
+    const margin = Math.max(0, value('margin'));
+    const lostShare = Math.min(1, Math.max(0, value('lostShare') / 100));
+    const mean = rate * hours;
+    const stockout = 1 - poissonCdf(mean, inventory);
+    const expectedExcess = Math.max(0, mean * (1 - poissonCdf(mean, inventory - 1)) - inventory * stockout);
+    const expectedLost = expectedExcess * lostShare;
+    const locale = root.dataset.language === 'ko' ? 'ko-KR' : 'en-US';
+    const currency = new Intl.NumberFormat(locale, { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 });
+    const write = (name: string, text: string) => {
+      const output = root.querySelector<HTMLElement>(`[data-out="${name}"]`);
+      if (output) output.textContent = text;
+    };
+    write('lostShare', `${Math.round(lostShare * 100)}%`);
+    write('mean', mean.toFixed(2));
+    write('stockout', `${(stockout * 100).toFixed(2)}%`);
+    write('excess', expectedExcess.toFixed(2));
+    write('lost', expectedLost.toFixed(2));
+    write('revenue', currency.format(price * expectedLost));
+    write('contribution', currency.format(margin * expectedLost));
+    if (trackChange) track('code_run', { articleSlug: 'poisson-demand-inventory', language: root.dataset.language === 'en' ? 'en' : 'ko', component: 'poisson-inventory-explorer-v1' });
+  }
+
+  document.querySelectorAll<HTMLElement>('.poisson-explorer').forEach((root) => {
+    render(root);
+    let tracked = false;
+    root.addEventListener('input', () => {
+      render(root, !tracked);
+      tracked = true;
+    });
+  });
+</script>
+
+<style>
+  .poisson-explorer{margin:2.2rem 0;padding:1.35rem;border:1px solid var(--ink);background:var(--paper-deep);font-family:var(--sans);font-size:.82rem;line-height:1.55}.poisson-explorer h3{margin:.5rem 0 .4rem;font-family:var(--serif);font-size:1.45rem}.poisson-explorer>p:not(.eyebrow){color:var(--muted)}
+  .explorer-inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin:1.25rem 0}.explorer-inputs label{display:grid;grid-template-columns:1fr auto;gap:.45rem;align-items:center;padding:.7rem;background:var(--paper);border:1px solid var(--line);color:var(--muted);font-size:.72rem}.explorer-inputs input[type="number"]{width:112px;min-height:38px;padding:.35rem .5rem;border:1px solid var(--line);border-radius:0;background:transparent;color:var(--ink);font:inherit;text-align:right}.explorer-inputs input[type="range"]{grid-column:1 / -1;width:100%;accent-color:var(--accent)}.explorer-inputs output{color:var(--accent);font-weight:700}
+  .explorer-results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}.explorer-results>div{display:grid;gap:.35rem;min-height:88px;padding:.8rem;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--paper)}.explorer-results span{color:var(--muted);font-size:.68rem}.explorer-results strong{align-self:end;color:var(--accent);font-size:1.05rem;font-variant-numeric:tabular-nums}.explorer-note{margin:.9rem 0 0;font-size:.7rem}
+  @media(max-width:620px){.poisson-explorer{padding:1rem}.explorer-inputs{grid-template-columns:1fr}.explorer-results{grid-template-columns:repeat(2,minmax(0,1fr))}.explorer-inputs input[type="number"]{width:96px}}
+</style>
