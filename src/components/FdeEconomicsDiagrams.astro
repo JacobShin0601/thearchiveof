@@ -1,6 +1,6 @@
 ---
 interface Props {
-  variant: 'productization' | 'leverage' | 'margin' | 'stack' | 'vc';
+  variant: 'productization' | 'leverage' | 'margin' | 'stack' | 'vc' | 'reflection-flywheel' | 'treadmills';
   language: 'ko' | 'en';
 }
 
@@ -26,14 +26,27 @@ const copy = ko ? {
   stack: {
     title: 'FDE가 value chain에서 놓이는 위치가 다르다',
     wonderful: ['고객 workflow', 'FDE', '재사용 가능한 platform', 'Enterprise AI OS'],
-    reflection: ['Frontier model', 'Open stack · compute', 'FDE', 'Enterprise · sovereign deployment'],
-    caption: 'Author’s framework · 같은 FDE 직무가 Wonderful에서는 product-learning loop, Reflection에서는 model adaptation과 distribution layer에 더 가깝다고 해석한 도식이다.',
+    reflection: ['Open model', 'Open core stack', 'AI Factory · FDE', 'Paid enterprise · sovereign solutions'],
+    caption: 'Author’s framework · Wonderful의 FDE는 field learning을 platform에 남겨야 하고, Reflection의 FDE는 open model을 반복 가능한 commercial stack과 paid deployment로 연결해야 한다.',
   },
   vc: {
     title: '투자자가 가격에 넣고 있는 미래',
     wonderful: ['매출 성장', '제품화', 'margin expansion', 'deployment learning', 'operating leverage'],
-    reflection: ['frontier capability', 'open ecosystem', 'sovereign AI', 'compute position', 'strategic optionality'],
+    reflection: ['frontier capability', 'distribution', 'paid conversion', 'reusable commercial stack', 'capital leverage'],
     caption: 'Author’s framework · 정식 가치평가 공식이나 투자 의견이 아니라, 두 valuation에 내재했을 수 있는 가설을 분리한 그림이다.',
+  },
+  'reflection-flywheel': {
+    title: 'Open intelligence가 economic capture로 이어지는가?',
+    stages: ['Frontier-quality open model', 'Developer · enterprise adoption', 'Customization · deployment', 'Open core stack의 표준화', 'AI Factory · sovereign deployment', 'Paid platform · infrastructure · solutions', 'Usage · real-world feedback'],
+    caption: 'Author’s framework · Reflection이 공개한 full-stack 구조를 투자 관점의 flywheel로 재구성했다. 각 단계의 conversion과 economics는 공개되지 않았다.',
+  },
+  treadmills: {
+    title: '두 회사가 탈출해야 하는 treadmill',
+    wonderful: ['More customers', 'More FDEs', 'More revenue', '다시 더 많은 고객'],
+    reflection: ['Better model', 'More compute', 'Next better model', '다시 더 많은 compute'],
+    leftResult: 'Labor treadmill',
+    rightResult: 'Compute treadmill',
+    caption: 'Conceptual · Wonderful은 productization으로 labor intensity를 낮춰야 하고, Reflection은 distribution·monetization·ecosystem compounding으로 모델 세대마다 경제적 자산을 남겨야 한다.',
   },
 } : {
   productization: {
@@ -54,14 +67,27 @@ const copy = ko ? {
   stack: {
     title: 'FDE sits at a different point in each value chain',
     wonderful: ['Customer workflow', 'FDE', 'Reusable platform', 'Enterprise AI OS'],
-    reflection: ['Frontier model', 'Open stack · compute', 'FDE', 'Enterprise · sovereign deployment'],
-    caption: 'Author’s framework · Wonderful’s FDEs are framed as a product-learning loop; Reflection’s are closer to a model-adaptation and distribution layer.',
+    reflection: ['Open model', 'Open core stack', 'AI Factory · FDE', 'Paid enterprise · sovereign solutions'],
+    caption: 'Author’s framework · Wonderful’s FDEs must return field learning to the platform. Reflection’s must connect open models to a reusable commercial stack and paid deployments.',
   },
   vc: {
     title: 'The futures investors may be pricing in',
     wonderful: ['Revenue growth', 'Productization', 'Margin expansion', 'Deployment learning', 'Operating leverage'],
-    reflection: ['Frontier capability', 'Open ecosystem', 'Sovereign AI', 'Compute position', 'Strategic optionality'],
+    reflection: ['Frontier capability', 'Distribution', 'Paid conversion', 'Reusable commercial stack', 'Capital leverage'],
     caption: 'Author’s framework · This is neither a formal valuation formula nor an investment view. It separates the hypotheses that may sit inside each valuation.',
+  },
+  'reflection-flywheel': {
+    title: 'Can open intelligence become economic capture?',
+    stages: ['Frontier-quality open model', 'Developer and enterprise adoption', 'Customization and deployment', 'Open core becomes a standard', 'AI Factory and sovereign deployment', 'Paid platform, infrastructure, and solutions', 'Usage and real-world feedback'],
+    caption: 'Author’s framework · Reflection’s disclosed full stack is recast as an investment flywheel. Conversion and unit economics at each step are not public.',
+  },
+  treadmills: {
+    title: 'The two treadmills these companies must escape',
+    wonderful: ['More customers', 'More FDEs', 'More revenue', 'Back to more customers'],
+    reflection: ['Better model', 'More compute', 'Next better model', 'Back to more compute'],
+    leftResult: 'Labor treadmill',
+    rightResult: 'Compute treadmill',
+    caption: 'Conceptual · Wonderful must reduce labor intensity through productization. Reflection must leave distribution, monetization, and ecosystem assets behind after each model generation.',
   },
 };
 
@@ -143,10 +169,32 @@ const labels = ko ? {
     </div>
   )}
 
+  {variant === 'reflection-flywheel' && (
+    <div class="flywheel-grid">
+      {copy['reflection-flywheel'].stages.map((item, index) => <div class="loop-step"><span>{index + 1}</span><strong>{item}</strong></div>)}
+      <div class="loop-return">↺ {ko ? '더 나은 모델과 stack으로 환류' : 'Feeds the next model and stack'}</div>
+    </div>
+  )}
+
+  {variant === 'treadmills' && (
+    <div class="treadmill-grid">
+      <section>
+        <h3>Wonderful</h3>
+        {copy.treadmills.wonderful.map((item) => <div class="treadmill-step">{item}<span>↓</span></div>)}
+        <strong class="treadmill-result">{copy.treadmills.leftResult}</strong>
+      </section>
+      <section>
+        <h3>Reflection</h3>
+        {copy.treadmills.reflection.map((item) => <div class="treadmill-step">{item}<span>↓</span></div>)}
+        <strong class="treadmill-result reflection-result">{copy.treadmills.rightResult}</strong>
+      </section>
+    </div>
+  )}
+
   <figcaption>{copy[variant].caption}</figcaption>
 </figure>
 
 <style>
-  .fde-figure{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);font-family:var(--sans);font-size:.82rem;line-height:1.5}.figure-title{margin:0 0 1.1rem;font-weight:800;color:var(--ink)}.fde-figure figcaption{margin-top:1rem;color:var(--muted);font-size:.74rem}.two-paths,.value-stacks,.vc-columns{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.two-paths section,.value-stacks section,.vc-columns section{padding:1rem;border:1px solid var(--line);background:var(--paper)}.fde-figure h3{margin:0 0 .8rem;font-size:.8rem}.step{display:flex;align-items:center;gap:.65rem;margin:.45rem 0;padding:.58rem;border:1px solid var(--line);background:var(--paper-deep)}.step span{display:grid;place-items:center;flex:none;width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--paper);font-size:.66rem}.accent-path .step span{background:var(--accent)}.accent-path .step:not(:last-child)::after,.value-stacks section div:not(:last-child)::after{content:'↓';margin-left:auto;color:var(--muted)}.chart-wrap svg,.margin-chart svg{display:block;width:100%;height:auto;background:var(--paper)}.axis,.grid{fill:none;stroke:var(--line);stroke-width:1.5}.headcount{fill:none;stroke:var(--line);stroke-width:7;stroke-dasharray:5 7}.scenario-a{fill:none;stroke:#9b5038;stroke-width:4}.scenario-b{fill:none;stroke:var(--accent);stroke-width:5}.chart-wrap text,.margin-chart text{fill:var(--muted);font:13px var(--sans)}.chart-wrap .a-label{fill:#9b5038}.chart-wrap .b-label{fill:var(--accent);font-weight:700}.legend{display:flex;flex-wrap:wrap;gap:.7rem 1.25rem;justify-content:center;margin-top:.8rem;color:var(--muted);font-size:.72rem}.legend span::before{content:'';display:inline-block;width:22px;height:3px;margin-right:.35rem;vertical-align:middle;background:#9b5038}.legend .legend-b::before{background:var(--accent)}.margin-chart{position:relative;padding-left:36px}.margin-scale{position:absolute;left:0;top:34px;bottom:35px;display:flex;flex-direction:column;justify-content:space-between;color:var(--muted);font-size:.65rem}.margin-line{fill:none;stroke:var(--accent);stroke-width:6}.margin-chart circle{fill:#9b5038}.stages{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.55rem;text-align:center;color:var(--muted);font-size:.7rem}.value-stacks section div{display:flex;align-items:center;min-height:38px;margin:.45rem 0;padding:.5rem .65rem;border:1px solid var(--line);background:var(--paper-deep)}.value-stacks section div:not(:last-child)::after{margin-left:auto}.reflection-stack div{border-left:3px solid #9b5038!important}.value-stacks section:first-child div{border-left:3px solid var(--accent)}.vc-columns section{display:flex;flex-wrap:wrap;align-content:flex-start;gap:.5rem}.vc-columns h3{width:100%}.vc-columns span{padding:.42rem .65rem;border:1px solid var(--line);background:var(--paper-deep);border-radius:999px;color:var(--muted)}.vc-columns section:first-child span{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}.vc-columns section:last-child span{border-color:color-mix(in srgb,#9b5038 50%,var(--line))}
-  @media(max-width:640px){.fde-figure{padding:.9rem}.two-paths,.value-stacks,.vc-columns{grid-template-columns:1fr}.chart-wrap .a-label,.chart-wrap .b-label{display:none}.margin-chart{padding-left:0}.margin-scale{display:none}.margin-chart text{font-size:11px}.stages{font-size:.62rem}.step{padding:.5rem}}
+  .fde-figure{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);font-family:var(--sans);font-size:.82rem;line-height:1.5}.figure-title{margin:0 0 1.1rem;font-weight:800;color:var(--ink)}.fde-figure figcaption{margin-top:1rem;color:var(--muted);font-size:.74rem}.two-paths,.value-stacks,.vc-columns,.treadmill-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.two-paths section,.value-stacks section,.vc-columns section,.treadmill-grid section{padding:1rem;border:1px solid var(--line);background:var(--paper)}.fde-figure h3{margin:0 0 .8rem;font-size:.8rem}.step{display:flex;align-items:center;gap:.65rem;margin:.45rem 0;padding:.58rem;border:1px solid var(--line);background:var(--paper-deep)}.step span{display:grid;place-items:center;flex:none;width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--paper);font-size:.66rem}.accent-path .step span{background:var(--accent)}.accent-path .step:not(:last-child)::after,.value-stacks section div:not(:last-child)::after{content:'↓';margin-left:auto;color:var(--muted)}.chart-wrap svg,.margin-chart svg{display:block;width:100%;height:auto;background:var(--paper)}.axis,.grid{fill:none;stroke:var(--line);stroke-width:1.5}.headcount{fill:none;stroke:var(--line);stroke-width:7;stroke-dasharray:5 7}.scenario-a{fill:none;stroke:#9b5038;stroke-width:4}.scenario-b{fill:none;stroke:var(--accent);stroke-width:5}.chart-wrap text,.margin-chart text{fill:var(--muted);font:13px var(--sans)}.chart-wrap .a-label{fill:#9b5038}.chart-wrap .b-label{fill:var(--accent);font-weight:700}.legend{display:flex;flex-wrap:wrap;gap:.7rem 1.25rem;justify-content:center;margin-top:.8rem;color:var(--muted);font-size:.72rem}.legend span::before{content:'';display:inline-block;width:22px;height:3px;margin-right:.35rem;vertical-align:middle;background:#9b5038}.legend .legend-b::before{background:var(--accent)}.margin-chart{position:relative;padding-left:36px}.margin-scale{position:absolute;left:0;top:34px;bottom:35px;display:flex;flex-direction:column;justify-content:space-between;color:var(--muted);font-size:.65rem}.margin-line{fill:none;stroke:var(--accent);stroke-width:6}.margin-chart circle{fill:#9b5038}.stages{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.55rem;text-align:center;color:var(--muted);font-size:.7rem}.value-stacks section div{display:flex;align-items:center;min-height:38px;margin:.45rem 0;padding:.5rem .65rem;border:1px solid var(--line);background:var(--paper-deep)}.value-stacks section div:not(:last-child)::after{margin-left:auto}.reflection-stack div{border-left:3px solid #9b5038!important}.value-stacks section:first-child div{border-left:3px solid var(--accent)}.vc-columns section{display:flex;flex-wrap:wrap;align-content:flex-start;gap:.5rem}.vc-columns h3{width:100%}.vc-columns span{padding:.42rem .65rem;border:1px solid var(--line);background:var(--paper-deep);border-radius:999px;color:var(--muted)}.vc-columns section:first-child span{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}.vc-columns section:last-child span{border-color:color-mix(in srgb,#9b5038 50%,var(--line))}.flywheel-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem}.loop-step{position:relative;min-height:90px;padding:.75rem;border:1px solid var(--line);background:var(--paper)}.loop-step span{display:block;margin-bottom:.45rem;color:var(--accent);font:700 .68rem/1 ui-monospace,SFMono-Regular,Menlo,monospace}.loop-step strong{font-size:.76rem}.loop-return{grid-column:1/-1;padding:.65rem;border:1px dashed color-mix(in srgb,#9b5038 55%,var(--line));color:#8a4634;text-align:center;font-weight:700}.treadmill-step{display:flex;justify-content:space-between;gap:.5rem;margin:.45rem 0;padding:.55rem .65rem;background:var(--paper-deep);border:1px solid var(--line)}.treadmill-step span{color:var(--muted)}.treadmill-result{display:block;margin-top:.7rem;padding:.65rem;background:color-mix(in srgb,var(--accent) 10%,var(--paper));color:var(--accent);text-align:center}.reflection-result{background:color-mix(in srgb,#9b5038 10%,var(--paper));color:#8a4634}
+  @media(max-width:640px){.fde-figure{padding:.9rem}.two-paths,.value-stacks,.vc-columns,.treadmill-grid{grid-template-columns:1fr}.flywheel-grid{grid-template-columns:1fr 1fr}.chart-wrap .a-label,.chart-wrap .b-label{display:none}.margin-chart{padding-left:0}.margin-scale{display:none}.margin-chart text{font-size:11px}.stages{font-size:.62rem}.step{padding:.5rem}}
 </style>

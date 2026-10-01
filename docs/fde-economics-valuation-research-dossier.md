@@ -35,7 +35,7 @@ Use only as **headline valuation / reported annualized revenue run-rate**. It is
 ### Wonderful analytical frame
 
 - Working archetype: services-heavy enterprise AI delivery attempting to become a reusable software platform.
-- Core question: **Can services become software?**
+- Core question: **Can labor become software?**
 - Observable proof would be a trajectory, not a label: lower FDE hours per deployment, shorter second-use-case deployment, higher revenue/FDE, more recurring platform or usage revenue, expansion, and improving gross margin.
 - Failure shape: customers, revenue and FDE headcount rise almost proportionally while deployment time and margin stay flat and bespoke code accumulates.
 - Success shape: field problems become reusable connectors, permissions, evaluation, observability, runtime, approval, security and data-access primitives.
@@ -49,22 +49,28 @@ Use only as **headline valuation / reported annualized revenue run-rate**. It is
 | Investors in latest round | Complete final list not publicly confirmed | through 2026-10-01 | Reflection news page / press coverage | Incomplete | Do not present a definitive Series C investor list |
 | Prior funding | $2B raise; investors named include B Capital, Citi, CRV, Disruptive, DST, Eric Schmidt, Zoom Ventures, Lightspeed, NVIDIA, Sequoia and 1789 | 2025-10-09 | Reflection official blog | Confirmed for the prior round / financing period | Use only if funding history needs context |
 | Revenue | No reliable current public revenue figure found; WSJ said in March 2026 the company had yet to generate meaningful revenue | through 2026-10-01 | WSJ | Public visibility is insufficient | “There is not enough public revenue information to calculate a meaningful revenue multiple.” Do not estimate |
-| Mission / product strategy | Frontier open-weight models; publish research and open-source customization software; enterprise and public-sector deployment | 2025-10 onward | Reflection official blog, About and Solutions pages | Company positioning | Attribute the strategy to Reflection |
+| Mission / product strategy | Frontier open-weight models; publish research and open-source customization software; enterprise and public-sector deployment | 2025-10 onward | Reflection official blog, About and Solutions pages | Company positioning | Attribute the strategy to Reflection; distinguish open weights from open-source software |
+| Product stack | Open Model → Open Core AI Stack → AI Factory → AI Solutions | current | Reflection Solutions | Company positioning | Use as the proposed path from distribution to paid deployment, not proof of conversion |
 | Enterprise / sovereign deployment | Models can be customized and run on customer infrastructure or partner ecosystems; public-sector page emphasizes sovereign infrastructure | current | Reflection Solutions | Company-confirmed | Use as evidence for sovereign/enterprise distribution thesis |
 | FDE role | AI Solutions FDE roles own enterprise agent deployments; post-training roles span model customization, evaluations and production deployment | current job listings | Reflection Ashby listings | Current hiring evidence, not org-size evidence | Describe FDE as adaptation/distribution layer; do not infer team size |
 | SpaceX compute | $150M per month from 2026-07-01 through 2029; up to about $6.3B if full term; terminable with 90 days’ notice after initial three months | 2026-06-22 report | Reuters citing CNBC/materials; WSJ | Reported compute purchase / capacity agreement | Explicitly identify as Reflection’s cost/compute access, not revenue |
 | Nebius compute | More than $1B agreement to secure compute capacity | 2026-07-14 | Reuters | Reported / announced | Explicitly identify as capacity purchase, not customer revenue |
-| Government / sovereign evidence | U.S. DOE Genesis Mission model-provider partnership; Korean sovereign AI data-center project with Shinsegae reported | 2026-05 / 2026-03 | Axios; WSJ | Reported partnerships; contract economics not disclosed | Do not equate partnership or MOU with recognized revenue |
+| Dell on-prem deployment | Dell announced that Reflection's open models are planned for on-prem deployment through the Dell AI Factory and AI Data Platform | 2026-05 | Dell official release | Announced future availability, not current revenue | Say “plans to offer” or “coming on-premises”; do not write as completed deployment |
+| DOE Genesis Mission | Reflection signed an MOU to participate; DOE describes Genesis as an AI platform joining national-lab supercomputers and datasets | 2026-05 | Axios for Reflection participation; DOE for program context | MOU / partnership; economics undisclosed | Do not label as customer revenue or awarded contract |
+| Shinsegae sovereign AI factory | Reflection and Shinsegae announced a Korean sovereign AI factory initiative | 2026-03 | Joint Reflection/Shinsegae release | Announced project; contract economics undisclosed | Use as a deployment surface, not recognized revenue |
 | Headcount | No sufficiently strong current primary or top-tier source selected | through 2026-10-01 | — | Not used | Omit |
 
 ### Reflection analytical frame
 
-- Working archetype: frontier-model + compute infrastructure + enterprise/public-sector distribution.
-- Core question: **Can frontier capability become a strategic control point?**
-- Conceptual value stack: current commercial value + model capability + open-weight ecosystem + sovereign AI + compute access + strategic optionality.
-- This is not a formal valuation equation and not a revenue multiple.
-- Failure shape: model commoditization, weak monetization of open-weight adoption, persistent compute intensity, bespoke sovereign projects and a large services layer.
-- Success shape: differentiated models, broad ecosystem distribution, repeatable sovereign/enterprise deployment, favorable inference economics, and FDE work that becomes a reusable deployment stack.
+- Working archetype: frontier open model + open core stack + AI Factory + enterprise/public-sector solutions.
+- Core question: **Can open intelligence become a monetizable standard?**
+- Open-source paradox: if the capital-intensive model weights are released, economic capture must emerge from the stack, infrastructure, deployment and recurring solutions around distribution. This is a hypothesis, not evidence that capture already exists.
+- Scaling problem: Reflection must create **capital leverage and distribution leverage**. The conceptual test is whether economic value accumulates faster than compute and R&D capital.
+- KPI funnel: Capability → Distribution → Conversion → Economics. Downloads or adoption alone are insufficient without conversion to paid stack, AI Factory, enterprise or sovereign deployment.
+- Conceptual investor lens: Economic Value Created / (Compute + R&D Capital). This is not a GAAP metric, formal valuation equation or revenue multiple.
+- Two required loops: (1) Compute → Better Model → Adoption → Feedback → Better Model; (2) FDE Deployment → Reusable Stack → Faster Deployment → More Paid Customers → More Revenue.
+- Failure shape: a **compute treadmill** in which each model generation requires large new compute while earlier generations leave insufficient distribution and recurring economic value; sovereign and enterprise work may remain bespoke.
+- Success shape: differentiated models produce broad adoption, adoption converts to paid deployments, and FDE work compounds into a reusable commercial stack and monetizable standard.
 
 ## Industry evidence
 
@@ -83,7 +89,9 @@ Use only as **headline valuation / reported annualized revenue run-rate**. It is
 - **Hypothesis:** For the current valuation to acquire software-like economics over time, deployment labor per customer would likely need to fall while revenue/FDE and gross margin rise.
 - **Fact/report:** Reflection’s CEO confirmed a $25B pre-money close; the round amount was reported around $2.5B; reliable current revenue is not publicly available.
 - **Analysis:** Reflection cannot be responsibly compared with Wonderful through the same revenue multiple.
-- **Hypothesis:** Reflection’s valuation appears to place substantial weight on frontier capability, ecosystem distribution, sovereign deployments and strategic optionality.
+- **Fact/company positioning:** Reflection presents a four-layer stack—Open Model, Open Core AI Stack, AI Factory and AI Solutions—and has announced Dell, DOE and Shinsegae deployment surfaces. These announcements do not establish recognized revenue.
+- **Analysis:** Reflection’s open-weight strategy creates a distribution-to-monetization problem: adoption must convert into paid stack, infrastructure or solutions.
+- **Hypothesis:** The valuation hurdle is capital and distribution leverage—economic value should compound faster than compute and R&D capital. Otherwise the business risks a compute treadmill.
 
 ## Selected sources
 
@@ -95,6 +103,11 @@ Use only as **headline valuation / reported annualized revenue run-rate**. It is
 - Reflection, “What open intelligence means” — https://reflection.ai/about
 - Reflection, “AI solutions” — https://reflection.ai/solutions
 - Reflection, News — https://reflection.ai/news
+- Dell Technologies, “Dell Technologies Closes the Gap Between AI Ambition and AI Outcomes” — https://www.dell.com/en-us/dt/corporate/newsroom/announcements/detailpage.press-releases~usa~2026~05~dell-technologies-closes-the-gap-between-ai-ambition-and-ai-outcomes.htm
+- U.S. Department of Energy, “The Genesis Mission” — https://www.energy.gov/undersecretaryforscience/genesis-mission/genesis-mission
+- Reflection AI / Shinsegae Group, “Reflection and Shinsegae Group to Build Korean Sovereign AI Factory” — https://www.prnewswire.com/news-releases/reflection-and-shinsegae-group-to-build-korean-sovereign-ai-factory-302715111.html
+- Reflection, “Forward Deployed Engineer” — https://jobs.ashbyhq.com/reflectionai/8b97b583-3cc6-4834-ae2c-d5aecf22ed7d
+- Reflection, “Member of Technical Staff, Post-Training” — https://jobs.ashbyhq.com/reflectionai/1d029ec2-a842-4dff-b784-1328422c03e8
 - Reuters, “Nvidia-backed Reflection AI eyes $25 billion valuation, WSJ reports” — https://www.reuters.com/business/nvidia-backed-reflection-ai-eyes-25-billion-valuation-wsj-reports-2026-03-26/
 - Reuters, “AI startup Reflection signs computing power deal with SpaceX” — https://www.reuters.com/business/media-telecom/ai-startup-reflection-signs-computing-power-deal-with-spacex-2026-06-22/
 - Reuters, “AI startup Reflection signs over $1 billion computing deal with Nebius” — https://www.reuters.com/business/ai-startup-reflection-signs-over-1-billion-computing-deal-with-nebius-2026-07-14/
