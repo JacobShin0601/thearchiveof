@@ -1,0 +1,100 @@
+---
+title: "Poisson Demand and Inventory Simulator"
+subtitle: "From average order rates to stockout risk and inventory decisions"
+description: "Change Poisson demand, inventory, service level, and shortage-versus-leftover costs to compare stockout risk and inventory rules."
+publishedDate: 2026-10-01
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics:
+  - supply-chain
+  - optimization
+primaryTopic: supply-chain
+tags:
+  - poisson-distribution
+  - inventory
+  - demand-modeling
+  - simulation
+  - service-level
+author: "Jacob Shin"
+featured: false
+draft: false
+comments: true
+language: "en"
+translationKey: "poisson-demand-inventory-lab"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+methodology: "Period demand is modeled as Poisson(λT). Stockout probability, expected shortage, and expected leftover are calculated from the exact distribution. Service-level inventory uses a Poisson quantile; cost-based inventory uses a simplified single-period underage/overage model. The 100-period display is a simulation, while decision metrics use exact calculations."
+freshness: evergreen
+lastReviewed: 2026-10-01
+nextReviewDate: 2027-10-01
+references:
+  - title: "The Poisson Distribution — STAT 414"
+    url: "https://online.stat.psu.edu/stat414/Lesson12.html"
+    publisher: "Penn State Department of Statistics"
+  - title: "Poisson Processes — Discrete Stochastic Processes, Chapter 2"
+    url: "https://ocw.mit.edu/courses/6-262-discrete-stochastic-processes-spring-2011/3a19ce0e02d0008877351bfa24f3716a_MIT6_262S11_chap02.pdf"
+    publisher: "MIT OpenCourseWare"
+  - title: "Newsvendor Inventory Problem"
+    url: "https://ocw.mit.edu/courses/15-772j-d-lab-supply-chains-fall-2014/6952be57b43aa185119c6f114908bcc5_MIT15_772JF14_Newsboy.pdf"
+    publisher: "MIT OpenCourseWare"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import PoissonDemandInventoryLab from '../../../../components/interactive/PoissonDemandInventoryLab.astro';
+
+<AnswerBlock question="If expected demand is 30 orders, should inventory also be 30?">
+  **Not necessarily.** Expected demand is the center of possible outcomes, not a promise. An inventory decision also needs the probability that demand exceeds stock, the average shortage and leftover, and the relative cost of each error. This Lab compares mean-, service-level-, and cost-based inventory rules under the same Poisson demand model.
+</AnswerBlock>
+
+This page is the companion Lab for [What Is the Poisson Distribution?](/en/math/statistics/poisson-demand-inventory/). The essay moves from café arrivals to a Chuseok chicken stockout, expected lost sales, and the newsvendor problem. Here, we pause the narrative and change the numbers ourselves.
+
+The default case assumes five orders per hour with six hours remaining, so expected demand is 30. Demand is not exactly 30 every time. With 35 units, exact stockout probability is about 15.7%. Reaching a 95% no-stockout service level requires 39 units under this illustrative model.
+
+## Explore demand and inventory
+
+Every input below is educational. It does not estimate sales, costs, or ordering quantities for BHC or any store. Probabilities and expectations are calculated directly from the Poisson distribution; only the 100-period display uses random simulation.
+
+<PoissonDemandInventoryLab language="en" />
+
+## Why three “right” inventory quantities disagree
+
+The **mean rule** sets $Q \approx \lambda T$. It is simple, but it does not separately control the upper tail. In the default case, stocking the mean of 30 still leaves a stockout probability of about 45.2%.
+
+The **service-level rule** starts with a probability target. To avoid a stockout in 95% of comparable periods, find the first $Q$ satisfying:
+
+$$
+P(D \le Q) \ge 0.95
+$$
+
+The **cost rule** combines unit underage cost $C_u$ with unit overage cost $C_o$. This simplified Lab searches for the inventory minimizing:
+
+$$
+E[Cost(Q)] = C_u E[(D-Q)^+] + C_o E[(Q-D)^+]
+$$
+
+Raise underage cost and the cost-based quantity moves right. Raise disposal, holding, or markdown cost and it moves left. This is not a more accurate version of the service-level answer. It answers a different objective.
+
+## The same total average can hide a different day
+
+The steady, lunch-peak, and two-peak holiday profiles are normalized to the same expected total. Under independent Poisson arrivals and no replenishment, they therefore have the same total-period demand distribution and closing stockout probability. The time at which inventory runs out can still differ.
+
+That timing matters once we consider intraday replenishment, staffing, kitchen capacity, or transfers between locations. A single total-demand average cannot identify the risky hour. That is why a more realistic model may estimate a time-varying $\lambda(t)$ with a non-homogeneous Poisson process.
+
+## Prefer exact probability to 100 simulations
+
+Rerun the 100 simulated periods and the number of stockouts changes. A theoretical probability of 15.7% does not guarantee exactly 16 stockouts in every batch of 100. Twelve or twenty are both possible.
+
+The headline probability, expectations, and inventory recommendations therefore come from the exact Poisson distribution, not the simulated average. Simulation is used to make variation visible. When a small model is exactly tractable, there is no reason to add Monte Carlo error to the decision metric.
+
+## What this model leaves out
+
+- One order may contain multiple chickens or menu items.
+- The real $\lambda(t)$ changes with hour, holiday, weather, and promotions.
+- Group orders and campaigns can create clustering.
+- Stockouts censor demand and customers may substitute to other products.
+- Replenishment or lateral transshipment may be available during the period.
+- Underage and overage costs may include future customer behavior, not only immediate cash costs.
+
+This Lab is not an ordering system. It is a decision scaffold: move beyond an average forecast and place uncertainty, stockout risk, and both sides of forecast error on the same screen.

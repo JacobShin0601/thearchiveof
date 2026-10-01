@@ -1,0 +1,153 @@
+---
+interface Props {
+  variant: 'arrivals' | 'distribution' | 'depletion' | 'stockout' | 'lost-sales' | 'rates';
+  language: 'ko' | 'en';
+}
+
+const { variant, language } = Astro.props;
+const ko = language === 'ko';
+
+function poissonPmf(mean: number, k: number) {
+  let probability = Math.exp(-mean);
+  for (let i = 1; i <= k; i += 1) probability *= mean / i;
+  return probability;
+}
+
+const arrivalCounts = [2, 4, 1, 3, 5];
+const poissonThree = Array.from({ length: 11 }, (_, k) => ({ k, probability: poissonPmf(3, k) }));
+const demandThirty = Array.from({ length: 34 }, (_, index) => {
+  const k = index + 15;
+  return { k, probability: poissonPmf(30, k) };
+});
+const stockoutRows = [
+  { inventory: 25, probability: 79.1643 },
+  { inventory: 30, probability: 45.1648 },
+  { inventory: 35, probability: 15.7383 },
+  { inventory: 40, probability: 3.2310 },
+];
+const depletionRows = [
+  { time: '10:00', stock: 100 },
+  { time: '11:00', stock: 76 },
+  { time: '12:00', stock: 49 },
+  { time: '13:00', stock: 18 },
+  { time: '14:00', stock: 0 },
+];
+
+const captions = ko ? {
+  arrivals: '평균적으로는 10분에 3명이지만 각 구간의 실제 방문 수는 다르다. 설명을 위해 만든 관측 예시다.',
+  distribution: 'λ=3인 푸아송 분포. 2명과 3명이 가장 그럴듯하지만 0명이나 7명도 불가능하지 않다.',
+  depletion: 'Illustrative · 실제 BHC 점포의 재고량이나 판매 속도를 추정한 그림이 아니다.',
+  stockout: 'Illustrative · 남은 기간 수요가 Poisson(30)이라는 가정 아래 계산했다. Q=39부터 비품절확률이 95%를 넘는다.',
+  lostSales: 'Illustrative · D~Poisson(30), Q=35. Q 오른쪽의 주문 수가 모두 사라지는 것은 아니며 대체구매 여부는 별도 데이터가 필요하다.',
+  rates: 'Conceptual illustration · 실제 매장 데이터가 아니다. 명절에는 시간대별 발생률 λ(t)의 모양 자체가 달라질 수 있다.',
+} : {
+  arrivals: 'The average is three customers per ten minutes, but the realized count changes from interval to interval. These observations are illustrative.',
+  distribution: 'A Poisson distribution with λ=3. Two and three are most likely, but zero and seven remain possible.',
+  depletion: 'Illustrative only · This does not estimate inventory or sales velocity at any BHC location.',
+  stockout: 'Illustrative · Demand over the remaining period is assumed to be Poisson(30). Q=39 is the first quantity with a no-stockout probability above 95%.',
+  lostSales: 'Illustrative · D~Poisson(30), Q=35. Not every order beyond Q necessarily disappears; substitution requires separate data.',
+  rates: 'Conceptual illustration · Not store data. A holiday can change the shape of the time-varying arrival rate λ(t).',
+};
+---
+
+<figure class="poisson-figure" aria-label={variant}>
+  {variant === 'arrivals' && (
+    <div class="arrival-timeline">
+      {arrivalCounts.map((count, index) => (
+        <div class="arrival-row">
+          <span>{`12:${String(index * 10).padStart(2, '0')}–12:${String((index + 1) * 10).padStart(2, '0')}`}</span>
+          <div aria-label={`${count} ${ko ? '명' : 'customers'}`}>
+            {Array.from({ length: count }, () => <i aria-hidden="true"></i>)}
+          </div>
+          <strong>{count}</strong>
+        </div>
+      ))}
+    </div>
+  )}
+
+  {variant === 'distribution' && (
+    <div class="bar-chart distribution-chart" role="img" aria-label={ko ? '평균 3인 푸아송 확률 막대그래프' : 'Poisson probability bars with mean 3'}>
+      {poissonThree.map(({ k, probability }) => (
+        <div class="bar-column">
+          <span>{(probability * 100).toFixed(1)}%</span>
+          <i style={`height:${Math.max(2, probability / 0.24 * 100)}%`}></i>
+          <b>{k}</b>
+        </div>
+      ))}
+      <p class="axis-label">{ko ? '다음 10분의 고객 수 k' : 'Customers in the next ten minutes, k'}</p>
+    </div>
+  )}
+
+  {variant === 'depletion' && (
+    <div class="depletion-chart">
+      <p class="mini-title">{ko ? '가상의 명절 재고 소진' : 'Illustrative holiday depletion'}</p>
+      {depletionRows.map(({ time, stock }) => (
+        <div class="depletion-row">
+          <span>{time}</span>
+          <div><i style={`width:${stock}%`}></i></div>
+          <strong>{stock === 0 ? (ko ? '품절' : 'SOLD OUT') : `${stock}%`}</strong>
+        </div>
+      ))}
+    </div>
+  )}
+
+  {variant === 'stockout' && (
+    <div class="stockout-chart">
+      <p class="mini-title">{ko ? '재고 Q와 품절확률 P(D > Q)' : 'Inventory Q and stockout probability P(D > Q)'}</p>
+      {stockoutRows.map(({ inventory, probability }) => (
+        <div class="stockout-row">
+          <span>Q = {inventory}</span>
+          <div><i style={`width:${probability}%`}></i></div>
+          <strong>{probability.toFixed(1)}%</strong>
+        </div>
+      ))}
+    </div>
+  )}
+
+  {variant === 'lost-sales' && (
+    <div class="lost-sales-chart">
+      <p class="mini-title">{ko ? '재고선을 넘어선 수요' : 'Demand beyond the inventory line'}</p>
+      <div class="lost-sales-bars" role="img" aria-label={ko ? '재고 35 오른쪽을 강조한 평균 30 푸아송 분포' : 'Poisson mean 30 with demand beyond inventory 35 highlighted'}>
+        {demandThirty.map(({ k, probability }) => (
+          <div class:list={['lost-bar', { excess: k > 35, boundary: k === 35 }]}>
+            <i style={`height:${Math.max(1, probability / 0.075 * 100)}%`}></i>
+            {(k === 15 || k === 25 || k === 35 || k === 45) && <b>{k}</b>}
+          </div>
+        ))}
+        <span class="q-label">Q = 35</span>
+      </div>
+      <div class="lost-sales-key">
+        <span><i></i>{ko ? '판매 가능한 수요' : 'Demand within stock'}</span>
+        <span><i class="excess"></i>{ko ? '초과수요' : 'Excess demand'}</span>
+        <strong>{ko ? '기대 초과수요 ≈ 0.57건' : 'Expected excess demand ≈ 0.57 orders'}</strong>
+      </div>
+    </div>
+  )}
+
+  {variant === 'rates' && (
+    <div class="rates-chart">
+      <p class="mini-title">{ko ? '같은 매장, 다른 λ(t)' : 'Same store, different λ(t)'}</p>
+      <svg viewBox="0 0 640 260" role="img" aria-labelledby={`rates-title-${language}`}>
+        <title id={`rates-title-${language}`}>{ko ? '평일과 명절의 시간대별 주문 강도 개념도' : 'Conceptual hourly demand intensity on a normal day and a holiday'}</title>
+        <path class="axis" d="M58 28 V220 H610"></path>
+        <path class="normal" d="M58 190 C140 180 188 155 245 166 S350 176 405 148 S520 142 610 162"></path>
+        <path class="holiday" d="M58 184 C128 172 170 88 230 110 S330 174 392 125 S493 45 610 92"></path>
+        <text x="72" y="52">λ(t)</text>
+        <text x="310" y="250">{ko ? '시간' : 'Time'}</text>
+      </svg>
+      <div class="line-key"><span class="normal-key">{ko ? '평일' : 'Normal day'}</span><span class="holiday-key">{ko ? '명절' : 'Holiday'}</span></div>
+    </div>
+  )}
+
+  <figcaption>{captions[variant === 'lost-sales' ? 'lostSales' : variant]}</figcaption>
+</figure>
+
+<style>
+  .poisson-figure{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);font-family:var(--sans);font-size:.82rem;line-height:1.5}.mini-title{margin:0 0 1rem;color:var(--ink);font-weight:700}.poisson-figure figcaption{margin-top:1rem;color:var(--muted);font-size:.74rem}
+  .arrival-timeline{display:grid;gap:.5rem}.arrival-row{display:grid;grid-template-columns:110px 1fr 28px;gap:.8rem;align-items:center;padding:.6rem .7rem;background:var(--paper);border:1px solid var(--line)}.arrival-row>span{color:var(--muted);font-variant-numeric:tabular-nums}.arrival-row>div{display:flex;gap:.45rem}.arrival-row i{width:13px;height:13px;border-radius:50%;background:var(--accent)}.arrival-row strong{text-align:right;color:var(--accent)}
+  .bar-chart{position:relative;display:flex;align-items:end;height:270px;padding:2rem .4rem 2.4rem;border-bottom:1px solid var(--line);gap:.35rem}.bar-column{display:grid;grid-template-rows:20px 1fr 20px;align-items:end;justify-items:center;flex:1;height:100%;min-width:0}.bar-column span{font-size:.62rem;color:var(--muted)}.bar-column i{display:block;width:100%;max-width:34px;background:var(--accent)}.bar-column b{font-size:.7rem}.axis-label{position:absolute;bottom:-.1rem;left:0;right:0;margin:0;text-align:center;color:var(--muted);font-size:.7rem}
+  .depletion-chart,.stockout-chart{display:grid;gap:.65rem}.depletion-row,.stockout-row{display:grid;grid-template-columns:62px 1fr 64px;gap:.7rem;align-items:center}.depletion-row>div,.stockout-row>div{height:18px;background:var(--paper);border:1px solid var(--line)}.depletion-row i,.stockout-row i{display:block;height:100%;background:var(--accent)}.depletion-row strong,.stockout-row strong{text-align:right;font-size:.74rem;color:var(--accent)}.stockout-row{grid-template-columns:58px 1fr 46px}.stockout-row i{background:#8b4c36}
+  .lost-sales-chart{position:relative}.lost-sales-bars{position:relative;display:flex;align-items:end;height:230px;padding:1rem 0 1.7rem;border-bottom:1px solid var(--line)}.lost-bar{position:relative;display:flex;align-items:end;flex:1;height:100%}.lost-bar i{display:block;width:100%;background:var(--accent);border-right:1px solid var(--paper-deep)}.lost-bar.excess i{background:#8b4c36}.lost-bar.boundary{border-right:2px dashed var(--ink)}.lost-bar b{position:absolute;bottom:-1.35rem;left:50%;transform:translateX(-50%);font-size:.65rem}.q-label{position:absolute;right:35%;top:0;padding:.15rem .35rem;background:var(--ink);color:var(--paper);font-size:.68rem}.lost-sales-key{display:flex;flex-wrap:wrap;gap:.8rem 1rem;margin-top:.9rem;color:var(--muted);font-size:.7rem}.lost-sales-key span{display:flex;align-items:center;gap:.35rem}.lost-sales-key i{width:11px;height:11px;background:var(--accent)}.lost-sales-key i.excess{background:#8b4c36}.lost-sales-key strong{margin-left:auto;color:var(--ink)}
+  .rates-chart svg{display:block;width:100%;height:auto;background:var(--paper)}.rates-chart .axis{fill:none;stroke:var(--line);stroke-width:1.5}.rates-chart .normal,.rates-chart .holiday{fill:none;stroke-width:4}.rates-chart .normal{stroke:var(--accent)}.rates-chart .holiday{stroke:#8b4c36}.rates-chart text{fill:var(--muted);font:12px var(--sans)}.line-key{display:flex;justify-content:center;gap:1.4rem;margin-top:.8rem;font-size:.72rem}.line-key span::before{content:'';display:inline-block;width:20px;height:3px;margin-right:.4rem;vertical-align:middle;background:var(--accent)}.line-key .holiday-key::before{background:#8b4c36}
+  @media(max-width:560px){.poisson-figure{padding:.9rem}.arrival-row{grid-template-columns:90px 1fr 22px;gap:.45rem}.arrival-row i{width:10px;height:10px}.bar-chart{height:220px;gap:.18rem}.bar-column span{font-size:.52rem;transform:rotate(-45deg);transform-origin:center}.lost-sales-key strong{width:100%;margin-left:0}.q-label{right:31%}.depletion-row,.stockout-row{grid-template-columns:52px 1fr 54px}}
+</style>

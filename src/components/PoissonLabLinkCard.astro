@@ -1,0 +1,24 @@
+---
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+const href = ko ? '/coding/experiments/poisson-demand-inventory-lab/' : '/en/coding/experiments/poisson-demand-inventory-lab/';
+---
+
+<aside class="poisson-lab-link" aria-label={ko ? '관련 재고 시뮬레이션' : 'Related inventory simulation'}>
+  <div class="poisson-lab-link__mark" aria-hidden="true">λ</div>
+  <div>
+    <p>CONCEPT → SIMULATION</p>
+    <h3>{ko ? '푸아송 수요·재고 Lab으로 확장하기' : 'Continue in the Poisson demand and inventory Lab'}</h3>
+    <span>{ko
+      ? '평균 주문률, 서비스 수준과 부족·잔여비용을 바꾸며 재고 기준 세 가지를 직접 비교할 수 있습니다.'
+      : 'Change the average order rate, service level, and underage-versus-overage costs to compare three inventory rules.'}</span>
+    <a href={href}>{ko ? '수요·재고 시뮬레이터 열기' : 'Open the demand and inventory simulator'} <b aria-hidden="true">→</b></a>
+  </div>
+</aside>
+
+<style>
+  .poisson-lab-link{display:grid;grid-template-columns:auto 1fr;gap:1rem;margin:1.5rem 0 2rem;padding:1.15rem 1.25rem;border:1px solid #d5dfd1;border-radius:18px;background:linear-gradient(135deg,#f3f7f1,#fbfcfa);box-shadow:0 8px 24px rgba(31,62,39,.06);font-family:var(--sans)}
+  .poisson-lab-link__mark{display:grid;place-items:center;width:2.4rem;height:2.4rem;border-radius:10px;background:#234c32;color:#fff;font:700 1.15rem/1 var(--serif)}.poisson-lab-link>div:last-child{min-width:0}.poisson-lab-link p{margin:0 0 .35rem;color:#52705a;font:700 .68rem/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em}.poisson-lab-link h3{margin:0;font-size:1.15rem;line-height:1.3}.poisson-lab-link span{display:block;margin:.45rem 0 .8rem;color:#5b665c;font-size:.9rem;line-height:1.55}.poisson-lab-link a{color:#234c32;font-weight:700;text-decoration-thickness:1px;text-underline-offset:3px}.poisson-lab-link a:hover{color:#102e1b}.poisson-lab-link b{display:inline-block;margin-left:.2rem;transition:transform .2s ease}.poisson-lab-link a:hover b{transform:translateX(3px)}
+  @media(max-width:540px){.poisson-lab-link{padding:1rem;gap:.75rem}.poisson-lab-link h3{font-size:1.05rem}.poisson-lab-link span{font-size:.85rem}}
+</style>
