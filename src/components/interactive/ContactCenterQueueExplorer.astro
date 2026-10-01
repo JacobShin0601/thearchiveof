@@ -13,9 +13,9 @@ const ko = language === 'ko';
 
   <div class="queue-inputs">
     <label>{ko ? '전체 문의 λ (건/시간)' : 'All contacts, λ (per hour)'}<input type="number" name="contacts" min="1" max="1000" step="1" value="100" /></label>
-    <label>{ko ? '인간 상담사 이관율 p' : 'Human handoff rate, p'}<input type="range" name="handoff" min="1" max="100" step="1" value="20" /><output data-out="handoff">20%</output></label>
+    <label>{ko ? '사람 상담사 이관율 p' : 'Human handoff rate, p'}<input type="range" name="handoff" min="1" max="100" step="1" value="20" /><output data-out="handoff">20%</output></label>
     <label>{ko ? '평균 처리시간 AHT (분)' : 'Average handle time (min)'}<input type="number" name="aht" min="1" max="120" step="1" value="12" /></label>
-    <label>{ko ? '인간 상담사 수 c' : 'Human agents, c'}<input type="number" name="agents" min="1" max="200" step="1" value="7" /></label>
+    <label>{ko ? '사람 상담사 수 c' : 'Human agents, c'}<input type="number" name="agents" min="1" max="200" step="1" value="7" /></label>
     <label>{ko ? '목표 응답시간 (분)' : 'Target answer time (min)'}<input type="number" name="target" min="0" max="60" step="0.5" value="5" /></label>
   </div>
 
@@ -83,4 +83,3 @@ const ko = language === 'ko';
   .queue-explorer{margin:2.2rem 0;padding:1.35rem;border:1px solid var(--ink);background:var(--paper-deep);font-family:var(--sans);font-size:.82rem;line-height:1.55}.queue-explorer h3{margin:.5rem 0 .4rem;font-family:var(--serif);font-size:1.45rem}.queue-explorer>p:not(.eyebrow):not(.queue-status){color:var(--muted)}.queue-inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin:1.25rem 0}.queue-inputs label{display:grid;grid-template-columns:1fr auto;gap:.45rem;align-items:center;padding:.7rem;background:var(--paper);border:1px solid var(--line);color:var(--muted);font-size:.72rem}.queue-inputs input[type="number"]{width:112px;min-height:38px;padding:.35rem .5rem;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;text-align:right}.queue-inputs input[type="range"]{grid-column:1 / -1;width:100%;accent-color:var(--accent)}.queue-inputs output{color:var(--accent);font-weight:700}.queue-results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}.queue-results>div{display:grid;gap:.35rem;min-height:88px;padding:.8rem;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--paper)}.queue-results span{color:var(--muted);font-size:.68rem}.queue-results strong{align-self:end;color:var(--accent);font-size:1.02rem;font-variant-numeric:tabular-nums}.queue-status{margin:.9rem 0 0;padding:.65rem .75rem;border-left:3px solid var(--accent);background:var(--paper);font-weight:700}.queue-explorer.is-unstable .queue-status{border-color:#9b5038;color:#7a3826}.queue-note{margin:.9rem 0 0;font-size:.7rem}
   @media(max-width:620px){.queue-explorer{padding:1rem}.queue-inputs{grid-template-columns:1fr}.queue-results{grid-template-columns:repeat(2,minmax(0,1fr))}.queue-inputs input[type="number"]{width:96px}}
 </style>
-
