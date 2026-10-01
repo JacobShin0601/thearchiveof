@@ -6,6 +6,7 @@ export const ARTICLE_KEYS = [
   "multi-objective-optimization-battery-supply-chain",
   "pareto-optimization-dinner-with-friends",
   "poisson-demand-inventory",
+  "poisson-demand-inventory-lab",
   "samsung-earnings-event-lab",
   "vllm-troubleshooting-metrics",
   "vllm-tuning-limited-gpus",
