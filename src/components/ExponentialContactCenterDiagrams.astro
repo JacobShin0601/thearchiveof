@@ -14,8 +14,8 @@ const staffingRows = [
 ];
 
 const captions = ko ? {
-  handoff: 'Illustrative · 시간당 전체 문의 100건, 인간 상담사 이관율 20%를 단순화한 그림이다. 실제 고객센터 자료가 아니다.',
-  waiting: '인간 상담사 이관률이 시간당 20건이면 평균 이관 간격은 3분이다. 평균은 규칙적인 시간표가 아니다.',
+  handoff: 'Illustrative · 시간당 전체 문의 100건, 사람 상담사 이관율 20%를 단순화한 그림이다. 실제 고객센터 자료가 아니다.',
+  waiting: '사람 상담사 이관율이 시간당 20건이면 평균 이관 간격은 3분이다. 평균은 규칙적인 시간표가 아니다.',
   memoryless: '일정한 발생률을 가정하면 이미 기다린 시간과 무관하게 앞으로의 조건부 대기시간 분포는 같다.',
   staffing: 'Illustrative · 시간당 이관 20건, 평균 처리시간 12분, 이탈이 없는 M/M/c 모형의 계산이다.',
   hazard: 'Conceptual illustration · 일정한 hazard는 지수분포의 가정이다. 장애와 금융환경에서는 위험이 상태에 따라 달라질 수 있다.',
@@ -35,12 +35,12 @@ const captions = ko ? {
         <strong>{ko ? '전체 문의' : 'All contacts'}</strong>
         <span>λ = 100 / hour</span>
       </div>
-      <div class="dot-grid" role="img" aria-label={ko ? '20개 중 16개는 AI 해결, 4개는 인간 이관' : 'Sixteen of twenty contacts resolved by AI and four handed to humans'}>
+      <div class="dot-grid" role="img" aria-label={ko ? '20개 중 16개는 AI 해결, 4개는 사람 상담사 이관' : 'Sixteen of twenty contacts resolved by AI and four handed to humans'}>
         {handoffDots.map(({ human }) => <i class:list={{ human }}></i>)}
       </div>
       <div class="handoff-key">
         <span><i></i>{ko ? 'AI 안에서 처리 80%' : 'Contained by AI 80%'}</span>
-        <span><i class="human"></i>{ko ? '인간 상담사 이관 20%' : 'Human handoff 20%'}</span>
+        <span><i class="human"></i>{ko ? '사람 상담사 이관 20%' : 'Human handoff 20%'}</span>
         <strong>λ<sub>H</sub> = pλ = 20 / hour</strong>
       </div>
     </div>
@@ -118,4 +118,3 @@ const captions = ko ? {
   .exponential-figure{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);font-family:var(--sans);font-size:.82rem;line-height:1.5}.exponential-figure figcaption{margin-top:1rem;color:var(--muted);font-size:.74rem}.mini-title{margin:0 0 1rem;color:var(--ink);font-weight:700}.handoff-head,.handoff-key{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem 1rem}.handoff-head span{color:var(--muted)}.dot-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:.55rem;margin:1.1rem 0}.dot-grid i,.handoff-key i{display:block;width:100%;aspect-ratio:1;border-radius:50%;background:var(--accent)}.dot-grid i.human,.handoff-key i.human{background:#9b5038}.handoff-key i{display:inline-block;width:11px;margin-right:.35rem;vertical-align:-1px}.handoff-key span{color:var(--muted)}.handoff-key strong{margin-left:auto}.waiting-diagram svg,.hazard-diagram svg{display:block;width:100%;height:auto;background:var(--paper)}.axis{fill:none;stroke:var(--line);stroke-width:1.5}.curve{fill:none;stroke:var(--accent);stroke-width:4}.guide{fill:none;stroke:#9b5038;stroke-width:1.5;stroke-dasharray:5 4}.waiting-diagram text,.hazard-diagram text{fill:var(--muted);font:12px var(--sans)}.waiting-callout{display:flex;justify-content:space-between;gap:1rem;margin-top:.8rem;padding:.75rem;background:var(--paper);border:1px solid var(--line)}.waiting-callout span{color:var(--muted)}.memoryless-diagram{display:grid;gap:.85rem}.memory-row{display:grid;grid-template-columns:115px 1fr;align-items:center;gap:.8rem}.memory-row>span{color:var(--muted)}.memory-row>div{position:relative;height:42px;background:var(--paper);border:1px solid var(--line)}.memory-row i{display:block;height:100%;background:color-mix(in srgb,var(--accent) 72%,transparent)}.memory-row.waited i{background:color-mix(in srgb,#9b5038 72%,transparent)}.memory-row b{position:absolute;inset:0;display:grid;place-items:center;font-size:.7rem}.memory-equation{margin:.4rem 0 0;text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.staffing-diagram{display:grid;gap:.75rem}.staffing-row{display:grid;grid-template-columns:58px 1fr 52px 112px;align-items:center;gap:.65rem}.staffing-row>div{height:22px;background:var(--paper);border:1px solid var(--line)}.staffing-row i{display:block;height:100%;background:var(--accent)}.staffing-row strong{text-align:right;color:var(--accent)}.staffing-row small{color:var(--muted)}.hazard-diagram .constant,.hazard-diagram .incident,.hazard-diagram .cycle{fill:none;stroke-width:4}.hazard-diagram .constant{stroke:var(--accent)}.hazard-diagram .incident{stroke:#9b5038}.hazard-diagram .cycle{stroke:#80692f}.hazard-key{display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem 1.2rem;margin-top:.8rem;color:var(--muted);font-size:.7rem}.hazard-key span::before{content:'';display:inline-block;width:20px;height:3px;margin-right:.35rem;vertical-align:middle;background:var(--accent)}.hazard-key .incident-key::before{background:#9b5038}.hazard-key .cycle-key::before{background:#80692f}
   @media(max-width:600px){.exponential-figure{padding:.9rem}.dot-grid{gap:.35rem}.handoff-key strong{width:100%;margin-left:0}.waiting-callout{display:grid}.memory-row{grid-template-columns:1fr}.staffing-row{grid-template-columns:48px 1fr 48px}.staffing-row small{grid-column:2 / -1}.hazard-key{justify-content:flex-start}}
 </style>
-
