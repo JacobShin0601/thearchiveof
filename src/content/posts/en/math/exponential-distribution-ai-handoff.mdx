@@ -1,7 +1,7 @@
 ---
 title: "What Is the Exponential Distribution?"
-subtitle: "How many human agents does an AI contact center need?"
-description: "Use contacts an AI cannot fully resolve and hands to human agents to understand exponential waiting times, memorylessness, Poisson thinning, queues, and limits in crises."
+subtitle: "When does an AI conversation reach a human agent?"
+description: "Use contacts an AI cannot resolve—or that require human judgment—to understand exponential waiting times, memorylessness, Poisson thinning, queues, and their limits in crises."
 publishedDate: 2026-10-01
 section: "Mathematics"
 subsection: "Statistics"
@@ -81,7 +81,7 @@ If people once handled 100 contacts per hour and now receive only 20, keeping on
 
 Vendors use slightly different language. Amazon Connect defines **AI Handoff Rate** as the percentage of AI-handled contacts that escalate to a human or additional support. Microsoft Copilot Studio uses **Escalation Rate** for engaged sessions handed off through an escalation or transfer step. The share completed without a human is often described with terms such as containment rate or resolution rate.
 
-This article uses **human handoff rate**, denoted by $p$.
+For the model, this article uses **human handoff rate**, denoted by $p$. Vendor denominators and counting rules differ, so here $p$ is simplified as the share of all incoming contacts that ultimately reach a human agent.
 
 A handoff is not automatically an AI failure. The AI may lack an answer, but a customer may also request a person. Cancellation, dispute, safety, or regulated workflows may be intentionally designed for human review. The goal is not necessarily the lowest possible handoff rate. A safe, accurate, context-preserving handoff can itself be a successful outcome.
 
@@ -93,7 +93,7 @@ The [previous Poisson article](/en/math/statistics/poisson-demand-inventory/) as
 
 > How many events will occur during a fixed interval?
 
-If contacts arrive at an average rate of $lambda$ per hour and that rate is roughly constant over a short interval, we can write:
+If contacts arrive at an average rate of $\lambda$ per hour and that rate is roughly constant over a short interval, we can write:
 
 $$
 N(t)\sim\operatorname{Poisson}(\lambda t).
@@ -139,7 +139,7 @@ At 30 contacts per hour, the mean interval is two minutes. That does not create 
 
 ## The arrival rate after AI handles the first pass
 
-Suppose all contacts arrive at rate $lambda$, and each contact independently reaches a human with probability $p$. The human-bound contacts also form a Poisson process, with rate:
+Suppose all contacts arrive at rate $\lambda$, and each contact independently reaches a human with probability $p$. The human-bound contacts also form a Poisson process, with rate:
 
 $$
 \lambda_H=p\lambda.
@@ -160,7 +160,7 @@ $$
 The time between human handoffs follows:
 
 $$
-T_H\sim\operatorname{Exponential}(20),
+T_H\sim\operatorname{Exponential}(\lambda_H),\qquad \lambda_H=20\text{/hour},
 $$
 
 with a mean interval of three minutes:
@@ -197,7 +197,7 @@ Even after ten quiet minutes, the conditional probability for the next three min
 
 <ExponentialContactCenterDiagrams variant="memoryless" language="en" />
 
-That qualification matters. Ten quiet minutes may be evidence that our estimate of $lambda_H=20$ is wrong. If the rate is known, memorylessness applies. If the rate itself is uncertain, the observation should update our estimate. In the language of the [Bayesian statistics article](/en/math/statistics/bayesian-statistics-dog-walk/), the distribution may be memoryless, but the analyst should not ignore new evidence.
+That qualification matters. Ten quiet minutes may be evidence that our estimate of $\lambda_H=20$ is wrong. If the rate is known, memorylessness applies. If the rate itself is uncertain, the observation should update our estimate. In the language of the [Bayesian statistics article](/en/math/statistics/bayesian-statistics-dog-walk/), the distribution may be memoryless, but the analyst should not ignore new evidence.
 
 ## Why 80% AI containment does not imply an 80% staffing cut
 
@@ -264,7 +264,7 @@ This article uses $M/M/c$ only as a transparent baseline. Real centers should te
 
 ## Real handoff rates are not constant
 
-So far, both the overall contact rate $lambda$ and handoff probability $p$ have been constant. In practice they vary with time and state:
+So far, both the overall contact rate $\lambda$ and handoff probability $p$ have been constant. In practice they vary with time and state:
 
 $$
 \lambda_H(t)=p(t)\lambda(t).
