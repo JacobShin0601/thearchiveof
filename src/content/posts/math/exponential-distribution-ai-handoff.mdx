@@ -1,0 +1,374 @@
+---
+title: "지수분포란 무엇인가?"
+subtitle: "AI 상담은 언제 사람 상담사에게 넘어올까?"
+description: "AI 상담사가 문의를 해결하지 못하거나 사람의 판단이 필요해 상담을 이관하는 상황을 통해 지수분포, 무기억성, Poisson thinning과 대기행렬, 경제위기에서의 한계를 살펴봅니다."
+publishedDate: 2026-10-03
+section: "Mathematics"
+subsection: "Statistics"
+contentType: "foundation"
+topics:
+  - enterprise-ai
+  - optimization
+primaryTopic: enterprise-ai
+tags:
+  - exponential-distribution
+  - probability
+  - queueing-theory
+  - contact-center
+  - ai-handoff
+author: "Jacob Shin"
+featured: false
+draft: false
+comments: true
+language: "ko"
+translationKey: "exponential-distribution-ai-handoff"
+freshness: periodic
+lastReviewed: 2026-10-03
+nextReviewDate: 2027-04-03
+references:
+  - title: "Exponential, Gamma and Chi-Square Distributions — STAT 414"
+    url: "https://online.stat.psu.edu/stat414/Lesson15"
+    publisher: "Penn State Department of Statistics"
+  - title: "Lecture 5: Poisson Combining and Splitting"
+    url: "https://ocw.mit.edu/courses/6-262-discrete-stochastic-processes-spring-2011/resources/lecture-5-poisson-combining-and-splitting/"
+    publisher: "MIT OpenCourseWare"
+  - title: "AI Agent Metrics"
+    url: "https://docs.aws.amazon.com/connect/latest/adminguide/ai-agent-metrics.html"
+    publisher: "Amazon Connect"
+  - title: "Agent Metrics Reference"
+    url: "https://learn.microsoft.com/en-us/microsoft-copilot-studio/guidance/agent-business-value-metrics-reference"
+    publisher: "Microsoft Learn"
+  - title: "Telephone Call Centers: Tutorial, Review, and Research Prospects"
+    url: "https://faculty.wharton.upenn.edu/wp-content/uploads/2012/04/Gans-Koole-Mandelbaum-CCReview.pdf"
+    publisher: "Manufacturing & Service Operations Management"
+  - title: "An Improved Heuristic for Staffing Telephone Call Centers with Limited Operating Hours"
+    url: "https://business.columbia.edu/faculty/research/improved-heuristic-staffing-telephone-call-centers-limited-operating-hours"
+    publisher: "Columbia Business School"
+  - title: "Financial Cycles — Early Warning Indicators of Banking Crises?"
+    url: "https://www.imf.org/en/publications/wp/issues/2021/04/29/financial-cycles-early-warning-indicators-of-banking-crises-50257"
+    publisher: "International Monetary Fund"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import ExponentialContactCenterDiagrams from '../../../components/ExponentialContactCenterDiagrams.astro';
+import ContactCenterQueueExplorer from '../../../components/interactive/ContactCenterQueueExplorer.astro';
+
+<AnswerBlock question="지수분포란 무엇인가?">
+  지수분포는 <strong>일정한 발생률로 일어나는 사건에서 다음 사건까지의 대기시간을 나타내는 연속확률분포</strong>입니다. 푸아송 분포가 일정 시간 동안 사건이 몇 번 발생하는지를 묻는다면, 지수분포는 다음 사건이 발생할 때까지 얼마나 기다리는지를 묻습니다. 단, 발생률이 일정하고 사건들이 독립적이라는 가정에서 무기억성을 가집니다.
+</AnswerBlock>
+
+요즘 고객센터에 AI 상담사를 도입하면 이런 숫자가 자주 등장한다.
+
+> 전체 문의의 80%를 AI가 처리했습니다.
+
+그렇다면 AI 콜센터에는 사람 상담사를 몇 명 배치해야 할까?
+
+전체 문의가 시간당 100건이고 AI가 80%를 처리한다면 사람에게는 20건만 넘어온다. 그러니 사람 상담사도 예전의 5분의 1이면 될 것처럼 보인다. 하지만 실제로 근무표를 짜야 하는 사람에게는 다른 질문이 생긴다.
+
+- 남은 20건은 언제 사람에게 넘어올까?
+- 일정하게 3분마다 한 건씩 들어올까?
+- 한동안 조용하다가 여러 건이 몰리지는 않을까?
+- 상담사가 한 고객을 처리하는 동안 새 이관이 몇 건 더 쌓일까?
+- 고객의 95%를 5분 안에 연결하려면 몇 명이 필요할까?
+
+**평균적으로 몇 건이 넘어오는지 아는 것과, 다음 이관이 언제 발생할지 아는 것은 다른 문제다.** 그 사이를 연결하는 분포가 지수분포(Exponential distribution)다.
+
+## AI가 사람에게 넘기는 상담을 무엇이라고 부를까?
+
+제품마다 용어는 조금씩 다르다. Amazon Connect는 AI가 처리하던 문의가 사람 상담사나 추가 지원으로 넘어간 비율을 **AI Handoff Rate**라고 부른다. Microsoft Copilot Studio는 사람을 참여시키도록 넘긴 세션의 비율을 **Escalation Rate**라고 정의한다. 반대로 사람에게 넘기지 않고 AI 안에서 끝난 비율은 containment rate나 resolution rate라고 표현하기도 한다.
+
+이 글에서는 설명을 위해 **사람 상담사 이관율**을 사용하겠다. 다만 제품마다 분모와 집계 기준이 다르다. 여기서는 전체 유입 문의 중 최종적으로 사람 상담사에게 넘어가는 비율을 $p$로 단순화한다.
+
+이관은 반드시 AI의 실패가 아니다. AI가 답을 몰라서 넘길 수도 있지만 고객이 직접 사람을 요청했을 수도 있다. 해지, 분쟁, 안전이나 규제 관련 문의처럼 애초에 인간 확인을 거치도록 설계한 경우도 있다. 이관율을 무조건 낮추면 좋은 것이 아니라, **넘겨야 할 상담을 정확하고 매끄럽게 넘기는 것**도 AI 상담의 품질이다.
+
+<ExponentialContactCenterDiagrams variant="handoff" language="ko" />
+
+## 푸아송은 횟수, 지수분포는 기다림
+
+[앞선 글에서 푸아송 분포](/math/statistics/poisson-demand-inventory/)를 이렇게 설명했다.
+
+> 앞으로 일정 시간 동안 사건이 몇 번 발생할까?
+
+시간당 평균 문의 수가 $\lambda$이고, 그 발생률이 짧은 구간 동안 일정하다고 가정하면 $t$시간 동안의 문의 수는 다음처럼 놓을 수 있다.
+
+$$
+N(t)\sim\operatorname{Poisson}(\lambda t).
+$$
+
+이번에는 질문의 방향을 바꿔보자.
+
+> 다음 문의가 들어올 때까지 얼마나 기다려야 할까?
+
+푸아송 과정에서 사건과 사건 사이의 대기시간 $T$는 지수분포를 따른다.
+
+$$
+T\sim\operatorname{Exponential}(\lambda).
+$$
+
+확률밀도함수는 다음과 같다.
+
+$$
+f(t)=\lambda e^{-\lambda t},\qquad t\ge0.
+$$
+
+하지만 처음에는 밀도함수보다 다음 식이 더 직관적이다.
+
+$$
+P(T>t)=e^{-\lambda t}.
+$$
+
+이는 앞으로 $t$시간이 지나도록 다음 사건이 발생하지 않을 확률이다. 반대로 그 안에 다음 사건이 발생할 확률은:
+
+$$
+P(T\le t)=1-e^{-\lambda t}.
+$$
+
+평균 대기시간은 발생률의 역수다.
+
+$$
+E[T]=\frac{1}{\lambda}.
+$$
+
+시간당 문의가 평균 30건이면 평균 간격은 $1/30$시간, 즉 2분이다. 그렇다고 문의가 정확히 2분마다 시간표처럼 들어오는 것은 아니다. 10초 만에 다음 문의가 올 수도 있고, 5분 동안 조용할 수도 있다.
+
+> 평균적으로 2분마다 한 건이 들어온다는 것과 다음 문의가 정확히 2분 뒤에 들어온다는 것은 전혀 다른 말이다.
+
+## AI를 통과한 뒤의 발생률
+
+이제 전체 문의가 아니라 사람에게 넘어오는 문의만 보자.
+
+전체 문의가 시간당 평균 $\lambda$건이고, 각 문의가 독립적으로 확률 $p$로 사람 상담사에게 넘어간다고 가정한다. 그러면 사람 상담사에게 넘어오는 문의 역시 푸아송 과정이 되고 발생률은 다음과 같다.
+
+$$
+\lambda_H=p\lambda.
+$$
+
+이를 **Poisson thinning**이라고 한다. 푸아송 사건 각각을 일정한 확률로 분류하면 선택된 사건도 푸아송 과정이 된다는 성질이다.
+
+설명을 위한 숫자를 넣어보자. 실제 고객센터 데이터가 아니다.
+
+- 전체 문의: 시간당 100건
+- 사람 상담사 이관율: 20%
+- 사람 상담사에게 넘어오는 문의: 시간당 평균 20건
+
+$$
+\lambda_H=100\times0.2=20\text{건/시간}.
+$$
+
+따라서 사람 상담사 이관 사이의 시간 $T_H$는:
+
+$$
+T_H\sim\operatorname{Exponential}(\lambda_H),\qquad \lambda_H=20\text{건/시간}
+$$
+
+로 놓을 수 있고 평균 이관 간격은 3분이다.
+
+$$
+E[T_H]=\frac{1}{20}\text{시간}=3\text{분}.
+$$
+
+<ExponentialContactCenterDiagrams variant="waiting" language="ko" />
+
+AI가 문의의 80%를 처리해도 사람에게는 평균 3분마다 새 상담이 넘어온다. 여기서도 평균은 스케줄이 아니다. 어떤 3분에는 한 건도 없고, 어떤 3분에는 여러 건이 들어올 수 있다.
+
+또 이 단순화에는 AI가 고객과 대화한 뒤 이관하기까지 걸리는 시간을 넣지 않았다. 문의 유형과 AI 대화시간이 제각각이면 실제 이관 도착의 모양은 처음 문의가 들어온 모양과 달라질 수 있다. thinning은 좋은 출발점이지 운영 데이터 검증을 대신하는 결론은 아니다.
+
+## 10분 동안 조용했으니 이제 곧 들어올까?
+
+평균 이관 간격이 3분인데 10분 동안 아무 상담도 넘어오지 않았다고 해보자. 이제 곧 이관이 들어올 차례일까?
+
+지수분포를 그대로 믿는다면 답은 **아니다**. 지수분포는 무기억성(memoryless property)을 가진다.
+
+$$
+P(T>s+t\mid T>s)=P(T>t).
+$$
+
+이미 $s$만큼 기다렸다는 조건을 알아도 앞으로 $t$만큼 더 기다릴 확률은 처음부터 계산한 것과 같다.
+
+사람 상담사 이관이 시간당 평균 20건 발생한다면, 앞으로 3분 안에 적어도 한 건이 들어올 확률은:
+
+$$
+1-e^{-20\times(3/60)}=1-e^{-1}\approx63.2\%.
+$$
+
+이미 10분 동안 조용했더라도, **일정한 $\lambda_H=20$을 알고 있다는 모형 안에서는** 앞으로 3분의 조건부확률도 63.2%다.
+
+<ExponentialContactCenterDiagrams variant="memoryless" language="ko" />
+
+여기에는 중요한 단서가 있다. 10분 동안 아무 이관도 없다는 관측은 $\lambda_H=20$이라는 우리의 추정이 틀렸다는 증거일 수 있다. 발생률을 확실히 알고 있다고 가정하면 무기억성이 성립하지만, 발생률 자체를 추정하는 중이라면 새 관측을 보고 $\lambda_H$를 고쳐야 한다. [베이즈 통계학의 표현](/math/statistics/bayesian-statistics-dog-walk/)을 빌리면, 분포는 기억이 없더라도 분석가는 새 정보를 무시하면 안 된다.
+
+## AI가 80%를 처리해도 상담사를 80% 줄일 수 없는 이유
+
+이제 처음 질문으로 돌아가자. AI 콜센터에는 사람 상담사를 몇 명 배치해야 할까? 이 질문에는 단순한 비례식으로 답할 수 없다. 사람에게 넘어오는 상담이 80% 감소했다고 상담사도 80% 줄일 수 있는 것은 아니다.
+
+### 남은 상담이 더 어려울 수 있다
+
+AI가 배송 조회, 영업시간, 간단한 계정 안내를 해결하고 나면 사람에게 넘어오는 것은 예외 처리, 복잡한 인증, 해지, 민원과 분쟁일 가능성이 커진다. 문의 수는 줄지만 평균 처리시간(Average Handle Time, AHT)은 길어질 수 있다.
+
+### 평균보다 몰림이 중요하다
+
+하루 전체의 평균 이관율이 20%라도 결제 장애나 배송 지연이 발생한 30분에는 문의량과 이관율이 함께 뛸 수 있다. 하루 평균만 보고 인력을 줄이면 정작 사람이 필요한 순간에 대기열이 길어진다.
+
+### 평균 처리능력을 꽉 채우면 대기열이 쌓인다
+
+평균 20건이 들어오고 정확히 20건을 처리할 수 있다고 해서 대기 없이 운영되는 것은 아니다. 도착과 처리시간이 흔들리므로 잠깐 생긴 대기열을 줄일 여유가 필요하다.
+
+## 그렇다면 사람 상담사는 몇 명 필요할까?
+
+지수분포는 다음 이관까지의 시간을 설명하지만 상담사 수를 혼자 결정하지는 못한다. 적어도 다음 정보가 더 필요하다.
+
+- 사람 상담사에게 들어오는 문의율 $\lambda_H$
+- 평균 처리시간과 상담사 한 명의 처리율 $\mu$
+- 상담사 수 $c$
+- 목표 대기시간과 서비스 수준
+- 고객의 대기 포기
+- 휴식, 교육, 후처리와 결근
+- 문의 유형별로 필요한 상담사의 숙련도
+
+앞의 가상 사례에서 사람에게 시간당 20건이 넘어오고 평균 처리시간이 12분이라고 하자. 상담사 한 명은 시간당 평균 5건을 처리한다.
+
+$$
+\mu=\frac{60}{12}=5\text{건/시간}.
+$$
+
+이 시스템의 제공 부하(offered load)는:
+
+$$
+a=\frac{\lambda_H}{\mu}=\frac{20}{5}=4\text{ Erlangs}.
+$$
+
+상담사 4명은 평균 처리능력이 도착률과 정확히 같다. 하지만 조금만 문의가 몰려도 쌓인 대기열을 해소할 여력이 없다. 이 단순 모형에서는 $c\mu>\lambda_H$여야 대기열이 안정된다.
+
+도착 간격과 처리시간을 모두 지수분포로 두고, $c$명의 상담사가 있으며 고객이 기다리다 이탈하지 않는다고 가정한 모형이 **$M/M/c$ 대기열**이다. 이때 Erlang C 계산으로 가상의 서비스 수준을 비교하면 다음과 같다.
+
+<ExponentialContactCenterDiagrams variant="staffing" language="ko" />
+
+| 상담사 수 | 평균 대기시간 | 5분 안에 연결될 확률 |
+| ---: | ---: | ---: |
+| 5명 | 약 6.65분 | 약 63.5% |
+| 6명 | 약 1.71분 | 약 87.6% |
+| 7명 | 약 0.54분 | 약 96.1% |
+
+`시간당 이관 20건, 평균 처리시간 12분`이라는 설명용 가정에서 5분 내 95% 연결을 처음 넘는 것은 7명이다. 이것이 실제 고객센터의 권장 인원이라는 뜻은 아니다. 현실의 인력계획에는 시간대별 수요, 고객 이탈, 스케줄 제약과 shrinkage까지 들어가야 한다.
+
+중요한 직관은 숫자보다 단순하다.
+
+> 상담사 수는 평균 문의를 겨우 처리할 수 있는 최소 인원이 아니라, 문의와 처리시간의 변동을 견디면서 목표 대기시간을 지킬 수 있는 인원이어야 한다.
+
+<ContactCenterQueueExplorer language="ko" />
+
+## 지수분포에서 대기행렬로
+
+콜센터에는 두 개의 시계가 동시에 움직인다.
+
+1. 다음 이관이 들어오기까지의 시간
+2. 상담사가 현재 상담을 끝낼 때까지의 시간
+
+두 번째 시계가 첫 번째보다 느리면 기다리는 고객이 쌓인다. 지수분포가 개별 대기시간을 설명한다면, 대기행렬 이론(queueing theory)은 여러 도착과 여러 상담사가 함께 움직일 때 대기열이 어떻게 만들어지는지를 설명한다.
+
+이 글에서는 $M/M/c$를 계산 도구로만 사용했다. 실제 고객센터에서는 처리시간이 지수분포와 맞는지, 고객이 얼마나 기다리다 포기하는지, 상담 유형별 라우팅은 어떻게 되는지를 확인해야 한다. 고객 이탈을 포함하면 Erlang A 같은 모형을 고려할 수 있고, 관측한 분포를 직접 사용하는 시뮬레이션도 가능하다.
+
+## 현실의 이관 발생률은 일정하지 않다
+
+지금까지는 전체 문의 발생률 $\lambda$와 이관확률 $p$가 일정하다고 가정했다. 현실에서는 둘 다 시간과 상태에 따라 변한다.
+
+$$
+\lambda_H(t)=p(t)\lambda(t).
+$$
+
+- 출근 직전이나 점심시간에는 문의량이 달라진다.
+- 결제·로그인 장애가 나면 문의가 한꺼번에 몰린다.
+- AI 모델이나 지식베이스가 바뀌면 이관율도 달라진다.
+- 같은 장애를 겪은 고객들의 문의는 서로 독립적이지 않다.
+- 특정 의도는 이관율뿐 아니라 처리시간도 길다.
+- AI 시스템 자체에 문제가 생기면 이관율이 동시에 급등할 수 있다.
+
+그래서 실무에서는 하루 평균보다 15분이나 30분 같은 구간별 문의량, 이관율과 AHT를 함께 보는 편이 낫다. 특정 장애가 문의량과 이관율을 동시에 움직인다면 단순 thinning의 독립 가정도 깨진다.
+
+지수분포가 틀렸다는 선언보다 중요한 질문은 이것이다.
+
+> 어느 시간 구간과 운영상태에서 발생률이 충분히 일정한가?
+
+## 경제위기도 ‘올 때가 되면’ 찾아올까?
+
+고객센터의 이관율조차 늘 일정하지 않다면 훨씬 복잡한 경제의 위기 발생률은 어떨까?
+
+사람들은 종종 “마지막 금융위기가 오래전이니 이제 한 번 올 때가 됐다”고 말한다. 사고실험을 위해 경제위기가 평균 10년에 한 번, 서로 독립적으로 일정한 발생률로 찾아온다고 가정해보자. 실제 위기 빈도를 추정한 숫자가 아니다.
+
+$$
+\lambda_C=0.1\text{ crises/year}.
+$$
+
+다음 위기까지의 시간을 지수분포로 놓으면:
+
+$$
+T_C\sim\operatorname{Exponential}(0.1).
+$$
+
+이 모형 안에서는 마지막 위기 이후 1년이 지났든 15년이 지났든 앞으로 5년 안에 위기가 올 조건부확률이 같다.
+
+$$
+P(T_C\le5)=1-e^{-0.1\times5}\approx39.3\%.
+$$
+
+따라서 “오래 위기가 없었으니 이제 올 차례”라는 주장도, “오래 안정적이었으니 앞으로도 안전하다”는 주장도 마지막 위기 이후의 시간 하나만으로는 나오지 않는다.
+
+하지만 이 계산은 경제위기가 실제로 무기억적이라는 증거가 아니다. 오히려 지수분포의 가정이 현실에서 얼마나 강한지를 보여주는 반례에 가깝다.
+
+## 경제위기에서는 왜 무기억성이 깨질 수 있을까?
+
+### 위기의 정의부터 일정하지 않다
+
+은행위기, 통화위기, 국가부도, 경기침체와 주가 급락은 서로 다른 사건이다. 어느 것을 한 번의 ‘위기’로 셀지에 따라 관측 횟수와 간격이 달라진다. 드문 사건이라 표본도 적고, 수십 년 사이 금융제도와 정책체계도 바뀐다.
+
+### 위험은 경제상태에 따라 달라진다
+
+지수분포의 무기억성은 순간 발생위험인 hazard rate가 일정할 때 나온다.
+
+$$
+h(t)=\lambda.
+$$
+
+하지만 경제위기의 위험은 신용 증가, 부동산과 주식가격, 레버리지, 유동성, 금리와 경기상태에 따라 달라질 수 있다. IMF의 금융위기 조기경보 연구도 신용, 자산가격과 거시변수의 상태가 은행위기 확률에 관한 정보를 줄 수 있음을 살핀다. 현실의 hazard는 하나의 상수보다 다음에 가깝다.
+
+$$
+h(t\mid x_t),
+$$
+
+여기서 $x_t$는 그 시점의 금융·경제 상태다.
+
+### 과거 위기가 현재 구조를 바꾼다
+
+위기 뒤에는 규제가 강화되고 은행 자본이 보강되거나 민간 부채가 줄 수 있다. 반대로 오랜 안정은 위험선호와 레버리지를 높일 수도 있다. 과거 사건과 ‘사건이 없었던 기간’이 현재 상태를 바꾸므로, 경제가 기억을 전혀 갖지 않는다고 보기 어렵다.
+
+### 위기는 서로 독립적이지 않을 수 있다
+
+한 금융기관의 부실은 거래상대방과 자금시장에 영향을 주고, 한 국가의 불안은 다른 시장으로 전염될 수 있다. 독립적으로 떨어지는 빗방울보다 연결된 네트워크를 따라 번지는 충격에 가깝다면 단순 푸아송 과정은 군집과 연쇄작용을 놓친다.
+
+<ExponentialContactCenterDiagrams variant="hazard" language="ko" />
+
+## 무기억성은 현실의 법칙이 아니라 모형의 결과다
+
+지수분포가 과거를 무시하는 것은 현실이 과거를 기억하지 못해서가 아니다. 우리가 **발생률이 시간과 상태에 따라 변하지 않는다**고 가정했기 때문이다.
+
+| 기다리는 사건 | 일정한 hazard가 그럴듯한가? |
+| --- | --- |
+| 짧은 정상 구간의 고객 문의 | 유용한 근사가 될 수 있다 |
+| 정상 운영 중 AI의 사람 상담사 이관 | 문의 유형과 시간대를 나누면 검토할 수 있다 |
+| 서비스 장애 중의 상담 이관 | 문의와 이관이 함께 몰릴 가능성이 크다 |
+| 기업 부도 | 기업과 시장상태에 따라 위험이 변한다 |
+| 경제위기 | 구조, 정책과 금융국면에 따라 크게 변할 수 있다 |
+
+좋은 모형은 모든 현실을 담는 모형이 아니다. 의사결정에 필요한 부분을 충분히 담고, 어디서 틀릴 수 있는지를 알고 쓰는 모형이다.
+
+## AI가 80%를 처리했다는 숫자 다음에 물어야 할 것
+
+AI가 문의의 80%를 해결했다는 숫자는 중요하다. 그러나 그 숫자만으로 사람 상담사를 몇 명 배치해야 하는지는 알 수 없다.
+
+사람에게 넘어오는 상담이 얼마나 자주 발생하는지, 언제 몰리는지, 처리하는 데 얼마나 오래 걸리는지, 고객을 몇 분 안에 연결하려는지까지 함께 봐야 한다. 지수분포는 그중 **다음 이관까지의 시간**을 설명하고, 대기행렬은 그 이관들이 상담사의 처리속도와 만날 때 생기는 대기를 설명한다.
+
+경제위기도 마찬가지다. 평균적으로 몇 년마다 위기가 있었다는 사실만으로 다음 위기가 가까워졌는지 알 수 없다. 현재 위험을 바꾸는 금융상태와 연결구조를 함께 봐야 한다.
+
+**지수분포는 다음 사건을 기다리는 법을 알려준다. 현실을 이해하려면 그 기다림의 시계가 정말 일정한 속도로 움직이는지부터 확인해야 한다.**
+
+관련 토픽: [Enterprise AI](/topics/enterprise-ai/) · [Optimization](/topics/optimization/)
