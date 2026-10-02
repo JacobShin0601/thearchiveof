@@ -1,0 +1,105 @@
+---
+interface Props {
+  variant: 'checkout' | 'utilization' | 'parking' | 'little' | 'llm';
+  language: 'ko' | 'en';
+}
+
+const { variant, language } = Astro.props;
+const ko = language === 'ko';
+const captions = ko ? {
+  checkout: '사람 수가 짧은 줄과 남은 작업량이 작은 줄은 다를 수 있다. 장바구니 크기와 예외 처리가 서비스 시간을 바꾼다.',
+  utilization: 'Conceptual · 가동률이 100%에 가까워질수록 작은 변동을 흡수할 여유가 줄고 대기시간은 비선형적으로 커질 수 있다.',
+  parking: '주차장 입구의 줄은 차단기만의 문제가 아닐 수 있다. 내부 합류, 빈자리 탐색과 만차가 입구까지 정체를 되돌려 보낸다.',
+  little: 'Illustrative · 시간당 60대가 들어오고 입구 줄에서 평균 10분을 보낸다면 평균적으로 10대가 줄에 있다.',
+  llm: 'LLM 요청도 보이지 않는 줄에 선다. 입력·출력 token 길이가 달라 처리시간이 흔들리고, queue time은 첫 token까지의 시간에 더해진다.',
+} : {
+  checkout: 'The shortest line by headcount may not contain the least remaining work. Basket size and exceptions change service time.',
+  utilization: 'Conceptual · As utilization approaches 100%, the buffer for variability shrinks and waiting time can rise nonlinearly.',
+  parking: 'A queue at the garage entrance may originate downstream. Merging, searching for spaces, and a full facility can send congestion back to the gate.',
+  little: 'Illustrative · At 60 arrivals per hour and a ten-minute average entrance wait, an average of ten cars are in line.',
+  llm: 'LLM requests also join an invisible queue. Input and output lengths change service demand, and queue time adds to time to first token.',
+};
+---
+
+<figure class="queue-figure" aria-label={variant}>
+  {variant === 'checkout' && (
+    <div class="checkout-diagram">
+      <div class="lane short">
+        <strong>{ko ? '2명이 선 줄' : 'Two people'}</strong>
+        <div class="customer large"><i></i><span>{ko ? '가득 찬 카트' : 'Full cart'}</span></div>
+        <div class="customer medium"><i></i><span>{ko ? '가격 확인' : 'Price check'}</span></div>
+        <b>{ko ? '계산대 A' : 'Lane A'}</b>
+      </div>
+      <div class="lane long">
+        <strong>{ko ? '4명이 선 줄' : 'Four people'}</strong>
+        <div class="small-customers"><i></i><i></i><i></i><i></i></div>
+        <span>{ko ? '작은 바구니 4개' : 'Four small baskets'}</span>
+        <b>{ko ? '계산대 B' : 'Lane B'}</b>
+      </div>
+      <div class="checkout-message">{ko ? '줄의 길이 ≠ 남은 작업량' : 'Line length ≠ remaining work'}</div>
+    </div>
+  )}
+
+  {variant === 'utilization' && (
+    <div class="utilization-diagram">
+      <p class="mini-title">{ko ? '가동률과 대기시간' : 'Utilization and waiting time'}</p>
+      <svg viewBox="0 0 680 300" role="img" aria-label={ko ? '가동률이 100퍼센트에 가까워질 때 대기시간이 빠르게 증가하는 개념도' : 'Conceptual curve of waiting time rising as utilization approaches 100 percent'}>
+        <path class="axis" d="M70 28 V250 H640"></path>
+        <path class="curve" d="M70 238 C250 235 370 224 455 190 C525 162 574 105 620 35"></path>
+        <path class="guide" d="M550 250 V121 H70"></path>
+        <text x="18" y="34">{ko ? '대기' : 'wait'}</text><text x="578" y="276">100%</text>
+        <text x="522" y="276">90%</text><text x="22" y="126">{ko ? '급증' : 'surge'}</text>
+      </svg>
+      <p>ρ = λE[S] / c</p>
+    </div>
+  )}
+
+  {variant === 'parking' && (
+    <div class="parking-diagram">
+      <div class="road">
+        <span>{ko ? '도로의 입장 대기' : 'Entrance queue on the road'}</span>
+        <div><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <span class="arrow">→</span>
+      <div class="gate"><strong>{ko ? '차단기' : 'Gate'}</strong><i></i></div>
+      <span class="arrow">→</span>
+      <div class="inside">
+        <strong>{ko ? '내부 병목' : 'Downstream bottleneck'}</strong>
+        <span>{ko ? '합류 · 빈자리 탐색 · 만차' : 'Merge · search · full capacity'}</span>
+        <div class="blocked">← {ko ? 'spillback' : 'spillback'}</div>
+      </div>
+    </div>
+  )}
+
+  {variant === 'little' && (
+    <div class="little-diagram">
+      <div><span>{ko ? '평균 줄 길이' : 'Average number waiting'}</span><strong>L = 10</strong><small>{ko ? '대' : 'cars'}</small></div>
+      <b>=</b>
+      <div><span>{ko ? '도착률' : 'Arrival rate'}</span><strong>λ = 60</strong><small>{ko ? '대/시간' : 'cars/hour'}</small></div>
+      <b>×</b>
+      <div><span>{ko ? '평균 대기' : 'Average wait'}</span><strong>W = 1/6</strong><small>{ko ? '시간 = 10분' : 'hour = 10 min'}</small></div>
+    </div>
+  )}
+
+  {variant === 'llm' && (
+    <div class="llm-diagram">
+      <div class="requests">
+        <strong>{ko ? '요청' : 'Requests'}</strong>
+        <span class="short">128</span><span class="long">8k</span><span class="medium">2k</span><span class="short">64</span>
+        <small>{ko ? '서로 다른 token 길이' : 'Different token lengths'}</small>
+      </div>
+      <span class="arrow">→</span>
+      <div class="scheduler"><strong>Queue + Scheduler</strong><span>{ko ? '대기 · 배치 · 우선순위' : 'wait · batch · priority'}</span></div>
+      <span class="arrow">→</span>
+      <div class="gpu"><strong>GPU</strong><span>Prefill</span><span>Decode</span></div>
+      <div class="latency">TTFT ≈ Queue + Prefill + overhead</div>
+    </div>
+  )}
+
+  <figcaption>{captions[variant]}</figcaption>
+</figure>
+
+<style>
+  .queue-figure{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);font-family:var(--sans);font-size:.82rem;line-height:1.5}.queue-figure figcaption{margin-top:1rem;color:var(--muted);font-size:.74rem}.mini-title{margin:0 0 .8rem;font-weight:700}.checkout-diagram{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.lane{position:relative;display:grid;gap:.55rem;min-height:190px;padding:1rem 1rem 3rem;border:1px solid var(--line);background:var(--paper)}.lane>b{position:absolute;right:0;bottom:0;left:0;padding:.6rem;background:var(--ink);color:var(--paper);text-align:center}.customer{display:grid;grid-template-columns:36px 1fr;align-items:center;gap:.55rem}.customer i,.small-customers i{display:block;border-radius:50%;background:var(--accent)}.customer i{width:28px;height:28px}.customer.large::after{content:'';display:block;grid-column:1 / -1;width:90%;height:12px;background:#9b5038}.customer.medium::after{content:'';display:block;grid-column:1 / -1;width:55%;height:8px;background:#80692f}.small-customers{display:flex;gap:.45rem}.small-customers i{width:25px;height:25px}.lane>span,.customer span{color:var(--muted)}.checkout-message{grid-column:1 / -1;padding:.7rem;border-left:3px solid var(--accent);background:var(--paper);font-weight:700;text-align:center}.utilization-diagram svg{display:block;width:100%;height:auto;background:var(--paper)}.axis{fill:none;stroke:var(--line);stroke-width:1.5}.curve{fill:none;stroke:var(--accent);stroke-width:4}.guide{fill:none;stroke:#9b5038;stroke-width:1.5;stroke-dasharray:5 4}.utilization-diagram text{fill:var(--muted);font:12px var(--sans)}.utilization-diagram>p:last-child{text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.parking-diagram{display:grid;grid-template-columns:1fr auto 110px auto 1.25fr;align-items:stretch;gap:.7rem}.road,.gate,.inside{display:grid;align-content:center;gap:.6rem;min-height:145px;padding:.8rem;border:1px solid var(--line);background:var(--paper)}.road div{display:flex;gap:.3rem}.road i{display:block;width:25px;height:14px;border-radius:3px;background:var(--accent)}.gate{text-align:center}.gate i{display:block;width:76px;height:5px;background:#9b5038;transform:rotate(-12deg)}.inside span{color:var(--muted)}.blocked{padding:.45rem;background:color-mix(in srgb,#9b5038 14%,var(--paper));color:#7a3826;font-weight:700}.arrow{align-self:center;color:var(--muted)}.little-diagram{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:.75rem}.little-diagram>div{display:grid;gap:.35rem;min-height:120px;padding:1rem;border:1px solid var(--line);background:var(--paper);text-align:center}.little-diagram span,.little-diagram small{color:var(--muted)}.little-diagram strong{font-size:1.35rem;color:var(--accent)}.little-diagram>b{font-size:1.4rem}.llm-diagram{display:grid;grid-template-columns:1fr auto 1.25fr auto .9fr;align-items:stretch;gap:.7rem}.requests,.scheduler,.gpu{display:grid;align-content:center;gap:.45rem;min-height:150px;padding:.8rem;border:1px solid var(--line);background:var(--paper)}.requests span{height:15px;padding:0 .35rem;background:var(--accent);color:var(--paper);font-size:.62rem;line-height:15px}.requests .long{width:95%}.requests .medium{width:58%}.requests .short{width:30%}.requests small,.scheduler span{color:var(--muted)}.scheduler{border-color:var(--accent)}.gpu span{padding:.35rem;background:var(--ink);color:var(--paper);text-align:center}.latency{grid-column:1 / -1;padding:.65rem;border-left:3px solid var(--accent);background:var(--paper);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center}
+  @media(max-width:680px){.queue-figure{padding:.9rem}.checkout-diagram{grid-template-columns:1fr}.checkout-message{grid-column:auto}.parking-diagram,.llm-diagram{grid-template-columns:1fr}.parking-diagram>.arrow,.llm-diagram>.arrow{transform:rotate(90deg);justify-self:center}.llm-diagram .latency{grid-column:auto}.little-diagram{grid-template-columns:1fr}.little-diagram>b{text-align:center}.road,.gate,.inside,.requests,.scheduler,.gpu{min-height:105px}}
+</style>

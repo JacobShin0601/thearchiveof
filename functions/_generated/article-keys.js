@@ -9,6 +9,7 @@ export const ARTICLE_KEYS = [
   "pareto-optimization-dinner-with-friends",
   "poisson-demand-inventory",
   "poisson-demand-inventory-lab",
+  "queueing-theory-everyday-llm",
   "samsung-earnings-event-lab",
   "vllm-troubleshooting-metrics",
   "vllm-tuning-limited-gpus",
