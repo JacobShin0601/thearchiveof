@@ -1,0 +1,312 @@
+---
+title: "What Is Queueing Theory?"
+subtitle: "Why we wait at supermarket checkouts, parking garages, and AI servers"
+description: "Start with checkout and parking lines, learn arrivals, service times, utilization, and Little’s Law, then apply the same ideas to LLM serving."
+publishedDate: 2026-10-02
+section: "Mathematics"
+subsection: "Statistics"
+contentType: "foundation"
+topics:
+  - optimization
+  - monte-carlo
+  - enterprise-ai
+primaryTopic: optimization
+tags:
+  - queueing-theory
+  - little-law
+  - operations-research
+  - capacity-planning
+  - llm-serving
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "queueing-theory-everyday-llm"
+localization:
+  locale: "en-US"
+  defaultContext: "An international reader who has waited at a supermarket checkout or busy parking garage and may use AI products without operating LLM infrastructure."
+  strategy: "localized-adaptation"
+freshness: periodic
+lastReviewed: 2026-10-02
+nextReviewDate: 2027-04-02
+references:
+  - title: "Lecture 13: Little, M/G/1, Ensemble Averages"
+    url: "https://ocw.mit.edu/courses/6-262-discrete-stochastic-processes-spring-2011/resources/lecture-13-little-m-g-1-ensemble-averages/"
+    publisher: "MIT OpenCourseWare"
+  - title: "Performance Modeling and Design of Computer Systems: Queueing Theory in Action"
+    url: "https://www.cs.cmu.edu/~harchol/PerformanceModeling/book.html"
+    publisher: "Carnegie Mellon University"
+  - title: "Impact of Queue Configuration on Service Time: Evidence from a Supermarket"
+    url: "https://pubsonline.informs.org/doi/10.1287/mnsc.2017.2781"
+    publisher: "Management Science"
+  - title: "Multiresolution Modeling for Traffic Analysis"
+    url: "https://www.fhwa.dot.gov/publications/research/operations/21082/21082.pdf"
+    publisher: "Federal Highway Administration"
+  - title: "Metrics"
+    url: "https://docs.vllm.ai/en/stable/design/metrics/"
+    publisher: "vLLM"
+  - title: "Optimization and Tuning"
+    url: "https://docs.vllm.ai/en/stable/configuration/optimization/"
+    publisher: "vLLM"
+  - title: "Efficient Memory Management for Large Language Model Serving with PagedAttention"
+    url: "https://arxiv.org/abs/2309.06180"
+    publisher: "SOSP 2023"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import QueueingEverydayDiagrams from '../../../../components/QueueingEverydayDiagrams.astro';
+import EverydayQueueExplorer from '../../../../components/interactive/EverydayQueueExplorer.astro';
+
+<AnswerBlock question="What is queueing theory?">
+  Queueing theory is the <strong>mathematics of how irregular arrivals interact with limited service capacity to produce lines and waiting time</strong>. It uses arrival rates, service times, server counts, and queue rules to explain congestion and to choose capacity and service levels.
+</AnswerBlock>
+
+Choosing a supermarket checkout can feel like a small optimization problem.
+
+I count the people in each line, glance at their baskets, and reconsider every time another line moves. When I carefully choose a line with two shoppers and the four-person line finishes first, it feels as if I made a bad trade.
+
+The shopper ahead of me had a full cart and an item that needed a price check. Next door, four small baskets moved through quickly.
+
+<QueueingEverydayDiagrams variant="checkout" language="en" />
+
+The first lesson is simple:
+
+> **The number of people in a line is not the amount of work left in that line.**
+
+Headcount is visible. Remaining service time is not. New shoppers do not arrive on a timetable, and transactions do not all take the same amount of time. That variability creates a line even when average capacity appears sufficient.
+
+Queueing theory gives us a language for this problem.
+
+## Four ingredients of a queue
+
+A checkout queue can be described with four pieces:
+
+1. **Arrival process:** How frequently do customers arrive?
+2. **Service process:** How long does each transaction take?
+3. **Number of servers:** How many checkout lanes are open?
+4. **Queue discipline:** Is there one line, a line for each lane, or a priority rule?
+
+Let the mean arrival rate be $\lambda$, the mean service rate of one checkout be $\mu$, and the number of checkouts be $c$. If $E[S]$ is the mean service time, then $\mu=1/E[S]$.
+
+The ratio of offered work to total service capacity is the **utilization**:
+
+$$
+\rho=\frac{\lambda}{c\mu}
+=\frac{\lambda E[S]}{c}.
+$$
+
+Suppose an average of 1.2 shoppers arrive each minute, each transaction takes 1.2 minutes on average, and two lanes are open:
+
+$$
+\rho=\frac{1.2\times1.2}{2}=0.72.
+$$
+
+The lanes are busy about 72% of the time on average. A 28% capacity cushion sounds comfortable, but utilization alone does not tell us the waiting time.
+
+## Why do we wait when mean capacity is sufficient?
+
+If every shopper arrived exactly 50 seconds apart and every checkout took exactly one minute, the operation could run like a schedule. In real life, both clocks move irregularly.
+
+- Several shoppers may arrive after a quiet period.
+- One person carries three items; another fills a cart.
+- A barcode fails or an item needs a price check.
+- A self-checkout occasionally needs an employee.
+
+A temporary cluster creates a queue. Clearing it requires capacity above the average load. If every lane stays 100% busy, there is no spare capacity to work the queue back down.
+
+<QueueingEverydayDiagrams variant="utilization" language="en" />
+
+$\rho<1$ is a basic stability condition: over the long run, capacity must exceed arrivals if the queue is not to grow without bound. Stability does not guarantee a short wait. As utilization approaches one, the buffer for bursts and long jobs shrinks, and waiting can rise nonlinearly.
+
+> **Being able to process the average workload is different from processing it with almost no wait.**
+
+## The same mean can hide very different variability
+
+Imagine two stores with the same arrival rate, average transaction time, and number of lanes. At the first, most baskets are similar. At the second, tiny baskets mix with overflowing carts. Even with the same mean service time, the second store can produce longer waits.
+
+For a single-server $M/G/1$ queue, the Pollaczek–Khinchine formula makes this relationship explicit:
+
+$$
+E[W_q]
+=
+\frac{\lambda E[S^2]}{2(1-\rho)}.
+$$
+
+$W_q$ is time spent waiting before service, and $S$ is service time. The revealing term is $E[S^2]$:
+
+$$
+E[S^2]=\operatorname{Var}(S)+(E[S])^2.
+$$
+
+Holding the mean constant while increasing the variance increases $E[S^2]$ and therefore the mean wait. A few unusually long jobs delay everyone behind them.
+
+This is a result for a particular model: one server with Poisson arrivals and general service times. It is not a plug-in formula for every store. Its useful lesson is broader: **capacity and the distribution of job sizes both shape a queue.**
+
+## One shared line or one line per checkout?
+
+Separate checkout lines make the customer's choice part of the outcome. A long transaction can trap one line while another lane continues to take its own customers. With one pooled line, the next person takes whichever compatible server becomes free first.
+
+This is the **pooling effect**. When servers can do the same work, sharing their capacity generally helps absorb uneven service times and reduces average waiting. It is one reason airports and some retailers use a single serpentine line.
+
+Pooling is not a universal operational rule. Customers may require different servers, a visually long line may discourage purchases, or workers may manage dedicated customers differently. Field research in a supermarket has also found that queue configuration can affect server behavior and service time, not just customer allocation.
+
+The useful question is more specific:
+
+> Can these servers handle the same work and accept customers interchangeably? If so, how much variability can shared capacity absorb?
+
+## A weekend parking queue can start outside the building
+
+Waiting does not begin only at checkout. At a busy mall or mixed-use complex on a weekend, the line may begin on the street before a car enters the garage. The gate keeps lifting, yet traffic moves only a few feet at a time.
+
+The visible server is the entrance gate. Would faster license-plate recognition or another gate remove the queue?
+
+Possibly, but the constraint may be farther downstream:
+
+- Two entrances merge into one lane.
+- Drivers slow down while searching for an open space.
+- Turning cars conflict with pedestrians or other traffic.
+- Entering and exiting vehicles share a narrow segment.
+- The garage is nearly full and cannot accept more cars.
+
+<QueueingEverydayDiagrams variant="parking" language="en" />
+
+When downstream flow stops, congestion can propagate backward past the gate and onto the street. Transportation models call this **queue spillback**. The place where a line is visible need not be the place where the bottleneck originates.
+
+A garage also departs from a basic checkout model. Parking spaces impose finite capacity, and a vehicle remains in the larger system for much longer than it spends at the gate. When the facility is full, making the gate faster cannot create a space. The entrance becomes blocked by downstream state.
+
+> **To shorten the queue in front of us, we often have to examine the entire path of work behind it.**
+
+## How many cars are waiting? Little’s Law
+
+One of the most useful relationships in queueing theory is Little’s Law:
+
+$$
+L=\lambda W.
+$$
+
+- $L$: average number of customers or jobs inside a defined system
+- $\lambda$: average rate flowing through that system
+- $W$: average time each customer or job spends inside it
+
+Define the system narrowly as the entrance queue. If 60 cars per hour pass through it and a car waits ten minutes on average, then:
+
+$$
+L_q
+=60\text{ cars/hour}\times\frac{10}{60}\text{ hour}
+=10\text{ cars}.
+$$
+
+<QueueingEverydayDiagrams variant="little" language="en" />
+
+Little’s Law does not require exponential arrival or service times. It applies to long-run averages in a stable system when the same boundary and population are used for $L$, $\lambda$, and $W$.
+
+Mixing boundaries breaks the interpretation. We cannot use total time parked for $W$ while counting only cars waiting at the entrance for $L$. The same measurement discipline matters in LLM systems: total response time and time spent waiting before GPU execution describe different boundaries.
+
+## AI requests also wait in line
+
+People are visible at a checkout, and cars are visible outside a garage. In an AI product, the line is hidden behind the screen. Sending a prompt does not mean the GPU begins work immediately.
+
+<QueueingEverydayDiagrams variant="llm" language="en" />
+
+The three systems share a structure:
+
+| Queueing element | Supermarket | Parking garage | LLM serving |
+| --- | --- | --- | --- |
+| Arriving job | Shopper | Entering vehicle | Inference request |
+| Work required | Basket and exceptions | Entry, merging, space search | Input/output tokens and model compute |
+| Server | Checkout lane | Entry lanes and internal flow | GPU workers and scheduler |
+| Waiting | Before checkout | Entrance and internal congestion | Queue before GPU execution |
+| First service signal | Checkout begins | Gate opens | First token |
+
+LLM requests vary widely in size. A one-line question and a request to read a long document and draft a report are both one request, but they are not one unit of work. Counting requests without their token demand resembles counting shoppers without looking at their baskets.
+
+Time to first token, or TTFT, can be decomposed conceptually as:
+
+$$
+TTFT
+\approx
+Queue\ Time+Prefill\ Time+Scheduling/Network\ Overhead.
+$$
+
+If a request spends most of its time waiting for GPU admission, shaving a little time from model execution may not fix TTFT. If the queue is short but a long input makes prefill expensive, adding GPUs may be less useful than inspecting prompt length and prefix reuse.
+
+Serving engines such as vLLM do not simply complete one request before starting the next. They coordinate request scheduling, batching, and KV-cache management across concurrent work. The PagedAttention paper was designed to reduce KV-cache memory waste so more requests could be served efficiently. Those mechanisms improve throughput while also making the real system richer than a literal “one GPU equals one checkout” model.
+
+The implementation article [Why Did vLLM Slow Down?](/en/ai/ai-engineering/vllm-troubleshooting-metrics/) develops the operational metrics in more detail. The queueing lesson here is simpler:
+
+> **The distribution of token work matters alongside the number of requests.**
+
+## A healthy average can still hide slow users
+
+Mean waiting time summarizes the system but can hide a poor tail. If nine requests start in one second and one waits thirty seconds, an average alone does not describe the last user's experience.
+
+That is why production services track tail measures such as p95 and p99 latency.
+
+- A p95 TTFT of four seconds means roughly 95% of requests received a first token within four seconds.
+- Roughly 5% took longer.
+- Finding the cause usually requires segmenting by input length, output length, and workload type.
+
+High utilization is attractive because it serves more work with the same GPU fleet. But less spare capacity makes bursts and large jobs more likely to create a queue and a long latency tail. Capacity planning is therefore broader than maximizing one utilization metric.
+
+$$
+\text{Capacity decision}
+=
+\text{Cost}
++
+\text{Throughput}
++
+\text{Latency SLO}
++
+\text{Variability buffer}.
+$$
+
+This is a checklist in equation form, not a formal objective function.
+
+## Run the same queue in three settings
+
+The explorer below uses the same basic simulation for a checkout, a garage entrance, and an LLM server. Change the arrival rate, mean service time, server count, and service-time variability.
+
+Useful comparisons include:
+
+- Keep the means fixed and increase only service-time variability.
+- Remove one server and move utilization toward 100%.
+- Compare separate lines with one pooled queue.
+- Use the LLM preset and create a workload with more long requests.
+
+<EverydayQueueExplorer language="en" />
+
+This is an educational model. It uses independent Poisson arrivals and a selectable service-time distribution. It does not reproduce finite parking capacity and internal traffic networks, or the separation of LLM prefill, decode, and token batching.
+
+The direction matters more than the specific forecast. A small change in arrivals or service time can cause a large change in waiting when utilization moves close to one. Holding the mean constant while increasing variability can make the latency tail much longer.
+
+## Define the boundary before choosing the model
+
+Before applying a queueing model, decide what counts as an arrival, the start of service, and completion.
+
+At a checkout, service may be measured from joining the line, reaching the register, or scanning the first item. At a garage, completion may mean passing the gate or finally occupying a space. In an LLM service, first token and full response completion correspond to TTFT and end-to-end latency, which are different performance questions.
+
+Then test the model assumptions against the operation:
+
+- Weekend mall arrival rates change quickly over time.
+- Vehicles released by the same traffic signal may arrive in clusters.
+- Checkout transactions and LLM requests may have heavier tails than an exponential model.
+- A parking garage has finite capacity and may block new arrivals.
+- An LLM scheduler can split and batch work at the token level.
+- Shoppers, drivers, and users may abandon a long wait or cancel a request.
+
+Reality does not have to obey the textbook queue. A simple model can identify the mechanism first; additional operational detail can then be added where a decision requires it.
+
+## Spare capacity is what lets a line recover
+
+An always-busy cashier looks efficient. A garage with no empty spaces appears fully used. A GPU near 100% utilization can look ideal.
+
+Spare capacity also has an operational purpose. It absorbs irregular arrivals and unusually large jobs, allowing a queue to shrink again.
+
+At a supermarket, we choose the line that looks shortest while wishing we could see its remaining workload. At a garage, the cars outside are visible while the bottleneck may be deep inside the building. In an AI product, the user sees a loading indicator while requests of different token lengths compete for GPU time.
+
+**We wait not only because capacity is scarce, but because arrivals and job sizes refuse to behave like their averages.**
+
+Related: [What Is the Poisson Distribution?](/en/math/statistics/poisson-demand-inventory/) · [What Is the Exponential Distribution?](/en/math/statistics/exponential-distribution-ai-handoff/) · [Why Did vLLM Slow Down?](/en/ai/ai-engineering/vllm-troubleshooting-metrics/)
+
+Topics: [Optimization](/en/topics/optimization/) · [Monte Carlo](/en/topics/monte-carlo/) · [Enterprise AI](/en/topics/enterprise-ai/)
