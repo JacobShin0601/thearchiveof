@@ -3,7 +3,8 @@
 > Status: series planning document  
 > Purpose: reusable backlog for drafting one article at a time  
 > Source language: Korean  
-> Working series name: **에이전트 백엔드 시스템 / Agent Backend Systems**
+> Public series name: **Agent Engineering**  
+Internal blueprint theme: **에이전트 백엔드 시스템 / Agent Backend Systems**
 
 ---
 
@@ -80,58 +81,196 @@ Kubernetes
 End-to-end architecture
 ```
 
-큰 파트는 다섯 개로 나눈다.
+공개 시리즈는 **Agent Engineering** 하나로 유지하고, 그 안을 다섯 개의 Part로 나눈다. Part는 별도 시리즈가 아니라 하나의 긴 learning path 안의 chapter다.
 
-## Part 0 — Agent Pattern Design
+## Part I — Agent Patterns & Execution · Articles 1–4
 
-0. Tool Use / Orchestrator / Planner / HITL / Retry / Evaluator-Refiner
-
-질문:
-
-> 에이전트라는 실행 시스템은 어떤 기본 패턴들을 조합해서 만들어지는가?
-
-이 첫 글은 `JacobShin0601/reflection-practice`의 `agent_design/` 실습 구조를 reference implementation으로 삼는다. 프레임워크보다 plain Python state machine을 먼저 보여준다.
-
-## Part I — Execution
-
-1. Async
-2. Thread / Process
-3. Worker
+1. Agent Pattern Design
+2. Why Agent Systems Need Async
+3. Async vs Thread vs Process
+4. A Worker Is Not a Thread
 
 질문:
 
-> Agent는 어떻게 여러 일을 동시에 처리하며, 누가 실행을 소유하는가?
+> 에이전트는 어떤 control-flow pattern으로 구성되고, 그 실행을 backend에서 어떻게 효율적으로 소유할 것인가?
 
-## Part II — State & Streaming
+Article 1은 `JacobShin0601/reflection-practice`의 `agent_design/` 실습 구조를 reference implementation으로 삼는다. 프레임워크보다 plain Python state machine을 먼저 보여준다.
 
-4. State persistence
-5. State vs Event
-6. SSE / Streaming
+## Part II — State, Streaming & Runtime · Articles 5–8
 
-질문:
-
-> Agent는 어떻게 상태를 기억하고 사용자에게 진행상황을 보여주는가?
-
-## Part III — Agent Runtime
-
-7. LangGraph
-8. Session / Run
-9. Queue / Reliability
+5. Where Does Agent State Live?
+6. State Is Not an Event
+7. How an Agent Talks While It Works
+8. LangGraph Is the Runtime, Not the Architecture
 
 질문:
 
-> 실제 agent runtime은 어떤 단위로 실행되고, 어떻게 격리되며, 실패를 어떻게 복구하는가?
+> 실행 중인 Agent의 현재 상태와 이벤트를 어디에 저장하고, 어떻게 사용자에게 실시간으로 전달할 것인가?
 
-## Part IV — Production
+## Part III — Sessions, Reliability & Production · Articles 9–12
 
-10. Kubernetes
-11. End-to-End Request Lifecycle
+9. A Conversation Is Not a Run
+10. When Workers Die
+11. Running Agents on Kubernetes
+12. An Agent Request, End to End
 
 질문:
 
-> 이 모든 구성요소를 실제 서비스에서 어떻게 연결하고 운영하는가?
+> 여러 사용자와 실행을 어떻게 격리하고, worker failure를 복구하며, production infrastructure에 올릴 것인가?
+
+## Part IV — Control, Recovery & Correctness · Articles 13–16
+
+13. Cancellation Is a Protocol
+14. Timeouts, Deadlines, and Budgets
+15. Idempotency and the Exactly-Once Illusion
+16. Checkpoint, Resume, and Durable HITL
+
+질문:
+
+> 오래 실행되는 Agent를 어떻게 멈추고, 제한하고, 중복 없이 복구할 것인가?
+
+## Part V — Operating Multi-Agent Systems · Articles 17–21
+
+17. Observability for Agent Systems
+18. Backpressure, Quotas, and Admission Control
+19. Multi-Agent Execution: Parent Runs, Fan-out, and Fan-in
+20. Security Boundaries for Agent Systems
+21. Token Streaming Is Not Progress Streaming
+
+질문:
+
+> Agent 시스템의 규모가 커졌을 때 어떻게 관찰하고, 과부하를 제어하고, multi-agent와 보안 경계를 운영할 것인가?
 
 ---
+
+## How the five Parts should appear on the site
+
+**Part 이름은 article title에도, tag에도 넣지 않는다.**
+
+권장 계층:
+
+```text
+Series
+Agent Engineering
+
+  Part I
+  Agent Patterns & Execution
+    01 Agent Pattern Design
+    02 Why Agent Systems Need Async
+    03 Async vs Thread vs Process
+    04 A Worker Is Not a Thread
+
+  Part II
+  State, Streaming & Runtime
+    05 ...
+```
+
+### Why not title?
+
+다음처럼 제목에 넣지 않는다.
+
+```text
+[Part II] State Is Not an Event
+Agent Engineering 06 — State Is Not an Event
+```
+
+이렇게 하면 article title이 navigation metadata를 떠안고, 검색 결과 / OG title / AI retrieval에서도 불필요하게 길어진다.
+
+### Why not tags?
+
+현재 The Archive의 `tags`는 글을 가로지르는 secondary descriptor이고 최대 5개다.
+
+Part label은:
+
+- 순서가 있음
+- 특정 series 안에서만 의미가 있음
+- navigation hierarchy 역할을 함
+
+반면 tag는:
+
+- 순서가 없음
+- 여러 series / topic을 가로지를 수 있음
+- `asyncio`, `redis-streams`, `sse`, `kubernetes`, `idempotency`처럼 검색/연결에 쓰는 것이 자연스럽다.
+
+따라서 Part를 tag로 소비하지 않는다.
+
+### Recommended frontmatter extension
+
+현재 schema의:
+
+```yaml
+series: Agent Engineering
+seriesOrder: 6
+```
+
+에 하나를 추가하는 방향을 권장한다.
+
+```yaml
+series: Agent Engineering
+seriesOrder: 6
+seriesPart: state-streaming-runtime
+```
+
+`seriesPartOrder`를 article마다 중복 저장하기보다, series registry에서 Part 순서를 정의하는 쪽이 낫다.
+
+예상 series definition:
+
+```typescript
+{
+  name: 'Agent Engineering',
+  description: {
+    ko: '에이전트의 실행 패턴에서 상태, 스트리밍, 복구와 운영까지 production agent engineering을 단계적으로 설명합니다.',
+    en: 'A structured path from agent control-flow patterns to state, streaming, recovery, and production operations.',
+  },
+  parts: [
+    {
+      slug: 'patterns-execution',
+      order: 1,
+      name: {
+        ko: 'Agent Patterns & Execution',
+        en: 'Agent Patterns & Execution',
+      },
+    },
+    {
+      slug: 'state-streaming-runtime',
+      order: 2,
+      name: {
+        ko: 'State, Streaming & Runtime',
+        en: 'State, Streaming & Runtime',
+      },
+    },
+    {
+      slug: 'sessions-reliability-production',
+      order: 3,
+      name: {
+        ko: 'Sessions, Reliability & Production',
+        en: 'Sessions, Reliability & Production',
+      },
+    },
+    {
+      slug: 'control-recovery-correctness',
+      order: 4,
+      name: {
+        ko: 'Control, Recovery & Correctness',
+        en: 'Control, Recovery & Correctness',
+      },
+    },
+    {
+      slug: 'operating-multi-agent-systems',
+      order: 5,
+      name: {
+        ko: 'Operating Multi-Agent Systems',
+        en: 'Operating Multi-Agent Systems',
+      },
+    },
+  ],
+}
+```
+
+series page에서는 `seriesOrder`로 전체 순서를 유지하되 `seriesPart` 기준으로 visual grouping한다.
+
+홈페이지에는 우선 **Agent Engineering**이라는 series 이름만 보여주고, series detail page 안에서 Part I~V를 펼치는 것이 가장 깔끔하다.
+
 
 # 2. Shared mental model used across the series
 
@@ -288,9 +427,9 @@ LangGraph
 
 ---
 
-# 3A. Article 0 — Agent Pattern Design: 에이전트는 어떤 패턴으로 만들어지는가
+# 3A. Article 1 — Agent Pattern Design: 에이전트는 어떤 패턴으로 만들어지는가
 
-> 이 글은 시리즈의 첫 번째 발행 글이다. 기존 Article 1의 async 글보다 먼저 발행한다.
+> 이 글은 시리즈의 첫 번째 발행 글이다. 기존 Article 2의 async 글보다 먼저 발행한다.
 
 ## Working title
 
@@ -938,7 +1077,7 @@ Primary internal reference:
 
 실제 발행 글에서는 private repository 자체를 독자가 접근할 수 있는 source처럼 의존하지 않는다. 개념과 예제를 글 안에서 self-contained하게 설명한다.
 
-## Bridge to Article 1
+## Bridge to Article 2
 
 마지막 문장 방향:
 
@@ -946,7 +1085,7 @@ Primary internal reference:
 
 ---
 
-# 4. Article 1 — Why Agent Systems Need Async
+# 4. Article 2 — Why Agent Systems Need Async
 
 ## Working title
 
@@ -1043,7 +1182,7 @@ Async에 잘 맞는 것:
 
 ---
 
-# 5. Article 2 — Async vs Thread vs Process
+# 5. Article 3 — Async vs Thread vs Process
 
 ## Working title
 
@@ -1112,7 +1251,7 @@ local LLM inference
 
 ---
 
-# 6. Article 3 — A Worker Is Not a Thread
+# 6. Article 4 — A Worker Is Not a Thread
 
 ## Working title
 
@@ -1223,7 +1362,7 @@ command: python -m app.worker
 
 ---
 
-# 7. Article 4 — Where Does Agent State Live?
+# 7. Article 5 — Where Does Agent State Live?
 
 ## Working title
 
@@ -1305,7 +1444,7 @@ updated_at    ...
 
 ---
 
-# 8. Article 5 — State Is Not an Event
+# 8. Article 6 — State Is Not an Event
 
 ## Working title
 
@@ -1430,7 +1569,7 @@ events = await redis.xread(
 
 ---
 
-# 9. Article 6 — SSE, Iterators, Generators, and Redis Streams
+# 9. Article 7 — SSE, Iterators, Generators, and Redis Streams
 
 ## Working title
 
@@ -1554,7 +1693,7 @@ production 설계에서는:
 
 ---
 
-# 10. Article 7 — LangGraph Is the Runtime, Not the Architecture
+# 10. Article 8 — LangGraph Is the Runtime, Not the Architecture
 
 ## Working title
 
@@ -1737,7 +1876,7 @@ LangGraph State
 
 ---
 
-# 11. Article 8 — A Conversation Is Not a Run
+# 11. Article 9 — A Conversation Is Not a Run
 
 ## Working title
 
@@ -1880,7 +2019,7 @@ Run B ─┘
 
 ---
 
-# 12. Article 9 — When Workers Die
+# 12. Article 10 — When Workers Die
 
 ## Working title
 
@@ -2031,7 +2170,7 @@ XACK하지 않았기 때문에 job은 pending 상태.
 
 ---
 
-# 13. Article 10 — Running Agents on Kubernetes
+# 13. Article 11 — Running Agents on Kubernetes
 
 ## Working title
 
@@ -2184,7 +2323,7 @@ KEDA를 통한 Redis Stream 기반 autoscaling은 별도 implementation article 
 
 ---
 
-# 14. Article 11 — An Agent Request, End to End
+# 14. Article 12 — An Agent Request, End to End
 
 ## Working title
 
@@ -2478,7 +2617,7 @@ Worker complete
 
 # 15. FastAPI implementation responsibilities
 
-이 내용은 Article 8~11에 분산해서 사용.
+이 내용은 Article 9~11에 분산해서 사용.
 
 ## SSO / auth
 
@@ -2921,86 +3060,408 @@ Tenant
 
 ## Diagram E — End-to-end production
 
-Article 11 canonical diagram 사용.
+Article 12 canonical diagram 사용.
 
 ---
 
-# 23. Possible future articles after the core series
+# 23. Articles 13–21 — Extended Agent Engineering
 
-Core 12편(Article 0~11) 이후 확장 후보.
+Article 1~12에서 backend의 기본 골격을 만든 뒤, 같은 **Agent Engineering** series 안에서 운영·정합성·확장 문제까지 이어간다. 별도 "2차 시리즈"로 분리하지 않는다.
 
-## 12. Cancellation
+---
 
-- user cancel
+## Article 13 — Cancellation Is a Protocol
+
+### Working title
+
+**Agent를 멈춘다는 것: Cancellation은 버튼이 아니라 Protocol이다**
+
+### Core question
+
+사용자가 Cancel을 눌렀을 때 이미 worker에서 실행 중인 tool / LLM / child task를 어떻게 안전하게 중단할 것인가?
+
+### Concepts
+
 - cooperative cancellation
-- worker cancellation
-- LangGraph interruption
-- queue cleanup
+- cancellation token / flag
+- `asyncio.CancelledError`
+- remote work cancellation의 한계
+- queued / running / cancelling / cancelled state
+- cleanup
+- side effect와 cancellation
 
-## 13. Timeouts and budgets
+### Python direction
 
-- per-tool timeout
-- total run timeout
+```python
+async def run_step(ctx):
+    if await ctx.is_cancel_requested():
+        raise asyncio.CancelledError
+
+    result = await call_tool()
+
+    if await ctx.is_cancel_requested():
+        raise asyncio.CancelledError
+
+    return result
+```
+
+핵심 메시지:
+
+> Local coroutine을 cancel하는 것과 이미 remote service에서 실행 중인 work를 실제로 취소하는 것은 다르다.
+
+---
+
+## Article 14 — Timeouts, Deadlines, and Budgets
+
+### Working title
+
+**Agent는 얼마나 오래 생각해야 하는가: Timeout, Deadline, Budget**
+
+### Core question
+
+tool 하나의 timeout과 전체 run deadline, token/cost budget은 왜 별개인가?
+
+### Concepts
+
+- per-attempt timeout
+- per-step timeout
+- total run deadline
 - token budget
-- cost budget
+- dollar budget
+- latency budget
+- remaining-budget propagation
+- degradation / partial result
 
-## 14. Idempotency
+### Python direction
 
-- duplicate queue delivery
-- external side effects
+```python
+async with asyncio.timeout(5):
+    result = await call_tool()
+```
+
+그리고 remaining deadline을 child call로 전달하는 패턴.
+
+핵심 메시지:
+
+> Agent의 boundedness는 `max_steps` 하나로 끝나지 않는다.
+
+---
+
+## Article 15 — Idempotency and the Exactly-Once Illusion
+
+### Working title
+
+**Agent가 같은 일을 두 번 하면: Idempotency와 Exactly-Once의 환상**
+
+### Core question
+
+worker retry나 network timeout 때문에 동일한 side effect가 두 번 실행되는 것을 어떻게 막을 것인가?
+
+### Concepts
+
+- at-least-once delivery
+- duplicate execution
 - idempotency key
+- dedup table
+- transactional outbox
 - exactly-once illusion
+- retry + side effect
 
-## 15. Checkpoint and Resume
+### Example
 
-- durable graph checkpoint
-- resume after failure
-- human-in-the-loop
+```python
+async def create_ticket(run_id, action_id, payload):
+    key = f"{run_id}:{action_id}"
 
-## 16. Observability
+    existing = await lookup_idempotency_key(key)
+    if existing:
+        return existing.result
 
-- trace_id
-- session_id
-- run_id
+    result = await ticket_api.create(payload)
+    await save_idempotency_result(key, result)
+    return result
+```
+
+Article 10의 `XACK` / retry와 직접 연결한다.
+
+---
+
+## Article 16 — Checkpoint, Resume, and Durable HITL
+
+### Working title
+
+**Agent는 어디서 다시 시작하는가: Checkpoint, Resume, Durable HITL**
+
+### Core question
+
+worker가 죽거나 human approval 때문에 몇 시간 멈춘 뒤 같은 run을 안전하게 이어갈 수 있는가?
+
+### Concepts
+
+- checkpoint
+- resume cursor
+- durable state
+- pause / pending approval
+- plan version
+- completed side effects
+- replay safety
+- LangGraph persistence / interrupt mapping
+
+### State example
+
+```python
+checkpoint = {
+    "run_id": run_id,
+    "step": "send_email",
+    "status": "waiting_for_approval",
+    "completed_steps": ["search", "draft"],
+    "pending_action": {...},
+}
+```
+
+핵심:
+
+> Resume은 state를 다시 읽는 것만이 아니라, 이미 끝난 side effect를 반복하지 않는 문제다.
+
+---
+
+## Article 17 — Observability for Agent Systems
+
+### Working title
+
+**Agent를 디버깅하는 법: Logs보다 Trajectory가 중요하다**
+
+### Core question
+
+한 request가 여러 tool, worker, child agent를 거칠 때 무엇을 기록해야 원인을 찾을 수 있는가?
+
+### Concepts
+
+- `trace_id`
+- `tenant_id`
+- `session_id`
+- `run_id`
+- `parent_run_id`
+- tool span
 - structured logs
 - metrics
 - distributed tracing
+- trajectory evaluation
+- cost / latency attribution
 
-## 17. Backpressure
+### Python direction
 
-- queue saturation
-- admission control
-- per-tenant quotas
-- concurrency limit
+```python
+logger.info(
+    "tool_completed",
+    extra={
+        "run_id": run_id,
+        "tool": tool_name,
+        "latency_ms": latency_ms,
+        "tokens": tokens,
+    },
+)
+```
 
-## 18. Multi-agent execution
-
-- parent run / child run
-- fan-out
-- fan-in
-- shared context
-- isolation
-
-## 19. Security
-
-- tool permission
-- tenant data isolation
-- prompt injection boundary
-- credential isolation
-- secret handling
-
-## 20. Streaming tokens vs progress events
-
-- token stream
-- semantic progress
-- tool events
-- UI rendering strategy
+"한 줄의 로그"가 아니라 전체 agent trajectory를 관찰 단위로 삼는다.
 
 ---
 
+## Article 18 — Backpressure, Quotas, and Admission Control
+
+### Working title
+
+**Worker를 더 늘리기 전에: Backpressure와 Agent Admission Control**
+
+### Core question
+
+queue가 worker 처리속도보다 빠르게 늘어날 때 어떻게 시스템 전체가 무너지지 않게 할 것인가?
+
+### Concepts
+
+- queue depth
+- consumer lag
+- bounded concurrency
+- admission control
+- per-user / per-tenant quota
+- rate limiting
+- priority
+- load shedding
+- KEDA scaling limits
+- downstream saturation
+
+### Python direction
+
+```python
+async with tenant_semaphore(tenant_id, limit=4):
+    return await run_agent(request)
+```
+
+핵심:
+
+> Autoscaling은 backpressure의 대체물이 아니다.
+
+---
+
+## Article 19 — Multi-Agent Execution
+
+### Working title
+
+**Multi-Agent는 Agent를 여러 개 띄우는 것이 아니다: Parent Run, Fan-out, Fan-in**
+
+### Core question
+
+orchestrator가 child agents를 병렬 실행할 때 run hierarchy와 state를 어떻게 모델링할 것인가?
+
+### Concepts
+
+- parent run
+- child run
+- fan-out
+- fan-in
+- shared vs isolated context
+- partial failure
+- cancellation propagation
+- budget propagation
+- child event aggregation
+
+### Model
+
+```text
+Parent Run
+   ├─ Research Child Run
+   ├─ Data Child Run
+   └─ Risk Child Run
+          ↓
+        Fan-in
+          ↓
+       Synthesis
+```
+
+### Python direction
+
+```python
+results = await asyncio.gather(
+    run_child("research", parent_run_id),
+    run_child("data", parent_run_id),
+    return_exceptions=True,
+)
+```
+
+Article 1의 orchestrator pattern을 production runtime 관점으로 다시 확장한다.
+
+---
+
+## Article 20 — Security Boundaries for Agent Systems
+
+### Working title
+
+**Agent Security는 Prompt 문제가 아니다: Permission, Credentials, Tool Boundary**
+
+### Core question
+
+LLM이 arbitrary tool을 선택할 수 있는 시스템에서 실제 권한 경계는 어디에 있어야 하는가?
+
+### Concepts
+
+- authentication vs authorization vs approval
+- least privilege
+- tool allowlist
+- per-tool RBAC
+- credential isolation
+- tenant isolation
+- secret handling
+- prompt injection
+- untrusted tool output
+- side-effect boundary
+- audit
+
+### Python direction
+
+```python
+def authorize_tool(user, tool):
+    if tool.name not in user.allowed_tools:
+        raise PermissionError(
+            f"{user.id} cannot execute {tool.name}"
+        )
+```
+
+핵심:
+
+> Prompt는 security boundary가 아니다.
+
+---
+
+## Article 21 — Token Streaming Is Not Progress Streaming
+
+### Working title
+
+**Token Streaming은 Progress Streaming이 아니다**
+
+### Core question
+
+LLM token stream, tool event, semantic progress, final state는 frontend에서 왜 서로 다른 channel 의미를 갖는가?
+
+### Concepts
+
+- token stream
+- progress event
+- state snapshot
+- tool event
+- SSE event types
+- UI buffering
+- reconnect
+- finalization
+- partial answer semantics
+
+### Example event model
+
+```python
+yield {
+    "type": "progress",
+    "step": "research",
+    "progress": 0.6,
+}
+
+yield {
+    "type": "token",
+    "delta": "NVIDIA",
+}
+```
+
+사용자는 token이 빠르게 출력된다고 해서 실제 backend task가 얼마나 완료되었는지 알 수 없다.
+
+이 글은 Article 6~8의 streaming 논의를 frontend contract까지 완성하는 finale 역할을 한다.
+
+---
+
+## Extended-series dependency map
+
+```text
+Part I
+Patterns & Execution
+Articles 1–4
+      ↓
+Part II
+State, Streaming & Runtime
+Articles 5–8
+      ↓
+Part III
+Sessions, Reliability & Production
+Articles 9–12
+      ↓
+Part IV
+Control, Recovery & Correctness
+Articles 13–16
+      ↓
+Part V
+Operating Multi-Agent Systems
+Articles 17–21
+```
+
 # 24. Drafting order recommendation
 
-실제 집필은 0→11 순서가 가장 자연스럽다. 특히 Article 0은 이후 모든 글에서 사용하는 agent control-flow vocabulary를 정의하므로 가장 먼저 발행한다.
+실제 집필은 0→11 순서가 가장 자연스럽다. 특히 Article 1은 이후 모든 글에서 사용하는 agent control-flow vocabulary를 정의하므로 가장 먼저 발행한다.
 
 시작:
 
@@ -3039,26 +3500,54 @@ Core 12편(Article 0~11) 이후 확장 후보.
 마지막:
 
 ```text
-10 Kubernetes
-11 End-to-End
+11 Kubernetes
+12 End-to-End
+```
+
+그 다음 correctness 묶음:
+
+```text
+13 Cancellation
+14 Timeouts / Deadlines / Budgets
+15 Idempotency
+16 Checkpoint / Resume / Durable HITL
+```
+
+마지막 operating 묶음:
+
+```text
+17 Observability
+18 Backpressure / Quotas
+19 Multi-Agent Execution
+20 Security
+21 Token vs Progress Streaming
 ```
 
 ---
 
 # 25. One-line takeaway for each article
 
-0. **Agent Pattern Design** — Agent는 하나의 autonomous loop가 아니라 tool use, orchestration, planning, HITL, retry, reflection 같은 bounded control-flow pattern의 조합이다.
-1. **Async** — Agent는 계산보다 기다리는 시간이 길기 때문에 async가 중요하다.
-2. **Thread / Process** — 기다림과 계산은 서로 다른 concurrency 도구가 필요하다.
-3. **Worker** — worker는 thread가 아니라 execution lifecycle의 소유 경계다.
-4. **State** — durable state와 hot operational state는 역할이 다르다.
-5. **State vs Event** — 현재 상태와 시간순 사건은 같은 데이터가 아니다.
-6. **SSE** — browser는 snapshot을 먼저 받고 event를 이어받는 것이 자연스럽다.
-7. **LangGraph** — LangGraph는 runtime이지 전체 backend architecture가 아니다.
-8. **Session** — 대화 context와 실행 instance는 분리해야 한다.
-9. **Reliability** — queue message는 전달보다 완료 확인과 retry가 더 중요하다.
-10. **Kubernetes** — API와 worker는 resource profile과 scaling signal이 다르다.
-11. **End-to-End** — production agent는 LLM call이 아니라 여러 시스템 경계를 통과하는 stateful request다.
+1. **Agent Pattern Design** — Agent는 tool use, orchestration, planning, HITL, retry, reflection 같은 bounded control-flow pattern의 조합이다.
+2. **Async** — Agent는 계산보다 기다리는 시간이 길기 때문에 async가 중요하다.
+3. **Thread / Process** — 기다림과 계산은 서로 다른 concurrency 도구가 필요하다.
+4. **Worker** — worker는 thread가 아니라 execution lifecycle의 소유 경계다.
+5. **State** — durable state와 hot operational state는 역할이 다르다.
+6. **State vs Event** — 현재 상태와 시간순 사건은 같은 데이터가 아니다.
+7. **SSE** — browser는 snapshot을 먼저 받고 event를 이어받는 것이 자연스럽다.
+8. **LangGraph** — LangGraph는 runtime이지 전체 backend architecture가 아니다.
+9. **Session** — 대화 context와 실행 instance는 분리해야 한다.
+10. **Reliability** — queue message는 전달보다 완료 확인과 retry가 더 중요하다.
+11. **Kubernetes** — API와 worker는 resource profile과 scaling signal이 다르다.
+12. **End-to-End** — production agent는 LLM call이 아니라 여러 시스템 경계를 통과하는 stateful request다.
+13. **Cancellation** — cancel은 UI 버튼이 아니라 worker와 remote work가 함께 지켜야 하는 protocol이다.
+14. **Timeouts & Budgets** — step, run, token, cost에는 서로 다른 hard boundary가 필요하다.
+15. **Idempotency** — at-least-once execution에서 duplicate side effect를 막는 것은 application 책임이다.
+16. **Checkpoint & Resume** — 재개는 state 복원과 이미 끝난 side effect의 재실행 방지를 함께 해결해야 한다.
+17. **Observability** — Agent는 log line보다 run trajectory 단위로 관찰해야 한다.
+18. **Backpressure** — autoscaling만으로 과부하를 해결할 수 없고 admission control이 필요하다.
+19. **Multi-Agent Execution** — production multi-agent는 parent/child run과 fan-out/fan-in lifecycle 문제다.
+20. **Security** — prompt가 아니라 tool execution boundary가 실제 security boundary다.
+21. **Token vs Progress Streaming** — 생성 중인 token과 작업 완료율은 서로 다른 signal이다.
 
 ---
 
@@ -3167,6 +3656,36 @@ LangGraph state, Redis state, browser UI state는 서로 다른 목적의 projec
 > Production agents are distributed systems.
 
 LLM orchestration만 잘한다고 production agent backend가 완성되는 것은 아니다.
+
+---
+
+# 28. Canonical publication metadata
+
+모든 글의 public series metadata는 다음을 기본으로 한다.
+
+```yaml
+series: Agent Engineering
+seriesOrder: 1
+seriesPart: patterns-execution
+```
+
+Article별 `seriesOrder`는 1~21의 canonical order를 따른다.
+
+`tags`는 Part 이름 대신 실제 기술 개념에 사용한다.
+
+예:
+
+```yaml
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - asyncio
+  - concurrency
+  - python
+```
+
+Part label은 series detail page에서 navigation heading으로만 렌더링하는 것을 권장한다.
 
 ---
 
