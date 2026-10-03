@@ -19,5 +19,6 @@ export const ARTICLE_KEYS = [
   "who-disappears-first-ai-or-business-teams",
   "why-i-am-removing-langgraph-from-agent-building",
   "why-i-started-cfa-as-a-data-scientist",
-  "why-this-archive-is-open"
+  "why-this-archive-is-open",
+  "will-rogo-eat-financial-ai"
 ];
