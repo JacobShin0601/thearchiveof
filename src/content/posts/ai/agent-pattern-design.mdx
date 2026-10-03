@@ -1,0 +1,419 @@
+---
+title: "에이전트 패턴 디자인: Tool Use부터 Planner, Parallel, HITL, Reflection까지"
+subtitle: "거대한 autonomous loop 대신, 경계가 있는 control-flow를 조합하는 법"
+description: "Tool Use, Parallel, Planner, HITL, Retry, Reflection을 plain Python control-flow로 설명하고 LLM 판단과 결정적 코드의 경계를 정리합니다."
+publishedDate: 2026-10-03
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+  - langgraph
+  - evaluation
+primaryTopic: ai-agents
+tags:
+  - agent-patterns
+  - tool-use
+  - orchestration
+  - human-in-the-loop
+  - reflection
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: false
+language: "ko"
+translationKey: "agent-pattern-design"
+series: "Agent Engineering"
+seriesOrder: 1
+freshness: evergreen
+lastReviewed: 2026-10-03
+nextReviewDate: 2027-10-03
+references:
+  - title: "Coroutines and Tasks"
+    url: "https://docs.python.org/3/library/asyncio-task.html"
+    publisher: "Python Documentation"
+  - title: "LangGraph overview"
+    url: "https://docs.langchain.com/oss/python/langgraph/overview"
+    publisher: "LangChain"
+  - title: "LangGraph workflows and agents"
+    url: "https://docs.langchain.com/oss/python/langgraph/workflows-agents"
+    publisher: "LangChain"
+  - title: "LangGraph interrupts"
+    url: "https://docs.langchain.com/oss/python/langgraph/interrupts"
+    publisher: "LangChain"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="에이전트는 어떻게 설계해야 할까?">
+  에이전트는 하나의 거대한 autonomous loop가 아니라 <strong>도구 호출, 병렬 실행, 계획, 승인, 재시도, 품질 개선처럼 경계가 있는 control-flow pattern을 조합한 실행 시스템</strong>이다. LLM은 다음 행동을 제안하거나 판단할 수 있지만, 권한·입력 검증·종료·재시도 예산처럼 안전성과 boundedness를 보장하는 책임은 deterministic code가 가져야 한다.
+</AnswerBlock>
+
+LLM에 도구를 붙이면 처음에는 아주 작은 그림으로 충분해 보인다.
+
+```text
+User → Model → Tool → Observation → Model → Final answer
+```
+
+모델은 질문을 읽고, 검색 도구를 한 번 호출하고, 결과를 보고 답한다. 데모에서는 이 흐름이 곧바로 "agent"처럼 느껴진다.
+
+하지만 서비스를 만들기 시작하면 그림 바깥의 질문이 곧 설계가 된다. 언제 멈추는가? 서로 독립적인 조사와 데이터 조회는 무엇을 병렬로 돌리는가? 외부 메일이나 티켓 생성은 누가 승인하는가? 실패는 재시도할 것인가, 다른 경로로 전환할 것인가? 초안의 품질이 낮다면 얼마나 다시 고칠 것인가?
+
+이 글의 관점은 단순하다. **"계속 생각해"는 architecture가 아니다.** 실행 경로마다 상태, 허용 행동, 종료 조건, 실패 처리가 있어야 한다. 이후 글에서 async, worker, state, streaming을 다루기 전에 먼저 이 여섯 패턴을 공통 어휘로 잡아두려는 이유다.
+
+## 먼저 지도를 보자: 여섯 가지 pattern
+
+| Pattern | 푸는 문제 | runtime이 강제할 것 |
+| --- | --- | --- |
+| Tool Use / bounded tool-calling loop | 다음 action과 observation을 어떻게 연결할까? | 도구 목록, 입력 형식, step budget |
+| Orchestrator / Parallel | 어떤 specialist를 부르고 무엇을 동시에 돌릴까? | routing, concurrency limit, 결과 병합 |
+| Planner / Executor | 의존성이 있는 여러 단계를 어떻게 실행할까? | DAG 검증, ready step 선택 |
+| Human in the Loop | side effect 직전에 어떻게 사람을 넣을까? | exact-call approval gate, audit |
+| Retry / Fallback | 어떤 실패를 다시 시도하고 언제 degrade할까? | error classification, attempt/backoff bound |
+| Evaluator / Refiner | 답변 품질을 어떻게 제한된 loop로 개선할까? | evaluator 검증, refinement budget |
+
+```text
+                 Agent request
+                      │
+      ┌───────────────┼────────────────┐
+      ▼               ▼                ▼
+ Tool Use       Orchestrator      Planner / Executor
+      │               │                │
+      └───────────────┼────────────────┘
+                      ▼
+          Retry / Fallback · Evaluator / Refiner
+                      │
+                      ▼
+          HITL before side-effecting tools
+```
+
+각 칸은 특정 제품이나 프레임워크의 기능명이 아니다. 여러 구현에서 반복되는 제어 흐름이다. 모든 요청에 여섯 가지가 필요한 것도 아니다. 작은 read-only 검색 답변에는 bounded tool loop 하나면 충분할 수 있다. 복잡해질 때 필요한 pattern만 명시적으로 더하는 편이, 처음부터 agent를 여러 개 만드는 것보다 낫다.
+
+## Pattern 1 — Tool Use: 끝이 보이는 tool-calling loop
+
+가장 작은 agent runtime은 모델 policy가 다음 action을 반환한다고 가정한다. action은 tool call이거나 final answer다. 핵심은 model call이 아니라 state machine의 경계다.
+
+```python
+from dataclasses import dataclass, field
+from typing import Any, Callable
+
+Tool = Callable[..., Any]
+
+@dataclass
+class AgentState:
+    query: str
+    history: list[dict[str, Any]] = field(default_factory=list)
+
+def run_agent(query: str, policy, tools: dict[str, Tool], max_steps: int = 8) -> str:
+    state = AgentState(query=query)
+
+    for _ in range(max_steps):
+        action = policy(state)
+        if action.get("type") == "final":
+            return action["answer"]
+        if action.get("type") != "tool":
+            raise ValueError("unknown action type")
+
+        name, args = action.get("name"), action.get("args")
+        if name not in tools:
+            raise ValueError(f"unknown tool: {name!r}")
+        if not isinstance(args, dict):
+            raise TypeError("tool args must be a dict")
+
+        observation = tools[name](**args)
+        state.history.append({"action": action, "observation": observation})
+
+    raise RuntimeError("agent exceeded max_steps without a final answer")
+```
+
+여기에는 의도적으로 명시적인 state, tool registry, args validation, observation history, final answer, `max_steps`가 있다. 모델이 search를 제안해도 registry 밖의 도구를 부를 수 없다. 관측 결과는 다음 policy 판단에 남는다. 그리고 정책이 계속 tool을 고르더라도 runtime은 무한히 따르지 않는다.
+
+도구 registry는 authorization은 아니지만 첫 번째 allowlist다. 실제 서비스라면 사용자 권한과 tenant policy를 이 registry보다 더 안쪽의 실행 경계에서 확인해야 한다.
+
+```python
+READ_ONLY_TOOLS = {"search", "get_customer"}
+
+def execute_tool(name: str, args: dict, tools: dict, user_permissions: set[str]):
+    if name not in tools:
+        raise ValueError(f"unknown tool: {name}")
+    if name not in user_permissions:
+        raise PermissionError(f"not allowed to invoke {name}")
+    if not isinstance(args, dict):
+        raise TypeError("arguments must be an object")
+    return tools[name](**args)
+```
+
+`max_steps`만으로 모든 budget을 표현할 수는 없다. 뒤에서는 deadline, token, cost 같은 독립 제한도 필요하다. 하지만 첫 번째 질문은 늘 같다. *이 loop가 종료한다는 사실을 코드로 설명할 수 있는가?*
+
+## Pattern 2 — Orchestrator / Parallel: 역할을 늘리기 전에 독립성을 보자
+
+"NVIDIA의 최근 실적과 valuation을 분석해줘"라는 요청을 생각해 보자. 뉴스와 공시를 읽는 research, 구조화된 수치를 조회하는 data, 외부 시스템을 바꾸는 action은 같은 runtime 안에서 서로 다른 책임을 가질 수 있다.
+
+```text
+Request
+   │
+   ▼
+Router ──┬── Research specialist ─┐
+         ├── Data specialist ─────┼──► Synthesis
+         └── Action specialist ───┘      (approval if needed)
+```
+
+research와 data처럼 서로의 결과를 기다리지 않는 작업은 parallel 후보가 된다. Python의 `asyncio.gather`는 awaitable들을 동시에 실행하고 입력 순서에 맞춰 결과를 모은다. 실패를 개별 결과로 다루려면 `return_exceptions=True`처럼 정책을 명시해야 한다. [Python asyncio 문서](https://docs.python.org/3/library/asyncio-task.html)는 이러한 concurrency와 예외 동작을 구분해 설명한다.
+
+```python
+import asyncio
+
+async def run_specialists(query: str) -> dict[str, object]:
+    names = ["research", "data"]
+    calls = [research_agent(query), data_agent(query)]
+    outcomes = await asyncio.gather(*calls, return_exceptions=True)
+
+    results, failures = {}, {}
+    for name, outcome in zip(names, outcomes):
+        if isinstance(outcome, Exception):
+            failures[name] = str(outcome)
+        else:
+            results[name] = outcome
+    return {"results": results, "failures": failures}
+```
+
+multi-agent 분리가 의미 있는 이유는 agent 수 자체가 아니다.
+
+- 전문화가 서로 다를 때
+- 각 역할이 접근할 수 있는 data/tool permission이 다를 때
+- latency profile이 달라 independent work를 겹칠 수 있을 때
+- 하나의 실패가 다른 결과를 버리게 하지 않아야 할 때
+
+반대로 routing은 충분히 deterministic할 수 있다. 키워드, 요청 타입, 권한, 데이터 freshness 규칙으로 분기할 수 있다면 그 편이 더 싸고 testable하다.
+
+```python
+def route(request: str) -> list[str]:
+    text = request.lower()
+    selected = []
+    if any(word in text for word in ("revenue", "margin", "valuation")):
+        selected.append("data")
+    if any(word in text for word in ("news", "why", "recent")):
+        selected.append("research")
+    return selected or ["research"]
+```
+
+모델이 routing 후보를 제안할 수는 있다. 하지만 **"agent가 많을수록 똑똑하다"는 법칙은 없다.** 필요 없는 역할 하나는 context 전달, retry policy, permission, trace, 비용이라는 새 경계를 하나 더 만든다.
+
+## Pattern 3 — Planner / Executor: plan은 생성하고, graph는 검증한다
+
+복잡한 요청은 plan을 먼저 만들면 읽기 쉬워진다. 예를 들어 valuation report는 `research → valuation → report`와 `research → peer_analysis → report`라는 의존성을 가질 수 있다.
+
+```text
+research ──► valuation ──┐
+    └─────► peer analysis ├──► write report
+                           ┘
+```
+
+LLM이 plan을 생성할 수 있다. 그러나 plan이 유효한지 LLM에게 다시 물어보는 것은 검증이 아니다. duplicate step, 존재하지 않는 dependency, self dependency, cycle은 code가 실행 전에 막아야 한다.
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class PlanStep:
+    id: str
+    instruction: str
+    depends_on: tuple[str, ...] = ()
+
+def ready_steps(plan: list[PlanStep], completed: set[str], terminal: set[str]):
+    return [
+        step for step in plan
+        if step.id not in terminal
+        and all(dep in completed for dep in step.depends_on)
+    ]
+```
+
+ready set은 "아직 실행하지 않았고, 모든 dependency가 성공적으로 끝난 step"이다. 이 기준이면 완료된 의존성 결과만 executor에게 전달할 수 있다. failed branch에 매달린 후속 step은 `failed`가 아니라 `skipped`로 남기는 편이 trajectory를 더 정확하게 설명한다. 여러 ready step은 병렬로 실행할 수 있지만, plan order와 result merge rule은 deterministic하게 유지하는 것이 좋다.
+
+검증의 핵심을 작게 쓰면 다음과 같다.
+
+```python
+def validate_plan(plan: list[PlanStep]) -> None:
+    ids = [step.id for step in plan]
+    if len(ids) != len(set(ids)):
+        raise ValueError("duplicate step id")
+    known = set(ids)
+    for step in plan:
+        if step.id in step.depends_on:
+            raise ValueError("self dependency")
+        if not set(step.depends_on) <= known:
+            raise ValueError("missing dependency")
+    # Production code must also run a cycle check before execution.
+```
+
+모든 문제에 planner가 필요한 것은 아니다. 분기가 적고 규칙이 안정적인 invoice approval, ETL, 정해진 onboarding 같은 작업은 fixed workflow가 낫다. 계획을 생성하는 비용, 오류, 검증 책임을 추가하지 않고도 더 쉽게 테스트할 수 있기 때문이다.
+
+## Pattern 4 — Human in the Loop: prompt가 아니라 execution gate
+
+HITL(Human in the Loop)은 모델에게 "필요하면 사용자에게 물어봐"라고 적는 일이 아니다. read-only tool은 자동 실행할 수 있어도, 외부 메일 발송·티켓 생성·금융 거래 같은 side effect는 tool 실행 직전에 deterministic gate를 지나야 한다.
+
+```python
+from dataclasses import dataclass
+from typing import Any
+
+@dataclass(frozen=True)
+class ToolSpec:
+    handler: Any
+    side_effecting: bool = False
+
+async def execute_action(action, tools: dict[str, ToolSpec], request_approval):
+    name, args = action["name"], action["args"]
+    spec = tools[name]
+
+    if spec.side_effecting:
+        try:
+            approved = await request_approval(tool_name=name, args=args)
+        except Exception:
+            approved = False  # approval service failure is denial
+        if not approved:
+            return {"status": "rejected", "tool": name}
+
+    return {"status": "executed", "result": await spec.handler(**args)}
+```
+
+여기서 fail-closed는 편의가 아니라 안전성의 성질이다. approval callback이 실패했을 때 실행해 버리면 approval은 경계가 아니다. 또한 승인에는 exact tool name, exact args, user request, approval reason, decision time을 audit log에 남길 이유가 있다.
+
+Authorization과 approval도 구분해야 한다.
+
+| Control | 질문 |
+| --- | --- |
+| Authorization | 이 사용자는 이 tool/action을 할 권한이 있는가? |
+| Approval | 권한은 있지만, **이 exact action**을 지금 실행해도 되는가? |
+
+승인 뒤 args가 바뀌면 예전 승인을 재사용해서는 안 된다. production에서는 tool과 canonicalized args의 hash를 approval record에 묶고, 실행 시 다시 비교하는 방식이 필요하다. 이 문제는 다음 글들의 session, durable pause/resume, idempotency로 이어진다.
+
+## Pattern 5 — Retry / Fallback: 실패도 분류해야 한다
+
+retry는 "에러면 한 번 더"가 아니다. timeout, 일시적 network failure, 일부 rate limit은 재시도 후보일 수 있다. invalid args, permission denied, schema violation은 보통 즉시 실패해야 한다. 뒤의 종류를 재시도하면 돈과 시간만 쓰고 잘못된 요청을 숨긴다.
+
+```python
+import asyncio
+
+RETRYABLE = (TimeoutError, ConnectionError)
+
+async def call_with_retry(primary, fallback, max_attempts: int = 3):
+    errors = []
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return {"source": "primary", "value": await primary(), "errors": errors}
+        except RETRYABLE as exc:
+            errors.append({"attempt": attempt, "type": type(exc).__name__})
+            if attempt < max_attempts:
+                await asyncio.sleep(2 ** (attempt - 1))
+        except Exception:
+            raise  # invalid input, permission, schema: do not fallback
+
+    return {"source": "fallback", "value": await fallback(), "errors": errors}
+```
+
+여기서 `max_attempts`에는 첫 호출도 포함된다. wait도 bounded해야 하며, 실제 운영에서는 jitter, server의 `Retry-After`, 전체 deadline과 cost budget을 함께 고려한다. fallback도 모든 오류를 가리는 장치가 아니다. primary가 유효하지 않은 요청을 거절했다면 backup에게 같은 잘못을 보내지 않는 편이 맞다.
+
+side effect와 retry가 만나면 더 어려워진다. client가 timeout을 봤다고 remote action이 실패한 것은 아니다. 이미 ticket이 만들어진 뒤 응답만 잃었을 수 있다. 같은 idempotency key 없이 재시도하면 중복 실행이 가능하다. 이 "exactly once"의 환상은 뒤의 reliability 글에서 다시 다룬다.
+
+## Pattern 6 — Evaluator / Refiner: reflection에도 상한이 있다
+
+reflection은 보통 다음 흐름이다.
+
+```text
+Generate draft → Evaluate against rubric → Pass?
+                    │                  │
+                    └── feedback ──────┘ no → Refine → evaluate again
+```
+
+평가자가 피드백을 주고 refiner가 초안을 고친다. 여기서 evaluator가 ground truth는 아니다. 같은 모델 계열의 judge는 같은 blind spot을 공유할 수 있다. rubric의 calibration, 사람이 만든 held-out set, offline evaluation이 있어야 score를 품질 자체로 오해하지 않을 수 있다.
+
+```python
+from dataclasses import asdict, dataclass
+
+@dataclass(frozen=True)
+class Evaluation:
+    passed: bool
+    score: float
+    feedback: list[str]
+
+def refine_until_done(request, generate, evaluate, refine, max_refinements: int = 2):
+    draft, history = generate(request), []
+    for refinement in range(max_refinements + 1):
+        verdict = evaluate(request, draft)
+        if not isinstance(verdict, Evaluation) or not 0.0 <= verdict.score <= 1.0:
+            raise ValueError("invalid evaluator output")
+        if not all(isinstance(item, str) for item in verdict.feedback):
+            raise ValueError("feedback must be strings")
+        history.append(asdict(verdict))
+        if verdict.passed:
+            return {"answer": draft, "stop_reason": "passed", "evaluations": history}
+        if refinement == max_refinements:
+            return {"answer": draft, "stop_reason": "max_refinements", "evaluations": history}
+        draft = refine(request, draft, verdict)
+```
+
+`max_refinements`는 evaluation 횟수가 아니라 revision 횟수다. 두 번 고칠 수 있다면 initial draft를 포함해 최대 세 번 평가한다. 마지막 draft도 평가해야 한다. 이 규칙과 `stop_reason`이 있어야 비용·latency·품질 사이의 trade-off를 나중에 측정할 수 있다.
+
+## 여섯 pattern은 실제로 이렇게 조합된다
+
+실제 요청에서는 pattern이 차례로 겹친다.
+
+```text
+User request
+    ↓
+Planner → validated dependency graph
+    ↓
+Orchestrator → Research ─┐
+               Data ─────┼─ parallel
+                           ↓
+                    Evaluator → Refiner (bounded)
+                           ↓
+                    Proposed action
+                           ↓
+                 HITL approval gate
+                           ↓
+                 Side-effecting tool
+```
+
+여기까지 오면 **이제 backend 문제가 시작된다.** independent work는 어떤 concurrency limit 아래 병렬로 돌릴까? 30초짜리 run을 HTTP request가 계속 소유해도 될까? progress는 어디에 저장할까? browser에는 SSE로 무엇을 보내야 할까? approval을 기다리는 동안 worker가 죽으면? 같은 session에 run이 두 개면 누가 어떤 state를 바꾸는가?
+
+이 질문들이 Agent Engineering 시리즈의 출발점이다. pattern은 "무슨 control-flow가 필요한가"를 알려준다. backend는 그 control-flow를 여러 사용자와 실패 속에서도 실제로 소유하는 방법을 다룬다.
+
+## LLM과 deterministic code의 책임 경계
+
+LLM은 유용한 policy component다. tool 후보나 plan을 제안하고, observation을 해석하고, 초안을 평가할 수 있다. 그러나 그 사실이 runtime의 safety property를 모델에게 위임해야 한다는 뜻은 아니다.
+
+| 결정 | LLM이 할 수 있는 일 | code가 강제할 일 |
+| --- | --- | --- |
+| Tool 선택 | 후보 제안 | allowed registry와 user permission |
+| Tool args | 구조화된 args 생성 | schema validation, size/range 제한 |
+| Plan 생성 | step/dependency 제안 | duplicate·missing·self-dependency·cycle 검증 |
+| Parallel 후보 | 독립 작업 제안 | concurrency limit, cancellation/merge policy |
+| HITL 필요성 | 위험 신호 설명 | side effect 전 final approval gate |
+| Retry | context와 대안 제안 | error classification, max attempts, backoff |
+| Reflection | feedback 생성 | evaluator schema와 loop budget |
+| Permissions | 설명할 수는 있음 | authorization enforcement |
+| Termination | final 답변 제안 | hard step/time/cost bound |
+
+**LLM은 policy의 일부가 될 수 있지만, safety와 boundedness를 보장하는 runtime 자체가 되어서는 안 된다.** 이 표는 모델이 나쁘다는 말이 아니다. 모델은 확률적으로 다음 action을 선택하고, runtime은 그 action이 시스템 계약 안에 있는지 검증한다. 둘을 분리해야 각자의 실패를 관찰하고 바꿀 수 있다.
+
+## Plain Python을 이해한 뒤 LangGraph에 mapping하기
+
+이 글은 LangGraph tutorial이 아니다. 위 pattern을 plain Python으로 먼저 보인 이유는 framework API보다 구조를 먼저 소유하기 위해서다. 그다음 mapping은 자연스럽다.
+
+| Plain Python pattern | LangGraph에서의 대응 개념 |
+| --- | --- |
+| Tool loop | graph loop와 conditional edge |
+| Orchestrator | parallel branches와 fan-out/fan-in |
+| Planner / Executor | dynamic task graph 또는 stateful workflow |
+| HITL | interrupt, checkpoint, resume |
+| Retry / Fallback | retry policy와 conditional routing |
+| Evaluator / Refiner | budget이 있는 cycle |
+
+현재 LangGraph 문서도 deterministic step과 LLM-driven step을 같은 graph에 섞는 orchestration runtime으로 설명하며, durable execution·streaming·HITL를 주요 기능으로 든다. [overview](https://docs.langchain.com/oss/python/langgraph/overview)와 [interrupt 문서](https://docs.langchain.com/oss/python/langgraph/interrupts)는 pause 지점, persistent checkpointer, 동일 thread ID로의 resume 같은 구체적 요구를 설명한다. 그것은 framework를 선택할 좋은 이유가 될 수 있다. 다만 API가 pattern을 대신 설계해 주지는 않는다.
+
+## 다음: 이 pattern들은 기다리는 동안 무엇을 하나?
+
+이제 우리는 Agent를 어떤 pattern으로 구성할지 안다. 다음 문제는 이 pattern들이 LLM, database, search API를 기다리는 동안 backend가 어떻게 여러 작업을 효율적으로 진행시키는가다.
+
+다음 글 **Why Agent Systems Need Async**에서는 blocking과 non-blocking, coroutine, event loop, `await`, 그리고 병렬 ready work가 왜 agent backend의 기본 어휘가 되는지를 다룬다.
