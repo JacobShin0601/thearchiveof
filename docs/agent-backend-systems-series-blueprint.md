@@ -3461,50 +3461,42 @@ Articles 17–21
 
 # 24. Drafting order recommendation
 
-실제 집필은 0→11 순서가 가장 자연스럽다. 특히 Article 1은 이후 모든 글에서 사용하는 agent control-flow vocabulary를 정의하므로 가장 먼저 발행한다.
+공개 순서와 집필 순서는 모두 **1→21**을 기본으로 한다. 각 Part를 하나의 작은 learning arc로 완성한 뒤 다음 Part로 넘어간다.
 
-시작:
+## Part I — Agent Patterns & Execution
 
 ```text
-0 Agent Pattern Design
+1 Agent Pattern Design
+2 Async
+3 Thread / Process
+4 Worker
 ```
 
-그 다음 첫 execution 묶음:
+여기까지 쓰면 "Agent가 무엇을 하고, backend가 그 실행을 어떻게 소유하는가"가 완성된다.
+
+## Part II — State, Streaming & Runtime
 
 ```text
-1 Async
-2 Thread / Process
-3 Worker
+5 State
+6 State vs Event
+7 SSE / Async Generator / Redis Streams
+8 LangGraph Runtime
 ```
 
-여기까지 쓰면 execution foundation 완성.
+여기까지 쓰면 "실행 중인 Agent를 어떻게 기억하고 관찰하는가"가 완성된다.
 
-두 번째 묶음:
-
-```text
-4 State
-5 State vs Event
-6 SSE
-```
-
-여기까지 쓰면 frontend-backend realtime model 완성.
-
-세 번째:
+## Part III — Sessions, Reliability & Production
 
 ```text
-7 LangGraph
-8 Session
-9 Reliability
-```
-
-마지막:
-
-```text
+9 Session / Run Isolation
+10 Worker Failure / Queue Reliability
 11 Kubernetes
-12 End-to-End
+12 End-to-End Request Lifecycle
 ```
 
-그 다음 correctness 묶음:
+여기까지 쓰면 production backend의 기본 골격이 완성된다.
+
+## Part IV — Control, Recovery & Correctness
 
 ```text
 13 Cancellation
@@ -3513,7 +3505,9 @@ Articles 17–21
 16 Checkpoint / Resume / Durable HITL
 ```
 
-마지막 operating 묶음:
+여기까지 쓰면 long-running agent의 중단·재시도·복구 semantics가 완성된다.
+
+## Part V — Operating Multi-Agent Systems
 
 ```text
 17 Observability
@@ -3522,6 +3516,8 @@ Articles 17–21
 20 Security
 21 Token vs Progress Streaming
 ```
+
+마지막 Part는 실제 운영 단계에서 필요한 scale, tracing, multi-agent hierarchy, security, frontend streaming contract를 다룬다.
 
 ---
 
@@ -3689,7 +3685,7 @@ Part label은 series detail page에서 navigation heading으로만 렌더링하�
 
 ---
 
-# 28. Current preferred implementation baseline
+# 29. Current preferred implementation baseline
 
 현재 시리즈의 기본 reference stack.
 
@@ -3749,7 +3745,7 @@ vLLM / GPU inference Deployment
 
 ---
 
-# 29. Research / verification checklist before publication
+# 30. Research / verification checklist before publication
 
 각 글 작성 시 최신 공식 문서 확인.
 
@@ -3767,7 +3763,7 @@ vLLM / GPU inference Deployment
 
 ---
 
-# 30. Series positioning
+# 31. Series positioning
 
 이 시리즈는 다음 독자를 목표로 한다.
 
