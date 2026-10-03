@@ -35,6 +35,7 @@ LLM
 
 시리즈의 목적은 "LangGraph를 어떻게 쓰는가"보다 먼저 다음 질문에 답하는 것이다.
 
+- 에이전트는 어떤 기본 실행 패턴들(tool use, orchestration, planning, HITL, reflection 등)로 구성되는가?
 - 왜 agent backend에서 `async`가 중요한가?
 - `async`, thread, process, worker는 무엇이 다른가?
 - 왜 HTTP API process에서 장시간 agent run을 직접 소유하면 안 되는가?
@@ -56,6 +57,8 @@ LLM
 전체 흐름은 다음 순서로 가져간다.
 
 ```text
+Agent pattern design
+    ↓
 Concurrency
     ↓
 Execution ownership
@@ -77,7 +80,17 @@ Kubernetes
 End-to-end architecture
 ```
 
-큰 파트는 네 개로 나눈다.
+큰 파트는 다섯 개로 나눈다.
+
+## Part 0 — Agent Pattern Design
+
+0. Tool Use / Orchestrator / Planner / HITL / Retry / Evaluator-Refiner
+
+질문:
+
+> 에이전트라는 실행 시스템은 어떤 기본 패턴들을 조합해서 만들어지는가?
+
+이 첫 글은 `JacobShin0601/reflection-practice`의 `agent_design/` 실습 구조를 reference implementation으로 삼는다. 프레임워크보다 plain Python state machine을 먼저 보여준다.
 
 ## Part I — Execution
 
@@ -272,6 +285,664 @@ LangGraph
 ```
 
 실행과 관찰을 분리한다.
+
+---
+
+# 3A. Article 0 — Agent Pattern Design: 에이전트는 어떤 패턴으로 만들어지는가
+
+> 이 글은 시리즈의 첫 번째 발행 글이다. 기존 Article 1의 async 글보다 먼저 발행한다.
+
+## Working title
+
+Korean:
+
+**에이전트 패턴 디자인: Tool Use부터 Planner, Parallel, HITL, Reflection까지**
+
+English:
+
+**Agent Pattern Design: From Tool Use to Planning, Parallelism, HITL, and Reflection**
+
+## Why this comes first
+
+백엔드 architecture를 설명하기 전에 독자가 먼저 "에이전트가 실제로 어떤 제어 흐름을 갖는가"를 알아야 한다.
+
+이 글은 특정 프레임워크를 설명하지 않는다. `reflection-practice` 저장소의 다음 여섯 실습을 하나의 pattern map으로 재구성한다.
+
+```text
+agent_design/
+  01_tool_agent
+  02_orchestrator
+  03_planner_executor
+  04_human_in_the_loop
+  05_retry_fallback
+  06_evaluator_refiner
+```
+
+핵심 메시지:
+
+> **에이전트는 하나의 거대한 autonomous loop가 아니라, 몇 개의 반복 가능한 control-flow pattern을 조합한 실행 시스템이다.**
+
+또한:
+
+> **LLM이 판단하는 영역과 deterministic code가 강제해야 하는 영역을 분리하는 것이 agent design의 핵심이다.**
+
+## Opening mental model
+
+처음에는 다음과 같은 단순 loop에서 출발한다.
+
+```text
+User Request
+    ↓
+LLM / Policy
+    ↓
+Action
+ ┌──┴───────────────┐
+ ↓                  ↓
+Tool Call         Final Answer
+ ↓
+Observation
+ ↓
+State Update
+ ↓
+LLM / Policy
+```
+
+하지만 production agent는 곧 다음 질문들을 만나게 된다.
+
+- tool을 몇 번까지 호출하게 할 것인가?
+- 서로 독립적인 작업은 병렬로 돌릴 수 있는가?
+- 어떤 작업은 다른 작업의 결과를 기다려야 하는가?
+- side effect 전에 누가 승인해야 하는가?
+- 실패한 tool은 retry해야 하는가, fallback해야 하는가?
+- 답변 품질이 낮을 때 다시 고칠 수 있는가?
+- 어디까지를 LLM에게 맡기고 어디부터 code로 강제할 것인가?
+
+이 질문들이 각각 agent pattern으로 이어진다.
+
+---
+
+## Pattern map
+
+| Pattern | 핵심 질문 | `reflection-practice` reference |
+| --- | --- | --- |
+| Tool Use / ReAct-like loop | 다음 action을 선택하고 tool observation을 어떻게 state에 반영할까? | `01_tool_agent` |
+| Orchestrator / Parallel | 어떤 specialist를 호출하고 무엇을 동시에 실행할까? | `02_orchestrator` |
+| Planner / Executor | dependency가 있는 multi-step plan을 어떻게 검증하고 실행할까? | `03_planner_executor` |
+| Human in the Loop | side effect 전에 deterministic approval gate를 어디에 둘까? | `04_human_in_the_loop` |
+| Retry / Fallback | 어떤 실패를 재시도하고 언제 다른 경로로 degrade할까? | `05_retry_fallback` |
+| Evaluator / Refiner | 품질 개선 loop를 어떻게 bounded하게 만들까? | `06_evaluator_refiner` |
+
+이 표가 글 전체의 spine이 된다.
+
+---
+
+## Pattern 1 — Tool Use: bounded tool-calling loop
+
+가장 기본적인 agent.
+
+정책 모델이 다음 action을 반환한다고 가정한다.
+
+```python
+{"type": "tool", "name": "search", "args": {"query": "NVDA margin"}}
+```
+
+또는:
+
+```python
+{"type": "final", "answer": "NVIDIA margin expanded because ..."}
+```
+
+plain Python runtime의 최소형:
+
+```python
+def run_agent(user_query, policy, tools, max_steps=8):
+    state = {
+        "query": user_query,
+        "history": [],
+    }
+
+    for step in range(max_steps):
+        action = policy(state)
+
+        if action["type"] == "final":
+            return action["answer"]
+
+        if action["type"] != "tool":
+            raise ValueError("unknown action type")
+
+        name = action["name"]
+        args = action["args"]
+
+        if name not in tools:
+            raise ValueError(f"unknown tool: {name}")
+
+        if not isinstance(args, dict):
+            raise TypeError("tool args must be a dict")
+
+        observation = tools[name](**args)
+
+        state["history"].append({
+            "action": action,
+            "observation": observation,
+        })
+
+    raise RuntimeError("agent exceeded max_steps")
+```
+
+### What matters
+
+중요한 것은 LLM call 자체가 아니다.
+
+- explicit state
+- tool registry
+- argument validation
+- bounded loop
+- observation history
+- clear termination
+
+이 있어야 한다.
+
+### Key production principle
+
+> "계속 생각해"가 agent architecture가 되어서는 안 된다.
+
+반드시 step / time / token / cost 중 하나 이상의 budget이 있어야 한다.
+
+---
+
+## Pattern 2 — Orchestrator: routing + parallel specialists
+
+하나의 agent가 모든 일을 처리하는 대신 specialist를 선택한다.
+
+예:
+
+```text
+User Request
+     ↓
+ Orchestrator
+  ┌──┼────────────┐
+  ▼  ▼            ▼
+Research       Data Agent
+Agent             │
+  │               │
+  └──────┬────────┘
+         ▼
+      Synthesis
+```
+
+독립적인 두 작업은 병렬 실행 가능하다.
+
+```python
+import asyncio
+
+async def run_orchestrator(query):
+    research_task = asyncio.create_task(
+        research_agent(query)
+    )
+    data_task = asyncio.create_task(
+        data_agent(query)
+    )
+
+    research, data = await asyncio.gather(
+        research_task,
+        data_task,
+        return_exceptions=True,
+    )
+
+    return {
+        "research": research,
+        "data": data,
+    }
+```
+
+### Important design question
+
+"multi-agent"라고 해서 agent 수를 늘리는 것이 목적이 아니다.
+
+다음 경우에 분리 의미가 있다.
+
+- 서로 다른 data/tool permission
+- 서로 다른 latency profile
+- 서로 다른 specialization
+- 독립 실행 가능한 workload
+- failure isolation이 필요한 경우
+
+### Deterministic vs model-driven
+
+routing을 꼭 LLM이 해야 하는 것도 아니다.
+
+```python
+def route(request: str) -> list[str]:
+    routes = []
+
+    if "매출" in request or "margin" in request:
+        routes.append("data")
+
+    if "뉴스" in request or "why" in request:
+        routes.append("research")
+
+    return routes
+```
+
+가능하면 deterministic routing이 더 단순하고 testable할 수 있다.
+
+---
+
+## Pattern 3 — Planner / Executor: dependency-aware execution
+
+복잡한 요청에는 먼저 plan을 만들 수 있다.
+
+예:
+
+```text
+research ───→ valuation ───→ write_report
+    │
+    └──────→ peer_analysis ─────┘
+```
+
+중요한 점:
+
+> LLM이 plan을 만들 수는 있지만, plan validity를 LLM에게 다시 물어보지 않는다.
+
+dependency validation은 code가 해야 한다.
+
+간단한 step:
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class PlanStep:
+    id: str
+    instruction: str
+    depends_on: tuple[str, ...] = ()
+```
+
+ready step:
+
+```python
+def ready_steps(plan, completed, failed):
+    ready = []
+
+    for step in plan:
+        if step.id in completed or step.id in failed:
+            continue
+
+        if all(dep in completed for dep in step.depends_on):
+            ready.append(step)
+
+    return ready
+```
+
+validation에서 확인할 것:
+
+- duplicate IDs
+- missing dependencies
+- self dependency
+- cycles
+
+### Parallel-ready extension
+
+dependency가 없는 ready steps는 병렬 실행 가능하다.
+
+```text
+Plan
+ ↓
+Ready Set
+ ├─ Step A ─┐
+ ├─ Step B ─┼─ parallel
+ └─ Step C ─┘
+       ↓
+merge results
+       ↓
+next Ready Set
+```
+
+이 지점이 이후 async 글과 직접 연결된다.
+
+---
+
+## Pattern 4 — Human in the Loop: approval is an execution gate
+
+HITL은 "LLM에게 사용자에게 물어보라고 prompt하는 것"이 아니다.
+
+approval은 side-effecting tool 직전에 deterministic code로 강제해야 한다.
+
+```python
+async def execute_action(action, tools, request_approval):
+    tool = tools[action["name"]]
+
+    if tool.side_effecting:
+        approved = await request_approval(
+            tool_name=action["name"],
+            args=action["args"],
+        )
+
+        if not approved:
+            return {
+                "status": "rejected",
+                "tool": action["name"],
+            }
+
+    result = await tool(**action["args"])
+
+    return {
+        "status": "executed",
+        "result": result,
+    }
+```
+
+### Fail closed
+
+approval callback이 실패하면:
+
+```text
+exception
+→ denial
+```
+
+로 처리하는 것이 안전하다.
+
+### Approval vs Authorization
+
+둘은 다르다.
+
+```text
+Authorization
+"이 사용자는 이 action을 할 권한이 있는가?"
+
+Approval
+"권한은 있지만, 이 exact action을 지금 실행해도 되는가?"
+```
+
+향후 session / pause-resume / durable state 글로 이어질 좋은 연결점.
+
+---
+
+## Pattern 5 — Retry / Fallback: bounded resilience
+
+실패했다고 무조건 retry하면 안 된다.
+
+```python
+RETRYABLE = (
+    TimeoutError,
+    ConnectionError,
+)
+
+async def call_with_retry(primary, fallback, max_attempts=3):
+    errors = []
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return await primary()
+        except RETRYABLE as exc:
+            errors.append(exc)
+
+            if attempt < max_attempts:
+                await asyncio.sleep(2 ** (attempt - 1))
+        except Exception:
+            raise
+
+    return await fallback()
+```
+
+핵심 구분:
+
+```text
+retryable
+- timeout
+- transient network error
+- rate limit (policy dependent)
+
+non-retryable
+- invalid arguments
+- permission denied
+- schema violation
+```
+
+### Side effects
+
+retry와 side effect가 만나면 idempotency가 필요하다.
+
+```text
+timeout
+→ 실제 remote action은 성공
+→ client는 실패로 인식
+→ retry
+→ duplicate side effect
+```
+
+이 주제는 뒤의 worker reliability / XACK / idempotency 글로 연결한다.
+
+---
+
+## Pattern 6 — Evaluator / Refiner: bounded reflection
+
+Reflection은:
+
+```text
+Generate
+   ↓
+Evaluate
+   ↓
+Pass? ─ yes → Final
+   │
+   no
+   ↓
+Refine
+   ↓
+Evaluate
+```
+
+하지만 반드시 bounded해야 한다.
+
+```python
+def evaluator_refiner(
+    request,
+    generate,
+    evaluate,
+    refine,
+    max_refinements=2,
+):
+    draft = generate(request)
+
+    for iteration in range(max_refinements + 1):
+        evaluation = evaluate(draft)
+
+        if evaluation.passed:
+            return draft
+
+        if iteration == max_refinements:
+            break
+
+        draft = refine(
+            request=request,
+            draft=draft,
+            feedback=evaluation.feedback,
+        )
+
+    return draft
+```
+
+핵심:
+
+- evaluator output schema validation
+- bounded refinements
+- explicit stop reason
+- quality / latency / cost trade-off
+
+### Important caveat
+
+Evaluator model은 ground truth가 아니다.
+
+따라서:
+
+- deterministic checks
+- calibrated rubric
+- offline evaluation
+- human labels
+
+과 같이 검증해야 한다.
+
+---
+
+## Pattern composition
+
+실제 시스템에서는 패턴들이 하나씩 독립적으로 존재하기보다 합쳐진다.
+
+예:
+
+```text
+User Request
+    ↓
+Planner
+    ↓
+Dependency Graph
+    ↓
+Orchestrator
+ ┌──┼───────────┐
+ ▼  ▼           ▼
+Research       Data
+ │               │
+ └──────┬────────┘
+        ↓
+Evaluator
+   ↓ pass?
+   ├─ no → Refiner
+   │
+   ▼
+Proposed Action
+   ↓
+HITL Approval
+   ↓
+Side-effect Tool
+```
+
+여기서 backend 문제가 시작된다.
+
+- 병렬 작업은 어떻게 실행할까?
+- run이 30초 넘으면 HTTP request가 계속 들고 있어야 할까?
+- 진행 상황은 어디에 저장할까?
+- 사용자에게 어떻게 stream할까?
+- approval 대기 중 process가 죽으면?
+- worker가 죽으면?
+- 같은 session에 두 run이 동시에 오면?
+
+이 질문들이 이후 시리즈 전체의 출발점이다.
+
+---
+
+## Deterministic boundary table
+
+첫 글에서 반드시 넣을 표.
+
+| Concern | LLM에 맡길 수 있음 | Code가 강제해야 함 |
+| --- | --- | --- |
+| Tool 선택 | 가능 | allowed tool registry |
+| Tool arguments | 제안 가능 | schema validation |
+| Plan 생성 | 가능 | DAG validation / dependency rules |
+| Parallel 후보 | 제안 가능 | actual concurrency limits |
+| HITL 필요 여부 | 일부 policy hint 가능 | final approval gate |
+| Retry 여부 | context 제공 가능 | retry classification / max attempts |
+| Reflection feedback | 가능 | max loops / budget |
+| Permissions | 아니오 | authorization code |
+| Termination | 일부 판단 가능 | hard step/time/cost bounds |
+
+핵심 문장:
+
+> **LLM은 정책(policy)의 일부가 될 수 있지만, safety와 boundedness를 보장하는 runtime 자체가 되어서는 안 된다.**
+
+---
+
+## Plain Python first, framework second
+
+`reflection-practice`의 설계 철학을 그대로 가져간다.
+
+첫 글에서는 LangGraph를 최대한 뒤로 미룬다.
+
+먼저:
+
+```text
+plain Python
+explicit state
+deterministic validation
+bounded loops
+```
+
+를 이해한 뒤 마지막 섹션에서만:
+
+```text
+Tool loop           → graph loop / conditional edge
+Orchestrator        → parallel branches
+Planner / Executor  → dynamic task graph
+HITL                → interrupt / checkpoint / resume
+Retry / Fallback    → retry policy / routing
+Evaluator / Refiner → bounded cycle
+```
+
+처럼 mapping을 보여준다.
+
+프레임워크 API 나열이 아니라 패턴 대응 관계만 보여준다.
+
+---
+
+## Suggested article structure
+
+1. "Agent = LLM loop"라는 단순한 그림에서 시작.
+2. Tool-use loop 구현.
+3. 왜 max_steps가 필요한지.
+4. specialist orchestration과 parallel execution.
+5. planner/executor와 dependency validation.
+6. HITL approval gate.
+7. retry/fallback.
+8. evaluator/refiner.
+9. 여섯 패턴을 한 architecture에 조합.
+10. deterministic boundary table.
+11. "이제 이 패턴을 실제 backend에서 어떻게 실행할까?"로 Async 편에 연결.
+
+## Required diagrams
+
+- basic tool loop
+- six-pattern map
+- planner dependency DAG
+- composed agent flow
+- deterministic-vs-LLM responsibility boundary
+
+## Required Python code blocks
+
+최소 5개 이상:
+
+1. bounded tool loop
+2. parallel orchestrator
+3. planner ready-step selection
+4. HITL approval gate
+5. retry/fallback
+6. evaluator/refiner
+
+짧아도 실제 실행 구조가 보이는 code여야 한다.
+
+## Reference repository
+
+Primary internal reference:
+
+`JacobShin0601/reflection-practice`
+
+특히:
+
+- `agent_design/01_tool_agent`
+- `agent_design/02_orchestrator`
+- `agent_design/03_planner_executor`
+- `agent_design/04_human_in_the_loop`
+- `agent_design/05_retry_fallback`
+- `agent_design/06_evaluator_refiner`
+
+실제 발행 글에서는 private repository 자체를 독자가 접근할 수 있는 source처럼 의존하지 않는다. 개념과 예제를 글 안에서 self-contained하게 설명한다.
+
+## Bridge to Article 1
+
+마지막 문장 방향:
+
+> 이제 어떤 패턴으로 Agent를 구성할지는 알았다. 다음 문제는 이 패턴들이 LLM, DB, search API를 기다리는 동안 backend가 어떻게 여러 작업을 효율적으로 진행시키느냐다. 여기서 async가 시작된다.
 
 ---
 
@@ -2154,6 +2825,24 @@ Kubernetes는 workload scale / operations layer.
 
 이 시리즈는 framework tutorial보다 "system reasoning" 중심.
 
+## Non-negotiable code-block caveat
+
+이 시리즈는 **모든 편에 Python 코드블록을 중간중간 충분히 넣는다.**
+
+규칙:
+
+- 개념 설명만 길게 이어가지 말고, 핵심 control flow마다 실행 가능한 수준의 짧은 Python 예제를 붙인다.
+- fenced code block은 반드시 가능한 경우 `\`\`\`python`을 사용한다.
+- 코드블록은 The Archive에서 **검정색 또는 거의 검정색의 dark background**로 렌더링되도록 한다.
+- inline code만으로 주요 구현을 설명하지 않는다.
+- screenshot 속 코드가 아니라 selectable / crawlable HTML code block을 사용한다.
+- 한 글에 최소 3개 이상의 Python code block을 기본값으로 삼고, 구현 중심 글은 5개 이상도 허용한다.
+- 코드는 toy syntax보다 실제 architecture의 경계(state, async, retry, queue, auth, streaming)가 드러나도록 한다.
+- Python 외 Redis CLI, SQL, YAML이 필요한 경우 추가할 수 있지만 Python이 시리즈의 기본 언어다.
+- 발행 시 현재 사이트의 syntax-highlighting 스타일을 확인하고 dark code background requirement가 유지되는지 검증한다.
+
+이 요구는 장식이 아니라 독자가 "개념 → 실행 코드"를 바로 연결하도록 만드는 시리즈 전체의 editorial contract다.
+
 ## Preferred pattern for every article
 
 1. 실제 문제가 먼저 나온다.
@@ -2238,7 +2927,7 @@ Article 11 canonical diagram 사용.
 
 # 23. Possible future articles after the core series
 
-Core 11편 이후 확장 후보.
+Core 12편(Article 0~11) 이후 확장 후보.
 
 ## 12. Cancellation
 
@@ -2311,9 +3000,15 @@ Core 11편 이후 확장 후보.
 
 # 24. Drafting order recommendation
 
-실제 집필은 1→11 순서가 가장 자연스럽지만 반드시 연재 순서를 완전히 따를 필요는 없다.
+실제 집필은 0→11 순서가 가장 자연스럽다. 특히 Article 0은 이후 모든 글에서 사용하는 agent control-flow vocabulary를 정의하므로 가장 먼저 발행한다.
 
-권장 첫 묶음:
+시작:
+
+```text
+0 Agent Pattern Design
+```
+
+그 다음 첫 execution 묶음:
 
 ```text
 1 Async
@@ -2352,6 +3047,7 @@ Core 11편 이후 확장 후보.
 
 # 25. One-line takeaway for each article
 
+0. **Agent Pattern Design** — Agent는 하나의 autonomous loop가 아니라 tool use, orchestration, planning, HITL, retry, reflection 같은 bounded control-flow pattern의 조합이다.
 1. **Async** — Agent는 계산보다 기다리는 시간이 길기 때문에 async가 중요하다.
 2. **Thread / Process** — 기다림과 계산은 서로 다른 concurrency 도구가 필요하다.
 3. **Worker** — worker는 thread가 아니라 execution lifecycle의 소유 경계다.
@@ -2404,6 +3100,10 @@ Core 11편 이후 확장 후보.
 ...
 
 ## Code examples
+
+- Python fenced blocks required
+- dark/black code-block background 확인
+- 최소 3개, implementation-heavy 글은 5개 이상 권장
 
 ...
 
