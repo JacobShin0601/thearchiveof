@@ -13,6 +13,8 @@ Data cutoff: 2026-10-03. This file records the inputs behind the paired Investin
 
 The [2024 McKinsey review](https://www.mckinsey.com/industries/financial-services/our-insights/global-banking-annual-review-2024) attributes 14% of its **2023** $6.8T global financial-intermediation revenue pool to wealth/asset management (about $0.952T) and 5% to investment banking (about $0.340T). These are rounded, historical economic revenue bases, not separate AI TAM estimates; do not add them to the 2025 $7.3T figure.
 
+Subsector value estimates have incompatible boundaries. [McKinsey's 2024 asset-management article](https://www.mckinsey.com/industries/financial-services/our-insights/banking-matters/nine-key-observations-about-the-european-asset-management-industry) cites about $60B of **combined traditional and generative AI** global value at stake. Its [June 2026 European private-banking analysis](https://www.mckinsey.com/industries/financial-services/our-insights/building-profit-resilience-in-european-private-banking) models €4–5B of **profit uplift** from a broader AI-enabled redesign. Neither is an additive GenAI-only subcomponent of MGI's $200–340B global banking estimate.
+
 ## Observable vendor basket
 
 | Company and boundary | 2025 revenue | Source | Treatment |
@@ -40,6 +42,17 @@ The analyst-defined seats are professionals whose work repeatedly involves sourc
 | **Total** | **570 / 970 / 1,400** | Differentiated | **1.230 / 4.435 / 12.740** |
 
 Formula for each scenario: `sum(seats_thousands × annual_spend_usd_thousands) / 1000` gives USD billions. Recalculate with `node scripts/financial-ai-market-sizing.mjs`.
+
+### External scale checks, not a workforce census
+
+| Observation | Number and date | How it is used | Why it does not set a SAM row |
+| --- | ---: | --- | --- |
+| [US financial and investment analysts](https://www.bls.gov/ooh/business-and-financial/financial-analysts.htm) | 377,200 jobs, 2025 | Checks that analyst work spans hundreds of thousands of US jobs | US-only; occupation includes jobs outside the targeted workflows and overlaps verticals. |
+| [US personal financial advisors](https://www.bls.gov/ooh/business-and-financial/personal-financial-advisors.htm) | 299,400 jobs, 2025 | Tests whether the wealth scenario is a selective subset | US-only, broader than high-spend research/document users; the global 150–400k eligible-seat assumption is **not** a global advisor count. |
+| [CFA Institute](https://www.cfainstitute.org/programs/cfa-program/careers/employers-list) | More than 200,000 charterholders worldwide, current company page at cutoff | Scale check across investment professions | Credential holders overlap with occupational counts and do not include every eligible professional. |
+| [FactSet FY2025 10-K](https://www.sec.gov/Archives/edgar/data/1013237/000162828025045769/fds-20250831.htm) | $2.321748B recognized FY revenue / 237,324 users at Aug. 31, 2025 ≈ $9,783 | Order-of-magnitude spending check | Company-wide revenue divided by point-in-time users is not a quoted seat price; it includes different products, data feeds and some users outside the count. |
+
+The first three observations are **not summed or multiplied** into a global workforce figure. The FactSet ratio is **not** inserted as a uniform SAM price. Eligibility and blended spend remain explicit author assumptions; data-inclusive renewals and new AI budget are not separated in public disclosures.
 
 ## AlphaSense diligence
 

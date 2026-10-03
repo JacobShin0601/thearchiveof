@@ -17,7 +17,7 @@ freshness: time-sensitive
 lastReviewed: 2026-10-03
 nextReviewDate: 2026-11-03
 dataThrough: 2026-10-03
-methodology: "2026년 10월 3일까지 공개된 회사 발표와 2025년 연차보고서, McKinsey 원문을 대조했다. 벤더 매출은 서로 다른 공시 부문을 비교하는 관측 바스켓이며 TAM이 아니다. SAM의 좌석 수와 좌석당 지출은 공개 사용 규모를 참고한 필자의 가정이다."
+methodology: "2026년 10월 3일까지 공개된 회사 발표와 2025년 연차보고서, McKinsey 원문을 대조했다. 벤더 매출은 서로 다른 공시 부문을 비교하는 관측 바스켓이며 TAM이 아니다. SAM의 좌석 수와 좌석당 지출은 필자의 가정이며 공개 사용자·직업 통계는 검산 지표로만 썼다."
 references:
   - title: "Global Banking Annual Review 2026"
     url: "https://www.mckinsey.com/industries/financial-services/our-insights/global-banking-annual-review"
@@ -55,6 +55,21 @@ references:
   - title: "LSEG and Rogo partnership"
     url: "https://www.lseg.com/en/media-centre/press-releases/2025/lseg-and-rogo-announce-strategic-partnership"
     publisher: "LSEG"
+  - title: "Global asset management AI value"
+    url: "https://www.mckinsey.com/industries/financial-services/our-insights/banking-matters/nine-key-observations-about-the-european-asset-management-industry"
+    publisher: "McKinsey"
+  - title: "European private banking AI profit scenario"
+    url: "https://www.mckinsey.com/industries/financial-services/our-insights/building-profit-resilience-in-european-private-banking"
+    publisher: "McKinsey"
+  - title: "US financial analysts, 2025"
+    url: "https://www.bls.gov/ooh/business-and-financial/financial-analysts.htm"
+    publisher: "US Bureau of Labor Statistics"
+  - title: "US personal financial advisors, 2025"
+    url: "https://www.bls.gov/ooh/business-and-financial/personal-financial-advisors.htm"
+    publisher: "US Bureau of Labor Statistics"
+  - title: "CFA charterholder scale"
+    url: "https://www.cfainstitute.org/programs/cfa-program/careers/employers-list"
+    publisher: "CFA Institute"
 ---
 
 import AnswerBlock from '../../../components/AnswerBlock.astro';
@@ -92,9 +107,11 @@ McKinsey의 2026년 은행업 리뷰는 **2025년 글로벌 은행업 수익을 
 
 ### 2. GenAI가 만들 수 있는 가치: 연 \$200–340B
 
-McKinsey Global Institute는 생성형 AI의 사용 사례가 **글로벌 은행업에서 매년 \$200–340B의 가치**를 더할 수 있다고 추정했다. 당시 업계 수익의 **2.8–4.7%**, 영업이익의 **9–15%**에 해당한다는 설명도 함께 제시됐다. 이는 2023년 연구에 기반한 *잠재치*이며 2026년 실현 매출이 아니다. 생산성 향상 중심의 경제가치 추정으로, 위험 감축과 더 나은 의사결정 같은 효과까지 논의되는 맥락이다. [MGI 원문](https://www.mckinsey.com/capabilities/mckinsey-digital/our-insights/the-economic-potential-of-generative-ai-the-next-productivity-frontier), [영업이익 대비 수치](https://www.mckinsey.com/featured-insights/charts/bankings-gen-ai-opportunity)
+McKinsey Global Institute는 생성형 AI의 사용 사례가 **글로벌 은행업에서 매년 \$200–340B의 가치**를 더할 수 있다고 추정했다. 당시 업계 수익의 **2.8–4.7%**, 영업이익의 <strong>9–15%</strong>에 해당한다는 설명도 함께 제시됐다. 이는 2023년 연구에 기반한 *잠재치*이며 2026년 실현 매출이 아니다. 생산성 향상 중심의 경제가치 추정으로, 위험 감축과 더 나은 의사결정 같은 효과까지 논의되는 맥락이다. [MGI 원문](https://www.mckinsey.com/capabilities/mckinsey-digital/our-insights/the-economic-potential-of-generative-ai-the-next-productivity-frontier), [영업이익 대비 수치](https://www.mckinsey.com/featured-insights/charts/bankings-gen-ai-opportunity)
 
 특히 corporate & investment banking에서도 보고서·피치북 작성, 리서치와 고객 업무에 효율 기회가 있다. 하지만 이를 별도 금액으로 위의 \$200–340B에 더하면 중복 계산이 된다. [McKinsey CIB 분석](https://www.mckinsey.com/industries/financial-services/our-insights/been-there-doing-that-how-corporate-and-investment-banks-are-tackling-gen-ai)
+
+하위 영역의 연구도 범위를 먼저 읽어야 한다. McKinsey는 **글로벌 자산운용에서 기존 AI와 생성형 AI를 합친 가치 잠재치를 약 \$60B**로 언급했다. 2026년 유럽 프라이빗뱅킹 분석은 **AI를 포함한 업무·사업 재설계로 €4–5B의 이익 개선 여지**를 모델링한다. 후자는 유럽의 특정 업종·시나리오이고 전자는 생성형 AI만의 수치가 아니다. 둘 다 은행업 \$200–340B를 세부 업종별로 나눈 표가 아니므로 여기에 더하지 않는다. [자산운용 분석](https://www.mckinsey.com/industries/financial-services/our-insights/banking-matters/nine-key-observations-about-the-european-asset-management-industry), [프라이빗뱅킹 분석](https://www.mckinsey.com/industries/financial-services/our-insights/building-profit-resilience-in-european-private-banking)
 
 **\$200–340B의 AI value pool과 금융 AI 소프트웨어 회사가 실제로 벌 수 있는 revenue pool은 같은 숫자가 아니다.** 경제적 가치가 \$300B라고 해서 \$300B짜리 소프트웨어 시장이 생기는 것은 아니다. 그 가치 중 얼마를 외부 벤더가 가격으로 포착할 수 있는지가 투자 문제다.
 
@@ -129,6 +146,8 @@ McKinsey Global Institute는 생성형 AI의 사용 사례가 **글로벌 은행
 | **합계** | **570 / 970 / 1,400** | 분야별 차등 | **\$1.23B / \$4.44B / \$12.74B** |
 
 계산은 각 분야의 좌석 수와 연간 지출을 곱한 뒤 더한 것이다. **\$1.23–12.74B는 현재 매출도, 예측치도 아니라 잠재적으로 접근 가능한 연간 지출 시나리오**다. 가격에는 데이터가 묶인 구독과 순수 AI 증분 지출이 섞일 수 있다. 기존 데이터 예산의 전환과 신규 예산을 구별하기 어렵다는 것이 가장 큰 한계다. 가정과 계산은 저장소의 연구 자료에 남겼다.
+
+외부 지표로 크기를 교차 확인할 수는 있다. 미국 노동통계국은 2025년 **금융·투자 분석가 37.72만 명**, **개인 재무자문가 29.94만 명**을 집계했고, CFA Institute는 전 세계 **20만 명 이상**의 자격 보유자를 말한다. FactSet의 FY2025 매출 \$2.322B를 같은 회계연도 말 보고 사용자 23.73만 명으로 나누면 **사용자당 약 \$9.8K**다. 다만 이는 회사 전체 인식 매출을 특정 시점의 사용자 수로 나눈 *검산 비율*일 뿐 좌석 가격이 아니다. 사용자 집계에는 그해 인수 회사의 사용자가 빠져 있어 분자·분모도 완전히 맞지 않는다. 직업 통계는 미국만 다루고 우리의 유효 구매 좌석보다 넓으며, CFA 보유자도 이 직업군과 겹친다. 따라서 이 숫자들을 더하거나 글로벌 좌석 수로 외삽해 SAM을 확정하지 않았다. 특히 웰스의 가정은 자문가 전체가 아니라 문서·분석 업무에 높은 비용을 낼 **일부 유효 좌석**을 뜻한다. [미국 분석가](https://www.bls.gov/ooh/business-and-financial/financial-analysts.htm), [미국 재무자문가](https://www.bls.gov/ooh/business-and-financial/personal-financial-advisors.htm), [CFA Institute](https://www.cfainstitute.org/programs/cfa-program/careers/employers-list), [FactSet 10-K](https://www.sec.gov/Archives/edgar/data/1013237/000162828025045769/fds-20250831.htm)
 
 ## 그런데 Rogo는 무엇을 읽는가?
 
@@ -170,7 +189,7 @@ AlphaSense를 고정된 “검색 회사”로 보면 경쟁 구도를 잘못 �
 
 **Data Moat**는 희소 콘텐츠의 양보다 계약상 접근권, 과거 자료의 축적, 출처와 권한 관리에 있다. **Workflow Moat**는 Excel·PPT·이메일·딜 프로세스 안에서 완성된 일을 만들어내는 능력이다. **Distribution & Trust Moat**는 보안 심사, 준법, 기존 설치 좌석, 조달 관계다. AlphaSense는 첫 번째에서, Rogo는 두 번째에서 눈에 띄는 출발점을 가졌고 양쪽 모두 세 번째를 쌓고 있다. 이것은 승자 판정이 아니라 현재 공개 정보로 본 해석이다.
 
-AlphaSense는 2026년 6월 **\$350M 조달, \$7.5B 기업가치, 2026년 1분기 \$600M 초과 ARR**를 발표했다. 단순히 \$7.5B ÷ \$600M을 하면 **12.5배보다 낮다**이다. 정확한 표현은 *민간 조달 라운드의 headline valuation / 보고된 ARR*이다. ARR은 인식 매출이 아니고 현금·부채를 반영한 EV도 공개되지 않았으므로 EV/Revenue라고 부르지 않는다. 회사는 **7,000개 이상 기업 고객**이라고 밝혔다. 별도의 공식 마케팅 페이지는 **S&P 100의 90%**가 고객이라고 주장한다. 이 수치는 공개 고객 명단으로 독립 확인한 값은 아니다. 이 평가에 값이 붙는다면 콘텐츠 접근권, 기업 유통, 전환 비용, 업무 확장에 따른 좌석당 지출과 유지율 기대 때문일 수 있다. 동시에 Rogo 같은 업무 중심 화면이 앞단을 차지하면 AlphaSense가 프리미엄 콘텐츠 공급자 역할로 밀릴 위험도 있다. 반대 가설은 AlphaSense가 콘텐츠와 업무 화면을 함께 장악하는 것이다. [AlphaSense 2026년 6월 발표](https://www.alpha-sense.com/press/alphasense-raises-350m-at-7-5b-valuation-and-surpasses-600m-in-annual-recurring-revenue/), [S&P 100 주장](https://www.alpha-sense.com/solutions/broker-research-reports/)
+AlphaSense는 2026년 6월 **\$350M 조달, \$7.5B 기업가치, 2026년 1분기 \$600M 초과 ARR**를 발표했다. 단순히 \$7.5B를 \$600M 초과 ARR로 나누면 **12.5배보다 낮다**. 정확한 표현은 *민간 조달 라운드의 headline valuation / 보고된 ARR*이다. ARR은 인식 매출이 아니고 현금·부채를 반영한 EV도 공개되지 않았으므로 EV/Revenue라고 부르지 않는다. 회사는 **7,000개 이상 기업 고객**이라고 밝혔다. 별도의 공식 마케팅 페이지는 <strong>S&amp;P 100의 90%</strong>가 고객이라고 주장한다. 이 수치는 공개 고객 명단으로 독립 확인한 값은 아니다. 이 평가에 값이 붙는다면 콘텐츠 접근권, 기업 유통, 전환 비용, 업무 확장에 따른 좌석당 지출과 유지율 기대 때문일 수 있다. 동시에 Rogo 같은 업무 중심 화면이 앞단을 차지하면 AlphaSense가 프리미엄 콘텐츠 공급자 역할로 밀릴 위험도 있다. 반대 가설은 AlphaSense가 콘텐츠와 업무 화면을 함께 장악하는 것이다. [AlphaSense 2026년 6월 발표](https://www.alpha-sense.com/press/alphasense-raises-350m-at-7-5b-valuation-and-surpasses-600m-in-annual-recurring-revenue/), [S&P 100 주장](https://www.alpha-sense.com/solutions/broker-research-reports/)
 
 Rogo의 **\$2B 기업가치**는 회사의 Series D 발표가 직접 공개한 수치가 아니라 [Bloomberg의 보도](https://www.bloomberg.com/news/newsletters/2026-04-30/ai-will-kill-your-banking-job-or-make-you-a-billionaire)에 나온 수치로만 다룬다. 신뢰할 수 있는 공개 매출 수치로 계산한 배수는 여기서 만들지 않는다. 투자 가설은 사용자의 기본 화면, 데이터 연결, 모델을 바꿀 수 있는 설계, 금융기관의 보안 신뢰다. 성립하려면 실제 사용이 넓은 업무로 반복되고, 배포 비용보다 좌석·팀당 경제성이 커져야 한다. 원천 데이터 의존, 기존 플랫폼의 에이전트화, 비싼 기관별 도입, 분야별 업무 파편화는 반대쪽의 검증 항목이다.
 
