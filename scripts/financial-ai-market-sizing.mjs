@@ -11,9 +11,11 @@ const totals = [0, 1, 2].map((scenario) =>
   verticals.reduce((sum, [, seats, spend]) => sum + seats[scenario] * spend[scenario] / 1000, 0),
 );
 const vendorUsdBasket = 4.916 + 2.321748 + 0.8306 + 0.6718;
+const factsetRevenuePerReportedUser = 2_321_748_000 / 237_324;
 console.log(JSON.stringify({
   unit: 'USD billions per year',
   sam: { low: totals[0], base: totals[1], high: totals[2] },
   vendorRevenueBasketUsdExcludingLseg: vendorUsdBasket,
   lsegDataAnalyticsGbpBillions: 3.978,
+  factsetRevenuePerReportedUserUsd: Math.round(factsetRevenuePerReportedUser),
 }, null, 2));
