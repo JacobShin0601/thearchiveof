@@ -1,0 +1,313 @@
+---
+title: "AWS도 FDE를 뽑기 시작했다. 그런데 FDE는 채용한다고 만들어질까?"
+subtitle: "Hyperscaler와 Palantir를 통해 보는 customer-to-product loop와 축적되는 학습"
+description: "AWS·Google 같은 hyperscaler가 FDE를 확장할 때 필요한 두 개의 feedback loop를 살펴보고, Palantir를 반례로 삼아 조직 구조와 accumulated learning의 중요성을 분석한다."
+publishedDate: 2026-10-03
+section: "Investing"
+subsection: "Research"
+contentType: "research"
+topics:
+  - enterprise-ai
+  - ax
+  - portfolio
+primaryTopic: enterprise-ai
+tags:
+  - fde
+  - enterprise-ai
+  - operating-leverage
+  - learning
+  - framework
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "ko"
+translationKey: "fde-loop-hyperscalers-palantir"
+freshness: time-sensitive
+lastReviewed: 2026-10-03
+nextReviewDate: 2026-11-03
+dataThrough: 2026-10-03
+methodology: "AWS·Google Cloud·Microsoft·Palantir의 공식 발표, 채용공고, 제품 문서와 Palantir SEC 공시를 우선 확인했다. 회사가 공개한 사실, 저자의 제한된 개인 경험, 이를 바탕으로 한 분석적 가설을 구분했다."
+references:
+  - title: "AWS invests $1 billion to embed AI engineers into customer teams"
+    url: "https://www.aboutamazon.com/news/aws/aws-1-billion-forward-deployed-ai-engineers"
+    publisher: "Amazon"
+  - title: "AWS Forward Deployed Engineering Preview Terms"
+    url: "https://aws.amazon.com/legal/fde_terms/"
+    publisher: "AWS"
+  - title: "Principal Forward Deployed Engineer"
+    url: "https://www.amazon.jobs/en/jobs/10521876/principal-forward-deployed-engineer-aws-forward-deployed-engineering"
+    publisher: "Amazon Jobs"
+  - title: "Forward Deployed Engineer — U.S. Government"
+    url: "https://www.amazon.jobs/en/jobs/10517550/forward-deployed-engineer-aws-forward-deployed-engineering-us-government"
+    publisher: "Amazon Jobs"
+  - title: "Accenture and Google Cloud Deepen Partnership with Gemini Enterprise Business Group"
+    url: "https://www.googlecloudpresscorner.com/2026-09-08-Accenture-and-Google-Cloud-Deepen-Partnership-with-Formation-of-New-Accenture-Gemini-Enterprise-Business-Group"
+    publisher: "Google Cloud"
+  - title: "Microsoft AI Co-Innovation Labs"
+    url: "https://www.microsoft.com/en-us/ailab"
+    publisher: "Microsoft"
+  - title: "Palantir 2025 Form 10-K"
+    url: "https://www.sec.gov/Archives/edgar/data/1321655/000132165526000011/pltr-20251231.htm"
+    publisher: "U.S. SEC"
+  - title: "Palantir Q2 2026 Earnings Release"
+    url: "https://www.sec.gov/Archives/edgar/data/1321655/000132165526000039/a2026q2ex991pressrelease.htm"
+    publisher: "U.S. SEC"
+  - title: "AIP, Foundry, and Apollo"
+    url: "https://www.palantir.com/docs/foundry/architecture-center/platforms"
+    publisher: "Palantir"
+  - title: "Introductory Concepts — Ontology"
+    url: "https://www.palantir.com/docs/foundry/getting-started/introductory-concepts"
+    publisher: "Palantir"
+  - title: "Why create an Ontology?"
+    url: "https://www.palantir.com/docs/foundry/ontology/why-ontology"
+    publisher: "Palantir"
+  - title: "AIP Logic"
+    url: "https://www.palantir.com/docs/foundry/logic"
+    publisher: "Palantir"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import FdeLoopDiagrams from '../../../components/FdeLoopDiagrams.astro';
+
+<AnswerBlock question="왜 AWS 같은 hyperscaler가 FDE를 대규모로 채용해도 AI-native FDE 회사와 같은 결과를 내지 못할 수 있는가?">
+  FDE의 핵심은 headcount가 아니라 customer-to-product feedback loop다. 고객 현장에서 문제를 발견하고, 그것을 core product에 반영하고, 다음 고객에게 재사용해야 한다. Hyperscaler는 훨씬 많은 customer signal을 얻지만 product ownership distance, handoff, 서로 다른 KPI와 global product constraints 때문에 learning을 product change로 바꾸는 속도가 느려질 수 있다. 다만 Palantir처럼 큰 조직도 field-to-product loop를 중심으로 제품과 조직이 진화했다면 FDE를 scale할 수 있다는 중요한 반례가 있다.
+</AnswerBlock>
+
+[이전 글](/investing/research/fde-economics-wonderful-reflection/)에서는 FDE와 SI를 가르는 것이 명함의 직무명이 아니라 학습곡선이라고 썼다. 고객 현장에서 한 bespoke work가 다음 고객에게 쓰일 connector, governance layer, deployment primitive로 남는다면 services는 software leverage를 만들 수 있다.
+
+그러면 꽤 자연스러운 반론이 생긴다.
+
+> AWS가 FDE를 수천 명 뽑으면 되는 것 아닌가?
+
+표면적으로는 hyperscaler가 훨씬 유리하다. AWS, Google, Microsoft는 이미 수많은 기업고객, global sales organization, compute, foundation model, data platform, security, compliance, enterprise trust와 수천 명의 엔지니어를 가지고 있다. FDE가 좋은 delivery model이라면 이들이 startup보다 더 빨리 복제할 것처럼 보인다.
+
+그런데 실제 hyperscaler와 일하면서 내 질문은 조금 달라졌다. **고객 옆에 뛰어난 엔지니어를 보내는 것만으로 FDE가 만들어질까?**
+
+<FdeLoopDiagrams variant="hero" language="ko" />
+
+이 글의 가설은 단순히 “대기업은 관료적이라 안 된다”가 아니다. FDE는 직무이기 전에 조직 구조이고, 그 단위는 사람보다 loop에 가깝다. 문제를 발견하고, 만들고, 실패하고, product gap을 발견하고, 제품을 바꾸고, 다음 고객에게 재사용하는 loop 말이다. 그리고 좋은 loop는 빠르게 돌기만 해서는 부족하다. **돌 때마다 회사에 무언가가 남아야 한다.**
+
+이 글은 2026년 10월 3일까지 공개된 자료를 사용한다. 회사의 공식 설명은 실제 성과와 다를 수 있고, 아래 Google·AWS 경험은 특정 계정과 interaction에 국한된 개인적 관찰이다. 사실, 경험, 가설을 구분해 읽어야 한다.
+
+## Google에서 경험한 2주보다 긴 거리
+
+회사에서 Gemini Enterprise의 Custom Agent를 실제 enterprise environment에 배포하려던 적이 있다. SSO 인증이 반복해서 실패했다. 처음에는 configuration 하나의 문제라고 생각했다. 하지만 해결 과정에는 내 기억상 customer-facing engineer, account 지원 인력, network와 AI specialist, 여러 지역의 technical personnel이 차례로 참여했고, 결국 본사 product team까지 escalation되었다.
+
+제품 쪽 수정이 이루어지기까지 2주가 넘게 걸렸다. 수정 뒤에도 내가 production에서 신뢰할 만큼 안정적으로 동작하지 않았고, 결국 그 기능을 더 쓰지 않게 됐다. 회사명, 내부 network architecture, account 정보와 담당자는 의도적으로 생략한다. 참여한 사람들의 정확한 직무명보다 중요한 것도 따로 있다.
+
+상당히 많은 기술 인력이 문제를 풀기 위해 움직였다. 내가 흥미롭게 본 것은 사람들의 능력이 아니라, **고객의 문제가 실제 제품을 바꿀 수 있는 조직까지 도달하는 데 지나야 했던 거리**였다.
+
+<FdeLoopDiagrams variant="latency" language="ko" />
+
+물론 하나의 고객, 하나의 제품, 하나의 지역에서 겪은 사례만으로 Google Cloud 전체 customer organization을 평가할 수는 없다. 인증 문제에는 보안 검토와 재현, 회귀 테스트가 필요하고 global product는 한 고객을 위해 즉시 바뀌어서는 안 된다. 이 경험은 결론이 아니라 질문의 출발점이다.
+
+## Customer-to-Product Latency
+
+나는 그 거리를 **Customer-to-Product Latency**라고 부르려 한다.
+
+> 고객 현장에서 발견된 문제와 learning이 실제 core product의 변화로 돌아오기까지 걸리는 시간.
+
+정식 industry KPI가 아니라 이 글을 위한 개념이다. Customer problem이 field engineer의 진단을 거쳐 specialist, regional organization, product owner, engineering으로 이동하고 다시 고객에게 돌아오는 모든 화살표에는 시간이 든다.
+
+그 시간이 길어지는 이유를 **Organizational Impedance**라는 비유로 생각할 수도 있다. 고객 signal이 조직 경계를 지날 때 생기는 handoff, queue, information loss, ownership ambiguity와 priority conflict다. 전기공학의 impedance를 엄밀히 옮긴 모델은 아니다.
+
+<FdeLoopDiagrams variant="impedance" language="ko" />
+
+여기에는 불필요한 절차만 있는 것이 아니다. security review, reliability, backward compatibility, regulatory requirement와 global roadmap은 수많은 고객이 쓰는 제품을 운영하기 위한 필요한 control이다. 그래서 질문은 “관료주의를 없앨 수 있는가?”가 아니라 <strong>필요한 control과 FDE가 요구하는 learning speed를 동시에 달성할 수 있는가?</strong>다.
+
+## AWS에서 느낀 또 다른 거리
+
+Google 경험이 product feedback의 거리였다면, AWS customer-facing organization과의 제한된 경험은 problem discovery의 거리를 생각하게 했다.
+
+일부 Solutions Architect와의 대화는 “AWS의 어떤 기술로 무엇을 만들어볼 것인가?”에서 시작했다. 때로는 cloud credit으로 시도할 use case를 찾는 대화가 실제 enterprise workflow의 문제를 정의하는 대화보다 앞섰다. 한 번은 주식 자동매매 같은 아이디어까지 흘러갔다. 아이디어 자체가 나쁘다는 뜻도, 특정 SA를 비판하려는 뜻도 아니다. 이미 가진 도구를 출발점으로 삼으면 문제를 보는 방식도 자연스럽게 그 도구 쪽으로 기울 수 있다는 관찰이다.
+
+Account Manager는 business context를 상대적으로 더 이해하려 했지만, cloud consumption이라는 commercial objective와 고객의 latent problem discovery가 언제나 같은 목표인지에는 의문이 남았다. 이것 역시 특정 account, 지역, interaction에 기반한 제한된 경험이다.
+
+좋은 FDE는 고객의 요구사항을 구현하는 사람에서 끝나지 않는다. **고객이 요구사항을 잘못 정의하고 있다는 사실부터 발견하는 사람일 수 있다.** FDE의 첫 번째 산출물은 code가 아니라 problem definition일지도 모른다.
+
+## FDE에는 두 개의 Loop가 필요하다
+
+이 두 경험을 나란히 놓으면 FDE의 feedback architecture가 두 부분으로 보인다.
+
+<FdeLoopDiagrams variant="loops" language="ko" />
+
+첫 번째는 **Problem Discovery Loop**다. 고객이 말한 request를 그대로 cloud service에 매핑하는 대신 실제 workflow를 관찰하고, 숨은 문제를 찾고, 문제를 다시 정의한 뒤 만든다. 이 loop의 위험은 `Sales / Consumption / Adoption Bias`다. 고객의 문제를 찾기보다 이미 있는 제품이 쓰일 자리를 찾게 된다.
+
+두 번째는 **Product Learning Loop**다. 구축 과정에서 product gap을 발견하고, 그것을 core product와 reusable primitive로 바꿔 다음 고객을 더 빠르게 만든다. 이 loop의 위험은 learning이 `Escalation + Workaround`로 대체되는 것이다.
+
+<FdeLoopDiagrams variant="roles" language="ko" />
+
+SA, Professional Services, FDE를 하나의 고정된 선 위에 놓기는 어렵다. 훌륭한 SA가 problem discovery를 수행할 수 있고, ProServe가 제품에 강한 feedback을 줄 수도 있다. 반대로 FDE라는 직함이 있어도 customer-specific implementation만 반복할 수 있다. 차이는 직무 설명보다 product를 바꿀 수 있는 권한, incentive, feedback path에 있다.
+
+> **FDE의 단위는 사람이 아니라 loop다.**
+
+AWS가 100명, 1,000명, 수천 명을 뽑는다는 숫자보다 고객의 문제를 발견하고 → 만들고 → 실패하고 → product gap을 찾고 → 제품을 바꾸고 → 다음 고객에게 재사용하는 loop가 얼마나 빨리 도는지가 중요하다.
+
+## AWS는 이 이론을 이미 알고 있다
+
+AWS를 이 논리의 straw man으로 만들 수는 없다. AWS는 2026년 6월 전담 FDE 조직에 초기 **10억 달러**를 투자하고 수천 명의 전문가를 고객팀에 embedded하겠다고 발표했다. 공개 설명에는 business outcome, production deployment, reusable pattern, codified expertise, customer self-sufficiency와 한 프로젝트의 학습이 다음 프로젝트에 누적된다는 언어가 들어 있다. [AWS 공식 발표](https://www.aboutamazon.com/news/aws/aws-1-billion-forward-deployed-ai-engineers)
+
+공개 preview 약관은 engagement를 45일 sprint로 설명하며, 고객이 계정·권한·pipeline과 이후 운영 준비를 맡는다고 적는다. 즉 AWS도 영구적인 의존 관계보다 빠른 공동 구축과 이관을 설계하고 있다. [AWS FDE terms](https://aws.amazon.com/legal/fde_terms/)
+
+채용공고는 더 직접적이다. Principal FDE에게 여러 고객에 적용할 reference architecture, reusable pattern과 engineering mechanism을 만들고 반복되는 고객 패턴을 AWS product roadmap에 반영하라고 요구한다. 정부 부문 FDE 공고 역시 production lifecycle을 책임지고 재사용 가능한 accelerator를 AWS service로 환류시키는 일을 명시한다. [Principal FDE](https://www.amazon.jobs/en/jobs/10521876/principal-forward-deployed-engineer-aws-forward-deployed-engineering), [FDE — U.S. Government](https://www.amazon.jobs/en/jobs/10517550/forward-deployed-engineer-aws-forward-deployed-engineering-us-government)
+
+> **AWS가 FDE의 정의를 잘못 이해한다고 생각하지 않는다. 공개된 설명만 보면 놀랄 만큼 정확하게 이해하고 있다. 내가 궁금한 것은 AWS라는 거대한 조직이 그 정의를 실제로 실행할 수 있느냐는 점이다.**
+
+따라서 critique의 대상은 theory가 아니라 **execution architecture**다.
+
+Google과 Microsoft도 같은 방향의 여러 co-build motion을 확대하고 있다. 2026년 9월 Google Cloud와 Accenture는 Gemini Enterprise 조직을 발표하며 Accenture 측 1,000명 규모 FDE 인력과 Google Cloud 전문 engineering의 결합을 설명했다. 이것을 Google의 기존 Customer Engineer나 TAM이 모두 FDE가 되었다는 뜻으로 읽어서는 안 된다. [Google Cloud 발표](https://www.googlecloudpresscorner.com/2026-09-08-Accenture-and-Google-Cloud-Deepen-Partnership-with-Formation-of-New-Accenture-Gemini-Enterprise-Business-Group) Microsoft의 AI Co-Innovation Labs도 고객과 prototype을 함께 만드는 인접한 모델이지만, 동일한 FDE 조직이라고 단정할 근거는 없다. [Microsoft AI Co-Innovation Labs](https://www.microsoft.com/en-us/ailab)
+
+## Hyperscaler에서 loop가 느려질 수 있는 이유
+
+Hyperscaler가 FDE를 실행할 때 최소 다섯 가지 경계를 통과해야 할 수 있다.
+
+1. **Incentive alignment.** Sales, account management, SA, ProServe, support, product engineering은 성공을 측정하는 단위가 다를 수 있다. 고객 outcome과 cloud consumption이 충돌하면 누가 우선권을 갖는가?
+2. **Product ownership distance.** FDE가 core service의 limitation을 발견했을 때 직접 roadmap에 영향을 주는가, feature request queue에 들어가는가, 아니면 workaround를 만드는가?
+3. **Global product constraints.** SLA, security, backward compatibility, regulatory requirement와 기존 고객 때문에 한 현장의 learning을 바로 global product에 넣기 어렵다. 이는 규모가 만든 합리적인 제약이기도 하다.
+4. **Organizational boundaries.** FDE는 sales, ProServe, support, product 중 어디에 속하고 누가 budget·priority·success를 결정하는가?
+5. **Revenue model.** engagement의 북극성이 customer outcome인지 cloud consumption인지, 두 지표가 어긋날 때 무엇이 남는가?
+
+공개자료만으로 AWS 내부 답을 알 수는 없다. 그래서 위 항목은 회사에 대한 사실 판정이 아니라 실행을 평가할 질문이다.
+
+## 가장 위험한 실패 모드: Workaround Factory
+
+<FdeLoopDiagrams variant="workaround" language="ko" />
+
+이상적인 FDE는 product gap을 core product change와 reusable primitive로 만든다. 하지만 core product를 바꿀 수 없다면 현장팀은 custom integration과 customer-specific code로 문제를 우회한다. 고객은 당장 도움을 받지만 다음 고객의 marginal deployment cost는 줄지 않고 유지보수 대상만 늘어난다.
+
+> **FDE에게 고객 문제를 해결할 권한만 주고 제품을 바꿀 영향력을 주지 않으면, FDE 조직은 매우 비싼 workaround factory가 될 위험이 있다.**
+
+그 상태의 FDE는 SA보다 구현을 많이 하고 Professional Services보다 product-minded한 중간 조직으로 수렴할 수 있다. 좋은 사업과 고객 결과를 만들 수는 있어도, 이전 글에서 다룬 `Productization → Software Leverage` 대신 `Workaround → Services Labor`가 남는다.
+
+## 규모는 약점인 동시에 압도적인 장점이다
+
+공정하게 보면 hyperscaler는 세계에서 가장 많은 enterprise problem을 관찰할 수 있다. Customer base가 크면 customer signal은 훨씬 더 크게 늘어난다. compute, model, security, distribution과 신뢰까지 같은 조직 안에 있다. startup이 얻기 어려운 학습의 원재료다.
+
+동시에 조직 규모가 커질수록 boundary, handoff, product distance와 escalation latency도 커질 수 있다.
+
+<FdeLoopDiagrams variant="scale" language="ko" />
+
+이 글의 질문은 “큰 회사라서 실패하는가?”가 아니다.
+
+> **고객이 많아서 얻는 학습의 이점이, 조직이 커서 생기는 지연보다 클 수 있는가?**
+
+이를 정식 empirical model이 아닌 사고용 heuristic으로 쓰면 다음과 같다.
+
+$$
+FDE\ Flywheel\ Strength
+\approx
+\frac{Problem\ Discovery \times Productization \times Reuse}
+{Customer\text{-}to\text{-}Product\ Latency}
+$$
+
+숫자 점수를 만들자는 뜻이 아니다. 현장 인원수보다 loop의 구성 요소를 따로 보자는 제안이다.
+
+## 그런데 Palantir는 이미 20년 넘게 이걸 해왔다
+
+여기서 강력한 반례가 등장한다. 조직이 커질수록 FDE가 어려워진다면 Palantir는 어떻게 설명할 것인가?
+
+Palantir는 더 이상 작은 startup이 아니다. 2025년 10-K에 따르면 매출은 **44.75억 달러**, 고객은 **954곳**, 정규직은 **4,429명**이었다. GAAP gross margin은 <strong>82%</strong>였다. 2026년 2분기에는 매출 19.35억 달러와 gross profit 16.39억 달러를 보고했다. 단순 계산한 분기 GAAP gross margin은 약 <strong>84.7%</strong>다. [2025 10-K](https://www.sec.gov/Archives/edgar/data/1321655/000132165526000011/pltr-20251231.htm), [Q2 2026 earnings release](https://www.sec.gov/Archives/edgar/data/1321655/000132165526000039/a2026q2ex991pressrelease.htm)
+
+이 숫자는 FDE-heavy model이 software-like gross margin과 scale에 도달할 수 있다는 중요한 경험적 사례다. 다만 Wonderful 같은 비상장 startup과 apples-to-apples로 비교할 수는 없다. 회사의 성숙도, 제품 구성, 회계 분류가 다르고, Palantir는 cloud와 on-prem subscription, O&M, professional services를 함께 판매하면서 그 mix를 별도 매출로 공개하지 않는다. 또한 정부 매출은 2025년 전체의 54%였고, 긴 판매주기와 고숙련 deployment 인력, 복잡한 제품이라는 위험도 남는다.
+
+그럼에도 Palantir는 “큰 조직은 FDE를 못한다”는 단순한 thesis를 무너뜨린다. 더 정확한 차이는 크기가 아니라 **역사적 organizational DNA**일 수 있다.
+
+<FdeLoopDiagrams variant="models" language="ko" />
+
+Hyperscaler는 대체로 product와 거대한 go-to-market machine을 먼저 가진 뒤 FDE를 추가한다. AI-native startup은 FDE에서 시작해 productization을 시도한다. Palantir는 고객의 현실을 이해하지 않으면 제품 자체를 만들기 어려운 문제에서 출발했다.
+
+> **FDE를 기존 organization 위에 추가하는 것과, FDE feedback loop를 중심으로 product와 organization이 진화해온 것은 다르다.**
+
+## Palantir에서 FDE는 product requirement였을지도 모른다
+
+Palantir가 해온 일을 극도로 단순화하면 흩어진 데이터를 서로 연결하고, 그 데이터를 현실 세계의 object와 operation에 연결하는 일이라고 볼 수 있다. 그러나 이것을 단순 data integration으로 축소하면 핵심을 놓친다.
+
+Palantir의 공식 문서에서 Ontology는 data를 실제 세계의 object, property와 link로 표현하고, logic과 action을 연결해 운영 결과로 이어지게 한다. 공급망이라면 Supplier ↔ Component ↔ Factory ↔ Inventory ↔ Order가 단순 표가 아니라 관계와 권한, business logic, writeback action을 가진 운영 모델이 된다. [Ontology introductory concepts](https://www.palantir.com/docs/foundry/getting-started/introductory-concepts), [Why Ontology](https://www.palantir.com/docs/foundry/ontology/why-ontology)
+
+항공사의 aircraft·crew·maintenance와 병원의 patient·bed·procedure, 제조사의 supplier·part·factory는 서로 다르다. 이 구조는 고객에게 “schema를 보내달라”고 해서 충분히 이해하기 어렵다. 누군가는 현장에서 데이터가 실제로 무엇을 의미하는지, 어떤 관계가 중요한지, 누가 결정을 내리고 숫자가 바뀌면 어떤 action이 일어나는지 알아야 한다.
+
+> **Palantir에서 FDE는 distribution strategy이기 전에 product requirement였을지도 모른다.**
+
+Palantir의 10-K는 고객에게 직접 embedded되어 복잡한 문제를 풀면서 platform capability를 계속 강화한다고 설명한다. 공식 architecture 문서 역시 FDE를 고객 현장과 platform evolution을 연결하는 product-development paradigm으로 규정한다. 이는 회사가 설명하는 자기 모델이라는 점을 감안해야 하지만, 적어도 FDE가 나중에 붙인 영업 직무만은 아니라는 근거다. [Palantir architecture](https://www.palantir.com/docs/foundry/architecture-center/platforms)
+
+## Loop가 돌 때마다 무엇이 남았는가
+
+Palantir의 현장 learning이 모든 제품을 직접 만들었다고 단정할 수는 없다. 다만 공개자료는 그 learning이 Foundry의 data operations와 Ontology, Apollo의 다양한 환경에 대한 continuous delivery, AIP의 LLM·agent·evaluation·governance layer 같은 reusable capability와 반복적으로 연결되어 왔음을 보여준다. 10-K도 Foundry, Gotham, Apollo, AIP를 네 개의 주요 platform으로 설명한다.
+
+여기서 **Accumulated Learning**이라는 개념을 꺼낼 수 있다.
+
+<FdeLoopDiagrams variant="accumulation" language="ko" />
+
+이 역시 정식 industry metric은 아니다. 한 번의 loop가 reusable primitive를 남기고, 반복된 deployment가 pattern과 governance를 남기며, 그것이 platform capability와 trust로 쌓이는지를 묻는 framework다.
+
+> **그 loop가 1,000번 돌고 나면 회사에 무엇이 남는가?**
+
+Palantir에는 무엇이 남았는가? Wonderful에는 무엇이 남고 있는가? AWS에는 무엇이 남을 것인가? 같은 FDE headcount라도 이 질문의 답이 다르면 business economics도 달라진다.
+
+## LLM은 이 모델을 만든 것이 아니라 증폭했을 수 있다
+
+LLM 때문에 Palantir의 business model이 생긴 것은 아니다. 회사는 2003년에 설립되었고 오랫동안 data, operation, logic과 action을 연결해왔다. AIP는 그 위에 third-party LLM 연결, agent·automation toolchain, application과 evaluation framework를 얹는다. AIP Logic은 Ontology object를 읽고 function을 호출하며, 권한 안에서 action을 제안하거나 실행할 수 있다. [AIP Logic](https://www.palantir.com/docs/foundry/logic)
+
+2026년에는 Palantir가 자연어로 data integration, Ontology development와 function creation을 돕는 `AI FDE`까지 공개했다. 이것은 적어도 회사의 방향이 FDE를 없애는 것보다 FDE 작업을 platform과 AI로 압축하는 쪽임을 보여준다. [AI FDE overview](https://www.palantir.com/docs/foundry/ai-fde/overview)
+
+<FdeLoopDiagrams variant="ai-leverage" language="ko" />
+
+> **AI가 Palantir에게 FDE를 필요 없게 만든 것이 아니라, FDE 한 명이 만들어낼 수 있는 output을 키웠을 수 있다.**
+
+이 문장은 공시된 causal fact가 아니라 나의 해석이다. 실제 생산성 개선 폭과 인간 deployment 인력 의존도는 공개자료만으로 측정할 수 없다.
+
+## Palantir를 신화화해서는 안 되는 이유
+
+Palantir가 scale한 이유를 FDE loop 하나로 환원할 수 없다. 오랜 정부 관계, security credential, 높은 switching cost, Ontology architecture, Apollo, enterprise sales, deployment infrastructure, brand와 20년의 trust가 함께 작동했을 가능성이 크다.
+
+2025년 cost of revenue에는 field-service representative와 subcontractor expense가 포함되고, professional services에는 UI configuration, training, ongoing ontology와 data modeling support가 포함된다. 높은 gross margin이 모든 배포가 low-touch임을 뜻하지 않는다. 회사 스스로도 더 크고 복잡한 deployment를 관리하는 데 운영 부담이 생길 수 있다고 10-K에 적었다.
+
+그래서 Palantir의 결과는 `FDE → 성공`이라는 공식보다 다음의 복합물에 가깝다.
+
+$$
+FDE \times Ontology \times Trust \times Time
+$$
+
+이 또한 valuation equation이 아니라 다음 글을 위한 가설이다. Palantir의 진짜 moat가 FDE인지, Ontology인지, 신뢰인지, 아니면 20년간 이 요소들이 함께 축적된 path dependency인지는 별도로 파고들 가치가 있다.
+
+## 세 가지 모델, 세 가지 위험
+
+| 모델 | 출발점 | 강점 | 핵심 위험 |
+|---|---|---|---|
+| Hyperscaler | Product-first → FDE added later | 고객, distribution, compute, model, security | 기존 조직 사이에 갇힌 FDE, 긴 product distance |
+| AI-native FDE startup | FDE-first → productization | 짧은 customer-product 거리, 빠른 iteration | customization overload, services economics, scale 시 loop 저하 |
+| Palantir | FDE-native → accumulated platform → AI acceleration | field learning, Ontology, deployment infrastructure, trust | high-touch complexity, 긴 sales cycle, path dependency |
+
+Startup이라고 자동으로 유리한 것도 아니다. 모든 customer request를 product에 넣으면 coherence가 무너지고, security·governance가 미성숙할 수 있으며, key-person dependency와 support burden이 커질 수 있다. 반대로 hyperscaler는 이미 존재하는 SA와 ProServe의 지식, enterprise trust와 distribution을 FDE loop에 연결하면 누구보다 빨리 학습할 잠재력이 있다.
+
+그래서 Wonderful 같은 회사의 잠재적 moat는 “좋은 FDE를 보유했다”보다 **FDE가 작동하도록 설계한 organizational architecture**일 수 있다. AWS는 FDE 100명을 채용할 수 있다. product ownership, sales incentive, roadmap process, escalation structure, support organization과 customer feedback mechanism 전체를 같은 방향으로 정렬하는 것은 더 어렵다.
+
+> **FDE는 사람을 채용한다고 복제되는 조직 역량이 아니다.**
+
+## AWS가 내 가설을 틀렸다고 증명하려면
+
+나는 AWS가 실패할 것이라고 예측하지 않는다. 오히려 공개된 설계가 명확하기 때문에 이 가설은 검증 가능해야 한다. 외부에서 보고 싶은 evidence는 다음과 같다.
+
+<FdeLoopDiagrams variant="evidence" language="ko" />
+
+- 현장에서 발견된 gap이 core AWS service나 roadmap에 들어간 구체적 사례
+- 여러 customer engagement에서 같은 component가 재사용된 사례
+- 비슷한 deployment에 필요한 시간과 인력이 줄어드는 신호
+- cloud consumption만이 아니라 customer outcome과 self-sufficiency를 평가하는 방식
+- bespoke workaround보다 productized primitive가 빠르게 누적된다는 증거
+
+대부분 내부 KPI일 가능성이 높다. 공개되지 않는다고 실패를 뜻하지 않는다. 반대로 수천 명이라는 headcount만으로 loop가 작동한다고 결론낼 수도 없다.
+
+## 채용 인원에서 남는 자산으로
+
+처음 질문은 “AWS가 FDE를 몇 명 뽑을 것인가?”였다. 이제 질문을 세 개로 바꿀 수 있다.
+
+1. 그 FDE들이 고객의 진짜 문제를 발견할 수 있는가?
+2. 그 learning은 workaround로 끝나는가, reusable product로 돌아오는가?
+3. 그 loop가 1,000번 돌고 나면 회사에 무엇이 남는가?
+
+Palantir의 20년이 흥미로운 이유는 FDE를 오래 했기 때문만은 아니다. 그 과정에서 data integration, Ontology, deployment infrastructure, governance, enterprise trust와 platform capability 같은 자산이 누적되었을 수 있기 때문이다. 그렇다고 그 경로를 AWS나 startup이 그대로 복제할 수 있다는 뜻도 아니다.
+
+> **FDE의 단위는 사람이 아니라 loop다. 그리고 좋은 loop는 돌 때마다 회사에 무언가를 남긴다.**
+
+Hyperscaler가 FDE를 복제할 수 있는지는 얼마나 많은 엔지니어를 고객에게 보내느냐가 아니라, 그들이 발견한 문제를 얼마나 빠르게 제품으로 되돌리고 그 학습을 다음 고객을 위한 자산으로 얼마나 오래 축적할 수 있느냐에 달려 있을지도 모른다.

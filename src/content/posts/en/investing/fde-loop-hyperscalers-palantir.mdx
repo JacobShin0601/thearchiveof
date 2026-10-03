@@ -1,0 +1,311 @@
+---
+title: "AWS Is Hiring FDEs. But Can You Hire Your Way Into an FDE Organization?"
+subtitle: "What hyperscalers and Palantir reveal about customer-to-product loops and accumulated learning"
+description: "A framework for evaluating whether hyperscaler FDE teams can turn field discoveries into reusable products, with Palantir as the counterexample that makes the thesis testable."
+publishedDate: 2026-10-03
+section: "Investing"
+subsection: "Research"
+contentType: "research"
+topics:
+  - enterprise-ai
+  - ax
+  - portfolio
+primaryTopic: enterprise-ai
+tags:
+  - fde
+  - enterprise-ai
+  - operating-leverage
+  - learning
+  - framework
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "en"
+translationKey: "fde-loop-hyperscalers-palantir"
+freshness: time-sensitive
+lastReviewed: 2026-10-03
+nextReviewDate: 2026-11-03
+dataThrough: 2026-10-03
+methodology: "This article prioritizes official announcements, job descriptions, product documentation, and Palantir SEC filings. It separates public facts, the author's limited personal observations, and analytical hypotheses derived from them."
+references:
+  - title: "AWS invests $1 billion to embed AI engineers into customer teams"
+    url: "https://www.aboutamazon.com/news/aws/aws-1-billion-forward-deployed-ai-engineers"
+    publisher: "Amazon"
+  - title: "AWS Forward Deployed Engineering Preview Terms"
+    url: "https://aws.amazon.com/legal/fde_terms/"
+    publisher: "AWS"
+  - title: "Principal Forward Deployed Engineer"
+    url: "https://www.amazon.jobs/en/jobs/10521876/principal-forward-deployed-engineer-aws-forward-deployed-engineering"
+    publisher: "Amazon Jobs"
+  - title: "Forward Deployed Engineer — U.S. Government"
+    url: "https://www.amazon.jobs/en/jobs/10517550/forward-deployed-engineer-aws-forward-deployed-engineering-us-government"
+    publisher: "Amazon Jobs"
+  - title: "Accenture and Google Cloud Deepen Partnership with Gemini Enterprise Business Group"
+    url: "https://www.googlecloudpresscorner.com/2026-09-08-Accenture-and-Google-Cloud-Deepen-Partnership-with-Formation-of-New-Accenture-Gemini-Enterprise-Business-Group"
+    publisher: "Google Cloud"
+  - title: "Microsoft AI Co-Innovation Labs"
+    url: "https://www.microsoft.com/en-us/ailab"
+    publisher: "Microsoft"
+  - title: "Palantir 2025 Form 10-K"
+    url: "https://www.sec.gov/Archives/edgar/data/1321655/000132165526000011/pltr-20251231.htm"
+    publisher: "U.S. SEC"
+  - title: "Palantir Q2 2026 Earnings Release"
+    url: "https://www.sec.gov/Archives/edgar/data/1321655/000132165526000039/a2026q2ex991pressrelease.htm"
+    publisher: "U.S. SEC"
+  - title: "AIP, Foundry, and Apollo"
+    url: "https://www.palantir.com/docs/foundry/architecture-center/platforms"
+    publisher: "Palantir"
+  - title: "Introductory Concepts — Ontology"
+    url: "https://www.palantir.com/docs/foundry/getting-started/introductory-concepts"
+    publisher: "Palantir"
+  - title: "Why create an Ontology?"
+    url: "https://www.palantir.com/docs/foundry/ontology/why-ontology"
+    publisher: "Palantir"
+  - title: "AIP Logic"
+    url: "https://www.palantir.com/docs/foundry/logic"
+    publisher: "Palantir"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import FdeLoopDiagrams from '../../../../components/FdeLoopDiagrams.astro';
+
+<AnswerBlock question="Why might hiring FDEs at hyperscaler scale fail to reproduce an AI-native FDE company?">
+  The scarce asset is not FDE headcount but the customer-to-product feedback loop. A field team must discover the real problem, return what it learns to the core product, and reuse the result with the next customer. Hyperscalers receive more customer signals, but product distance, handoffs, conflicting incentives, and global-product constraints can slow the conversion of learning into product change. Palantir is the important counterexample: a large organization can scale FDE when the field-to-product loop helped shape how the company learned what to build.
+</AnswerBlock>
+
+In the [previous article](/en/investing/research/fde-economics-wonderful-reflection/), I argued that the distinction between forward deployed engineering and systems integration is not the title on an engineer’s badge. It is the learning curve. If bespoke fieldwork becomes a connector, governance layer, or deployment primitive for the next customer, services can produce software leverage.
+
+That argument invites an obvious response.
+
+> Why not have AWS hire thousands of FDEs?
+
+On paper, hyperscalers should dominate this model. AWS, Google, and Microsoft already possess enormous enterprise customer bases, global sales organizations, compute, foundation models, data platforms, security, compliance, trust, distribution, and thousands of engineers. If FDE is a superior delivery model, reproducing it should be a matter of time and resources.
+
+My experience working with hyperscalers left me with a different question: **Is placing excellent engineers beside customers enough to create an FDE organization?**
+
+<FdeLoopDiagrams variant="hero" language="en" />
+
+This is not an argument that large companies are too bureaucratic to do FDE. It is a more specific hypothesis. FDE may be less a job title than an organizational architecture. Its unit is the loop, not the engineer: discover, build, deploy, fail, identify a product gap, change the product, and reuse the result. Speed alone is insufficient. **A good FDE loop should leave something behind every time it turns.**
+
+The article uses information available through October 3, 2026. Company descriptions of strategy are not the same as measured outcomes. The Google and AWS stories below are limited personal observations from particular interactions, not representative evidence about either company.
+
+## A two-week distance inside one Google deployment
+
+I once tried to deploy a Gemini Enterprise Custom Agent in an enterprise environment. SSO authentication repeatedly failed. What looked like a configuration issue drew in, as I remember it, customer-facing engineers, account support, network and AI specialists, technical personnel across regions, and eventually a headquarters product team.
+
+More than two weeks passed before a product-side change arrived. Even then, the feature was not reliable enough for me to trust in production, so I stopped using it. I am intentionally omitting the customer, account, internal network design, and individual names. The exact titles of the people involved are not the important part.
+
+Many capable technical people worked on the problem. What stayed with me was not a question about their skill. It was the distance the customer’s problem had to travel before it reached the people able to change the product.
+
+<FdeLoopDiagrams variant="latency" language="en" />
+
+One customer, one product, and one region cannot support a judgment about Google Cloud’s customer organization. Authentication bugs can require reproduction, security review, and regression testing. A global product should not change instantly for one account. The experience is an observation that produced a question, not a conclusion.
+
+## Customer-to-Product Latency
+
+I use **Customer-to-Product Latency** to describe that distance:
+
+> The elapsed time between a discovery in the field and a resulting change in the core product.
+
+This is a conceptual measure for this article, not a standard industry KPI. Every arrow—from customer problem to field diagnosis, specialist, regional organization, product owner, engineering, and back—takes time.
+
+**Organizational Impedance** is a second metaphor for what happens along the way: handoffs, queues, information loss, ambiguous ownership, and conflicting priorities as a signal crosses organizational boundaries. It is not an electrical model dressed up as management science.
+
+<FdeLoopDiagrams variant="impedance" language="en" />
+
+Much of this friction represents necessary control. Security review, reliability, backward compatibility, regulation, and a global roadmap protect millions of users. The real question is whether an organization can preserve those controls while achieving the learning speed FDE requires.
+
+## A different distance in AWS conversations
+
+The Google incident made me think about product feedback. A limited set of interactions with AWS customer-facing teams made me think about problem discovery.
+
+Some conversations with Solutions Architects began with a version of “What can we build with an AWS service?” At times, identifying a cloud-credit use case seemed to precede defining the enterprise workflow problem. One conversation wandered as far as an automated stock-trading idea. That is not a criticism of an individual or of prototyping. It is an observation that starting with an available tool can pull problem definition toward the tool.
+
+Account Managers often tried to understand more of the business context. I still wondered whether the commercial objective of cloud consumption always aligned with discovering a customer’s latent problem. Again, this reflects specific accounts, regions, and interactions.
+
+A strong FDE does more than implement a stated requirement. **The first job may be discovering that the customer has defined the requirement incorrectly.** The first output of FDE may be a problem definition, not code.
+
+## The two loops of FDE
+
+Together, these observations suggest two distinct loops.
+
+<FdeLoopDiagrams variant="loops" language="en" />
+
+The **Problem Discovery Loop** moves from what the customer says to the workflow as it actually exists, uncovers the hidden problem, reframes it, and only then builds. Its failure mode is sales, consumption, or adoption bias: finding places for existing products instead of finding the underlying problem.
+
+The **Product Learning Loop** begins with what was built, discovers a product gap, changes the core product, creates a reusable primitive, and improves the next deployment. Its failure mode is replacing learning with escalation and workaround.
+
+<FdeLoopDiagrams variant="roles" language="en" />
+
+SA, Professional Services, and FDE are not fixed points on a universal line. An exceptional SA can discover problems; Professional Services can return powerful product feedback; an employee titled FDE can still repeat customer-specific implementation. Authority, incentives, and the path into the product matter more than the label.
+
+> **The unit of FDE is the loop, not the engineer.**
+
+The number of hires matters less than how quickly an organization can discover, build, fail, expose a gap, change the product, and reuse the result.
+
+## AWS already understands the theory
+
+AWS should not be a straw man in this argument. In June 2026, it announced an initial **$1 billion** investment in a dedicated FDE organization and plans to embed thousands of experts with customer teams. The announcement explicitly discusses business outcomes, production deployment, reusable patterns, codified expertise, customer self-sufficiency, and learning from one project compounding into the next. [AWS announcement](https://www.aboutamazon.com/news/aws/aws-1-billion-forward-deployed-ai-engineers)
+
+The preview terms describe 45-day sprints and place ongoing operational readiness, accounts, permissions, and pipelines with the customer. The design appears to favor fast co-building and transfer rather than permanent dependency. [AWS FDE terms](https://aws.amazon.com/legal/fde_terms/)
+
+Job descriptions are even clearer. A Principal FDE is expected to create reference architectures, reusable patterns, and engineering mechanisms across customers, then influence AWS product roadmaps using recurring customer patterns. A U.S. Government FDE role calls for end-to-end production ownership and reusable accelerators that feed back into AWS services. [Principal FDE](https://www.amazon.jobs/en/jobs/10521876/principal-forward-deployed-engineer-aws-forward-deployed-engineering), [U.S. Government FDE](https://www.amazon.jobs/en/jobs/10517550/forward-deployed-engineer-aws-forward-deployed-engineering-us-government)
+
+> **I do not think AWS misunderstands FDE. Its public description is remarkably precise. My question is whether an organization as large as AWS can execute that description.**
+
+The critique is about execution architecture, not theory.
+
+Other hyperscaler ecosystems are expanding adjacent co-build motions. In September 2026, Google Cloud and Accenture announced a Gemini Enterprise group involving 1,000 Accenture FDEs and specialized Google Cloud engineering. This does not mean Google’s existing Customer Engineers or TAMs should be relabeled FDEs. [Google Cloud announcement](https://www.googlecloudpresscorner.com/2026-09-08-Accenture-and-Google-Cloud-Deepen-Partnership-with-Formation-of-New-Accenture-Gemini-Enterprise-Business-Group) Microsoft’s AI Co-Innovation Labs provide hands-on prototyping and implementation support, but the public material does not justify calling the program the same organizational model as AWS FDE. [Microsoft AI Co-Innovation Labs](https://www.microsoft.com/en-us/ailab)
+
+## Why the loop may slow inside a hyperscaler
+
+At least five boundaries matter.
+
+1. **Incentive alignment.** Sales, account management, SA, Professional Services, support, and product engineering may optimize different outcomes. If customer outcome conflicts with cloud consumption, which one wins?
+2. **Product ownership distance.** Does an FDE who discovers a limitation influence the roadmap, enter a feature-request queue, or write a workaround?
+3. **Global product constraints.** SLAs, security, backward compatibility, regulation, and existing customers make immediate product changes difficult. These are rational consequences of scale.
+4. **Organizational boundaries.** Where does FDE sit? Who owns its budget, priorities, and definition of success?
+5. **Revenue model.** Is the north star the customer outcome or infrastructure consumption, and what happens when they diverge?
+
+Public documents cannot answer these questions from outside AWS. They are evaluation criteria, not claims about the company’s internal reality.
+
+## The most dangerous failure mode: the Workaround Factory
+
+<FdeLoopDiagrams variant="workaround" language="en" />
+
+In the ideal path, a product gap becomes a core-product change and a reusable primitive. If the core cannot change, the field team can still solve the immediate problem with custom integration and customer-specific code. The customer may get value, but marginal deployment cost does not fall and maintenance accumulates.
+
+> **Give FDEs responsibility for customer problems without influence over the product, and the organization risks becoming a very expensive workaround factory.**
+
+Such a team can converge on a middle state: more implementation-heavy than SA and more product-minded than traditional Professional Services. It may still be a good business and produce strong outcomes. But instead of `Productization → Software Leverage`, the economics retain `Workaround → Services Labor`.
+
+## Scale is also an overwhelming advantage
+
+Hyperscalers may observe more enterprise problems than any startup. A larger customer base produces far more signals, while compute, models, security, distribution, and trust sit nearby. This is a learning advantage that startups cannot easily reproduce.
+
+Scale can also add boundaries, handoffs, product distance, and escalation latency.
+
+<FdeLoopDiagrams variant="scale" language="en" />
+
+The question is not whether big companies fail by definition.
+
+> **Can the learning advantage outrun the organizational latency?**
+
+As a conceptual heuristic rather than an empirical equation:
+
+$$
+FDE\ Flywheel\ Strength
+\approx
+\frac{Problem\ Discovery \times Productization \times Reuse}
+{Customer\text{-}to\text{-}Product\ Latency}
+$$
+
+The point is not to assign fake scores. It is to inspect the loop rather than count field engineers.
+
+## Then how has Palantir done this for more than two decades?
+
+Palantir is the counterexample that prevents the thesis from collapsing into “large organization, bad FDE.” It is no longer a small company. Its 2025 Form 10-K reported **$4.475 billion** in revenue, **954 customers**, **4,429** full-time employees, and an **82% GAAP gross margin**. Q2 2026 revenue was $1.935 billion and gross profit was $1.639 billion, implying an approximately **84.7% GAAP gross margin** for the quarter by simple calculation. [2025 Form 10-K](https://www.sec.gov/Archives/edgar/data/1321655/000132165526000011/pltr-20251231.htm), [Q2 2026 earnings release](https://www.sec.gov/Archives/edgar/data/1321655/000132165526000039/a2026q2ex991pressrelease.htm)
+
+Palantir is therefore meaningful evidence that an FDE-heavy model can coexist with software-like gross margin and revenue scale. It is not an apples-to-apples comparable for a private startup. Maturity, accounting, and product mix differ. Palantir sells cloud and on-premises subscriptions with O&M plus professional services, without disclosing those categories as a simple revenue mix. Government accounted for 54% of 2025 revenue, and deployment complexity, long sales cycles, and dependence on skilled personnel remain relevant.
+
+Still, Palantir breaks the simplest version of the thesis. The more useful distinction may be historical organizational DNA.
+
+<FdeLoopDiagrams variant="models" language="en" />
+
+A hyperscaler generally begins with products and a vast go-to-market system, then adds FDE. An AI-native startup begins with FDE and tries to productize. Palantir began with problems that were difficult to productize without learning the customer’s operational reality.
+
+> **Adding FDE to an existing organization is different from letting product and organization evolve around the field-to-product loop.**
+
+## At Palantir, FDE may have been a product requirement
+
+An extreme simplification of Palantir’s work is connecting fragmented data to other data, and then connecting it to real-world objects and operations. Calling this mere data integration, however, misses the operational layer.
+
+Palantir’s documentation describes the Ontology as a representation of real-world objects, properties, and links, bound to logic and actions. In a supply chain, Supplier ↔ Component ↔ Factory ↔ Inventory ↔ Order becomes more than a set of tables. It carries relationships, permissions, business logic, and writeback actions. [Ontology concepts](https://www.palantir.com/docs/foundry/getting-started/introductory-concepts), [Why Ontology](https://www.palantir.com/docs/foundry/ontology/why-ontology)
+
+Aircraft, crews, and maintenance at an airline differ from patients, beds, and procedures at a hospital or suppliers, parts, and factories at a manufacturer. A schema alone does not explain who makes decisions, which relationships matter, or what action follows when a number changes. Someone has to enter the workflow and learn what the data means in practice.
+
+> **At Palantir, FDE may have been a product requirement before it was a distribution strategy.**
+
+The 10-K says Palantir embeds with customers on complex problems while continuously improving platform capability. Its architecture documentation explicitly calls FDE a product-development paradigm connecting critical environments to platform evolution. This is the company’s account of its own system, but it supports the claim that FDE is more than a late-added sales role. [Palantir architecture](https://www.palantir.com/docs/foundry/architecture-center/platforms)
+
+## What remained after each turn of the loop?
+
+It would be too strong to claim that every Palantir product directly emerged from field learning. Public materials do show repeated links between deployments and reusable capabilities: Foundry’s data operations and Ontology, Apollo’s continuous delivery across environments, and AIP’s LLM, agent, evaluation, and governance layers. The 10-K identifies Gotham, Foundry, Apollo, and AIP as four principal platforms.
+
+This suggests **Accumulated Learning**.
+
+<FdeLoopDiagrams variant="accumulation" language="en" />
+
+It is not an industry metric. It asks whether one loop leaves a primitive, repeated deployments leave patterns and governance, and those assets eventually become platform capability and trust.
+
+> **After the loop runs 1,000 times, what remains?**
+
+What remained at Palantir? What is accumulating at Wonderful? What will remain inside AWS? Identical FDE headcount can produce different economics if the answers differ.
+
+## LLMs may amplify the model rather than create it
+
+LLMs did not create Palantir’s business model. The company was founded in 2003 and spent years connecting data, operations, logic, and action. AIP adds secure connectivity to third-party LLMs, agent and automation tooling, applications, evaluations, and governance. AIP Logic lets models read permitted Ontology objects, invoke functions, and propose or apply actions within controls. [AIP Logic](https://www.palantir.com/docs/foundry/logic)
+
+In 2026 Palantir also released an `AI FDE` that assists with data integration, Ontology development, and function creation through natural-language commands. The direction is not simply removing field engineers; it is compressing more of their work into the platform and AI. [AI FDE overview](https://www.palantir.com/docs/foundry/ai-fde/overview)
+
+<FdeLoopDiagrams variant="ai-leverage" language="en" />
+
+> **AI may not have made FDE unnecessary at Palantir. It may have increased the output one FDE can produce.**
+
+That is an interpretation, not a disclosed causal result. Public information does not reveal the size of any productivity gain or the remaining dependence on human deployment labor.
+
+## Why Palantir should not be romanticized
+
+FDE alone cannot explain Palantir’s scale. Long government relationships, security credentials, switching costs, Ontology, Apollo, enterprise sales, deployment infrastructure, brand, and two decades of trust may all matter.
+
+The 2025 cost of revenue included field-service representatives and subcontractors. Professional services include UI configuration, training, and continuing Ontology and data-modeling support. A high gross margin does not mean every deployment is low touch. The 10-K also warns that larger and more complex deployments can strain organizational resources.
+
+The result may be better represented as a composite hypothesis:
+
+$$
+FDE \times Ontology \times Trust \times Time
+$$
+
+This is not a valuation formula. It is a bridge to a separate question: Is Palantir’s moat FDE, Ontology, trust, or path dependency created as all three compounded over 20 years?
+
+## Three models, three risks
+
+| Model | Starting point | Strength | Central risk |
+|---|---|---|---|
+| Hyperscaler | Product-first → FDE added later | Customers, distribution, compute, models, security | FDE trapped between existing functions; long product distance |
+| AI-native FDE startup | FDE-first → productization | Short customer-product distance; fast iteration | Customization overload, services economics, slower loops at scale |
+| Palantir | FDE-native → accumulated platform → AI acceleration | Field learning, Ontology, deployment infrastructure, trust | High-touch complexity, long sales cycles, path dependence |
+
+Startups do not win automatically. Turning every customer request into a feature destroys coherence. Security and governance may be immature, while key-person risk and support burden can grow quickly. Hyperscalers, meanwhile, can connect existing SA and Professional Services knowledge, distribution, and enterprise trust to the loop and potentially learn faster than anyone.
+
+This reframes the possible moat of a company such as Wonderful. The moat may not be “better FDEs.” It may be the **organizational architecture that lets FDE work properly**. AWS can hire one hundred FDEs. Reproducing the alignment among product ownership, sales incentives, roadmaps, escalation, support, engineering priorities, and customer feedback is harder.
+
+> **You can hire FDEs. Replicating the feedback loop is harder.**
+
+## What would prove my AWS hypothesis wrong?
+
+I am not predicting that AWS will fail. Its public design is specific enough that the thesis should be falsifiable. I would want to see evidence such as the following.
+
+<FdeLoopDiagrams variant="evidence" language="en" />
+
+- Concrete field-discovered gaps entering core AWS services or roadmaps
+- Components reused across multiple customer engagements
+- Less time and labor required for similar deployments
+- Success measured by customer outcomes and self-sufficiency, not consumption alone
+- Productized primitives accumulating faster than bespoke workarounds
+
+Most of these are likely internal metrics. A lack of public disclosure is not failure. But headcount alone is not proof that the loop works either.
+
+## From hiring plans to accumulated assets
+
+The opening question was how many FDEs AWS might hire. The better questions are now:
+
+1. Can those FDEs discover the customer’s real problem?
+2. Does their learning end in a workaround or return as a reusable product?
+3. After the loop runs 1,000 times, what remains inside the company?
+
+Palantir’s two decades are interesting not merely because it has practiced FDE for a long time, but because data integration, Ontology, deployment infrastructure, governance, trust, and platform capability may have accumulated along the way. That does not mean AWS or a startup can copy the same path.
+
+> **The unit of FDE is the loop, not the engineer. And a good loop leaves something behind every time it turns.**
+
+Whether a hyperscaler can reproduce FDE may depend less on how many engineers it sends to customers than on how quickly their discoveries return to the product—and how long the resulting learning can compound into assets for the next customer.
