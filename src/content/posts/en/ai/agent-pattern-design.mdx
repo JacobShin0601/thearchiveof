@@ -1,0 +1,417 @@
+---
+title: "Agent Pattern Design: From Tool Use to Planning, Parallelism, HITL, and Reflection"
+subtitle: "Compose bounded control flows instead of building one giant autonomous loop"
+description: "A plain-Python guide to tool use, parallel orchestration, planning, HITL, retry, and reflection—and to the boundary between LLM judgment and deterministic code."
+publishedDate: 2026-10-03
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+  - langgraph
+  - evaluation
+primaryTopic: ai-agents
+tags:
+  - agent-patterns
+  - tool-use
+  - orchestration
+  - human-in-the-loop
+  - reflection
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: false
+language: "en"
+translationKey: "agent-pattern-design"
+series: "Agent Engineering"
+seriesOrder: 1
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: evergreen
+lastReviewed: 2026-10-03
+nextReviewDate: 2027-10-03
+references:
+  - title: "Coroutines and Tasks"
+    url: "https://docs.python.org/3/library/asyncio-task.html"
+    publisher: "Python Documentation"
+  - title: "LangGraph overview"
+    url: "https://docs.langchain.com/oss/python/langgraph/overview"
+    publisher: "LangChain"
+  - title: "LangGraph workflows and agents"
+    url: "https://docs.langchain.com/oss/python/langgraph/workflows-agents"
+    publisher: "LangChain"
+  - title: "LangGraph interrupts"
+    url: "https://docs.langchain.com/oss/python/langgraph/interrupts"
+    publisher: "LangChain"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="How should we design an agent?">
+  An agent is not one giant autonomous loop. It is <strong>an execution system composed from bounded control-flow patterns</strong>: tool use, parallel work, planning, approval, retry, and quality improvement. An LLM may propose or judge an action, but deterministic code must own the rules that guarantee permission, validation, termination, and bounded recovery.
+</AnswerBlock>
+
+Put tools next to an LLM and the first diagram looks almost complete.
+
+```text
+User → Model → Tool → Observation → Model → Final answer
+```
+
+The model reads a request, calls search once, sees the result, and answers. That is enough for a demo to feel agentic.
+
+Production immediately turns the empty space around the diagram into design work. When does it stop? Which independent research and data tasks run in parallel? Who approves an external email or ticket? Should a failure retry, or take a different path? If a draft is weak, how many revisions are acceptable?
+
+The position of this article is straightforward: **“keep thinking” is not an architecture.** Each execution path needs state, allowed actions, a stop condition, and failure behavior. Before this series moves to async, workers, state, and streaming, these six patterns provide the shared vocabulary.
+
+## The map first: six patterns
+
+| Pattern | Problem it solves | What the runtime enforces |
+| --- | --- | --- |
+| Tool Use / bounded tool-calling loop | How do we connect the next action and its observation? | tool list, input shape, step budget |
+| Orchestrator / Parallel | Which specialist should run, and what can run together? | routing, concurrency limit, result merge |
+| Planner / Executor | How do we execute a multi-step request with dependencies? | DAG validation, ready-step selection |
+| Human in the Loop | How do we place a human before a side effect? | exact-call approval gate, audit |
+| Retry / Fallback | Which failures deserve another attempt, and when should we degrade? | error classification, attempt/backoff bound |
+| Evaluator / Refiner | How do we improve quality without an endless loop? | evaluator validation, refinement budget |
+
+```text
+                 Agent request
+                      │
+      ┌───────────────┼────────────────┐
+      ▼               ▼                ▼
+ Tool Use       Orchestrator      Planner / Executor
+      │               │                │
+      └───────────────┼────────────────┘
+                      ▼
+          Retry / Fallback · Evaluator / Refiner
+                      │
+                      ▼
+          HITL before side-effecting tools
+```
+
+These boxes are not product features. They are control flows that recur across implementations. Nor does every request need all six. A small, read-only search answer may need only a bounded tool loop. Add patterns explicitly when the work needs them; do not begin by multiplying agents.
+
+## Pattern 1 — Tool Use: a tool-calling loop with an end
+
+The smallest agent runtime can assume that a model policy returns the next action. That action is either a tool call or a final answer. The important part is not the model call; it is the boundary of the state machine.
+
+```python
+from dataclasses import dataclass, field
+from typing import Any, Callable
+
+Tool = Callable[..., Any]
+
+@dataclass
+class AgentState:
+    query: str
+    history: list[dict[str, Any]] = field(default_factory=list)
+
+def run_agent(query: str, policy, tools: dict[str, Tool], max_steps: int = 8) -> str:
+    state = AgentState(query=query)
+
+    for _ in range(max_steps):
+        action = policy(state)
+        if action.get("type") == "final":
+            return action["answer"]
+        if action.get("type") != "tool":
+            raise ValueError("unknown action type")
+
+        name, args = action.get("name"), action.get("args")
+        if name not in tools:
+            raise ValueError(f"unknown tool: {name!r}")
+        if not isinstance(args, dict):
+            raise TypeError("tool args must be a dict")
+
+        observation = tools[name](**args)
+        state.history.append({"action": action, "observation": observation})
+
+    raise RuntimeError("agent exceeded max_steps without a final answer")
+```
+
+The explicit state, tool registry, argument validation, observation history, final answer, and `max_steps` are all intentional. A model can propose search, but it cannot call a tool outside the registry. Observations remain available to the next policy decision. And the runtime does not follow a policy that keeps choosing tools forever.
+
+A registry is not authorization, but it is a first allowlist. A service must still check user permissions and tenant policy at the trusted execution boundary.
+
+```python
+READ_ONLY_TOOLS = {"search", "get_customer"}
+
+def execute_tool(name: str, args: dict, tools: dict, user_permissions: set[str]):
+    if name not in tools:
+        raise ValueError(f"unknown tool: {name}")
+    if name not in user_permissions:
+        raise PermissionError(f"not allowed to invoke {name}")
+    if not isinstance(args, dict):
+        raise TypeError("arguments must be an object")
+    return tools[name](**args)
+```
+
+`max_steps` is not every budget. Later we need independent limits for deadline, tokens, and cost. But the first question remains: *Can the code explain why this loop terminates?*
+
+## Pattern 2 — Orchestrator / Parallel: establish independence before adding roles
+
+Take a request such as, “Analyze NVIDIA’s recent earnings and valuation.” Research that reads filings and news, data work that queries structured figures, and actions that change an external system may have different responsibilities inside one runtime.
+
+```text
+Request
+   │
+   ▼
+Router ──┬── Research specialist ─┐
+         ├── Data specialist ─────┼──► Synthesis
+         └── Action specialist ───┘      (approval if needed)
+```
+
+Research and data are parallel candidates when neither needs the other’s output. Python’s `asyncio.gather` runs awaitables concurrently and returns results in input order. A failure policy such as `return_exceptions=True` needs to be explicit when individual results may still be useful. The [official asyncio documentation](https://docs.python.org/3/library/asyncio-task.html) distinguishes these concurrency and exception semantics.
+
+```python
+import asyncio
+
+async def run_specialists(query: str) -> dict[str, object]:
+    names = ["research", "data"]
+    calls = [research_agent(query), data_agent(query)]
+    outcomes = await asyncio.gather(*calls, return_exceptions=True)
+
+    results, failures = {}, {}
+    for name, outcome in zip(names, outcomes):
+        if isinstance(outcome, Exception):
+            failures[name] = str(outcome)
+        else:
+            results[name] = outcome
+    return {"results": results, "failures": failures}
+```
+
+Separating agents is meaningful when there is real specialization, different tool or data permissions, distinct latency profiles, independent work, or a reason to isolate failures. It is not meaningful merely because “multi-agent” sounds more capable.
+
+Routing can also be deterministic. Keywords, request type, permission, and data-freshness rules are often cheaper and easier to test than a model call.
+
+```python
+def route(request: str) -> list[str]:
+    text = request.lower()
+    selected = []
+    if any(word in text for word in ("revenue", "margin", "valuation")):
+        selected.append("data")
+    if any(word in text for word in ("news", "why", "recent")):
+        selected.append("research")
+    return selected or ["research"]
+```
+
+An LLM can suggest routing candidates. Still, **more agents is not a law of intelligence.** Every unnecessary role adds another boundary for context, retry policy, permissions, traces, and cost.
+
+## Pattern 3 — Planner / Executor: generate the plan; validate the graph
+
+A plan can make a complex request legible. A valuation report may need `research → valuation → report` and `research → peer analysis → report`.
+
+```text
+research ──► valuation ──┐
+    └─────► peer analysis ├──► write report
+                           ┘
+```
+
+An LLM may create a plan. Asking the LLM whether its plan is valid, however, is not validation. Duplicate steps, missing dependencies, self-dependencies, and cycles should be rejected by code before any work begins.
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class PlanStep:
+    id: str
+    instruction: str
+    depends_on: tuple[str, ...] = ()
+
+def ready_steps(plan: list[PlanStep], completed: set[str], terminal: set[str]):
+    return [
+        step for step in plan
+        if step.id not in terminal
+        and all(dep in completed for dep in step.depends_on)
+    ]
+```
+
+A ready set contains work that has not run and whose dependencies completed successfully. That lets an executor receive only completed dependency results. A downstream step blocked by a failed branch is more accurately recorded as `skipped`, not `failed`. Several ready steps can run in parallel, while plan order and the result-merge rule remain deterministic.
+
+Here is the small core of validation.
+
+```python
+def validate_plan(plan: list[PlanStep]) -> None:
+    ids = [step.id for step in plan]
+    if len(ids) != len(set(ids)):
+        raise ValueError("duplicate step id")
+    known = set(ids)
+    for step in plan:
+        if step.id in step.depends_on:
+            raise ValueError("self dependency")
+        if not set(step.depends_on) <= known:
+            raise ValueError("missing dependency")
+    # Production code must also run a cycle check before execution.
+```
+
+Not every problem needs a planner. A stable, lightly branching process—invoice approval, ETL, a fixed onboarding workflow—often works better as a fixed workflow. It avoids adding plan-generation cost, error modes, and validation responsibility for no gain.
+
+## Pattern 4 — Human in the Loop: not a prompt, an execution gate
+
+Human in the Loop does not mean adding “ask the user if necessary” to a prompt. Read-only tools may run automatically, but an external email, ticket, or financial action must pass a deterministic gate immediately before the tool executes.
+
+```python
+from dataclasses import dataclass
+from typing import Any
+
+@dataclass(frozen=True)
+class ToolSpec:
+    handler: Any
+    side_effecting: bool = False
+
+async def execute_action(action, tools: dict[str, ToolSpec], request_approval):
+    name, args = action["name"], action["args"]
+    spec = tools[name]
+
+    if spec.side_effecting:
+        try:
+            approved = await request_approval(tool_name=name, args=args)
+        except Exception:
+            approved = False  # approval service failure is denial
+        if not approved:
+            return {"status": "rejected", "tool": name}
+
+    return {"status": "executed", "result": await spec.handler(**args)}
+```
+
+Fail closed is a safety property, not a convenience. If an approval callback fails and the action still runs, approval was never a real boundary. An audit record should capture the exact tool name and arguments, user request, approval reason, decision, and time.
+
+Authorization and approval also answer different questions.
+
+| Control | Question |
+| --- | --- |
+| Authorization | Is this user allowed to perform this tool/action? |
+| Approval | The user may be allowed—but should **this exact action** run now? |
+
+Approval cannot be reused if arguments change afterward. In production, bind a canonicalized tool-and-arguments hash to the approval record and compare it again at execution. That leads directly to sessions, durable pause/resume, and idempotency in later articles.
+
+## Pattern 5 — Retry / Fallback: classify failure before recovering
+
+Retry does not mean “try one more time after any error.” A timeout, transient network failure, or some rate limits may be retryable. Invalid arguments, permission denial, and schema violations usually should fail immediately. Retrying the latter wastes time and money while obscuring a bad request.
+
+```python
+import asyncio
+
+RETRYABLE = (TimeoutError, ConnectionError)
+
+async def call_with_retry(primary, fallback, max_attempts: int = 3):
+    errors = []
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return {"source": "primary", "value": await primary(), "errors": errors}
+        except RETRYABLE as exc:
+            errors.append({"attempt": attempt, "type": type(exc).__name__})
+            if attempt < max_attempts:
+                await asyncio.sleep(2 ** (attempt - 1))
+        except Exception:
+            raise  # invalid input, permission, schema: do not fallback
+
+    return {"source": "fallback", "value": await fallback(), "errors": errors}
+```
+
+`max_attempts` includes the first call. Waiting must be bounded too. A real policy also considers jitter, server-provided `Retry-After`, an overall deadline, and cost. A fallback is not a device for hiding every error: if the primary rejected invalid input, a backup should not receive the same invalid input.
+
+Side effects make retry harder. A client-side timeout does not prove that the remote action failed; a ticket may have been created before the response was lost. Retrying without the same idempotency key can duplicate the action. This exactly-once illusion returns in the reliability section of the series.
+
+## Pattern 6 — Evaluator / Refiner: reflection has a ceiling too
+
+Reflection usually follows this shape.
+
+```text
+Generate draft → Evaluate against rubric → Pass?
+                    │                  │
+                    └── feedback ──────┘ no → Refine → evaluate again
+```
+
+An evaluator gives feedback and a refiner revises the draft. The evaluator is not ground truth. A judge from the same model family may share the same blind spots. Rubric calibration, human-labeled held-out sets, and offline evaluation are necessary before treating a score as quality itself.
+
+```python
+from dataclasses import asdict, dataclass
+
+@dataclass(frozen=True)
+class Evaluation:
+    passed: bool
+    score: float
+    feedback: list[str]
+
+def refine_until_done(request, generate, evaluate, refine, max_refinements: int = 2):
+    draft, history = generate(request), []
+    for refinement in range(max_refinements + 1):
+        verdict = evaluate(request, draft)
+        if not isinstance(verdict, Evaluation) or not 0.0 <= verdict.score <= 1.0:
+            raise ValueError("invalid evaluator output")
+        if not all(isinstance(item, str) for item in verdict.feedback):
+            raise ValueError("feedback must be strings")
+        history.append(asdict(verdict))
+        if verdict.passed:
+            return {"answer": draft, "stop_reason": "passed", "evaluations": history}
+        if refinement == max_refinements:
+            return {"answer": draft, "stop_reason": "max_refinements", "evaluations": history}
+        draft = refine(request, draft, verdict)
+```
+
+`max_refinements` counts revisions, not evaluations. If two revisions are allowed, the initial draft and two revised drafts can each be evaluated. The final allowed draft must still be evaluated. This rule, along with `stop_reason`, makes the quality/latency/cost trade-off measurable later.
+
+## In production, these patterns compose
+
+One request often combines them.
+
+```text
+User request
+    ↓
+Planner → validated dependency graph
+    ↓
+Orchestrator → Research ─┐
+               Data ─────┼─ parallel
+                           ↓
+                    Evaluator → Refiner (bounded)
+                           ↓
+                    Proposed action
+                           ↓
+                 HITL approval gate
+                           ↓
+                 Side-effecting tool
+```
+
+At this point, **the backend problem begins.** Under what concurrency limit should independent work run? Should an HTTP request own a run that lasts thirty seconds? Where does progress live? What reaches the browser over SSE? What happens when a worker dies while an approval is pending? Which run owns state when two runs exist in one session?
+
+Those questions are the starting line for Agent Engineering. Patterns say what control flow is needed; the backend is how that flow is actually owned across users and failures.
+
+## The responsibility boundary: LLM judgment and deterministic code
+
+An LLM is a useful policy component. It can propose tools or plans, interpret observations, and critique a draft. That does not mean the system should delegate its safety properties to the model.
+
+| Decision | What an LLM may do | What code must enforce |
+| --- | --- | --- |
+| Tool choice | propose candidates | allowed registry and user permission |
+| Tool arguments | generate structured arguments | schema validation; size/range limits |
+| Plan creation | propose steps and dependencies | duplicate/missing/self-dependency/cycle validation |
+| Parallel candidates | suggest independent work | concurrency limit; cancellation/merge policy |
+| HITL need | explain a risk signal | final approval gate before a side effect |
+| Retry | offer context and alternatives | error classification, max attempts, backoff |
+| Reflection | produce feedback | evaluator schema and loop budget |
+| Permissions | explain a request | authorization enforcement |
+| Termination | propose a final answer | hard step/time/cost bound |
+
+**An LLM can be part of policy; it should not be the runtime that guarantees safety and boundedness.** This is not an argument that models are bad. The model chooses a next action probabilistically; the runtime checks whether that action is inside the system contract. The separation makes each failure observable and changeable.
+
+## Map to LangGraph after understanding plain Python
+
+This is not a LangGraph tutorial. Plain Python comes first because it exposes the structure before an API. The mapping afterward is natural.
+
+| Plain-Python pattern | Corresponding LangGraph concept |
+| --- | --- |
+| Tool loop | graph loop and conditional edge |
+| Orchestrator | parallel branches and fan-out/fan-in |
+| Planner / Executor | dynamic task graph or stateful workflow |
+| HITL | interrupt, checkpoint, resume |
+| Retry / Fallback | retry policy and conditional routing |
+| Evaluator / Refiner | a budgeted cycle |
+
+The current LangGraph documentation describes it as an orchestration runtime that can mix deterministic and LLM-driven steps, with durable execution, streaming, and human-in-the-loop capabilities. Its [overview](https://docs.langchain.com/oss/python/langgraph/overview) and [interrupt documentation](https://docs.langchain.com/oss/python/langgraph/interrupts) explain concrete requirements such as a persistent checkpointer and resuming with the same thread ID. Those can be good reasons to choose the framework. Its APIs, however, do not design the patterns for us.
+
+## Next: what do these patterns do while they wait?
+
+We now know how to compose an agent from patterns. The next problem is what the backend does while those patterns wait on an LLM, database, or search API.
+
+The next article, **Why Agent Systems Need Async**, introduces blocking and non-blocking work, coroutines, the event loop, `await`, and why parallel ready work becomes foundational vocabulary for an agent backend.
