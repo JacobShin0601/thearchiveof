@@ -1,4 +1,5 @@
 export const ARTICLE_KEYS = [
+  "agent-pattern-design",
   "ax-is-transformation",
   "ax-should-start-narrow",
   "bayesian-statistics-dog-walk",
