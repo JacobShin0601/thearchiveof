@@ -1,0 +1,74 @@
+---
+interface Props { variant: 'sizing' | 'vendors' | 'stack' | 'convergence' | 'moats' | 'workflows' | 'layers' | 'timeline'; language: 'ko' | 'en' }
+const { variant, language } = Astro.props;
+const ko = language === 'ko';
+const titles = {
+  sizing: ko ? '금융 AI 시장: 같은 TAM이 아닌 네 숫자' : 'Financial AI: four numbers, four definitions',
+  vendors: ko ? '관측 가능한 금융 데이터·업무 매출' : 'Observable financial data and workflow revenue',
+  stack: ko ? '금융 인텔리전스의 가치 스택' : 'The financial intelligence value stack',
+  convergence: ko ? '서로 다른 방향에서 만나는 두 회사' : 'Two companies meet from different directions',
+  moats: ko ? '금융 AI의 세 가지 해자' : 'Three moats in financial AI',
+  workflows: ko ? '금융은 하나의 업무가 아니다' : 'Finance is not one workflow',
+  layers: ko ? '인터페이스는 집중되고, 아래층은 다양할 수 있다' : 'One interface can sit above many layers',
+  timeline: ko ? 'AlphaSense 제품 확장의 확인된 이정표' : 'Verified AlphaSense product milestones',
+};
+const captions = {
+  sizing: ko ? '자료: McKinsey 2026·2023, LSEG·S&P Global·FactSet·Morningstar 2025 공시. SAM은 본문 가정. 범위가 다른 층을 더하지 않는다. 자료 기준 2026-10-03.' : 'Sources: McKinsey 2026/2023; LSEG, S&P Global, FactSet and Morningstar 2025 filings. SAM uses the assumptions below. These layers are not additive. Cutoff 2026-10-03.',
+  vendors: ko ? '사실 기반. 각 회사 공시상 부문 정의는 다르며 재판매·라이선스 중복 가능성이 있다. LSEG는 recoveries 제외. 환율 환산·총합은 제시하지 않았다. 자료 기준 2026-10-03.' : 'Factual. Segment boundaries differ and reseller/licensing overlap is possible. LSEG excludes recoveries. No FX conversion or definitive market total. Cutoff 2026-10-03.',
+  timeline: ko ? '사실 기반. 회사의 공식 발표 시점이며 모든 기능의 일반 이용 가능 시점을 뜻하지 않는다. 자료 기준 2026-10-03.' : 'Factual company announcement dates; not necessarily general availability dates. Cutoff 2026-10-03.',
+  layers: ko ? '개념도. 인터페이스의 집중은 데이터 출처의 집중을 뜻하지 않는다. 출처: 필자의 종합. 자료 기준 2026-10-03.' : 'Conceptual. Interface consolidation does not imply data-source consolidation. Source: author synthesis. Cutoff 2026-10-03.',
+};
+const conceptualCaption = ko ? '개념도. 출처: 회사 공식 제품 자료를 바탕으로 필자가 재구성. 시장점유율·배타성을 뜻하지 않는다. 자료 기준 2026-10-03.' : 'Conceptual. Source: author synthesis of company product materials; not market share or exclusivity. Cutoff 2026-10-03.';
+const vendors = [
+  { name: 'S&P Global Market Intelligence', value: '$4.916B', width: 100, source: 'S&P Global 2025 10-K' },
+  { name: 'FactSet', value: '$2.322B', width: 47, source: 'FactSet FY2025 10-K' },
+  { name: 'Morningstar Direct Platform', value: '$0.831B', width: 17, source: 'Morningstar 2025 10-K' },
+  { name: 'PitchBook', value: '$0.672B', width: 14, source: 'Morningstar 2025 10-K' },
+];
+const workflows = ko ? [
+  ['IB','피치·딜 실행','딜·거래 데이터','PPT·모델','일~주','고객자료·승인','초안·비교 분석'],
+  ['PE','소싱·실사','비상장사·VDR','IC 메모','일~주','기밀·권한','실사 문서 종합'],
+  ['Public/HF','아이디어·모니터링','리서치·전문가','투자 메모','분~일','출처·MNPI','새 정보 감지'],
+  ['Credit','언더라이팅','계약·차주 데이터','신용 메모','시간~주','감사 추적','약정·위험 추출'],
+  ['Wealth','자문·포트폴리오','고객정보·상품','고객 제안','시간~일','적합성·개인정보','개인화 제안'],
+  ['Corp. strategy','시장·M&A 분석','경쟁사·내부 자료','전략 보고','일~월','내부 정보','시장 지도 작성'],
+] : [
+  ['IB','Pitch/deal','Deal and market data','Deck/model','Days–weeks','Client approvals','Drafting/comps'],
+  ['PE','Sourcing/diligence','Private co./VDR','IC memo','Days–weeks','Confidentiality','Diligence synthesis'],
+  ['Public/HF','Ideas/monitoring','Research/experts','Investment memo','Minutes–days','Sources/MNPI','Signal detection'],
+  ['Credit','Underwriting','Contracts/borrower','Credit memo','Hours–weeks','Audit trail','Covenant extraction'],
+  ['Wealth','Advice/portfolio','Client/product data','Client proposal','Hours–days','Suitability/privacy','Tailored advice'],
+  ['Corp. strategy','Market/M&A','Competitors/internal','Strategy report','Days–months','Internal data','Market mapping'],
+];
+---
+<figure class="finance-figure" aria-labelledby={`finance-${variant}-${language}`}>
+  <h3 id={`finance-${variant}-${language}`}>{titles[variant]}</h3>
+  {variant === 'sizing' && <div class="sizing">
+    <div><small>01 · Economic pool</small><strong>$7.3T</strong><span>{ko ? '2025 글로벌 은행업 수익 · AI 소프트웨어 TAM 아님' : '2025 global banking revenue · not AI software TAM'}</span></div>
+    <div><small>02 · Value potential</small><strong>$200–340B / yr</strong><span>{ko ? '은행업 GenAI의 연간 잠재 가치 · 생산성 등' : 'Annual banking GenAI value potential · largely productivity'}</span></div>
+    <div><small>03 · Vendor revenue proxies</small><strong>$8.74B + £3.978B</strong><span>{ko ? '선택한 공개업체 2025 매출 바스켓 · 총시장 아님' : 'Selected public-vendor 2025 revenue basket · not total market'}</span></div>
+    <div><small>04 · Illustrative SAM</small><strong>$1.23–12.74B / yr</strong><span>{ko ? '지식노동 AI의 좌석×지출 가정 · 기준 $4.44B' : 'Knowledge-work AI seat × spend scenario · base $4.44B'}</span></div>
+  </div>}
+  {variant === 'vendors' && <div class="vendors">
+    <p class="group">USD · 2025</p>
+    {vendors.map(v => <div class="vendor"><span>{v.name}</span><div class="bar-track"><i style={`width:${v.width}%`}></i></div><b>{v.value}</b></div>)}
+    <p class="group">GBP · 2025 · {ko ? '별도 눈금' : 'separate scale'}</p><div class="vendor"><span>LSEG Data & Analytics</span><div class="bar-track"><i style="width:100%"></i></div><b>£3.978B</b></div>
+  </div>}
+  {variant === 'stack' && <div class="stack">
+    {(ko ? ['최종 사용 화면 · Excel / PPT / Word','Workflow / Agents','Reasoning / Intelligence','Retrieval / Search','Proprietary Data & Content'] : ['End-user surface · Excel / PPT / Word','Workflow / Agents','Reasoning / Intelligence','Retrieval / Search','Proprietary Data & Content']).map((x,i)=><div><span>{x}</span>{i===1&&<em>{ko?'경쟁 영역':'overlap'}</em>}</div>)}
+    <p>↑ AlphaSense · {ko?'콘텐츠에서 업무로':'content to workflow'} &nbsp; | &nbsp; ↓ Rogo · {ko?'업무에서 데이터 연결로':'workflow to data integration'}</p>
+  </div>}
+  {variant === 'convergence' && <div class="convergence"><div><b>AlphaSense ↑</b><span>{ko?'Expert interviews · Broker research · Documents':'Expert interviews · Broker research · Documents'}</span><span>Search</span><span>GenAI</span><span>Agents / Work Products</span></div><strong>{ko?'경쟁·협력의 접점':'Overlap'}</strong><div><b>Rogo ↓</b><span>Financial workflow</span><span>Felix / Agents</span><span>Integrations</span><span>External & internal data</span></div></div>}
+  {variant === 'moats' && <div class="moats"><div><b>Data Moat</b><p>{ko?'독점·희소 콘텐츠, 라이선스, 역사적 축적, 출처':'Scarce content, rights, history, provenance'}</p><small>AlphaSense {ko?'출발점':'starting point'}</small></div><div><b>Workflow Moat</b><p>{ko?'모델·딜·리서치 과정과 산출물':'Models, deals, research, deliverables'}</p><small>Rogo {ko?'출발점':'starting point'}</small></div><div><b>Distribution & Trust Moat</b><p>{ko?'보안, 준법, 설치 좌석, 조달 관계':'Security, compliance, seats, procurement'}</p><small>{ko?'두 회사 모두 축적 중':'Both are building it'}</small></div></div>}
+  {variant === 'workflows' && <div class="table-wrap" role="region" tabindex="0" aria-label={titles.workflows}><table><thead><tr>{(ko?['분야','주요 과업','희소 데이터','산출물','속도','통제','AI 기회']:['Vertical','Task','Scarce data','Output','Latency','Control','AI opportunity']).map(h=><th scope="col">{h}</th>)}</tr></thead><tbody>{workflows.map(row=><tr>{row.map((x,i)=>i===0?<th scope="row">{x}</th>:<td>{x}</td>)}</tr>)}</tbody></table></div>}
+  {variant === 'layers' && <div class="layers"><div>{ko?'금융 전문가':'Financial professional'}</div><span>↓</span><div class="accent">{ko?'하나 또는 소수의 AI 업무 화면':'One or a few AI work interfaces'}<small>Rogo · AlphaSense · {ko?'기타':'others'}</small></div><span>↓</span><div class="chips">{(ko?['시장 데이터','전문가 네트워크','브로커 리서치','비상장 데이터','내부 데이터','전문 업무 도구']:['Market data','Expert networks','Broker research','Private-market data','Internal data','Specialist tools']).map(x=><b>{x}</b>)}</div></div>}
+  {variant === 'timeline' && <div class="timeline">{(ko?['2024 · Tegus 인수: 전문가·비상장 콘텐츠','2025.03 · Generative Search / Grid','2025.06 · Deep Research','2026.03 · Custom AI Agents','2026.06 · SuperAnalyst 발표','2026.07 · Work Products 출시']:['2024 · Tegus: expert/private content','2025.03 · Generative Search / Grid','2025.06 · Deep Research','2026.03 · Custom AI Agents','2026.06 · SuperAnalyst announced','2026.07 · Work Products launched']).map(x=><div>{x}</div>)}</div>}
+  <figcaption>{variant in captions ? captions[variant as keyof typeof captions] : conceptualCaption}
+    {variant === 'sizing' && <> <a href="https://www.mckinsey.com/industries/financial-services/our-insights/global-banking-annual-review">McKinsey</a> · <a href="https://www.lseg.com/content/dam/lseg/en_us/documents/investor-relations/annual-reports/lseg-annual-report-2025.pdf">LSEG</a></>}
+    {variant === 'vendors' && <> <a href="https://www.lseg.com/content/dam/lseg/en_us/documents/investor-relations/annual-reports/lseg-annual-report-2025.pdf">LSEG</a> · <a href="https://www.sec.gov/Archives/edgar/data/64040/000006404026000013/spgi-20251231.htm">S&amp;P</a> · <a href="https://www.sec.gov/Archives/edgar/data/1013237/000162828025045769/fds-20250831.htm">FactSet</a> · <a href="https://www.sec.gov/Archives/edgar/data/1289419/000128941926000017/a2025annualreport.htm">Morningstar</a></>}
+    {variant === 'timeline' && <> <a href="https://www.alpha-sense.com/press/alphasense-launches-deep-research-automating-in-depth-analysis-with-agentic-ai-on-high-value-content/">AlphaSense Deep Research</a> · <a href="https://www.alpha-sense.com/press/alphasense-launches-work-products/">Work Products</a></>}
+  </figcaption>
+</figure>
+<style>
+  .finance-figure{margin:2.3rem 0;padding:1.2rem;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.86rem;line-height:1.5}.finance-figure h3{font-family:var(--serif);font-size:1.3rem;margin:0 0 1rem}.finance-figure figcaption{margin-top:1rem;color:var(--muted);font-size:.75rem}.sizing{display:grid;gap:.5rem}.sizing>div{display:grid;grid-template-columns:180px 180px 1fr;gap:.7rem;align-items:center;padding:.7rem;background:var(--paper);border-left:3px solid var(--accent)}.sizing small{color:var(--accent);font-weight:700}.sizing strong{font-size:1.06rem}.vendors .group{margin:.65rem 0;color:var(--muted);font-weight:700}.vendor{display:grid;grid-template-columns:190px 1fr 90px;gap:.5rem;align-items:center;margin:.5rem 0}.bar-track{height:18px;background:color-mix(in srgb,var(--accent) 12%,transparent)}.bar-track i{display:block;height:100%;background:var(--accent)}.vendor b{text-align:right}.stack{display:grid;gap:.35rem}.stack>div{display:flex;justify-content:space-between;padding:.65rem;background:var(--paper);border-left:3px solid var(--accent)}.stack>div:last-of-type{background:color-mix(in srgb,var(--accent) 12%,var(--paper))}.stack em{color:var(--accent);font-style:normal}.stack p{font-size:.8rem;margin:.6rem 0 0!important}.convergence{display:grid;grid-template-columns:1fr 100px 1fr;gap:.8rem;align-items:center}.convergence>div{display:grid;gap:.35rem}.convergence span,.convergence b{padding:.55rem;background:var(--paper);border:1px solid var(--line)}.convergence>strong{text-align:center;color:var(--accent)}.moats{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem}.moats>div{padding:.8rem;background:var(--paper);border-top:3px solid var(--accent)}.moats p{margin:.4rem 0!important}.moats small{color:var(--accent)}.table-wrap{overflow-x:auto}.table-wrap table{width:100%;min-width:690px;border-collapse:collapse;font-size:.72rem}.table-wrap th,.table-wrap td{padding:.48rem;border-bottom:1px solid var(--line);text-align:left}.layers{text-align:center}.layers>div:not(.chips){padding:.6rem;background:var(--paper);border:1px solid var(--line)}.layers .accent{border-color:var(--accent)!important}.layers small{display:block;color:var(--muted)}.layers>span{display:block;color:var(--accent);font-size:1.2rem}.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem}.chips b{padding:.55rem;background:var(--paper);border:1px solid var(--line);font-weight:500}.timeline{display:grid;gap:.45rem}.timeline div{padding:.55rem .7rem;border-left:3px solid var(--accent);background:var(--paper)}@media(max-width:650px){.finance-figure{padding:.85rem}.sizing>div{grid-template-columns:1fr;gap:.15rem}.vendor{grid-template-columns:1fr 65px}.vendor span{grid-column:1/-1}.convergence{grid-template-columns:1fr}.moats{grid-template-columns:1fr}.chips{grid-template-columns:repeat(2,1fr)}}
+</style>

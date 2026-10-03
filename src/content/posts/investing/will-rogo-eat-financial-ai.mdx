@@ -1,0 +1,187 @@
+---
+title: "Rogo가 금융 AI를 다 먹어버릴까? AlphaSense를 2년 써보며 생각한 데이터의 해자"
+description: "Rogo의 금융 업무 화면과 AlphaSense의 희소 콘텐츠가 만나는 지점. 은행업의 AI 경제가치, 실제 데이터 업체 매출, 좌석 기반 SAM을 구분해 금융 AI의 기회를 따져본다."
+publishedDate: 2026-10-03
+section: "Investing"
+subsection: "Markets"
+contentType: "research"
+topics: [enterprise-ai, portfolio]
+primaryTopic: enterprise-ai
+tags: [enterprise-ai, private-markets, valuation, finance, research]
+author: "The Archive"
+draft: true
+comments: true
+language: "ko"
+translationKey: "will-rogo-eat-financial-ai"
+freshness: time-sensitive
+lastReviewed: 2026-10-03
+nextReviewDate: 2026-11-03
+dataThrough: 2026-10-03
+methodology: "2026년 10월 3일까지 공개된 회사 발표와 2025년 연차보고서, McKinsey 원문을 대조했다. 벤더 매출은 서로 다른 공시 부문을 비교하는 관측 바스켓이며 TAM이 아니다. SAM의 좌석 수와 좌석당 지출은 공개 사용 규모를 참고한 필자의 가정이다."
+references:
+  - title: "Global Banking Annual Review 2026"
+    url: "https://www.mckinsey.com/industries/financial-services/our-insights/global-banking-annual-review"
+    publisher: "McKinsey"
+  - title: "The economic potential of generative AI"
+    url: "https://www.mckinsey.com/capabilities/mckinsey-digital/our-insights/the-economic-potential-of-generative-ai-the-next-productivity-frontier"
+    publisher: "McKinsey"
+  - title: "Banking's gen AI opportunity"
+    url: "https://www.mckinsey.com/featured-insights/charts/bankings-gen-ai-opportunity"
+    publisher: "McKinsey"
+  - title: "LSEG Annual Report 2025"
+    url: "https://www.lseg.com/content/dam/lseg/en_us/documents/investor-relations/annual-reports/lseg-annual-report-2025.pdf"
+    publisher: "LSEG"
+  - title: "S&P Global 2025 Form 10-K"
+    url: "https://www.sec.gov/Archives/edgar/data/64040/000006404026000013/spgi-20251231.htm"
+    publisher: "SEC"
+  - title: "FactSet FY2025 Form 10-K"
+    url: "https://www.sec.gov/Archives/edgar/data/1013237/000162828025045769/fds-20250831.htm"
+    publisher: "SEC"
+  - title: "Morningstar 2025 Annual Report"
+    url: "https://www.sec.gov/Archives/edgar/data/1289419/000128941926000017/a2025annualreport.htm"
+    publisher: "SEC"
+  - title: "AlphaSense June 2026 financing announcement"
+    url: "https://www.alpha-sense.com/press/alphasense-raises-350m-at-7-5b-valuation-and-surpasses-600m-in-annual-recurring-revenue/"
+    publisher: "AlphaSense"
+  - title: "AlphaSense Expert Insights"
+    url: "https://www.alpha-sense.com/platform/expert-insights/"
+    publisher: "AlphaSense"
+  - title: "Rogo Series D"
+    url: "https://rogo.com/news/series-d"
+    publisher: "Rogo"
+  - title: "Rogo strategic investors"
+    url: "https://rogo.com/news/strategic-investors"
+    publisher: "Rogo"
+  - title: "LSEG and Rogo partnership"
+    url: "https://www.lseg.com/en/media-centre/press-releases/2025/lseg-and-rogo-announce-strategic-partnership"
+    publisher: "LSEG"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import FinancialAIMoatsDiagrams from '../../../components/FinancialAIMoatsDiagrams.astro';
+
+<AnswerBlock question="Rogo 같은 금융 AI 플랫폼이 기존 금융 데이터 업체를 모두 대체할까?">
+  AI 업무 화면이 소수로 모일 가능성은 있다. 그렇다고 희소한 원천 데이터, 이용 권리, 분야별 업무 방식, 보안·준법에 대한 신뢰까지 한 회사로 모인다는 뜻은 아니다. 금융 AI에서는 인터페이스의 집중과 데이터·업무의 전문화가 동시에 일어날 수 있다.
+</AnswerBlock>
+
+회사에서 AlphaSense를 거의 2년 사용해왔다. 처음에는 원하는 문장을 잘 찾아주는 검색 품질이 이 제품의 핵심이라고 생각했다. 그런데 검색창이 질문에 답하고, 긴 자료를 읽고, 나아가 보고서를 만드는 방향으로 바뀌는 과정을 보면서 생각이 조금 달라졌다. **AI가 좋아질수록 그 AI가 읽을 수 있는 자료가 무엇인지가 더 중요해졌다.**
+
+이것은 한 사용자의 제한된 관찰이다. 회사별 계약 조건이나 다른 고객의 사용 방식까지 내가 아는 것은 아니다. 그래도 제품을 쓰며 반복해서 부딪히는 차이는 분명했다. 공개 자료는 여러 도구에서 찾을 수 있지만 전문가 인터뷰, 증권사 리서치, 내부 문서와 특정 유료 자료는 접근 권한부터 다르다.
+
+그러다 Rogo를 제대로 봤다. 처음 든 생각은 단순했다. **“이 회사가 금융판을 다 먹어버리는 것 아닌가?”** 검색 결과를 보여주는 데 그치지 않고 모델, 슬라이드, 메모, 이메일까지 만들어준다면 금융인이 하루 종일 머무는 업무 화면이 될 수 있기 때문이다. 하지만 그 질문에 답하려면 두 가지를 나눠야 한다. 얼마나 큰 *경제적 가치*가 생길 수 있는가. 그리고 그 가치 중 얼마를 *외부 소프트웨어 업체가 매출로 가져갈 수 있는가*.
+
+## Rogo가 노리는 것은 검색창이 아니라 업무 화면이다
+
+Rogo는 2026년 4월 **\$160M Series D**를 발표했다. 9월에는 자사 기준 **350개 이상 회사, 5만 명 이상 전문가**에게 배포됐다고 밝혔다. 이는 독립 감사된 활성 사용자 수가 아니라 회사 발표의 배포 규모다. [Rogo Series D](https://rogo.com/news/series-d), [Rogo 9월 발표](https://rogo.com/news/strategic-investors)
+
+Rogo의 Felix는 한 요청에서 출처가 붙은 리서치, PowerPoint, Excel 모델, Word 문서 등을 만들도록 설계됐다. 이메일과 Excel 플러그인에도 들어간다. 여기서 중요한 것은 “더 좋은 챗봇”이라는 설명보다 **업무의 시작점과 산출물의 끝점을 함께 잡으려는 시도**다. [Rogo 2026년 5월 제품 업데이트](https://rogo.com/news/may-product-update)
+
+이런 회사가 금융인의 기본 화면이 된다면 사용자는 기존 데이터 서비스에 직접 들어가는 시간이 줄 수 있다. 투자자에게 이는 큰 가능성이다. 다만 *화면을 소유한다*는 것과 *그 화면에 들어오는 모든 데이터의 권리를 소유한다*는 것은 다르다.
+
+## 그런데 금융 AI 시장은 실제 얼마나 큰가?
+
+시장 규모를 말할 때 네 종류의 숫자가 자주 한 문장 안에 섞인다. 혼동을 피하기 위해 각각의 분모를 먼저 적어보자.
+
+<FinancialAIMoatsDiagrams variant="sizing" language="ko" />
+
+### 1. 금융업의 경제적 모수: 수조 달러
+
+McKinsey의 2026년 은행업 리뷰는 **2025년 글로벌 은행업 수익을 약 \$7.3T**, 은행 순이익을 **\$1.3T**로 언급한다. 전자는 단순한 소비자 은행 지점보다 넓은 산업 수익이고, 후자와 완전히 같은 분모의 이익률로 계산해서는 안 된다. 또한 모든 보험·자본시장·자산운용 매출을 별도로 더한 전체 금융서비스 합계로 읽어서도 안 된다. 2024년 리뷰에서 McKinsey는 2023년 글로벌 금융 중개 수익 약 \$6.8T를 소매은행 33%, 기업·상업은행 28%, 결제 16%, 자산·웰스 14%, 투자은행 5%, 기타·인프라로 나눴다. 그해 자산·웰스의 경제적 매출 모수는 약 \$0.95T, 투자은행은 약 \$0.34T라는 뜻이다. **이것도 AI 업체 매출이 아니다.** 연도와 정의가 다른 이 비중을 2025년 숫자에 기계적으로 곱하지 않았다. [2026 리뷰](https://www.mckinsey.com/industries/financial-services/our-insights/global-banking-annual-review), [2024 리뷰](https://www.mckinsey.com/industries/financial-services/our-insights/global-banking-annual-review-2024)
+
+이 숫자는 AI가 영향을 미칠 수 있는 **경제적 모수**다. 소프트웨어 매출 시장이 아니다. 은행 수익의 일부를 AI가 개선해도 그 효과의 상당 부분은 고객, 직원, 은행 주주, 내부 시스템에 남는다.
+
+### 2. GenAI가 만들 수 있는 가치: 연 \$200–340B
+
+McKinsey Global Institute는 생성형 AI의 사용 사례가 **글로벌 은행업에서 매년 \$200–340B의 가치**를 더할 수 있다고 추정했다. 당시 업계 수익의 **2.8–4.7%**, 영업이익의 **9–15%**에 해당한다는 설명도 함께 제시됐다. 이는 2023년 연구에 기반한 *잠재치*이며 2026년 실현 매출이 아니다. 생산성 향상 중심의 경제가치 추정으로, 위험 감축과 더 나은 의사결정 같은 효과까지 논의되는 맥락이다. [MGI 원문](https://www.mckinsey.com/capabilities/mckinsey-digital/our-insights/the-economic-potential-of-generative-ai-the-next-productivity-frontier), [영업이익 대비 수치](https://www.mckinsey.com/featured-insights/charts/bankings-gen-ai-opportunity)
+
+특히 corporate & investment banking에서도 보고서·피치북 작성, 리서치와 고객 업무에 효율 기회가 있다. 하지만 이를 별도 금액으로 위의 \$200–340B에 더하면 중복 계산이 된다. [McKinsey CIB 분석](https://www.mckinsey.com/industries/financial-services/our-insights/been-there-doing-that-how-corporate-and-investment-banks-are-tackling-gen-ai)
+
+**\$200–340B의 AI value pool과 금융 AI 소프트웨어 회사가 실제로 벌 수 있는 revenue pool은 같은 숫자가 아니다.** 경제적 가치가 \$300B라고 해서 \$300B짜리 소프트웨어 시장이 생기는 것은 아니다. 그 가치 중 얼마를 외부 벤더가 가격으로 포착할 수 있는지가 투자 문제다.
+
+### 3. 현재 외부 벤더에 지불되는 돈: 관측 가능한 매출 바스켓
+
+실제 지출에 가까워지려면 상장사의 공시 부문을 보자. LSEG는 2025년 Data & Analytics **recoveries 제외 £3.978B**를 보고했다. 그 안에 Workflows **£1.925B**, Data & Feeds **£1.822B**, Analytics **£0.231B**가 있다. 이 하위 숫자를 다시 총액에 더하지 않는다. [LSEG 2025 Annual Report](https://www.lseg.com/content/dam/lseg/en_us/documents/investor-relations/annual-reports/lseg-annual-report-2025.pdf)
+
+<FinancialAIMoatsDiagrams variant="vendors" language="ko" />
+
+| 공개업체 부문 | 2025 매출 | 포함 이유 | 경계 |
+| :-- | --: | :-- | :-- |
+| LSEG Data & Analytics | £3.978B | 데이터·피드·Workspace 등 | recoveries 제외, GBP |
+| S&P Global Market Intelligence | \$4.916B | Capital IQ 등 데이터·분석·업무 | 신용·기업 솔루션도 포함 |
+| FactSet 전체 | \$2.322B | 금융 분석 워크스테이션·데이터 | 일부 재판매·기타 제품 포함 |
+| Morningstar Direct Platform | \$0.831B | 투자 데이터·분석 화면 | 자산관리 중심 |
+| PitchBook | \$0.672B | 비상장시장 데이터·업무 | Morningstar의 별도 부문 |
+
+미 달러 네 부문만 합치면 약 **\$8.74B**다. LSEG의 **£3.978B**는 환율·시점을 임의로 정해 합치지 않았다. Bloomberg는 정확히 비교할 공식 공개 부문 매출이 없고, MSCI 매출에는 지수의 자산 연동 수수료가 섞여 이 좁은 바스켓에서는 뺐다. AlphaSense의 **ARR**도 인식 매출과 달라 제외했다. 이 바스켓은 *현재 외부 지출이 적어도 수십억 달러 규모임을 보여주는 대용치*이지, 금융 데이터 시장 전체의 엄밀한 하한도 아니다. 데이터 재판매·교차 라이선스가 있다면 기업별 총매출을 더할 때 같은 최종 고객 지출이 일부 중복될 수 있다. [S&P 10-K](https://www.sec.gov/Archives/edgar/data/64040/000006404026000013/spgi-20251231.htm), [FactSet 10-K](https://www.sec.gov/Archives/edgar/data/1013237/000162828025045769/fds-20250831.htm), [Morningstar 10-K](https://www.sec.gov/Archives/edgar/data/1289419/000128941926000017/a2025annualreport.htm)
+
+### 4. AlphaSense·Rogo형 지식 업무 AI의 SAM: 좌석에서 다시 계산
+
+그보다 좁은 시장을 보려면 금융 지식노동자 중 문서 읽기·분석·산출물 작성에 반복적으로 비용을 낼 좌석을 세어야 한다. 아래는 **공식 통계가 아닌 필자의 시나리오**다. 글로벌 직무별 통일된 좌석 통계가 없으므로 IB, PE, 공개시장 운용/HF, 크레딧, 웰스, 기업 전략·IR의 범위가 겹치지 않도록 설계하고, 거래·운영 인력 전체를 넣지 않았다. 공개 앵커는 FactSet의 FY2025 **237,324명 사용자**와 Rogo의 2026년 9월 **5만 명 이상 배포**다. 두 숫자는 전체 직업인 수가 아니며, 특히 후자는 실제 유료 활성 좌석과 다를 수 있다. [FactSet 10-K](https://www.sec.gov/Archives/edgar/data/1013237/000162828025045769/fds-20250831.htm), [Rogo 발표](https://rogo.com/news/strategic-investors)
+
+| 분야 | 유효 좌석 가정, 천 명 (low/base/high) | 연간 AI 지출/좌석 가정, \$천 (low/base/high) | 기준 시나리오 |
+| :-- | --: | --: | --: |
+| Investment banking | 80 / 120 / 180 | 4 / 8 / 15 | \$0.96B |
+| Private equity | 60 / 100 / 140 | 3 / 7 / 12 | \$0.70B |
+| Asset management·public equities·HF | 120 / 200 / 280 | 3 / 6 / 12 | \$1.20B |
+| Credit | 60 / 100 / 150 | 2 / 5 / 10 | \$0.50B |
+| Wealth | 150 / 275 / 400 | 1 / 2 / 5 | \$0.55B |
+| Corporate development·strategy·IR | 100 / 175 / 250 | 1 / 3 / 6 | \$0.525B |
+| **합계** | **570 / 970 / 1,400** | 분야별 차등 | **\$1.23B / \$4.44B / \$12.74B** |
+
+계산은 각 분야의 좌석 수와 연간 지출을 곱한 뒤 더한 것이다. **\$1.23–12.74B는 현재 매출도, 예측치도 아니라 잠재적으로 접근 가능한 연간 지출 시나리오**다. 가격에는 데이터가 묶인 구독과 순수 AI 증분 지출이 섞일 수 있다. 기존 데이터 예산의 전환과 신규 예산을 구별하기 어렵다는 것이 가장 큰 한계다. 가정과 계산은 저장소의 연구 자료에 남겼다.
+
+## 그런데 Rogo는 무엇을 읽는가?
+
+Rogo가 좋은 모델과 편리한 화면을 만들더라도, 금융 답변의 가치는 어떤 맥락을 읽고 어떤 권한으로 인용할 수 있는지에 달려 있다. **Output ≈ Model × Context**라고 간단히 적을 수 있다. 이는 통계식이나 검증된 법칙이 아니라 제품을 바라보는 *개념적 비유*다. 모델 성능의 차이가 줄수록 출처, 최신성, 이용 권리, 검색·인용 품질의 차이가 더 눈에 띌 수 있다.
+
+AlphaSense의 2026년 공식 자료는 **5억 개 이상 문서**, **30만 건 이상 전문가 인터뷰**, **월 8천 건 이상 신규 인터뷰**를 말한다. 브로커 리서치 제공처는 공식 페이지마다 **1,500개 파트너**와 **1,700개 이상 출처**로 정의가 달라, 이 글은 더 보수적인 **1,500개 이상**이라고 적는다. 양이 많다는 사실만으로 해자가 되지는 않는다. 어떤 자료의 이용권을 확보했는지, 오랫동안 축적했는지, 고객별 권한을 지키며 원문까지 추적 가능한지가 중요하다. [콘텐츠 현황](https://www.alpha-sense.com/content-and-partners/), [전문가 인터뷰](https://www.alpha-sense.com/platform/expert-insights/), [브로커 리서치](https://www.alpha-sense.com/solutions/broker-research-reports/)
+
+2024년 AlphaSense가 Tegus를 **\$930M에 인수하기로 한 것**도 이 관점에서 읽힌다. 전문가 인터뷰와 비상장기업 자료를 확보해 AI가 읽을 수 있는 자체 맥락을 넓힌 거래였다. 이는 인수 가격이 곧 콘텐츠의 독립적 가치라는 뜻은 아니다. [AlphaSense 발표](https://www.prnewswire.com/news-releases/alphasense-to-join-forces-with-tegus-increases-latest-valuation-to-4b-302169502.html)
+
+## Rogo는 LSEG를 없애기보다 연결한다
+
+2025년 Rogo와 LSEG의 공식 제휴는 좋은 반례다. **LSEG Workspace 라이선스를 가진 Rogo 고객**이 Rogo 안에서 LSEG의 기업 재무, 추정치, M&A 데이터를 이용하는 구조다. LSEG는 이를 AI 애플리케이션을 통한 데이터 유통 확대로 설명한다. Rogo가 사용자 화면을 가져와도 LSEG의 데이터 계약과 권리는 남는다. [LSEG–Rogo 발표](https://www.lseg.com/en/media-centre/press-releases/2025/lseg-and-rogo-announce-strategic-partnership), [LSEG 2025 Annual Report](https://www.lseg.com/content/dam/lseg/en_us/documents/investor-relations/annual-reports/lseg-annual-report-2025.pdf)
+
+PitchBook도 Rogo의 프리미엄 커넥터에 대해 **PitchBook 라이선스와 유료 Rogo 계정이 모두 필요하다**고 안내한다. Preqin은 공식 파트너 페이지에서 Rogo 연결을 소개하고, Rogo는 Third Bridge 전문가 인터뷰 통합을 발표했다. 제휴마다 접근 조건이 다르므로 하나의 범용 무료 데이터 풀로 읽으면 안 된다. [PitchBook](https://pitchbook.com/premium-connectors/rogo), [Preqin](https://www.preqin.com/about/partners/rogo), [Rogo–Third Bridge](https://rogo.com/news/february-product-update)
+
+## AlphaSense도 위로 올라오고 있다
+
+AlphaSense를 고정된 “검색 회사”로 보면 경쟁 구도를 잘못 읽는다. 2025년 3월 **Generative Search / Grid**, 그해 6월 **Deep Research**, 2026년 3월 **Custom AI Agents**, 6월 **SuperAnalyst 발표**, 7월 **Work Products 출시**로 회사가 설명하는 범위가 넓어졌다. 특히 SuperAnalyst는 발표 당시 일반 이용 가능 시점이 별도로 남아 있었으므로, 모든 기능을 내가 실제 써봤다는 뜻은 아니다. [Generative Search](https://www.alpha-sense.com/press/alphasense-supercharges-its-generative-ai-suite-with-groundbreaking-new-features/), [Deep Research](https://www.alpha-sense.com/press/alphasense-launches-deep-research-automating-in-depth-analysis-with-agentic-ai-on-high-value-content/), [Custom AI Agents](https://www.alpha-sense.com/press/alphasense-scales-workflow-automation-in-financial-firms-and-enterprises/), [SuperAnalyst](https://www.alpha-sense.com/press/alphasense-introduces-superanalyst-the-always-on-ai-execution-layer-for-decision-grade-intelligence/)
+
+<FinancialAIMoatsDiagrams variant="timeline" language="ko" />
+
+두 회사는 서로 다른 방향에서 같은 지점으로 온다. AlphaSense는 콘텐츠와 검색에서 추론·업무로 올라오고, Rogo는 업무 에이전트에서 통합·데이터로 내려온다. 직접 경쟁하는 영역은 분명하다. 다만 모든 층을 어느 한 회사가 독점해야 할 이유는 없다.
+
+<FinancialAIMoatsDiagrams variant="stack" language="ko" />
+
+<FinancialAIMoatsDiagrams variant="convergence" language="ko" />
+
+## 금융은 하나의 업무가 아니다
+
+투자은행의 피치북, PE의 데이터룸 실사, 헤지펀드의 리서치, 크레딧의 대출 심사, 웰스의 고객 제안은 필요한 자료와 산출물, 속도, 규제 책임이 다르다. 아래 표는 **개념적 비교**다. 속도는 업계 보편적인 SLA가 아니라 업무 성격을 드러내는 범위다.
+
+<FinancialAIMoatsDiagrams variant="workflows" language="ko" />
+
+범용 인터페이스는 이 업무들을 한 화면에서 시작하게 만들 수 있다. 그러나 각 영역에 필요한 깊은 데이터와 검토 절차까지 한 번에 표준화하기는 어렵다. 틈새 업체가 살아남을 수 있는 곳은 “금융”이라는 간판이 아니라 특정 데이터의 권리, 특정 팀의 반복 작업, 특정 규제 문맥이다.
+
+## 세 개의 해자와 두 투자 가설
+
+<FinancialAIMoatsDiagrams variant="moats" language="ko" />
+
+**Data Moat**는 희소 콘텐츠의 양보다 계약상 접근권, 과거 자료의 축적, 출처와 권한 관리에 있다. **Workflow Moat**는 Excel·PPT·이메일·딜 프로세스 안에서 완성된 일을 만들어내는 능력이다. **Distribution & Trust Moat**는 보안 심사, 준법, 기존 설치 좌석, 조달 관계다. AlphaSense는 첫 번째에서, Rogo는 두 번째에서 눈에 띄는 출발점을 가졌고 양쪽 모두 세 번째를 쌓고 있다. 이것은 승자 판정이 아니라 현재 공개 정보로 본 해석이다.
+
+AlphaSense는 2026년 6월 **\$350M 조달, \$7.5B 기업가치, 2026년 1분기 \$600M 초과 ARR**를 발표했다. 단순히 \$7.5B ÷ \$600M을 하면 **12.5배보다 낮다**이다. 정확한 표현은 *민간 조달 라운드의 headline valuation / 보고된 ARR*이다. ARR은 인식 매출이 아니고 현금·부채를 반영한 EV도 공개되지 않았으므로 EV/Revenue라고 부르지 않는다. 회사는 **7,000개 이상 기업 고객**이라고 밝혔다. 별도의 공식 마케팅 페이지는 **S&P 100의 90%**가 고객이라고 주장한다. 이 수치는 공개 고객 명단으로 독립 확인한 값은 아니다. 이 평가에 값이 붙는다면 콘텐츠 접근권, 기업 유통, 전환 비용, 업무 확장에 따른 좌석당 지출과 유지율 기대 때문일 수 있다. 동시에 Rogo 같은 업무 중심 화면이 앞단을 차지하면 AlphaSense가 프리미엄 콘텐츠 공급자 역할로 밀릴 위험도 있다. 반대 가설은 AlphaSense가 콘텐츠와 업무 화면을 함께 장악하는 것이다. [AlphaSense 2026년 6월 발표](https://www.alpha-sense.com/press/alphasense-raises-350m-at-7-5b-valuation-and-surpasses-600m-in-annual-recurring-revenue/), [S&P 100 주장](https://www.alpha-sense.com/solutions/broker-research-reports/)
+
+Rogo의 **\$2B 기업가치**는 회사의 Series D 발표가 직접 공개한 수치가 아니라 [Bloomberg의 보도](https://www.bloomberg.com/news/newsletters/2026-04-30/ai-will-kill-your-banking-job-or-make-you-a-billionaire)에 나온 수치로만 다룬다. 신뢰할 수 있는 공개 매출 수치로 계산한 배수는 여기서 만들지 않는다. 투자 가설은 사용자의 기본 화면, 데이터 연결, 모델을 바꿀 수 있는 설계, 금융기관의 보안 신뢰다. 성립하려면 실제 사용이 넓은 업무로 반복되고, 배포 비용보다 좌석·팀당 경제성이 커져야 한다. 원천 데이터 의존, 기존 플랫폼의 에이전트화, 비싼 기관별 도입, 분야별 업무 파편화는 반대쪽의 검증 항목이다.
+
+## Winner-take-interface, many-take-the-layers
+
+<FinancialAIMoatsDiagrams variant="layers" language="ko" />
+
+소수의 금융 AI 화면에 사용 시간이 집중되는 세계를 상상할 수 있다. 그 아래에는 시장 데이터, 전문가 네트워크, 브로커 리서치, 비상장 데이터, 내부 자료, 분야별 업무 도구가 계속 존재할 수 있다. **인터페이스의 집중은 데이터 출처의 집중을 뜻하지 않는다.** Rogo가 크게 성공하는 세계와 여러 금융 AI·데이터 틈새 업체가 함께 존재하는 세계는 모순되지 않는다.
+
+투자자로서 물어야 할 질문은 “누가 금융 AI를 다 먹나?”보다 구체적이다. 어떤 회사가 **남이 쉽게 복제할 수 없는 맥락**을 통제하는가. 어느 화면이 실제로 반복되는 **완결된 업무**를 차지하는가. 그 가치를 고객이 계속 구매하게 만드는 **신뢰와 유통**은 누가 갖고 있는가. AI는 금융의 모든 틈새를 없애기보다 어떤 틈새가 정말 희소한지를 더 선명하게 만들 수도 있다.
+
+### 숫자를 읽는 방법
+
+경제적 가치 ≠ 소프트웨어 TAM. 딜 거래액 ≠ 벤더 매출. ARR ≠ 인식 매출. 민간 라운드 기업가치/ARR ≠ EV/Revenue. 상장사 부문 매출 바스켓은 정의와 중복 때문에 총시장 확정치가 아니다. 좌석 기반 SAM은 가정에 민감하므로 위의 low/base/high를 함께 읽어야 한다. 모든 수치와 제품 현황의 **자료 기준일은 2026년 10월 3일**이다.
