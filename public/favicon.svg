@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-labelledby="title desc">
   <title id="title">The Archive of — serif A</title>
   <desc id="desc">A classical serif A, the publication monogram.</desc>
-  <rect width="32" height="32" rx="7" fill="#294c3e"/>
-  <path fill="#f2f0e9" fill-rule="evenodd" d="M14.5 6h3L24 24h2v2h-9v-2h2.8l-1.4-4h-6.8l-1.4 4H13v2H6v-2h2L14.5 6Zm.5 4.5L12.5 17h5L15 10.5Z"/>
+  <rect width="180" height="180" rx="38" fill="#294c3e"/>
+  <path fill="#f2f0e9" fill-rule="evenodd" d="M81.6 28h16.8L135 138h11.2v11.2H95.6v-11.2h15.7l-7.8-22.5H76.5l-7.9 22.5h15.8v11.2H33.8V138h11.2L81.6 28Zm2.8 25.3L70.3 95.6h28.2L84.4 53.3Z"/>
 </svg>
