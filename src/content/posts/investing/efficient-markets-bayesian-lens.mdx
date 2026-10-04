@@ -98,13 +98,13 @@ import LabLinkCard from '../../../components/LabLinkCard.astro';
 
 이 사례에서 새로 평가된 것은 당장의 25bp 인하만이 아니라 <strong>다음 회의들에서 금리가 어떻게 움직일지</strong>였다. 시장은 한 번의 금리 결정보다 미래 금리 경로의 여러 가능성을 업데이트한다. 이것은 2025년의 인하 사례다. <strong>2026년 9월 Fed는 반대로 25bp 인상</strong>했으므로, 이를 현재 정책 방향으로 읽어서는 안 된다. [2026년 9월 FOMC](https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm)
 
-물가도 같다. 2026년 7월 14일 발표된 <strong>6월 미국 CPI</strong>는 전년보다 <strong>3.5% 상승</strong>했지만, Reuters의 사전 조사 <strong>3.8%</strong>보다 <strong>0.3%포인트 낮았다</strong>. 전월 대비로는 <strong>0.4% 하락</strong>해 예상한 <strong>0.1% 하락</strong>보다 약했다. 발표 직후 Reuters 시장 스냅샷에서 S&P 500은 <strong>0.3%</strong>, Nasdaq은 <strong>0.6%</strong> 올랐고 2년물 수익률은 <strong>7bp</strong> 내렸다. 이 수치는 그 시점의 관찰이지 종가나 CPI 단독 효과의 추정치는 아니다. 에너지 가격 하락도 헤드라인 수치에 크게 기여했다. [BLS 발표](https://www.bls.gov/news.release/archives/cpi_07142026.htm), [Reuters 예상·시장 반응](https://www.investing.com/news/economic-indicators/cpi-comes-in-cool-soothing-markets-4791058)
+물가도 같다. 2026년 7월 14일 발표된 <strong>6월 미국 CPI</strong>는 전년보다 <strong>3.5% 상승</strong>했지만, Reuters의 사전 조사 <strong>3.8%</strong>보다 <strong>0.3%포인트 낮았다</strong>. 전월 대비로는 <strong>0.4% 하락</strong>해 예상한 <strong>0.1% 하락</strong>보다 약했다. 발표 직후 Reuters 시장 현황에서 S&P 500은 <strong>0.3%</strong>, Nasdaq은 <strong>0.6%</strong> 올랐고 2년물 수익률은 <strong>7bp</strong> 내렸다. 이 수치는 그 시점의 관찰이지 종가나 CPI 단독 효과의 추정치는 아니다. 에너지 가격 하락도 종합 수치에 크게 기여했다. [BLS 발표](https://www.bls.gov/news.release/archives/cpi_07142026.htm), [Reuters 예상·시장 반응](https://www.investing.com/news/economic-indicators/cpi-comes-in-cool-soothing-markets-4791058)
 
 <strong>CPI가 높다는 뉴스와 CPI가 시장 예상보다 높다는 뉴스는 같은 말이 아니다.</strong> 여기서는 물가상승률이 여전히 3.5%라는 사실과 시장 예상보다 낮았다는 사실이 동시에 참이다. 이후 더 최근인 <strong>8월 CPI는 전년비 3.4%</strong>였지만, 헤드라인은 Reuters 컨센서스와 같았다. 대비가 선명한 6월 사례를 택한 이유다. [BLS 8월 CPI](https://www.bls.gov/news.release/archives/cpi_09112026.htm), [Reuters 컨센서스](https://www.marketscreener.com/news/august-core-inflation-reading-boosts-rate-hike-expectations-ce785bdfdc8af027)
 
 ## 가격을 보다가 베이즈 통계학이 떠올랐다
 
-[지난 베이즈 통계학 글](/math/statistics/bayesian-statistics-dog-walk/)에서 우리 집 강아지는 내가 “산책 가자”고 말하기 전에 목줄을 물고 왔다. 저녁 식사, 노트북을 닫는 모습, 운동화 같은 단서를 보고 산책 가능성에 대한 판단을 조금씩 바꾸는 상황이었다. <strong>Prior → Evidence → Posterior.</strong> 실제 강아지의 확률 계산을 측정했다는 뜻은 아니었다.
+[지난 베이즈 통계학 글](/math/statistics/bayesian-statistics-dog-walk/)에서 우리 집 강아지는 내가 “산책 가자”고 말하기 전에 목줄을 물고 왔다. 저녁 식사, 노트북을 닫는 모습, 운동화 같은 단서를 보고 산책 가능성에 대한 판단을 조금씩 바꾸는 상황이었다. <strong>사전확률 → 증거 → 사후확률.</strong> 실제 강아지의 확률 계산을 측정했다는 뜻은 아니었다.
 
 삼성전자 실적을 보는 투자자도 비슷한 틀로 설명할 수 있다. 가령 ‘AI 메모리 수요가 내년에도 강할 가능성’을 <strong>60%</strong>로 보던 사람이 새 가격 데이터를 보고 <strong>70%</strong>, 대형 고객의 투자 계획을 보고 <strong>78%</strong>, 경쟁사의 증설 계획을 보고 <strong>68%</strong>로 수정했다고 해보자. <strong>모두 설명을 위해 만든 값</strong>이며 실제 분석 결과나 베이즈 공식으로 계산한 확률이 아니다. 핵심은 새 정보가 들어오면 기존 판단을 고친다는 점이다. 서로 연관된 정보를 두 번 세지 않는 주의도 필요하다.
 
@@ -144,13 +144,13 @@ import LabLinkCard from '../../../components/LabLinkCard.astro';
 
 ## 왜 시장은 생각보다 효율적인가
 
-중앙에 모든 것을 아는 두뇌가 있어서가 아니다. 누군가 가격과 가치의 차이를 의심하고, 자료를 찾고, 모델을 만들고, 실제 자금을 걸기 때문이다. 그 거래가 가격을 움직이면 처음 발견한 기회는 작아진다.
+중앙에 모든 것을 아는 두뇌가 있어서가 아니다. 누군가 가격과 가치의 차이를 의심하고, 자료를 찾고, 모형을 만들고, 실제 자금을 걸기 때문이다. 그 거래가 가격을 움직이면 처음 발견한 기회는 작아진다.
 
 <EMHDiagrams variant="loop" language="ko" />
 
 <strong>시장 효율성은 참가자들이 시장을 믿기 때문에 생기는 것이 아니라, 참가자들이 끊임없이 시장을 의심하기 때문에 만들어지는 것일 수 있다.</strong> 이것은 시장이 언제나 효율적이라는 증명이 아니라, 효율성이 생겨날 수 있는 경쟁 메커니즘에 대한 설명이다.
 
-## 시장은 완벽한 베이지안 머신이 아니다
+## 시장은 완벽한 베이지안 기계가 아니다
 
 위 비유에는 분명한 한계가 있다. 투자자는 군집행동을 하고, 잘못된 모형을 고집하며, 자금 압박 때문에 원치 않는 때에 매도하기도 한다. 공매도 제약과 거래비용은 잘못된 가격을 바로잡는 거래를 막을 수 있다. 정보도 사람마다 다르고, 거래 자체가 다른 사람의 기대를 바꾸는 반사적 과정도 일어난다. <strong>시장가격 ≠ 참인 사후확률.</strong> 오히려 시장 참여자들이 각자의 믿음과 제약 아래 실제 돈을 걸어 만들어낸 집단적 상태값에 가깝다.
 
