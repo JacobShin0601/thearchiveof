@@ -16,7 +16,7 @@ Do not add a standalone Worker, Astro SSR, or React for these features.
 | Signal | Status | Action |
 | --- | --- | --- |
 | Cloudflare Web Analytics beacon | Enabled in Cloudflare Pages; one beacon is automatically injected into Production and Preview HTML | Check article paths in Web Analytics after real visits |
-| Duplicate custom analytics | None | Do not add another beacon or GA4 |
+| Duplicate custom analytics | None | Do not add another beacon or GA4. Provider-neutral event names live in `src/lib/growth.ts` for a later funnel. |
 | Preview mixed into Production | Pages analytics covers the project's `pages.dev` host and custom domain; Preview HTML also has the beacon | Filter by hostname when reviewing readership |
 | Sitemap / robots / canonical / hreflang / JSON-LD | Present | Submit the sitemap in Search Console |
 
