@@ -2,6 +2,7 @@
 import { SITE_TITLE, SITE_URL } from '../consts';
 import { resolveSocialImage } from '../lib/social-image';
 import { integrations } from '../site.config';
+import { personSchema } from '../lib/author';
 import { INDEXABLE } from '../environment';
 
 interface Props {
@@ -54,7 +55,7 @@ const articleSchema = type === 'article'
       mainEntityOfPage: canonicalUrl,
       datePublished: publishedDate?.toISOString(),
       dateModified: (updatedDate ?? publishedDate)?.toISOString(),
-      author: { '@type': 'Person', name: author ?? 'Jacob Shin' },
+      author: personSchema(author),
       image: socialImage,
       publisher: { '@type': 'Organization', name: SITE_TITLE, url: SITE_URL },
       articleSection: section,

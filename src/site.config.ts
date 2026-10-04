@@ -1,3 +1,5 @@
+export { siteAuthor as author } from './lib/author';
+
 export const integrations = {
   cloudflareWebAnalyticsToken: '',
   googleSiteVerification: '',
