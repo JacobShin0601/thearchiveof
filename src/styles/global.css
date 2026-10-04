@@ -93,8 +93,9 @@ a:hover { color: var(--accent); }
 .hero-serif-a {
   flex: none;
   display: block;
-  width: clamp(92px, 15vw, 168px);
+  width: clamp(86px, 13.8vw, 154px);
   height: auto;
+  transform: translateY(-8px);
 }
 .hero-copy { min-width: 0; flex: 1; }
 .eyebrow { margin: 0; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .16em; line-height: 1.4; text-transform: uppercase; }
@@ -378,7 +379,7 @@ html:lang(ko) .newsletter-cta h2 { font-size: clamp(22.4px, 3.2vw, 33.6px); }
   .mobile-navigation nav > ul > li > a { display: block; padding: 10px 0; }
   .hero { padding-top: 62px; }
   .hero-brand { gap: 20px; }
-  .hero-serif-a { width: clamp(72px, 22vw, 108px); }
+  .hero-serif-a { width: clamp(68px, 20vw, 100px); transform: translateY(-4px); }
   .hero-wordmark { margin-top: 18px; margin-bottom: 22px; font-size: clamp(36px, 9vw, 48px); }
   .hero-intro { max-width: none; font-size: clamp(20px, 4.4vw, 24px); }
   .category-grid { padding-top: 45px; }
