@@ -1,6 +1,6 @@
 ---
 interface Props {
-  variant?: 'overlap' | 'book' | 'double-c' | 'orbit';
+  variant?: 'overlap' | 'book' | 'double-c' | 'orbit' | 'serif-a';
   size?: number;
   label?: string;
   decorative?: boolean;
@@ -29,6 +29,7 @@ const descId = `archive-mark-desc-${variant}-${size}`;
   {!decorative && <>
     <title id={titleId}>{label}</title>
     <desc id={descId}>
+      {variant === 'serif-a' && 'A classical serif A, the publication monogram.'}
       {variant === 'overlap' && 'Two quiet overlapping lenses represent different fields meeting.'}
       {variant === 'book' && 'An open book represents records that create new questions.'}
       {variant === 'double-c' && 'Two open curves represent connected perspectives.'}
@@ -36,6 +37,13 @@ const descId = `archive-mark-desc-${variant}-${size}`;
     </desc>
   </>}
   <rect width="180" height="180" rx="38" fill="#294c3e"/>
+  {variant === 'serif-a' && (
+    <path
+      fill="#f2f0e9"
+      fill-rule="evenodd"
+      d="M81.6 28h16.8L135 138h11.2v11.2H95.6v-11.2h15.7l-7.8-22.5H76.5l-7.9 22.5h15.8v11.2H33.8V138h11.2L81.6 28Zm2.8 25.3L70.3 95.6h28.2L84.4 53.3Z"
+    />
+  )}
   {variant === 'overlap' && <>
     <ellipse cx="77" cy="90" rx="43" ry="60" fill="none" stroke="#f2f0e9" stroke-width="8"/>
     <ellipse cx="103" cy="90" rx="43" ry="60" fill="none" stroke="#a9c0b1" stroke-width="8"/>

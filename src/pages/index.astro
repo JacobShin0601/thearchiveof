@@ -17,16 +17,21 @@ const activeSeries = [...new Set(posts.flatMap((post) => post.data.series ? [pos
 
 <BaseLayout language="ko" alternateLanguageUrl="/en/">
   <section class="hero shell">
-    <p class="eyebrow">리서치 저널 · Seoul</p>
-    <h1 class="hero-wordmark">
-      <span class="wordmark-the">The</span>
-      <span class="hero-name">Archive of</span>
-    </h1>
-    <p class="hero-intro">
-      <span class="hero-line">불확실한 세상을 이해하고,</span>
-      <span class="hero-line">더 나은 결정을 내리기 위한 기록.</span>
-    </p>
-    <p class="hero-index">Vol. 01 · Est. 2026</p>
+    <div class="hero-brand">
+      <p class="hero-serif-a" aria-hidden="true">A</p>
+      <div class="hero-copy">
+        <p class="eyebrow">리서치 저널 · Seoul</p>
+        <h1 class="hero-wordmark">
+          <span class="wordmark-the">The</span>
+          <span class="hero-name">Archive of</span>
+        </h1>
+        <p class="hero-intro">
+          <span class="hero-line">불확실한 세상을 이해하고,</span>
+          <span class="hero-line">더 나은 결정을 내리기 위한 기록.</span>
+        </p>
+        <p class="hero-index">Vol. 01 · Est. 2026</p>
+      </div>
+    </div>
   </section>
 
   <section class="latest featured-research shell" aria-labelledby="featured-heading">
