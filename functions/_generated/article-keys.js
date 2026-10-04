@@ -1,6 +1,7 @@
 export const ARTICLE_KEYS = [
   "agent-pattern-design",
   "agent-sse-streaming",
+  "ai-handoff-queue-lab",
   "async-thread-process-agent-backends",
   "ax-is-transformation",
   "ax-should-start-narrow",
