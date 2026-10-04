@@ -3,6 +3,7 @@ title: "Agent Pattern Design: From Tool Use to Planning, Parallelism, HITL, and 
 subtitle: "Compose bounded control flows instead of building one giant autonomous loop"
 description: "A plain-Python guide to tool use, parallel orchestration, planning, HITL, retry, and reflection—and to the boundary between LLM judgment and deterministic code."
 publishedDate: 2026-09-17
+updatedDate: 2026-10-04
 section: "AI & AX"
 subsection: "Agents"
 contentType: "foundation"
@@ -29,9 +30,12 @@ localization:
   locale: "en-US"
   strategy: "localized-adaptation"
 freshness: evergreen
-lastReviewed: 2026-10-03
-nextReviewDate: 2027-10-03
+lastReviewed: 2026-10-04
+nextReviewDate: 2027-10-04
 references:
+  - title: "Choose a design pattern for your agentic AI system"
+    url: "https://docs.cloud.google.com/architecture/choose-design-pattern-agentic-ai-system"
+    publisher: "Google Cloud Architecture Center"
   - title: "Coroutines and Tasks"
     url: "https://docs.python.org/3/library/asyncio-task.html"
     publisher: "Python Documentation"
@@ -47,10 +51,13 @@ references:
 ---
 
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AgentPatternOverview from '../../../../components/AgentPatternOverview.astro';
 
 <AnswerBlock question="How should we design an agent?">
   An agent is not one giant autonomous loop. It is <strong>an execution system composed from bounded control-flow patterns</strong>: tool use, parallel work, planning, approval, retry, and quality improvement. An LLM may propose or judge an action, but deterministic code must own the rules that guarantee permission, validation, termination, and bounded recovery.
 </AnswerBlock>
+
+<AgentPatternOverview language="en" />
 
 Put tools next to an LLM and the first diagram looks almost complete.
 
