@@ -1,0 +1,357 @@
+---
+title: "Why Agent Systems Need Async: Making Waiting Time Useful"
+subtitle: "Turn time spent waiting on LLMs, databases, and search APIs into concurrency"
+description: "Why agent backends need async, explained through blocking, coroutines, tasks, the event loop, await, and structured concurrency."
+publishedDate: 2026-09-19
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - asyncio
+  - concurrency
+  - event-loop
+  - non-blocking
+  - io-bound
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: false
+language: "en"
+translationKey: "why-agent-systems-need-async"
+series: "Agent Engineering"
+seriesOrder: 2
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: evergreen
+lastReviewed: 2026-10-04
+nextReviewDate: 2027-10-04
+references:
+  - title: "asyncio — Asynchronous I/O"
+    url: "https://docs.python.org/3/library/asyncio.html"
+    publisher: "Python Documentation"
+  - title: "Coroutines and Tasks"
+    url: "https://docs.python.org/3/library/asyncio-task.html"
+    publisher: "Python Documentation"
+  - title: "Developing with asyncio"
+    url: "https://docs.python.org/3/library/asyncio-dev.html"
+    publisher: "Python Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="Why do agent systems need async?">
+  Most agent workloads spend more time <strong>waiting on external systems—LLMs, databases, search APIs, and Redis—than computing</strong>. Async overlaps independent waits within a run to reduce latency, and lets a backend advance other runs while one is waiting to increase throughput. It does not make the CPU work harder. It is a concurrency model that puts execution time left idle by I/O to use elsewhere.
+</AnswerBlock>
+
+The previous article, [Agent Pattern Design](/en/ai/agents/agent-pattern-design/), treated an agent as a composition of bounded control flows: tool use, parallel orchestration, planner/executor, HITL, retry, and reflection. Express the parallel pattern in Python and you get code like this:
+
+```python
+research, data = await asyncio.gather(
+    research_agent(query),
+    data_agent(query),
+)
+```
+
+The code is short. Understanding those two lines, however, requires an execution model before it requires syntax.
+
+- Which work is waiting, and which work is computing?
+- While one coroutine is paused at `await`, who advances other work?
+- How do we distinguish independent work from work that must happen in sequence?
+- Why does calling a blocking SDK from an async function slow down unrelated runs?
+
+A production agent waits on several I/O operations within a single request while advancing many requests within one backend process. Without a working model of async, it is hard to explain where the time went—or why one blocking call stalled requests that had nothing to do with it.
+
+## Agents spend more time waiting than computing
+
+Consider the request, “Analyze NVIDIA’s recent earnings and valuation.” The agent might search internal documents, query the web, and read a database. Suppose each call takes two seconds.
+
+```python
+async def collect_context(query: str):
+    docs = await search_documents(query)  # about 2 seconds
+    web = await search_web(query)         # about 2 seconds
+    db = await query_database(query)      # about 2 seconds
+    return docs, web, db
+```
+
+This code uses `async def` and `await`, but its execution is **sequential**. It waits for document search before starting web search, then waits for web search before querying the database. At two seconds per operation, the total is roughly six seconds.
+
+This is where an important misconception begins.
+
+> The presence of `await` does not make work concurrent.
+
+If the three operations are independent, we must explicitly arrange for them to progress together.
+
+```python
+import asyncio
+
+async def collect_context(query: str):
+    docs, web, db = await asyncio.gather(
+        search_documents(query),
+        search_web(query),
+        query_database(query),
+    )
+    return docs, web, db
+```
+
+If even the slowest operation takes two seconds, total time approaches two seconds plus scheduling overhead. We did not make the system compute three times faster. We sent all three requests first, then overlapped the time spent waiting for their responses.
+
+```text
+Sequential execution
+
+documents  [ request ───── wait ───── response ]
+web                                             [ request ── wait ── response ]
+database                                                                   [ request ── wait ── response ]
+time       0s                         2s                         4s                         6s
+
+Concurrent progress
+
+documents  [ request ───── wait ───── response ]
+web        [ request ───── wait ───── response ]
+database   [ request ───── wait ───── response ]
+time       0s                         2s
+```
+
+That is the first benefit within one run: overlap the waiting time of independent tool calls to reduce end-to-end latency.
+
+## More important than one run's latency: throughput across runs
+
+If async means only “call three APIs at once with `gather`,” half the picture is missing. A production backend continuously receives runs from different users.
+
+There is no reason for the entire process to stop while Run A waits 20 seconds for an LLM. Run B can send a database query in the meantime, and Run C can read state from Redis.
+
+```text
+Run A  LLM request ───────────── waiting ───────────── resume
+                                 │
+Run B                            └─ DB query ── wait ── resume
+                                                │
+Run C                                           └─ Redis ─ wait ─ resume
+```
+
+Keeping the two effects separate makes the role of async clearer.
+
+| Scope | What async changes |
+| --- | --- |
+| Within one run | Overlaps independent I/O waits to reduce latency |
+| Across runs | Advances another run while one waits, increasing throughput |
+
+Async does not make an external API respond faster. It lets the backend do other work while waiting for that response. What async improves, then, is not CPU performance but **execution-resource utilization and the throughput of an I/O-heavy backend**.
+
+Of course, an event loop's ability to advance multiple runs does not mean it owns those runs durably. Long-running work that must survive an API-process restart needs a separate lifecycle boundary: a queue and worker. Article 4 addresses that problem.
+
+## Blocking and non-blocking are different execution behaviors
+
+A blocking call holds the current thread until a result arrives. Other coroutines assigned to the same event-loop thread cannot advance during that time.
+
+```text
+call external service
+        ↓
+thread waits ──────────────────────── response
+        ↓
+continue
+```
+
+Non-blocking I/O asks the operating system or runtime to notify it when the operation is ready, then returns control. In the meantime, the event loop selects another coroutine that can run.
+
+```text
+Task A: send LLM request ───── await response ───────── resume
+                               │
+Task B:                        └─ query DB ─ await ───── resume
+                                              │
+Task C:                                       └─ read Redis ─ await ─ resume
+```
+
+A single thread is not executing three lines of Python at the same instant. When one coroutine yields control at an I/O wait, the event loop selects another runnable coroutine. The official Python documentation describes `asyncio` as a library for writing concurrent code with `async/await`, particularly well suited to I/O-bound and high-level network code. ([asyncio documentation](https://docs.python.org/3/library/asyncio.html))
+
+“Yields control” is the important phrase. Async is cooperative. A running coroutine must reach awaitable I/O before the event loop gets an opportunity to advance other work.
+
+## Separate coroutines, tasks, and the event loop
+
+`async def` defines a coroutine function. Calling that function does not immediately execute its result; it creates a coroutine object. The official documentation likewise notes that merely calling a coroutine function does not schedule it to run. To advance a coroutine, you must await it directly, drive an event loop with `asyncio.run()` at the top level, or schedule it as a task. ([Coroutines and Tasks](https://docs.python.org/3/library/asyncio-task.html))
+
+It helps to keep the three concepts distinct.
+
+| Concept | Role |
+| --- | --- |
+| Coroutine | A unit of execution that can pause and later resume |
+| Task | A wrapper that schedules a coroutine on the event loop and tracks its state, result, and cancellation |
+| Event loop | A scheduler that selects runnable tasks and wakes them for events such as completed I/O or timers |
+
+`asyncio.create_task()` wraps a coroutine in a task and schedules it on the current event loop. The first line below creates only a coroutine object; the second creates a task that can actually make progress.
+
+```python
+async def collect_context(query: str):
+    docs_coroutine = search_documents(query)  # not scheduled yet
+    docs_task = asyncio.create_task(docs_coroutine)
+    web_task = asyncio.create_task(search_web(query))
+
+    # Both tasks can make progress from this point.
+    docs = await docs_task
+    web = await web_task
+    return docs, web
+```
+
+If you create a coroutine object and never await it, the work does not complete. Creating a task and forgetting it is not safe either. It becomes unclear who retrieves its result and error, and the work can disappear with the API process. Article 4 returns to the question of who owns the lifecycle of a long-running agent run when it introduces workers.
+
+## `await` does not put a thread to sleep
+
+Understanding `await` as “pause here” is only half right. A more precise interpretation is:
+
+> The current coroutine cannot advance until this awaitable is ready. If it is not ready yet, return control so the event loop can advance another task.
+
+For example, `asyncio.sleep()` suspends the current task and gives other tasks a chance to run. `time.sleep()`, by contrast, blocks the thread itself.
+
+```python
+import asyncio
+import time
+
+async def cooperative_wait():
+    await asyncio.sleep(1)  # Another task can run.
+
+async def blocking_wait():
+    time.sleep(1)           # The entire event-loop thread stops.
+```
+
+Adding `async def` to a function does not turn blocking code inside it into non-blocking code. That distinction is especially dangerous in agents. An LLM SDK may be async, but if a tracing exporter, database driver, or file operation is synchronous, that call can delay other runs on the same event loop.
+
+## Concurrency is not parallelism
+
+The terms are often mixed together, but they answer different questions.
+
+```text
+Concurrency
+= Do multiple tasks make alternating progress within the same span of time?
+
+Parallelism
+= Do multiple tasks execute at the same instant on different compute resources?
+```
+
+Asyncio is primarily about concurrency. While Task A waits for a network response, Task B can build a request; when B waits, Task C can update state. One event-loop thread can overlap many I/O waits.
+
+Parallelism is about using multiple compute resources—CPU cores, separate processes, or GPUs—for actual computation. Async code does not automatically distribute CPU-bound work across several cores.
+
+| Workload | Where most time goes | Natural first choice |
+| --- | --- | --- |
+| LLM API call | Waiting for a network response | Async I/O |
+| PostgreSQL / Redis | Waiting on socket I/O | Async client |
+| Vector DB / web search | Waiting on network I/O | Async I/O |
+| Large pure-Python computation | CPU execution | Process or separate compute worker |
+| Local model inference | GPU/compute execution | Inference service |
+
+This article covers the first category. The next article addresses where threads and processes belong.
+
+## Design the result and failure semantics of `gather`
+
+`asyncio.gather()` runs multiple awaitables concurrently and, if all succeed, returns their results in input order. But “starts together” is not enough; failure semantics also need a design.
+
+With the default `return_exceptions=False`, the first exception is propagated to the awaiting caller. That does not automatically cancel every remaining awaitable. With `return_exceptions=True`, exceptions appear in the result list instead. ([Official documentation](https://docs.python.org/3/library/asyncio-task.html#asyncio.gather))
+
+Which behavior belongs in agent orchestration? The relationship between the operations decides.
+
+- If research can fail while the data result still supports a partial answer, the branches need failure isolation.
+- If one failed branch makes every other result meaningless, sibling cancellation is more natural.
+- If side effects are involved, distinguish “the other task was canceled” from “the remote action was actually canceled.”
+
+Python 3.11+ provides `TaskGroup` for managing related tasks within a lexical scope.
+
+```python
+import asyncio
+
+async def collect_context(query: str):
+    async with asyncio.TaskGroup() as group:
+        docs_task = group.create_task(search_documents(query))
+        web_task = group.create_task(search_web(query))
+        db_task = group.create_task(query_database(query))
+
+    # On leaving the context, all three tasks are complete.
+    return docs_task.result(), web_task.result(), db_task.result()
+```
+
+If one child task fails with an ordinary exception, `TaskGroup` cancels the remaining tasks, waits for cleanup, and raises an exception group. That does not make it universally better than `gather`. It means failure propagation is clearer when related work should share one scoped lifecycle.
+
+## Async does not make concurrency infinite
+
+The ability to run independent work concurrently does not mean all of it should start at once. If an agent discovers 100 URLs and immediately sends 100 requests, it can cause:
+
+- upstream rate limits
+- database connection-pool exhaustion
+- increased socket and memory use
+- retries that overlap into an even larger burst
+- one tenant monopolizing worker capacity
+
+Concurrency therefore needs a ceiling. At small scope, a semaphore can limit the number of in-flight operations. But no number such as `8` or `100` is a universal answer. Set the limit against external API quotas, connection pools, memory, latency SLOs, and tenant fairness. Backpressure and admission control extend the same problem to the worker and system level later in the series.
+
+## Do not call a blocking library directly inside the event loop
+
+Real codebases contain synchronous SDKs. Calling one directly from an async function blocks that thread.
+
+```python
+async def search_bad(query: str):
+    return blocking_search_client.search(query)  # May block the event loop.
+
+async def search_with_bridge(query: str):
+    return await asyncio.to_thread(
+        blocking_search_client.search,
+        query,
+    )
+```
+
+When an async client is not yet practical and the operation is mostly blocking I/O, `asyncio.to_thread()` can serve as a migration bridge. It does not eliminate the blocking call; it moves the call to another thread. Thread-pool size, cancellation, and SDK thread safety still matter. In particular, sending a CPU-heavy Python function to `to_thread()` does not automatically produce useful parallelism.
+
+## Revisit one agent run
+
+Async does not design an agent's control flow. Establish independence and dependencies first, then apply the execution model.
+
+```python
+async def analyze_company(query: str):
+    # Independent I/O can make progress concurrently.
+    research, metrics = await asyncio.gather(
+        research_agent(query),
+        data_agent(query),
+    )
+
+    # Synthesis depends on both results, so it runs afterward.
+    draft = await synthesis_agent(
+        query=query,
+        research=research,
+        metrics=metrics,
+    )
+
+    # Persistence is also I/O, but it needs completion semantics.
+    await save_result(query=query, answer=draft)
+    return draft
+```
+
+Research and data can progress together. Synthesis must wait for both dependencies. Whether persistence must finish before the client hears “complete,” or can move to separate work, depends on the product contract. `asyncio.gather` does not discover these relationships. The control-flow design from Article 1 comes first; async translates that design into an execution model resilient to waiting.
+
+## Questions to ask in production
+
+When introducing async to an agent backend, the syntax matters less than these questions.
+
+| Question | What to verify |
+| --- | --- |
+| Is the workload actually I/O-bound? | Time spent waiting on network, database, and storage |
+| Is the client non-blocking? | Whether it is an async SDK/driver and avoids internal blocking |
+| What work is independent? | Only work without dependencies should run concurrently |
+| Are failures isolated? | Partial results, sibling cancellation, and retry policy |
+| What is the concurrency ceiling? | Rate limits, pools, memory, and tenant fairness |
+| Who owns the lifecycle? | HTTP request, background task, or queue worker |
+| How far does cancellation really propagate? | The difference between a local task and a remote operation |
+
+Async alone cannot answer the final two questions. Creating a task on an event loop does not make it a durable job, and canceling a local task does not guarantee that a remote request already sent will stop.
+
+## What async cannot solve
+
+Most examples in this article spend their time waiting. What happens when a task does not wait and instead consumes the CPU for a long time?
+
+```python
+async def misleading_async_job(rows):
+    return expensive_python_calculation(rows)  # Keeps the CPU without an await point.
+```
+
+Only the declaration is async. Until the calculation finishes, the function does not release the event-loop thread, so other coroutines get no opportunity to advance. Async neither accelerates CPU-bound work nor automatically runs it in parallel across cores.
+
+The next article, **Async vs. Thread vs. Process**, separates waiting from computing. It compares moving blocking SDK calls to threads with moving CPU-bound computation to processes or separate workers. Async is the starting point, not the answer to every concurrency problem.

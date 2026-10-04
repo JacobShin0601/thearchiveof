@@ -1,0 +1,902 @@
+---
+title: "Where Does Agent State Live? Redis, PostgreSQL, and Checkpoints"
+subtitle: "From current progress to durable run records and resumable snapshots"
+description: "How to separate agent execution state across PostgreSQL, Redis, checkpoints, and process memory, with Python implementations for storage, reads, concurrency, and recovery."
+publishedDate: 2026-09-25
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - redis
+  - postgresql
+  - jsonb
+  - checkpointing
+  - agent-state
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: false
+language: "en"
+translationKey: "where-agent-state-lives"
+series: "Agent Engineering"
+seriesOrder: 5
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: evergreen
+lastReviewed: 2026-10-04
+nextReviewDate: 2027-10-04
+references:
+  - title: "PostgreSQL JSON Types"
+    url: "https://www.postgresql.org/docs/current/datatype-json.html"
+    publisher: "PostgreSQL Documentation"
+  - title: "Redis Hashes"
+    url: "https://redis.io/docs/latest/develop/data-types/hashes/"
+    publisher: "Redis Documentation"
+  - title: "EXPIRE"
+    url: "https://redis.io/docs/latest/commands/expire/"
+    publisher: "Redis Documentation"
+  - title: "Redis Transactions"
+    url: "https://redis.io/docs/latest/develop/using-commands/transactions/"
+    publisher: "Redis Documentation"
+  - title: "Pipelines and Transactions"
+    url: "https://redis.io/docs/latest/develop/clients/redis-py/transpipe/"
+    publisher: "Redis Documentation"
+  - title: "Redis Persistence"
+    url: "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/"
+    publisher: "Redis Documentation"
+  - title: "LangGraph Persistence"
+    url: "https://docs.langchain.com/oss/python/langgraph/persistence"
+    publisher: "LangChain Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="Where should agent state be stored?">
+  Do not put all of it in one store. Use <strong>PostgreSQL as the durable source of truth for runs and results, Redis for frequently changing and reconstructible hot operational state, checkpoints for execution snapshots that support resume, and process memory for disposable local working state</strong>. Choose a location by the failures the state must survive and how long it must live—not by speed alone.
+</AnswerBlock>
+
+The previous article, [**A Worker Is Not a Thread**](/en/ai/agents/worker-is-not-thread/), moved ownership of a long-running agent run from an API request to a queue and worker. Now suppose the worker has finished research and moved to valuation. Progress is 65%. The user refreshes the browser just as the worker Pod restarts.
+
+The word “state” now hides four different questions:
+
+- Who requested this run, and did it ultimately succeed?
+- Which step is running now, and what is its progress?
+- At which node should a restarted worker resume?
+- Where are the HTTP client and temporary parsing buffer used by the current function?
+
+These states have different lifetimes, readers, and failure requirements. A Python dictionary cannot survive a process restart. One PostgreSQL row would receive a durable update for every small progress change. Redis is fast, but putting everything there binds business records and resume semantics to cache policy.
+
+Agent state design is not a database-selection exercise. It is **the separation of different kinds of truth**.
+
+## Start with four layers of state
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ Durable business state                                      │
+│ run identity, ownership, terminal status, result, audit      │
+│ → PostgreSQL                                                 │
+├──────────────────────────────────────────────────────────────┤
+│ Hot operational state                                       │
+│ progress, current step, heartbeat, active attempt            │
+│ → Redis                                                      │
+├──────────────────────────────────────────────────────────────┤
+│ Resume state                                                 │
+│ graph values, next nodes, completed work, checkpoint metadata│
+│ → durable checkpoint store                                   │
+├──────────────────────────────────────────────────────────────┤
+│ Local working state                                         │
+│ open clients, parser buffer, memoized objects                │
+│ → process memory                                             │
+└──────────────────────────────────────────────────────────────┘
+```
+
+| Kind of state | Representative question | Required lifetime | Natural location |
+| --- | --- | --- | --- |
+| Durable run record | Who requested what, and how did it end? | Beyond service and process restarts | PostgreSQL |
+| Hot state | Where is it now? | Fast reads while active; may expire later | Redis |
+| Checkpoint | Where can execution safely resume? | As long as required by the run's resume and retention policies | PostgreSQL-backed checkpointer, for example |
+| Local state | Is it needed only by this function? | No longer than the process lifetime | Python memory |
+
+A checkpoint is not a database product. It means **a resumable snapshot**. It can live in PostgreSQL or another backend with the required durability. Conversely, a value stored in Redis is not automatically a cache; its guarantees depend on persistence and replication configuration.
+
+A useful default boundary is:
+
+> Losing all of Redis must not prevent the system from explaining that a run exists or what its final result is. Losing all worker memory must still permit execution to resume after the latest checkpoint.
+
+## What state does one run actually produce?
+
+Suppose an enterprise-analysis agent runs:
+
+```text
+research → financial_data → valuation → report → approval
+```
+
+At one instant, its stores might contain:
+
+```text
+PostgreSQL: agent_runs
+  run_id          = 7d5...
+  tenant_id       = acme
+  session_id      = 91a...
+  status          = running
+  input           = {"ticker": "NVDA"}
+  final_result    = null
+  version         = 3
+
+Redis: agent:run:{7d5...}:state
+  status          = running
+  current_step    = valuation
+  progress        = 65
+  attempt_id      = 4fe...
+  heartbeat_at    = 2026-10-04T04:10:00Z
+  version         = 18
+
+Checkpoint 12
+  values          = {research output, normalized financials, assumptions}
+  next_nodes      = [valuation]
+  completed_nodes = [research, financial_data]
+```
+
+The three copies should not be identical:
+
+- PostgreSQL preserves that the run exists and is not yet terminal.
+- Redis provides the latest projection needed by the UI and operators.
+- The checkpoint gives a new worker enough state to continue computation.
+
+## PostgreSQL: keep the durable source of truth small
+
+The run table is the system of record. It must support results, authorization, billing, and audit. Put frequently searched and joined values in relational columns.
+
+```sql
+CREATE TABLE agent_runs (
+    run_id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    session_id UUID NOT NULL,
+
+    status TEXT NOT NULL CHECK (
+        status IN ('queued', 'running', 'waiting_approval',
+                   'succeeded', 'failed', 'cancelled')
+    ),
+
+    input JSONB NOT NULL,
+    final_result JSONB,
+    error JSONB,
+
+    version BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX agent_runs_session_created_idx
+    ON agent_runs (tenant_id, session_id, created_at DESC);
+
+CREATE INDEX agent_runs_active_idx
+    ON agent_runs (tenant_id, status, updated_at)
+    WHERE status IN ('queued', 'running', 'waiting_approval');
+```
+
+Keeping `tenant_id`, `session_id`, `status`, and timestamps out of JSONB makes authorization queries and foreign keys explicit, supports ordinary B-tree indexes for active runs and session history, permits a `CHECK` constraint on status, and avoids JSON-path evaluation in routine operational queries.
+
+JSONB fits flexible values such as provider-specific model options, tool-specific results, and nested assumptions. PostgreSQL stores `jsonb` in a decomposed binary format, avoiding reparsing and supporting indexes. Its documentation nevertheless recommends a somewhat predictable structure even for flexible documents. ([PostgreSQL JSON Types](https://www.postgresql.org/docs/current/datatype-json.html))
+
+### JSONB does not eliminate schema
+
+| Value | Recommended shape | Reason |
+| --- | --- | --- |
+| `tenant_id`, `session_id` | Relational column | joins, authorization, indexes |
+| `status`, `created_at` | Relational column | frequent filtering and sorting |
+| LLM provider options | JSONB | optional fields vary by provider |
+| Tool output payload | JSONB or separate table | variable structure, subject to audit scope |
+| Total token usage | Relational column | when aggregation and billing queries are frequent |
+| Full message history | Separate rows | avoid unbounded growth of one JSONB document |
+
+Avoid rewriting one large state document after every step. PostgreSQL can express updates to part of a JSONB column, but it is still a row update for concurrency control. Large document updates acquire a row-level lock, so document size and contention matter.
+
+```sql
+-- Keep appending every conversation, event, tool result, and checkpoint to one row
+UPDATE agent_runs
+SET state = state || $1::jsonb
+WHERE run_id = $2;
+```
+
+Run records, messages, tool executions, and checkpoints have different lifetimes and query patterns; separate tables are usually a better fit.
+
+## Version PostgreSQL updates
+
+A worker, cancellation API, and approval handler may update the same run concurrently. With unconditional last-write-wins, a late `running` update can overwrite an existing `cancelled` state. Optimistic concurrency control with `version` detects stale writers.
+
+```python
+import json
+from dataclasses import dataclass
+from typing import Any
+
+@dataclass(frozen=True)
+class ConcurrentRunUpdate(Exception):
+    run_id: str
+    expected_version: int
+
+async def transition_run(
+    conn,
+    *,
+    run_id: str,
+    expected_version: int,
+    next_status: str,
+    final_result: dict[str, Any] | None = None,
+) -> int:
+    row = await conn.fetchrow(
+        """
+        UPDATE agent_runs
+        SET status = $1,
+            final_result = COALESCE($2::jsonb, final_result),
+            version = version + 1,
+            updated_at = NOW(),
+            finished_at = CASE
+                WHEN $1 IN ('succeeded', 'failed', 'cancelled') THEN NOW()
+                ELSE finished_at
+            END
+        WHERE run_id = $3
+          AND version = $4
+        RETURNING version
+        """,
+        next_status,
+        json.dumps(final_result) if final_result is not None else None,
+        run_id,
+        expected_version,
+    )
+
+    if row is None:
+        raise ConcurrentRunUpdate(run_id, expected_version)
+
+    return row["version"]
+```
+
+Do not blindly retry after a version mismatch. Read the latest row and decide whether the transition—for example, `cancelled → running`—is forbidden. Enforce the state machine explicitly in application code or a database constraint or trigger.
+
+```python
+ALLOWED_TRANSITIONS = {
+    "queued": {"running", "cancelled"},
+    "running": {"waiting_approval", "succeeded", "failed", "cancelled"},
+    "waiting_approval": {"running", "cancelled"},
+    "succeeded": set(),
+    "failed": set(),
+    "cancelled": set(),
+}
+
+def assert_transition(current: str, target: str) -> None:
+    if target not in ALLOWED_TRANSITIONS[current]:
+        raise ValueError(f"invalid run transition: {current} -> {target}")
+```
+
+An LLM must not decide status. It may say that analysis is complete, but deterministic code should perform the terminal transition only after required output validation and persistence.
+
+## Redis: read the latest operational projection quickly
+
+Redis should hold the small current-state projection read frequently by the UI and operational loops.
+
+```text
+Key
+agent:run:{run_id}:state
+
+Hash fields
+status          running
+current_step    valuation
+progress        65
+attempt_id      4fe...
+heartbeat_at    2026-10-04T04:10:00Z
+updated_at      2026-10-04T04:10:00Z
+version         18
+detail_json     {"company":"NVIDIA","scenario":3}
+```
+
+A Redis Hash is a collection of field-value pairs. `HSET` updates selected fields; `HMGET` and `HGETALL` read them. That fits a flat current-state object. Hash values are strings or bytes, so nested objects need JSON serialization or a separate type such as Redis JSON. ([Redis Hashes](https://redis.io/docs/latest/develop/data-types/hashes/))
+
+This example uses a Hash without an extra module:
+
+```python
+import json
+from datetime import UTC, datetime
+from redis.asyncio import Redis
+
+HOT_STATE_TTL_SECONDS = 24 * 60 * 60
+
+def run_state_key(run_id: str) -> str:
+    # Braces can place related keys for the same run in one
+    # Redis Cluster hash slot.
+    return f"agent:run:{{{run_id}}}:state"
+
+async def write_hot_state(
+    redis: Redis,
+    *,
+    run_id: str,
+    status: str,
+    current_step: str,
+    progress: int,
+    attempt_id: str,
+    version: int,
+    detail: dict,
+) -> None:
+    if not 0 <= progress <= 100:
+        raise ValueError("progress must be between 0 and 100")
+
+    now = datetime.now(UTC).isoformat()
+    key = run_state_key(run_id)
+
+    async with redis.pipeline(transaction=True) as pipe:
+        pipe.hset(
+            key,
+            mapping={
+                "status": status,
+                "current_step": current_step,
+                "progress": progress,
+                "attempt_id": attempt_id,
+                "heartbeat_at": now,
+                "updated_at": now,
+                "version": version,
+                "detail_json": json.dumps(detail),
+            },
+        )
+        pipe.expire(key, HOT_STATE_TTL_SECONDS)
+        await pipe.execute()
+```
+
+The transaction pipeline executes `HSET` and `EXPIRE` as one unit. If only the state write succeeds before the process dies, a temporary key can remain forever. Redis transactions isolate commands between `MULTI` and `EXEC`; redis-py pipelines support batching and transactions. ([Redis Transactions](https://redis.io/docs/latest/develop/using-commands/transactions/), [redis-py Pipelines](https://redis.io/docs/latest/develop/clients/redis-py/transpipe/))
+
+Reconstruct domain types at the read boundary.
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class HotRunState:
+    status: str
+    current_step: str
+    progress: int
+    attempt_id: str
+    updated_at: str
+    version: int
+    detail: dict
+
+async def read_hot_state(
+    redis: Redis,
+    run_id: str,
+) -> HotRunState | None:
+    raw = await redis.hgetall(run_state_key(run_id))
+    if not raw:
+        return None
+
+    return HotRunState(
+        status=raw["status"],
+        current_step=raw["current_step"],
+        progress=int(raw["progress"]),
+        attempt_id=raw["attempt_id"],
+        updated_at=raw["updated_at"],
+        version=int(raw["version"]),
+        detail=json.loads(raw.get("detail_json", "{}")),
+    )
+```
+
+This assumes the Redis client uses `decode_responses=True`; otherwise keys and values are `bytes` and need a decoding layer.
+
+## Design identity and lifetime into Redis keys
+
+Key names affect access, deletion, and the multi-key operations possible in a Cluster.
+
+```text
+agent:run:{run_id}:state
+agent:run:{run_id}:lease
+agent:run:{run_id}:cancel
+```
+
+`{run_id}` is a Redis Cluster hash tag: keys with the same brace value can share a hash slot, enabling related multi-key transactions or Lua scripts. Putting every tenant key under one `{tenant_id}` can overload one slot for a large tenant, however. Choose tags from actual access patterns.
+
+More importantly:
+
+> A tenant ID in a Redis key is not authorization.
+
+The API must verify access using PostgreSQL's `tenant_id` and the authenticated principal before reading Redis. Looking up a user-supplied `run_id` in Redis and returning it directly can leak data across tenants.
+
+## TTL is both cleanup and semantics
+
+Hot state need not live forever. Refresh its TTL while the run is active; after PostgreSQL records a terminal state, shorten it.
+
+```python
+RUNNING_TTL = 24 * 60 * 60
+TERMINAL_TTL = 60 * 60
+
+async def mark_hot_state_terminal(
+    redis: Redis,
+    *,
+    run_id: str,
+    status: str,
+    version: int,
+) -> None:
+    if status not in {"succeeded", "failed", "cancelled"}:
+        raise ValueError("terminal status required")
+
+    key = run_state_key(run_id)
+    async with redis.pipeline(transaction=True) as pipe:
+        pipe.hset(
+            key,
+            mapping={
+                "status": status,
+                "progress": 100 if status == "succeeded" else 0,
+                "version": version,
+                "updated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+        pipe.expire(key, TERMINAL_TTL)
+        await pipe.execute()
+```
+
+Redis `EXPIRE` applies to the whole key. In-place changes such as `HSET` preserve an existing timeout; operations such as `SET` that replace the value can clear it. When implementation changes, verify command semantics rather than assuming the TTL survives. ([EXPIRE](https://redis.io/docs/latest/commands/expire/))
+
+An expired Redis key does not mean the run disappeared. On a miss, the API falls back to durable PostgreSQL state.
+
+```text
+GET /runs/{run_id}
+   │
+   ├─ PostgreSQL: authorization + durable status/result
+   │
+   └─ Redis: enrich with current step/progress when present
+```
+
+## Redis updates also need ordering
+
+With parallel nodes or retries, a late update can overwrite newer progress.
+
+```text
+Worker A writes version 19, progress 70
+Worker B arrives late with version 18, progress 60
+
+Blind HSET result → UI moves backward from 70% to 60%
+```
+
+The simplest design narrows progress writes to one coordinator per run. If stale updates remain possible, compare versions and write atomically inside Redis. Reading in the application, comparing, then calling `HSET` leaves a race between commands. A Lua script combines comparison and update into one server-side operation.
+
+```python
+UPDATE_IF_NEWER = """
+local current = redis.call('HGET', KEYS[1], 'version')
+local proposed = tonumber(ARGV[1])
+
+if current and proposed <= tonumber(current) then
+    return 0
+end
+
+redis.call(
+    'HSET', KEYS[1],
+    'version', ARGV[1],
+    'status', ARGV[2],
+    'current_step', ARGV[3],
+    'progress', ARGV[4],
+    'updated_at', ARGV[5]
+)
+redis.call('EXPIRE', KEYS[1], ARGV[6])
+return 1
+"""
+
+async def update_if_newer(
+    redis: Redis,
+    *,
+    run_id: str,
+    version: int,
+    status: str,
+    current_step: str,
+    progress: int,
+) -> bool:
+    result = await redis.eval(
+        UPDATE_IF_NEWER,
+        1,
+        run_state_key(run_id),
+        version,
+        status,
+        current_step,
+        progress,
+        datetime.now(UTC).isoformat(),
+        RUNNING_TTL,
+    )
+    return result == 1
+```
+
+Redis transactions can also implement optimistic locking with `WATCH`/`MULTI`/`EXEC`: if a watched key changes before `EXEC`, the transaction aborts and the client rereads before deciding. Choose Lua or `WATCH` based on update complexity and client retry needs.
+
+Versioning does not solve writer authority. If an old attempt can generate a larger version, compare the current `attempt_id` too. A fencing token may be necessary to reject an old worker after a queue claim or lease changes. Article 10 discusses this in worker recovery.
+
+## What not to put in a Redis Hash
+
+Do not let a convenient Hash become another giant document. Avoid:
+
+- every prompt and LLM response;
+- thousands of `event_1`, `event_2`, and similar fields;
+- large document corpora and binary files;
+- the only copy of a final result;
+- tool-execution history required for audit;
+- the only checkpoint needed for resume.
+
+A Redis Hash fits a **small, current projection**. Redis JSON may help with large nested state and partial queries, but does not change the data model's meaning. Event history needs append semantics; snapshots need snapshot semantics. Article 6 separates Hash state from Redis Stream events.
+
+`HGETALL` returns data proportional to the number of fields: O(N), as the Redis documentation classifies it. It is fine for a small state object; use `HMGET` for selected fields as a hash grows.
+
+## Redis persistence does not automatically change its role
+
+Redis is not limited to memory-only caching. It supports RDB snapshots, AOF, and combined RDB+AOF persistence. AOF durability and latency vary with fsync policy. ([Redis Persistence](https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/))
+
+“AOF is enabled, so move every business record to Redis” does not follow. A source of truth is not defined by disk writes alone:
+
+- Which transactions and constraints enforce domain invariants?
+- How do backups and point-in-time recovery work?
+- What are the long-term query, join, and audit requirements?
+- What are the memory-pressure and eviction policies?
+- What data-loss window is acceptable during cross-region failover?
+- Which storage system can the team operate well?
+
+Redis can be designed as a durable primary store, but that must be an explicit architectural decision. This article's default keeps durable run records in PostgreSQL and reconstructible hot projections in Redis. If eviction is enabled, understand that memory pressure can remove keys before TTL expiry. Mixing important state with disposable cache also requires capacity isolation and a compatible memory policy.
+
+## A checkpoint contains much more than current status
+
+Hot state such as this cannot restart valuation because it does not say which financial data was used, what research produced, or which dependencies completed:
+
+```json
+{
+  "status": "running",
+  "current_step": "valuation",
+  "progress": 65
+}
+```
+
+A checkpoint is a resumable execution snapshot.
+
+```python
+from dataclasses import dataclass, field
+from typing import Any
+
+@dataclass(frozen=True)
+class AgentCheckpoint:
+    run_id: str
+    checkpoint_id: str
+    sequence: int
+    values: dict[str, Any]
+    next_nodes: list[str]
+    completed_nodes: list[str]
+    metadata: dict[str, Any] = field(default_factory=dict)
+```
+
+It commonly includes graph-state values, next nodes or the ready set, completed nodes and output references, pending approvals or interrupts, sequence and parent checkpoint, state-schema version, and references to model or tool configuration needed for reproduction.
+
+Do not include process-bound, non-serializable objects such as open database connections, HTTP clients, or coroutine objects. A new worker recreates resources; the checkpoint stores only the identity and data needed to do so.
+
+## Example: durable checkpoints in PostgreSQL
+
+```sql
+CREATE TABLE agent_checkpoints (
+    run_id UUID NOT NULL REFERENCES agent_runs(run_id),
+    checkpoint_id UUID NOT NULL,
+    sequence BIGINT NOT NULL,
+    parent_checkpoint_id UUID,
+
+    state_schema_version INTEGER NOT NULL,
+    values JSONB NOT NULL,
+    next_nodes TEXT[] NOT NULL,
+    completed_nodes TEXT[] NOT NULL,
+    metadata JSONB NOT NULL DEFAULT '{}',
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    PRIMARY KEY (run_id, checkpoint_id),
+    UNIQUE (run_id, sequence)
+);
+
+CREATE INDEX agent_checkpoints_latest_idx
+    ON agent_checkpoints (run_id, sequence DESC);
+```
+
+Treat writes and reads as append-only snapshots.
+
+```python
+import json
+
+async def save_checkpoint(conn, checkpoint: AgentCheckpoint) -> None:
+    await conn.execute(
+        """
+        INSERT INTO agent_checkpoints (
+            run_id,
+            checkpoint_id,
+            sequence,
+            parent_checkpoint_id,
+            state_schema_version,
+            values,
+            next_nodes,
+            completed_nodes,
+            metadata
+        ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9::jsonb)
+        """,
+        checkpoint.run_id,
+        checkpoint.checkpoint_id,
+        checkpoint.sequence,
+        checkpoint.metadata.get("parent_checkpoint_id"),
+        checkpoint.metadata.get("state_schema_version", 1),
+        json.dumps(checkpoint.values),
+        checkpoint.next_nodes,
+        checkpoint.completed_nodes,
+        json.dumps(checkpoint.metadata),
+    )
+
+async def load_latest_checkpoint(conn, run_id: str):
+    return await conn.fetchrow(
+        """
+        SELECT *
+        FROM agent_checkpoints
+        WHERE run_id = $1
+        ORDER BY sequence DESC
+        LIMIT 1
+        """,
+        run_id,
+    )
+```
+
+Sequence-specific snapshots show what became durable and aid debugging and human-in-the-loop resume. They also require retention and compaction to prevent unbounded growth.
+
+Checkpointing every node is not mandatory:
+
+| Save frequently | Save infrequently |
+| --- | --- |
+| Less re-execution after failure | Lower write and storage cost |
+| More database writes and serialization | Expensive tool calls may repeat |
+| Fine-grained HITL interrupt locations | Coarser resume points |
+
+Choose based on recovery cost—for example, immediately before and after a side effect, after an expensive tool call, or before a HITL interrupt.
+
+## Checkpoint schemas need versioning too
+
+If today's state:
+
+```json
+{
+  "ticker": "NVDA",
+  "valuation": {"multiple": 31.2}
+}
+```
+
+changes in the next deployment from `valuation` to a `scenarios` array, new code may not read old checkpoints. Store `state_schema_version` and provide a migration or compatibility layer.
+
+```python
+def migrate_checkpoint(values: dict, from_version: int) -> dict:
+    if from_version == 1:
+        valuation = values.pop("valuation", None)
+        if valuation is not None:
+            values["scenarios"] = [
+                {"name": "base", **valuation}
+            ]
+        from_version = 2
+
+    if from_version != 2:
+        raise ValueError(f"unsupported checkpoint version: {from_version}")
+
+    return values
+```
+
+If long runs can span deployments, record the code version in metadata and define a backward-compatibility window for old checkpoints in the release policy.
+
+## Connect the three stores in worker code
+
+```python
+async def execute_run(
+    *,
+    run_id: str,
+    attempt_id: str,
+    postgres,
+    redis: Redis,
+) -> None:
+    async with postgres.acquire() as conn:
+        run = await conn.fetchrow(
+            "SELECT * FROM agent_runs WHERE run_id = $1",
+            run_id,
+        )
+        checkpoint = await load_latest_checkpoint(conn, run_id)
+
+    state = restore_state(run, checkpoint)
+    hot_version = 0
+
+    for step in ready_steps(state):
+        hot_version += 1
+        await update_if_newer(
+            redis,
+            run_id=run_id,
+            version=hot_version,
+            status="running",
+            current_step=step.name,
+            progress=estimate_progress(state, step),
+        )
+
+        output = await step.execute(state)
+        state = apply_output(state, step, output)
+
+        if should_checkpoint(step, state):
+            async with postgres.acquire() as conn:
+                await save_checkpoint(
+                    conn,
+                    build_checkpoint(run_id, state),
+                )
+
+    result = build_final_result(state)
+
+    async with postgres.acquire() as conn:
+        current = await conn.fetchrow(
+            "SELECT status, version FROM agent_runs WHERE run_id = $1",
+            run_id,
+        )
+        assert_transition(current["status"], "succeeded")
+        durable_version = await transition_run(
+            conn,
+            run_id=run_id,
+            expected_version=current["version"],
+            next_status="succeeded",
+            final_result=result,
+        )
+
+    # Persist the durable terminal result first, then update Redis.
+    await mark_hot_state_terminal(
+        redis,
+        run_id=run_id,
+        status="succeeded",
+        version=durable_version,
+    )
+```
+
+The ordering matters:
+
+1. Write in-progress updates frequently to Redis.
+2. Write a durable checkpoint at resume points.
+3. Commit the final result and terminal status to PostgreSQL first.
+4. Then bring the Redis projection to terminal state.
+
+If the last Redis write fails, PostgreSQL still holds the successful result. An API that prioritizes the durable row will not show `running` forever, and a reconciliation job can repair terminal projections.
+
+## The API combines durable and hot state
+
+Never read only Redis in a status endpoint. First establish tenant authorization and durable state; enrich active runs with the hot projection.
+
+```python
+from fastapi import HTTPException
+
+async def get_run_view(
+    *,
+    run_id: str,
+    tenant_id: str,
+    conn,
+    redis: Redis,
+) -> dict:
+    run = await conn.fetchrow(
+        """
+        SELECT run_id, tenant_id, status, final_result, error,
+               created_at, updated_at
+        FROM agent_runs
+        WHERE run_id = $1 AND tenant_id = $2
+        """,
+        run_id,
+        tenant_id,
+    )
+    if run is None:
+        raise HTTPException(404, "run not found")
+
+    response = {
+        "run_id": str(run["run_id"]),
+        "status": run["status"],
+        "result": run["final_result"],
+        "error": run["error"],
+        "updated_at": run["updated_at"].isoformat(),
+    }
+
+    if run["status"] in {"queued", "running", "waiting_approval"}:
+        hot = await read_hot_state(redis, run_id)
+        if hot is not None:
+            response["progress"] = hot.progress
+            response["current_step"] = hot.current_step
+            response["heartbeat_at"] = hot.updated_at
+
+    return response
+```
+
+Use a short Redis timeout. A temporarily unavailable hot projection should not stall the entire status endpoint for 30 seconds; degraded mode can omit progress and return durable state. For terminal runs, PostgreSQL is authoritative even if Redis still says `running`.
+
+## Check what survives each failure
+
+| Failure | PostgreSQL | Redis | Checkpoint | Expected behavior |
+| --- | --- | --- | --- | --- |
+| Browser refresh | retained | retained | retained | API recombines state |
+| API process restart | retained | retained if Redis is external | retained | Run remains queryable |
+| Worker process crash | may say `running` | heartbeat becomes stale | latest snapshot retained | Queue redelivery, then resume |
+| Redis key expiry | retained | missing | retained | Durable fallback; rebuild projection |
+| Total Redis loss | retained | missing | retained if durable | Some progress lost; run/result preserved |
+| PostgreSQL unavailable | reads and terminal commits fail | hot state may remain | cannot save | Do not mark successful |
+| State-schema change on deploy | retained | projection can be rebuilt | migration required | Use versioned loader |
+
+PostgreSQL unavailability is the crucial row. If a tool finishes but the final result cannot commit, the worker must not acknowledge the message as successful. Otherwise computation is complete but the system of record has no result. Side-effecting tools also need idempotency because a retry may repeat the action; Article 15 covers that separately.
+
+## Common anti-patterns
+
+### 1. Put every state value in a Python dictionary
+
+Enough for a local demo, but it cannot survive process restart or multi-worker execution. Keep only reconstructible objects in memory.
+
+### 2. Put everything in one PostgreSQL JSONB value
+
+It looks schema-flexible but creates hot-row contention, document growth, and query complexity. Use columns for frequently queried identity and status, and tables for repeated entities.
+
+### 3. Keep the only final result in Redis because Redis is fast
+
+TTL, eviction, and persistence policy may conflict with business retention. Using Redis authoritatively requires guarantees different from a cache.
+
+### 4. Use Redis `HSET` as last-write-wins
+
+Retries and parallel branches let stale progress overwrite newer state. Add the appropriate boundary: a single writer, versions, or attempt fencing.
+
+### 5. Create temporary keys without TTL
+
+Completed-run state accumulates forever. Couple the write and TTL in one transaction or script, with separate terminal retention.
+
+### 6. Treat Redis state as event history
+
+Overwriting a Hash preserves the present but erases how it was reached. Replaying every progress event to render a simple current view is expensive. State and events are different data models.
+
+### 7. Put process objects in checkpoints
+
+Clients, file handles, and coroutines cannot be restored in a new worker. Save serializable state and resource identity; recreate runtime resources.
+
+## Mapping the plain-Python model to LangGraph
+
+The design is framework-independent. In LangGraph, the checkpoint maps to a checkpointer. Its documentation distinguishes graph-state snapshots for a thread from a store holding application-defined long-term data outside a thread. It also notes that an in-memory saver does not survive process restarts, so production needs a persistent checkpointer. ([LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/persistence))
+
+```text
+Concept in this article             LangGraph mapping
+───────────────────────────         ─────────────────────────────
+Durable business record for a run   Application PostgreSQL tables
+Resumable graph snapshot             Checkpointer
+Cross-thread long-term memory        Store
+Current progress projection          Application-managed Redis state
+Process-local temporary state        Runtime memory
+```
+
+Passing a `thread_id` and attaching a checkpointer does not solve run records, authorization, UI progress, and event history. Framework graph state and application business state overlap, but they are not the same. Article 8 develops that distinction.
+
+## Let failure requirements decide where state lives
+
+Ask:
+
+1. Must this value survive process failure?
+2. Must users retrieve or audit it days later?
+3. Does it change many times per second and need fast reads by many clients?
+4. Can a worker resume safely from this value alone?
+5. Can it disappear through TTL or eviction and be rebuilt?
+6. Are there multiple concurrent writers?
+7. Must old runs remain readable after a schema change?
+
+The answers determine versioning, TTL, transactions, and retention as well as storage.
+
+```text
+PostgreSQL
+  durable truth: run, identity, status, result, audit
+
+Redis Hash
+  hot projection: current step, progress, heartbeat
+
+Checkpoint
+  resume snapshot: values, next nodes, completed work
+
+Process memory
+  disposable runtime objects
+```
+
+We can now store “what is the state right now?” Real-time UI and debugging leave a different set of questions:
+
+- How do we deliver the fact that research completed exactly once?
+- How does a reconnecting user receive progress they missed?
+- Should one Redis Hash represent both the current snapshot and the list of past events?
+
+The next article, **State Is Not an Event**, separates current snapshots from append-only event history and examines the access patterns served by Redis Hashes and Redis Streams.

@@ -1,11 +1,11 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { seriesPath } from '../../consts';
+import { seriesPath, sortSeriesNames } from '../../consts';
 import { isVisiblePost } from '../../environment';
 
 const posts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko');
-const series = [...new Set(posts.flatMap((post) => post.data.series ? [post.data.series] : []))];
+const series = sortSeriesNames([...new Set(posts.flatMap((post) => post.data.series ? [post.data.series] : []))]);
 ---
 
 <BaseLayout title="Series" description="Ordered learning paths through the core ideas in The Archive." language="ko" alternateLanguageUrl="/en/series/">
