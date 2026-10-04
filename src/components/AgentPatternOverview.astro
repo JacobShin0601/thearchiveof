@@ -26,7 +26,7 @@ const patterns: { key: string; title: string; summary: string; takeaway: string;
       {d:'M74 230 V204 H165 V164',returned:true}, {d:'M208 230 V164',returned:true}, {d:'M346 230 V204 H235 V164',returned:true},
       {d:'M290 138 H398 V306 H200 V326'},
     ],
-    notes:[{x:200,y:88,text:t('도구가 필요하면 호출 ↓ / 관찰 결과 ↑', 'Call tools ↓ / observe results ↑')},{x:200,y:307,text:t('충분한 정보를 모으면 답변', 'Answer when ready')}],
+    notes:[{x:90,y:100,text:t('실선: 호출 / 점선: 결과', 'Solid: call / dashed: result')},{x:90,y:310,text:t('완료 시 답변', 'Answer when ready')}],
   },
   {
     key:'sequential',
@@ -60,7 +60,6 @@ const patterns: { key: string; title: string; summary: string; takeaway: string;
     edges:[{d:'M200 56 V78 H64 V118'},{d:'M200 56 V118'},{d:'M200 78 H336 V118'},
       {d:'M64 168 V218'},{d:'M200 168 V218'},{d:'M336 168 V218'},
       {d:'M64 268 V298 H200 V326'},{d:'M200 268 V326'},{d:'M336 268 V298 H200'}],
-    notes:[{x:200,y:105,text:t('동시에 실행 · 서로 독립', 'Run concurrently · independent')}],
   },
   {
     key:'hierarchy',
