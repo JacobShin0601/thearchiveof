@@ -1,0 +1,38 @@
+---
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+const patterns = ko ? [
+  { number: '01', title: '단일 에이전트 + 도구', use: '하나의 역할이 도구를 골라 여러 단계를 처리할 때', diagram: 'single' },
+  { number: '02', title: '순차 워크플로', use: '순서가 고정된 반복 업무를 단계별로 넘길 때', diagram: 'sequential' },
+  { number: '03', title: '병렬 워크플로', use: '서로 독립적인 조사·분석을 동시에 돌릴 때', diagram: 'parallel' },
+  { number: '04', title: '계층적 작업 분해', use: '큰 목표를 계획과 전문 작업으로 계속 쪼갤 때', diagram: 'hierarchical' },
+] : [
+  { number: '01', title: 'Single agent + tools', use: 'One role selects tools for a multi-step task', diagram: 'single' },
+  { number: '02', title: 'Sequential workflow', use: 'A repeatable task has a fixed handoff order', diagram: 'sequential' },
+  { number: '03', title: 'Parallel workflow', use: 'Independent research or analysis can run together', diagram: 'parallel' },
+  { number: '04', title: 'Hierarchical decomposition', use: 'A broad goal needs repeated planning and delegation', diagram: 'hierarchical' },
+];
+---
+
+<figure class="pattern-map">
+  <div class="map-header">
+    <div><p class="eyebrow">AGENT DESIGN PATTERNS</p><h2>{ko ? '먼저 네 가지 기본 형태를 보자' : 'Start with four basic shapes'}</h2></div>
+    <p>{ko ? '모든 요청에 멀티 에이전트가 필요한 것은 아니다. 작업의 의존성, 동시성, 분해 수준에 따라 가장 작은 구조부터 고른다.' : 'Not every request needs multiple agents. Start with the smallest structure that fits its dependencies, concurrency, and decomposition.'}</p>
+  </div>
+  <div class="pattern-grid">
+    {patterns.map((pattern) => <section class="pattern-card">
+      <div class="card-heading"><span>{pattern.number}</span><h3>{pattern.title}</h3></div>
+      {pattern.diagram === 'single' && <div class="diagram single" aria-label={ko ? '사용자에서 에이전트와 도구를 거쳐 답변으로 이어지는 흐름' : 'A flow from user to agent and tools to answer'}><b>{ko ? '요청' : 'Request'}</b><i>→</i><strong>{ko ? '에이전트' : 'Agent'}</strong><div><em>{ko ? '검색' : 'Search'}</em><em>{ko ? '데이터' : 'Data'}</em><em>{ko ? '실행' : 'Act'}</em></div><i>→</i><b>{ko ? '답변' : 'Answer'}</b></div>}
+      {pattern.diagram === 'sequential' && <div class="diagram sequence" aria-label={ko ? '추출, 정리, 적재가 차례로 이어지는 흐름' : 'A flow from extract to clean to load'}><b>{ko ? '추출' : 'Extract'}</b><i>→</i><b>{ko ? '정리' : 'Clean'}</b><i>→</i><b>{ko ? '적재' : 'Load'}</b></div>}
+      {pattern.diagram === 'parallel' && <div class="diagram parallel" aria-label={ko ? '하나의 요청이 조사, 데이터, 검증으로 갈라졌다 종합되는 흐름' : 'A request fans out to research, data, and validation before synthesis'}><b>{ko ? '요청' : 'Request'}</b><div><em>{ko ? '조사' : 'Research'}</em><em>{ko ? '데이터' : 'Data'}</em><em>{ko ? '검증' : 'Review'}</em></div><strong>{ko ? '종합' : 'Synthesis'}</strong></div>}
+      {pattern.diagram === 'hierarchical' && <div class="diagram hierarchy" aria-label={ko ? '목표가 계획, 전문 작업, 하위 작업으로 분해되는 계층' : 'A goal decomposed into a plan, specialists, and sub-tasks'}><strong>{ko ? '목표 / 계획' : 'Goal / plan'}</strong><div><b>{ko ? '조사' : 'Research'}</b><b>{ko ? '분석' : 'Analysis'}</b><b>{ko ? '작성' : 'Write'}</b></div><div class="workers"><em>{ko ? '자료' : 'Sources'}</em><em>{ko ? '계산' : 'Model'}</em><em>{ko ? '초안' : 'Draft'}</em></div></div>}
+      <p>{pattern.use}</p>
+    </section>)}
+  </div>
+  <figcaption>{ko ? <>Google Cloud의 에이전트 설계 패턴 중 단일 에이전트, 순차, 병렬, 계층적 작업 분해를 읽기 위한 축약 지도다. 루프·비평·코디네이터 같은 다른 패턴은 뒤에서 필요에 따라 결합한다.</> : <>A compact map of four Google Cloud agent design patterns: single agent, sequential, parallel, and hierarchical task decomposition. Loop, critique, and coordinator patterns can be added later when the work requires them.</>}</figcaption>
+</figure>
+
+<style>
+  .pattern-map{margin:2.5rem 0;padding:clamp(1rem,3vw,1.5rem);border:1px solid var(--border-color,#d8d8df);border-radius:1rem;background:color-mix(in srgb,var(--card-bg,#fff) 95%,#6572b7 5%)}.map-header{display:grid;grid-template-columns:1fr minmax(14rem,.85fr);gap:1.25rem;align-items:end;margin-bottom:1.1rem}.eyebrow{margin:0;color:#5966a6;font-size:.72rem;font-weight:800;letter-spacing:.1em}.map-header h2{margin:.25rem 0 0;font-family:var(--serif);font-size:clamp(1.45rem,3vw,2rem);line-height:1.2}.map-header>p{margin:0;color:var(--text-muted,#5f6571);font-size:.85rem;line-height:1.55}.pattern-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem}.pattern-card{display:grid;grid-template-rows:auto 1fr auto;gap:.65rem;min-width:0;padding:.8rem;border:1px solid var(--border-color,#d8d8df);border-radius:.7rem;background:var(--background,#fff)}.card-heading{display:flex;gap:.45rem;align-items:baseline}.card-heading span{color:#5966a6;font-size:.68rem;font-weight:800}.card-heading h3{margin:0;font-family:var(--serif);font-size:1rem;line-height:1.2}.pattern-card>p{margin:0;color:var(--text-muted,#5f6571);font-size:.75rem;line-height:1.45}.diagram{min-height:94px;display:flex;align-items:center;justify-content:center;gap:.25rem;color:#30385c;font-size:.67rem}.diagram b,.diagram strong,.diagram em{padding:.3rem .38rem;border:1px solid #aeb7dd;border-radius:.3rem;background:color-mix(in srgb,var(--background,#fff) 80%,#9da8d8 20%);font-style:normal;line-height:1.15;text-align:center}.diagram strong{border-color:#6572b7;background:color-mix(in srgb,var(--background,#fff) 72%,#6572b7 28%)}.diagram i{color:#6572b7;font-style:normal}.single{flex-wrap:wrap}.single>div{display:grid;grid-template-columns:repeat(3,1fr);gap:.2rem;flex-basis:100%;padding:.3rem;border-top:1px dashed #aeb7dd;border-bottom:1px dashed #aeb7dd}.single>div em{font-size:.57rem}.sequence{flex-wrap:wrap}.parallel{display:grid;grid-template-columns:1fr;gap:.35rem}.parallel>b,.parallel>strong{justify-self:center}.parallel>div,.hierarchy>div{display:grid;grid-template-columns:repeat(3,1fr);gap:.25rem;position:relative}.parallel>div:before,.hierarchy>div:before{content:'';position:absolute;top:-.25rem;left:16%;right:16%;border-top:1px solid #aeb7dd}.parallel em{font-size:.6rem}.hierarchy{display:grid;grid-template-columns:1fr;gap:.4rem}.hierarchy>strong{justify-self:center}.hierarchy>div{padding-top:.35rem}.hierarchy .workers{padding-top:.35rem}.hierarchy b,.hierarchy em{font-size:.59rem}.pattern-map figcaption{margin-top:1rem;color:var(--text-muted,#5f6571);font-size:.76rem;line-height:1.5}@media(max-width:850px){.pattern-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.map-header{grid-template-columns:1fr}.pattern-grid{grid-template-columns:1fr}.diagram{min-height:78px}}
+</style>

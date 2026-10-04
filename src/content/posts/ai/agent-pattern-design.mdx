@@ -3,6 +3,7 @@ title: "에이전트 패턴 설계: Tool Use부터 Planner, Parallel, HITL, Refl
 subtitle: "거대한 자율 루프 대신, 경계가 있는 제어 흐름을 조합하는 법"
 description: "Tool Use, Parallel, Planner, HITL, Retry, Reflection을 Python으로 직접 작성한 제어 흐름으로 설명하고 LLM 판단과 결정론적 코드의 경계를 정리합니다."
 publishedDate: 2026-09-17
+updatedDate: 2026-10-04
 section: "AI & AX"
 subsection: "Agents"
 contentType: "foundation"
@@ -26,9 +27,12 @@ translationKey: "agent-pattern-design"
 series: "Agent Engineering"
 seriesOrder: 1
 freshness: evergreen
-lastReviewed: 2026-10-03
-nextReviewDate: 2027-10-03
+lastReviewed: 2026-10-04
+nextReviewDate: 2027-10-04
 references:
+  - title: "Choose a design pattern for your agentic AI system"
+    url: "https://docs.cloud.google.com/architecture/choose-design-pattern-agentic-ai-system"
+    publisher: "Google Cloud Architecture Center"
   - title: "Coroutines and Tasks"
     url: "https://docs.python.org/3/library/asyncio-task.html"
     publisher: "Python Documentation"
@@ -44,10 +48,13 @@ references:
 ---
 
 import AnswerBlock from '../../../components/AnswerBlock.astro';
+import AgentPatternOverview from '../../../components/AgentPatternOverview.astro';
 
 <AnswerBlock question="에이전트는 어떻게 설계해야 할까?">
   에이전트는 하나의 거대한 자율 루프가 아니라 <strong>도구 호출, 병렬 실행, 계획, 승인, 재시도, 품질 개선처럼 경계가 있는 제어 흐름 패턴을 조합한 실행 시스템</strong>이다. LLM은 다음 행동을 제안하거나 판단할 수 있지만, 권한·입력 검증·종료·재시도 예산처럼 안전성과 실행 상한을 보장하는 책임은 결정론적 코드가 가져야 한다.
 </AnswerBlock>
+
+<AgentPatternOverview language="ko" />
 
 LLM에 도구를 붙이면 처음에는 아주 작은 그림으로 충분해 보인다.
 
