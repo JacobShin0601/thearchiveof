@@ -1,7 +1,7 @@
 ---
 title: "에이전트는 왜 Async가 필요한가: 기다리는 동안 다른 일을 시키는 법"
-subtitle: "LLM, DB, 검색 API를 기다리는 시간을 concurrency로 바꾸는 실행 모델"
-description: "Agent backend에서 async가 필요한 이유를 blocking, coroutine, task, event loop, await와 structured concurrency를 통해 설명합니다."
+subtitle: "LLM, DB, 검색 API를 기다리는 시간을 동시성으로 바꾸는 실행 모델"
+description: "Agent backend에서 async가 필요한 이유를 blocking, coroutine, task, event loop, await와 구조화된 동시성을 통해 설명합니다."
 publishedDate: 2026-09-19
 section: "AI & AX"
 subsection: "Agents"
@@ -17,7 +17,7 @@ tags:
   - io-bound
 author: "Jacob Shin"
 featured: false
-draft: true
+draft: false
 comments: false
 language: "ko"
 translationKey: "why-agent-systems-need-async"
@@ -41,10 +41,10 @@ references:
 import AnswerBlock from '../../../components/AnswerBlock.astro';
 
 <AnswerBlock question="에이전트 시스템에는 왜 async가 필요한가?">
-  Agent workload는 대개 계산보다 <strong>LLM, database, 검색 API, Redis 같은 외부 시스템의 응답을 기다리는 시간</strong>이 길다. Async는 한 run 안의 독립적인 대기를 겹쳐 latency를 줄이고, 한 run이 기다리는 동안 다른 run을 진행해 backend의 throughput을 높인다. CPU를 더 많이 쓰는 기술이 아니라, I/O 때문에 비어 있던 실행 시간을 다른 작업에 돌려주는 concurrency 모델이다.
+  Agent 작업 부하는 대개 계산보다 <strong>LLM, 데이터베이스, 검색 API, Redis 같은 외부 시스템의 응답을 기다리는 시간</strong>이 길다. Async는 한 run 안의 독립적인 대기를 겹쳐 지연 시간을 줄이고, 한 run이 기다리는 동안 다른 run을 진행해 backend의 처리량을 높인다. CPU를 더 많이 쓰는 기술이 아니라, I/O 때문에 비어 있던 실행 시간을 다른 작업에 돌려주는 동시성 모델이다.
 </AnswerBlock>
 
-이전 글 [에이전트 패턴 디자인](/ai/agents/agent-pattern-design/)에서는 Agent를 tool use, parallel orchestration, planner/executor, HITL, retry, reflection 같은 bounded control-flow의 조합으로 보았다. 그중 parallel pattern을 Python으로 쓰면 이런 코드가 나온다.
+이전 글 [에이전트 패턴 설계](/ai/agents/agent-pattern-design/)에서는 Agent를 도구 사용, 병렬 오케스트레이션, Planner/Executor, HITL, 재시도, Reflection 같은 제한된 제어 흐름의 조합으로 보았다. 그중 병렬 패턴을 Python으로 쓰면 이런 코드가 나온다.
 
 ```python
 research, data = await asyncio.gather(
@@ -56,15 +56,15 @@ research, data = await asyncio.gather(
 코드는 짧다. 하지만 이 두 줄을 이해하려면 문법보다 실행 모델을 먼저 알아야 한다.
 
 - 무엇이 기다리는 작업이고, 무엇이 계산하는 작업인가?
-- `await`로 멈춘 coroutine 대신 누가 다른 일을 진행하는가?
+- `await`에서 멈춘 coroutine 대신 누가 다른 일을 진행하는가?
 - 독립적인 작업과 순서가 필요한 작업을 어떻게 구분하는가?
 - async 함수 안에서 blocking SDK를 부르면 왜 다른 run까지 느려지는가?
 
-Production agent는 한 번의 요청 안에서도 여러 I/O를 기다리고, 하나의 backend process 안에서도 여러 요청을 진행한다. Async를 모르면 어디서 시간이 사라지는지, 왜 한 blocking call이 관계없는 요청까지 멈추는지 설명하기 어렵다.
+운영 환경의 Agent는 한 번의 요청 안에서도 여러 I/O를 기다리고, 하나의 backend process 안에서도 여러 요청을 진행한다. Async를 모르면 어디서 시간이 사라지는지, 왜 한 blocking 호출이 관계없는 요청까지 멈추는지 설명하기 어렵다.
 
 ## Agent는 계산보다 기다리는 시간이 길다
 
-"NVIDIA의 최근 실적과 valuation을 분석해줘"라는 요청을 생각해 보자. Agent는 사내 문서 검색, web search, database query를 호출할 수 있다. 각 호출이 단순하게 2초씩 걸린다고 가정하자.
+"NVIDIA의 최근 실적과 기업 가치를 분석해줘"라는 요청을 생각해 보자. Agent는 사내 문서 검색, 웹 검색, 데이터베이스 질의를 호출할 수 있다. 각 호출이 단순하게 2초씩 걸린다고 가정하자.
 
 ```python
 async def collect_context(query: str):
@@ -74,7 +74,7 @@ async def collect_context(query: str):
     return docs, web, db
 ```
 
-이 코드는 `async def`와 `await`를 사용하지만 실행은 **순차적**이다. 문서 검색이 끝난 뒤 web search를 시작하고, 그것이 끝난 뒤 database를 조회한다. 각 작업이 2초라면 전체는 대략 6초다.
+이 코드는 `async def`와 `await`를 사용하지만 실행은 **순차적**이다. 문서 검색이 끝난 뒤 웹 검색을 시작하고, 그것이 끝난 뒤 데이터베이스를 조회한다. 각 작업이 2초라면 전체는 대략 6초다.
 
 중요한 오해가 여기서 나온다.
 
@@ -94,90 +94,90 @@ async def collect_context(query: str):
     return docs, web, db
 ```
 
-가장 느린 작업도 2초라면 전체 시간은 약 2초와 scheduling overhead에 가까워진다. 일을 세 배 빨리 계산한 것이 아니다. 세 요청을 먼저 보내고, 각각의 응답을 기다리는 구간을 겹쳤다.
+가장 느린 작업도 2초라면 전체 시간은 약 2초에 스케줄링 부가 비용을 더한 정도가 된다. 일을 세 배 빨리 계산한 것이 아니다. 세 요청을 먼저 보내고, 각각의 응답을 기다리는 구간을 겹쳤다.
 
 ```text
 순차 실행
 
-documents  [ request ───── wait ───── response ]
-web                                             [ request ── wait ── response ]
-database                                                                   [ request ── wait ── response ]
+문서 검색  [ 요청 ───── 대기 ───── 응답 ]
+웹 검색                                         [ 요청 ── 대기 ── 응답 ]
+데이터베이스                                                        [ 요청 ── 대기 ── 응답 ]
 time       0s                         2s                         4s                         6s
 
 동시 진행
 
-documents  [ request ───── wait ───── response ]
-web        [ request ───── wait ───── response ]
-database   [ request ───── wait ───── response ]
+문서 검색     [ 요청 ───── 대기 ───── 응답 ]
+웹 검색       [ 요청 ───── 대기 ───── 응답 ]
+데이터베이스  [ 요청 ───── 대기 ───── 응답 ]
 time       0s                         2s
 ```
 
-이것이 한 run 안에서 얻는 첫 번째 효과다. 독립적인 tool call의 대기시간을 겹쳐 end-to-end latency를 줄인다.
+이것이 한 run 안에서 얻는 첫 번째 효과다. 독립적인 도구 호출의 대기 시간을 겹쳐 종단 간 지연 시간을 줄인다.
 
-## 한 run의 latency보다 더 중요한 것: 여러 run의 throughput
+## 한 run의 지연 시간보다 더 중요한 것: 여러 run의 처리량
 
-Async를 `gather`로 API 세 개를 동시에 부르는 기법으로만 이해하면 절반을 놓친다. Production backend에는 서로 다른 사용자의 run이 계속 들어온다.
+Async를 `gather`로 API 세 개를 동시에 부르는 기법으로만 이해하면 절반을 놓친다. 운영 backend에는 서로 다른 사용자의 run이 계속 들어온다.
 
-Run A가 LLM 응답을 20초 기다리는 동안 process 전체가 멈춰 있어야 할 이유는 없다. 그 사이 Run B는 database query를 보낼 수 있고, Run C는 Redis에서 state를 읽을 수 있다.
+Run A가 LLM 응답을 20초 기다리는 동안 process 전체가 멈춰 있어야 할 이유는 없다. 그 사이 Run B는 데이터베이스 질의를 보낼 수 있고, Run C는 Redis에서 상태를 읽을 수 있다.
 
 ```text
-Run A  LLM request ───────────── waiting ───────────── resume
+Run A  LLM 요청 ──────────────── 대기 ──────────────── 재개
                                  │
-Run B                            └─ DB query ── wait ── resume
+Run B                            └─ DB 질의 ── 대기 ── 재개
                                                 │
-Run C                                           └─ Redis ─ wait ─ resume
+Run C                                           └─ Redis ─ 대기 ─ 재개
 ```
 
 두 효과를 구분해 두면 async의 역할이 선명해진다.
 
 | 범위 | async가 만드는 변화 |
 | --- | --- |
-| 한 run 내부 | 독립적인 I/O 대기를 겹쳐 latency를 줄인다 |
-| 여러 run 사이 | 한 run이 기다릴 때 다른 run을 진행해 throughput을 높인다 |
+| 한 run 내부 | 독립적인 I/O 대기를 겹쳐 지연 시간을 줄인다 |
+| 여러 run 사이 | 한 run이 기다릴 때 다른 run을 진행해 처리량을 높인다 |
 
-Async는 외부 API 하나를 더 빨리 응답하게 만들지 않는다. 대신 그 응답을 기다리는 동안 다른 일을 진행하게 한다. 따라서 async가 개선하는 것은 CPU 성능이 아니라 **실행 자원의 이용률과 I/O-heavy backend의 처리량**이다.
+Async는 외부 API 하나를 더 빨리 응답하게 만들지 않는다. 대신 그 응답을 기다리는 동안 다른 일을 진행하게 한다. 따라서 async가 개선하는 것은 CPU 성능이 아니라 **실행 자원의 이용률과 I/O 중심 backend의 처리량**이다.
 
-물론 event loop가 여러 run을 진행할 수 있다는 사실이 그 run을 durable하게 소유한다는 뜻은 아니다. API process가 재시작되어도 살아남아야 하는 장시간 작업은 queue와 worker라는 별도의 lifecycle boundary가 필요하다. 그 문제는 Article 4에서 다룬다.
+물론 event loop가 여러 run을 진행할 수 있다는 사실이 그 run을 지속 가능하게 소유한다는 뜻은 아니다. API process가 재시작되어도 살아남아야 하는 장시간 작업은 queue와 worker라는 별도의 수명 주기 경계가 필요하다. 그 문제는 4편에서 다룬다.
 
 ## Blocking과 non-blocking은 무엇이 다른가
 
-Blocking call은 결과가 돌아올 때까지 현재 thread를 붙잡는다. 같은 event-loop thread에 놓인 다른 coroutine도 그동안 진행할 수 없다.
+Blocking 호출은 결과가 돌아올 때까지 현재 thread를 붙잡는다. 같은 event loop thread에 놓인 다른 coroutine도 그동안 진행할 수 없다.
 
 ```text
-call external service
+외부 서비스 호출
         ↓
-thread waits ──────────────────────── response
+thread 대기 ───────────────────────── 응답
         ↓
-continue
+계속 실행
 ```
 
-Non-blocking I/O는 운영체제나 runtime에 "이 작업이 준비되면 알려달라"고 맡기고 현재 실행권을 돌려준다. event loop는 그 사이 실행 가능한 다른 coroutine을 고른다.
+Non-blocking I/O는 운영체제나 런타임에 "이 작업이 준비되면 알려달라"고 맡기고 현재 실행권을 돌려준다. event loop는 그 사이 실행 가능한 다른 coroutine을 고른다.
 
 ```text
-Task A: send LLM request ───── await response ───────── resume
+Task A: LLM 요청 전송 ───────── 응답 await ──────────── 재개
                                │
-Task B:                        └─ query DB ─ await ───── resume
+Task B:                        └─ DB 질의 ─ await ───── 재개
                                               │
-Task C:                                       └─ read Redis ─ await ─ resume
+Task C:                                       └─ Redis 읽기 ─ await ─ 재개
 ```
 
-한 thread가 같은 순간에 Python 코드 세 줄을 실행하는 것은 아니다. 한 coroutine이 I/O에서 실행권을 양보하면 event loop가 다른 실행 가능한 coroutine을 고른다. Python 공식 문서는 `asyncio`를 `async/await` 문법으로 concurrent code를 작성하는 library로 설명하며, 특히 I/O-bound와 high-level network code에 잘 맞는다고 정리한다. ([asyncio 문서](https://docs.python.org/3/library/asyncio.html))
+한 thread가 같은 순간에 Python 코드 세 줄을 실행하는 것은 아니다. 한 coroutine이 I/O에서 실행권을 양보하면 event loop가 다른 실행 가능한 coroutine을 고른다. Python 공식 문서는 `asyncio`를 `async/await` 문법으로 동시성 코드를 작성하는 라이브러리로 설명하며, 특히 I/O-bound 작업과 고수준 네트워크 코드에 잘 맞는다고 정리한다. ([asyncio 문서](https://docs.python.org/3/library/asyncio.html))
 
-여기서 "양보"가 중요하다. Async는 cooperative하다. 실행 중인 coroutine이 `await` 가능한 I/O에 도달해야 event loop가 다른 작업을 진행할 기회를 얻는다.
+여기서 "양보"가 중요하다. Async는 협력적으로 동작한다. 실행 중인 coroutine이 `await` 가능한 I/O에 도달해야 event loop가 다른 작업을 진행할 기회를 얻는다.
 
 ## Coroutine, task, event loop를 분리해서 보자
 
-`async def`는 coroutine function을 정의한다. 이 함수를 호출하면 결과가 바로 실행되는 것이 아니라 coroutine object가 만들어진다. 공식 문서도 coroutine function을 단순히 호출하는 것만으로는 실행이 schedule되지 않는다고 설명한다. Coroutine을 실제로 진행하려면 직접 `await`하거나, top-level에서 `asyncio.run()`으로 event loop를 구동하거나, task로 schedule해야 한다. ([Coroutines and Tasks](https://docs.python.org/3/library/asyncio-task.html))
+`async def`는 coroutine 함수를 정의한다. 이 함수를 호출하면 결과가 바로 실행되는 것이 아니라 coroutine 객체가 만들어진다. 공식 문서도 coroutine 함수를 단순히 호출하는 것만으로는 실행 일정이 잡히지 않는다고 설명한다. Coroutine을 실제로 진행하려면 직접 `await`하거나, 최상위에서 `asyncio.run()`으로 event loop를 구동하거나, task로 등록해야 한다. ([Coroutines and Tasks](https://docs.python.org/3/library/asyncio-task.html))
 
 세 개념을 이렇게 나누면 쉽다.
 
 | 개념 | 역할 |
 | --- | --- |
 | Coroutine | 일시 중단하고 다시 이어갈 수 있는 작업의 실행 단위 |
-| Task | coroutine을 event loop에 schedule하고 상태·결과·취소를 추적하는 wrapper |
-| Event loop | 실행 가능한 task를 고르고 I/O 완료·timer 같은 event에 맞춰 다시 깨우는 scheduler |
+| Task | coroutine을 event loop에 등록하고 상태·결과·취소를 추적하는 래퍼 |
+| Event loop | 실행 가능한 task를 고르고 I/O 완료·타이머 같은 이벤트에 맞춰 다시 깨우는 스케줄러 |
 
-`asyncio.create_task()`는 coroutine을 task로 감싸 현재 event loop에 schedule한다. 아래에서 첫 번째 줄은 coroutine object만 만들고, 두 번째 줄은 실제로 진행될 수 있는 task를 만든다.
+`asyncio.create_task()`는 coroutine을 task로 감싸 현재 event loop에 등록한다. 아래에서 첫 번째 줄은 coroutine 객체만 만들고, 두 번째 줄은 실제로 진행될 수 있는 task를 만든다.
 
 ```python
 async def collect_context(query: str):
@@ -191,7 +191,7 @@ async def collect_context(query: str):
     return docs, web
 ```
 
-Coroutine object만 만들고 await하지 않으면 작업은 완료되지 않는다. Task를 만들어 놓고 잊어버리는 방식도 안전하지 않다. 누가 결과와 오류를 회수하는지 불분명해지고, API process가 종료되면 작업도 함께 사라질 수 있다. 장시간 Agent run의 lifecycle을 누가 소유해야 하는지는 Article 4에서 worker와 함께 다시 다룬다.
+Coroutine 객체만 만들고 await하지 않으면 작업은 완료되지 않는다. Task를 만들어 놓고 잊어버리는 방식도 안전하지 않다. 누가 결과와 오류를 회수하는지 불분명해지고, API process가 종료되면 작업도 함께 사라질 수 있다. 장시간 Agent run의 수명 주기를 누가 소유해야 하는지는 4편에서 worker와 함께 다시 다룬다.
 
 ## `await`는 thread를 잠재우는 명령이 아니다
 
@@ -212,7 +212,7 @@ async def blocking_wait():
     time.sleep(1)           # event-loop thread 전체가 멈춘다.
 ```
 
-함수 앞에 `async def`를 붙였다고 내부의 blocking code가 non-blocking으로 변하지 않는다. 이 차이는 Agent에서 특히 위험하다. LLM SDK는 async인데 tracing exporter, database driver, file operation 중 하나가 synchronous라면 그 호출 동안 같은 event loop의 다른 run도 지연될 수 있다.
+함수 앞에 `async def`를 붙였다고 내부의 blocking 코드가 non-blocking으로 변하지 않는다. 이 차이는 Agent에서 특히 위험하다. LLM SDK는 async인데 추적 정보 내보내기, 데이터베이스 드라이버, 파일 작업 중 하나가 동기식이라면 그 호출 동안 같은 event loop의 다른 run도 지연될 수 있다.
 
 ## Concurrency와 parallelism은 같은 말이 아니다
 
@@ -223,36 +223,36 @@ Concurrency
 = 여러 작업이 같은 시간 구간 안에서 번갈아 진행되는가?
 
 Parallelism
-= 여러 작업이 실제 같은 순간에 서로 다른 compute resource에서 실행되는가?
+= 여러 작업이 실제 같은 순간에 서로 다른 연산 자원에서 실행되는가?
 ```
 
-Asyncio의 중심은 concurrency다. Task A가 network response를 기다리는 동안 Task B가 request를 만들고, B가 기다리면 Task C가 state를 갱신한다. 한 event-loop thread만으로도 많은 I/O 대기를 겹칠 수 있다.
+Asyncio의 중심은 동시성이다. Task A가 네트워크 응답을 기다리는 동안 Task B가 요청을 만들고, B가 기다리면 Task C가 상태를 갱신한다. 한 event loop thread만으로도 많은 I/O 대기를 겹칠 수 있다.
 
-Parallelism은 CPU core나 별도 process, GPU처럼 실제 계산 resource를 여러 개 쓰는 문제다. Async code가 자동으로 CPU-bound 계산을 여러 core에 나누지는 않는다.
+Parallelism은 CPU 코어나 별도 process, GPU처럼 실제 계산 자원을 여러 개 쓰는 문제다. Async 코드가 자동으로 CPU-bound 계산을 여러 코어에 나누지는 않는다.
 
-| Workload | 대부분의 시간 | 자연스러운 첫 선택 |
+| 작업 부하 | 대부분의 시간 | 자연스러운 첫 선택 |
 | --- | --- | --- |
-| LLM API call | network response 대기 | async I/O |
-| PostgreSQL / Redis | socket I/O 대기 | async client |
-| Vector DB / web search | network I/O 대기 | async I/O |
-| 큰 pure-Python 계산 | CPU 실행 | process 또는 별도 compute worker |
-| Local model inference | GPU/compute 실행 | inference service |
+| LLM API 호출 | 네트워크 응답 대기 | async I/O |
+| PostgreSQL / Redis | 소켓 I/O 대기 | async 클라이언트 |
+| 벡터 DB / 웹 검색 | 네트워크 I/O 대기 | async I/O |
+| 큰 순수 Python 계산 | CPU 실행 | process 또는 별도 연산 worker |
+| 로컬 모델 추론 | GPU 연산 | 추론 서비스 |
 
 이 글은 첫 번째 부류를 다룬다. Thread와 process가 각각 어디에 필요한지는 다음 글의 주제다.
 
 ## `gather`의 결과와 실패 의미까지 설계해야 한다
 
-`asyncio.gather()`는 여러 awaitable을 concurrently 실행하고, 모두 성공하면 입력 순서에 맞춰 결과를 돌려준다. 그러나 "동시에 시작한다"만 보고 실패 semantics를 지나치면 안 된다.
+`asyncio.gather()`는 여러 awaitable을 동시에 실행하고, 모두 성공하면 입력 순서에 맞춰 결과를 돌려준다. 그러나 "동시에 시작한다"만 보고 실패 의미를 지나치면 안 된다.
 
-기본값인 `return_exceptions=False`에서는 첫 exception이 await하는 caller에게 전달된다. 그렇다고 나머지 awaitable을 자동으로 모두 취소하는 것은 아니다. 반대로 `return_exceptions=True`를 쓰면 exception도 결과 목록 안에 들어온다. ([공식 문서](https://docs.python.org/3/library/asyncio-task.html#asyncio.gather))
+기본값인 `return_exceptions=False`에서는 첫 예외가 await하는 호출자에게 전달된다. 그렇다고 나머지 awaitable을 자동으로 모두 취소하는 것은 아니다. 반대로 `return_exceptions=True`를 쓰면 예외도 결과 목록 안에 들어온다. ([공식 문서](https://docs.python.org/3/library/asyncio-task.html#asyncio.gather))
 
 Agent orchestration에서는 어느 쪽이 맞을까? 정답은 작업 관계에 달려 있다.
 
-- research가 실패해도 data 결과만으로 partial answer를 만들 수 있다면 failure isolation이 필요하다.
-- 한 branch 실패 시 나머지 결과가 의미 없어지는 작업이라면 sibling cancellation이 더 자연스럽다.
-- side effect가 섞여 있다면 "다른 작업을 취소했다"와 "remote action이 실제 취소됐다"를 구분해야 한다.
+- 조사가 실패해도 데이터 결과만으로 부분 답변을 만들 수 있다면 실패 격리가 필요하다.
+- 한 분기가 실패하면 나머지 결과가 의미 없어지는 작업이라면 함께 실행되는 작업의 취소가 더 자연스럽다.
+- 부수 효과가 섞여 있다면 "다른 작업을 취소했다"와 "원격 행동이 실제로 취소됐다"를 구분해야 한다.
 
-Python 3.11+에서는 관련 task를 lexical scope 안에서 관리하는 `TaskGroup`을 사용할 수 있다.
+Python 3.11+에서는 관련 task를 렉시컬 스코프 안에서 관리하는 `TaskGroup`을 사용할 수 있다.
 
 ```python
 import asyncio
@@ -267,23 +267,23 @@ async def collect_context(query: str):
     return docs_task.result(), web_task.result(), db_task.result()
 ```
 
-`TaskGroup`은 child task 중 하나가 일반 exception으로 실패하면 나머지를 취소하고 모두 정리한 뒤 exception group을 올린다. 이것은 `gather`보다 무조건 낫다는 뜻이 아니다. 관련 작업을 한 scope의 lifecycle로 묶고 싶은 경우에 failure propagation이 더 분명하다는 뜻이다.
+`TaskGroup`은 하위 task 중 하나가 일반 예외로 실패하면 나머지를 취소하고 모두 정리한 뒤 예외 그룹을 올린다. 이것은 `gather`보다 무조건 낫다는 뜻이 아니다. 관련 작업을 한 범위의 수명 주기로 묶고 싶은 경우에 실패 전파가 더 분명하다는 뜻이다.
 
 ## Async가 있어도 concurrency는 무한하지 않다
 
 독립적인 작업을 동시에 실행할 수 있다는 말과 전부 동시에 실행해야 한다는 말은 다르다. Agent 하나가 100개의 URL을 발견했다고 100개 request를 즉시 시작하면 다음 문제가 생긴다.
 
-- upstream rate limit
-- database connection pool 고갈
-- socket과 memory 증가
-- retry가 겹치며 더 큰 burst 생성
-- 한 tenant가 worker capacity 독점
+- 상위 서비스의 호출량 제한
+- 데이터베이스 연결 풀 고갈
+- 소켓과 메모리 사용량 증가
+- 재시도가 겹치며 더 큰 요청 폭증 발생
+- 한 테넌트가 worker 용량 독점
 
-따라서 concurrency에는 상한이 있어야 한다. 작은 범위에서는 semaphore로 동시에 진행 중인 작업 수를 제한할 수 있다. 하지만 `8`이나 `100` 같은 숫자가 보편적인 정답은 아니다. 외부 API quota, connection pool, memory, latency SLO, tenant fairness를 보고 정해야 한다. 훗날 다룰 backpressure와 admission control은 이 문제를 worker와 system 전체 수준으로 확장한다.
+따라서 동시성에는 상한이 있어야 한다. 작은 범위에서는 세마포어로 동시에 진행 중인 작업 수를 제한할 수 있다. 하지만 `8`이나 `100` 같은 숫자가 보편적인 정답은 아니다. 외부 API 할당량, 연결 풀, 메모리, 지연 시간 SLO, 테넌트 간 공정성을 보고 정해야 한다. 훗날 다룰 역압과 유입 제어는 이 문제를 worker와 시스템 전체 수준으로 확장한다.
 
-## Blocking library는 event loop 안에서 그대로 부르면 안 된다
+## Blocking 라이브러리는 event loop 안에서 그대로 부르면 안 된다
 
-현실의 codebase에는 synchronous SDK가 많다. Async 함수에서 그것을 직접 호출하면 해당 thread가 막힌다.
+현실의 코드베이스에는 동기식 SDK가 많다. Async 함수에서 그것을 직접 호출하면 해당 thread가 막힌다.
 
 ```python
 async def search_bad(query: str):
@@ -296,11 +296,11 @@ async def search_with_bridge(query: str):
     )
 ```
 
-당장 async client로 바꾸기 어렵고 호출이 주로 blocking I/O라면 `asyncio.to_thread()`가 migration bridge가 될 수 있다. 하지만 blocking call이 사라진 것은 아니다. 다른 thread로 옮겼을 뿐이다. Thread pool의 크기, cancellation, SDK의 thread safety를 여전히 생각해야 한다. 특히 CPU-heavy Python 함수를 `to_thread()`로 보냈다고 자동으로 좋은 parallelism이 생기는 것은 아니다.
+당장 async 클라이언트로 바꾸기 어렵고 호출이 주로 blocking I/O라면 `asyncio.to_thread()`가 전환을 위한 다리가 될 수 있다. 하지만 blocking 호출이 사라진 것은 아니다. 다른 thread로 옮겼을 뿐이다. Thread pool의 크기, 취소, SDK의 thread 안전성을 여전히 생각해야 한다. 특히 CPU 사용량이 많은 Python 함수를 `to_thread()`로 보냈다고 자동으로 좋은 병렬성이 생기는 것은 아니다.
 
 ## Agent run 하나를 다시 보면
 
-Async는 Agent의 control-flow를 대신 설계하지 않는다. 독립성과 dependency를 먼저 정한 뒤 실행 모델을 적용한다.
+Async는 Agent의 제어 흐름을 대신 설계하지 않는다. 독립성과 의존성을 먼저 정한 뒤 실행 모델을 적용한다.
 
 ```python
 async def analyze_company(query: str):
@@ -322,23 +322,23 @@ async def analyze_company(query: str):
     return draft
 ```
 
-여기서 research와 data는 동시에 진행할 수 있다. Synthesis는 두 dependency가 끝나야 한다. 결과 저장은 client에게 완료를 알리기 전에 끝나야 하는지, 별도 작업으로 넘겨도 되는지 product contract에 따라 달라진다. `asyncio.gather`는 이 관계를 발견해 주지 않는다. Article 1의 control-flow 설계가 먼저이고, async는 그 설계를 기다림에 강한 실행으로 옮긴다.
+여기서 조사와 데이터 분석은 동시에 진행할 수 있다. 종합은 두 의존 작업이 끝나야 한다. 결과 저장은 클라이언트에게 완료를 알리기 전에 끝나야 하는지, 별도 작업으로 넘겨도 되는지 제품 계약에 따라 달라진다. `asyncio.gather`는 이 관계를 발견해 주지 않는다. 1편의 제어 흐름 설계가 먼저이고, async는 그 설계를 기다림에 강한 실행으로 옮긴다.
 
-## Production에서 확인할 질문
+## 운영 환경에서 확인할 질문
 
 Agent backend에 async를 적용할 때는 문법보다 다음 질문이 더 중요하다.
 
 | 질문 | 확인할 것 |
 | --- | --- |
-| 실제로 I/O-bound인가? | network, DB, storage 대기 비율 |
-| client가 non-blocking인가? | async SDK/driver인지, 내부에서 block하지 않는지 |
-| 무엇이 독립적인가? | dependency가 없는 작업만 concurrent하게 실행 |
-| 실패는 서로 격리되는가? | partial result, sibling cancellation, retry 정책 |
-| 동시 실행 상한은? | rate limit, pool, memory, tenant fairness |
-| lifecycle은 누가 소유하는가? | HTTP request, background task, queue worker |
-| 취소가 실제로 어디까지 전달되는가? | local task와 remote operation의 차이 |
+| 실제로 I/O-bound인가? | 네트워크, DB, 저장소 대기 비율 |
+| 클라이언트가 non-blocking인가? | async SDK나 드라이버인지, 내부에서 막지 않는지 |
+| 무엇이 독립적인가? | 의존성이 없는 작업만 동시에 실행 |
+| 실패는 서로 격리되는가? | 부분 결과, 함께 실행되는 작업의 취소, 재시도 정책 |
+| 동시 실행 상한은? | 호출량 제한, 풀, 메모리, 테넌트 간 공정성 |
+| 수명 주기는 누가 소유하는가? | HTTP 요청, 백그라운드 task, queue worker |
+| 취소가 실제로 어디까지 전달되는가? | 로컬 task와 원격 작업의 차이 |
 
-마지막 두 질문은 async만으로 해결되지 않는다. Event loop에서 task를 만들었다고 durable job이 되지 않고, local task를 cancel했다고 이미 전달된 remote request가 반드시 멈추는 것도 아니다.
+마지막 두 질문은 async만으로 해결되지 않는다. Event loop에서 task를 만들었다고 영속 작업이 되지 않고, 로컬 task를 취소했다고 이미 전달된 원격 요청이 반드시 멈추는 것도 아니다.
 
 ## Async가 해결하지 못하는 것
 
@@ -349,6 +349,6 @@ async def misleading_async_job(rows):
     return expensive_python_calculation(rows)  # await 지점 없이 CPU를 계속 점유
 ```
 
-함수 선언만 async일 뿐, 계산이 끝날 때까지 event loop thread를 놓지 않는다. 그동안 다른 coroutine은 진행할 기회를 얻지 못한다. Async는 CPU-bound 작업을 빠르게 만들지도, 여러 core에서 자동으로 병렬화하지도 않는다.
+함수 선언만 async일 뿐, 계산이 끝날 때까지 event loop thread를 놓지 않는다. 그동안 다른 coroutine은 진행할 기회를 얻지 못한다. Async는 CPU-bound 작업을 빠르게 만들지도, 여러 코어에서 자동으로 병렬화하지도 않는다.
 
-다음 글 **Async vs Thread vs Process**에서는 기다리는 작업과 계산하는 작업을 나누고, blocking SDK를 thread로 옮기는 경우, CPU-bound 계산을 process나 별도 worker에 두는 경우를 비교한다. Async는 시작점이지만 모든 concurrency 문제의 답은 아니다.
+다음 글 **Async, Thread, Process**에서는 기다리는 작업과 계산하는 작업을 나누고, blocking SDK를 thread로 옮기는 경우, CPU-bound 계산을 process나 별도 worker에 두는 경우를 비교한다. Async는 시작점이지만 모든 동시성 문제의 답은 아니다.
