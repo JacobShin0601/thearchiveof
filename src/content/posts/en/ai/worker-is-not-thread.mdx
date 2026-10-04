@@ -1,0 +1,394 @@
+---
+title: "A Worker Is Not a Thread: Why Agent Execution Should Leave the API Server"
+subtitle: "Separate concurrency primitives from ownership of the execution lifecycle"
+description: "Why a worker is not another name for a thread or process, and when a long-running agent run should move from an API request to a queue and worker."
+publishedDate: 2026-09-23
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - workers
+  - job-queue
+  - fastapi
+  - lifecycle
+  - kubernetes
+author: "Jacob Shin"
+featured: false
+draft: false
+comments: false
+language: "en"
+translationKey: "worker-is-not-thread"
+series: "Agent Engineering"
+seriesOrder: 4
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: evergreen
+lastReviewed: 2026-10-04
+nextReviewDate: 2027-10-04
+references:
+  - title: "Coroutines and Tasks"
+    url: "https://docs.python.org/3/library/asyncio-task.html"
+    publisher: "Python Documentation"
+  - title: "Background Tasks"
+    url: "https://fastapi.tiangolo.com/tutorial/background-tasks/"
+    publisher: "FastAPI Documentation"
+  - title: "Deployments"
+    url: "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
+    publisher: "Kubernetes Documentation"
+  - title: "Pod Lifecycle"
+    url: "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+    publisher: "Kubernetes Documentation"
+  - title: "Jobs"
+    url: "https://kubernetes.io/docs/concepts/workloads/controllers/job/"
+    publisher: "Kubernetes Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="What is a worker in an agent backend?">
+  A worker is not a concurrency primitive such as a thread or process. It is <strong>the role that owns a workload's execution lifecycle</strong>. If the API validates and accepts a request, the worker takes work from a queue, updates its state, and owns the active attempt until it leaves behind a completed, failed, or retryable result. Inside the worker process, the implementation may still combine async, threads, and processes.
+</AnswerBlock>
+
+The previous article, [**Async, Threads, and Processes**](/en/ai/agents/async-thread-process-agent-backends/), separated execution tools by the bottleneck in the workload:
+
+- async for non-blocking I/O
+- bounded thread offloading for blocking I/O
+- processes or a separate compute service for CPU-bound work
+
+The next question is often:
+
+> Is a worker a process, then? Or is each thread in a thread pool a worker?
+
+Either can be true, but the question misses the distinction. Threads and processes describe **how code executes**. A worker describes **who takes the work, manages progress and failure, and decides when to relinquish responsibility**.
+
+```text
+Execution mechanism                       Workload ownership
+───────────────────────────────           ─────────────────────────────
+async task / thread / process             API / queue / worker
+How does work progress concurrently?      Who owns the lifecycle?
+```
+
+Treating these as alternatives on the same axis hides important failure modes in an agent backend.
+
+## The shortest implementation: create a background task in the API
+
+The simplest way to start an agent run asynchronously looks like this:
+
+```python
+import asyncio
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.post("/analysis", status_code=202)
+async def start_analysis(request: AnalysisRequest):
+    run_id = new_run_id()
+    asyncio.create_task(run_analysis(run_id, request))
+    return {"run_id": run_id, "status": "started"}
+```
+
+The endpoint returns `202 Accepted` immediately, and the coroutine continues on the same event loop. This works in a demo. Returning the HTTP response first, however, does not make the work durable.
+
+The API process is still the task's real owner.
+
+```text
+API process
+   ├─ HTTP request handler ──> 202 Accepted
+   └─ asyncio task ──────────> long-running analysis
+
+API process exits
+   └─ task exits with it
+```
+
+A rolling deployment, out-of-memory termination, application crash, or container restart can erase the in-memory task. The user already has a `run_id`, but there is no durable owner that can rediscover or continue the run.
+
+Python's `asyncio.create_task()` schedules a coroutine on the current event loop. The official documentation says to retain a reference so a background task does not disappear while running and to retrieve exceptions from completed tasks. ([Coroutines and Tasks](https://docs.python.org/3/library/asyncio-task.html#creating-tasks)) Following those rules still does not provide **durability across process failure**.
+
+```python
+background_tasks: set[asyncio.Task] = set()
+
+def start_local_task(coroutine) -> None:
+    task = asyncio.create_task(coroutine)
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
+```
+
+This fixes task-reference management. When the API process exits, both the set and its tasks still disappear.
+
+## In-process background tasks are not always wrong
+
+Running work in the API process after the response is not inherently a mistake. FastAPI provides `BackgroundTasks` and describes it as useful for small post-response work. The same documentation distinguishes heavier background computation that should run across multiple processes or servers, where a queue-backed tool may be more appropriate. ([FastAPI Background Tasks](https://fastapi.tiangolo.com/tutorial/background-tasks/))
+
+An in-process task can be reasonable when:
+
+- it runs briefly;
+- a later request can recompute it after failure;
+- its result does not need durable tracking;
+- it offers no intermediate progress or cancellation;
+- losing it during deployment has little business impact.
+
+Best-effort cache warming or an unimportant telemetry flush may fit this category. Moving ownership out of the process is more natural when any of the following matters:
+
+- users must retrieve status and results later by `run_id`;
+- a run may take tens of seconds or minutes;
+- another worker must retry or reclaim failed work;
+- side effects require duplicate-execution control;
+- the workload must scale with a different CPU, memory, or GPU profile from the API;
+- execution must continue after the client disconnects.
+
+No single duration defines the boundary. A five-second payment may require durable ownership, while a reproducible 30-second preview may reasonably keep the request open. The deciding factor is not latency but **how the system must handle loss and duplicate execution**.
+
+## A queue records accepted execution outside the process
+
+Putting a queue between the API and worker moves the execution request out of one API process's memory.
+
+```text
+Client
+  │ POST /runs
+  ▼
+API ── validate / authorize / create run ──> Queue
+  │                                           │
+  └────────── 202 + run_id                    ▼
+                                              Worker
+                                                │
+                                                ├─ claim work
+                                                ├─ execute agent
+                                                ├─ update progress
+                                                ├─ persist result
+                                                └─ acknowledge
+```
+
+If the API process restarts immediately after responding, another consumer can still take the queued job. Drawing a queue does not solve every failure. Durable submission, claim or lease semantics, acknowledgement, retries, and a dead-letter policy still require explicit design.
+
+The API's responsibility shifts from execution toward **safe acceptance**.
+
+```python
+from fastapi import FastAPI, HTTPException
+
+app = FastAPI()
+
+@app.post("/runs", status_code=202)
+async def create_run(request: RunRequest, user: User = Depends(current_user)):
+    authorize(user, request)
+    validated = validate_run_request(request)
+    run_id = new_run_id()
+
+    await run_store.create(
+        run_id=run_id,
+        user_id=user.id,
+        status="submitting",
+        input=validated,
+    )
+
+    try:
+        await job_queue.publish(
+            {"run_id": run_id, "input": validated}
+        )
+    except Exception:
+        await run_store.mark_submission_failed(run_id)
+        raise HTTPException(503, "Could not submit run")
+
+    await run_store.mark_queued(run_id)
+    return {"run_id": run_id, "status": "queued"}
+```
+
+This is the minimum structure needed to show the ownership handoff. It does not atomically solve the dual-write failure in which the database write succeeds but the process dies immediately before publishing to the queue. Production systems need a way to connect the acceptance record and publication, such as a transactional outbox, or to make the queue itself authoritative. Before returning `202`, the system must leave behind **execution intent that it can rediscover later**.
+
+## A worker owns the active attempt's lifecycle
+
+A worker is better defined by what it does after receiving a message than by the implementation detail that it is a process reading from a queue.
+
+```text
+queued
+  │ claim
+  ▼
+claimed ──> running ──> result persisted ──> acknowledged
+                 │
+                 └────> failed / retryable / terminal
+```
+
+A typical worker:
+
+1. Claims runnable work.
+2. Moves the run and attempt to `running`.
+3. Executes the agent graph and tool orchestration.
+4. Writes progress and events to external storage.
+5. Durably stores the result or terminal failure.
+6. Acknowledges the queue message only after storage completes.
+
+In plain Python, the essential ordering looks like this:
+
+```python
+async def handle_message(message: JobMessage) -> None:
+    run_id = message.run_id
+    attempt_id = await run_store.start_attempt(run_id)
+
+    try:
+        result = await execute_agent(
+            run_id=run_id,
+            payload=message.payload,
+        )
+        await run_store.complete_attempt(
+            run_id=run_id,
+            attempt_id=attempt_id,
+            result=result,
+        )
+    except RetryableError as error:
+        await run_store.record_retryable_failure(
+            run_id, attempt_id, error
+        )
+        await message.retry()
+        return
+    except Exception as error:
+        await run_store.fail_attempt(
+            run_id, attempt_id, error
+        )
+    finally:
+        await release_run_resources(run_id)
+
+    # Mark complete only after the terminal result is durably stored.
+    await message.ack()
+```
+
+This conceptual example omits product-specific queue semantics. A retry may mean negative acknowledgement in one queue and visibility timeout or pending-entry reclaim in another. Article 10, **When Workers Die**, covers those differences.
+
+The crucial sequence is `execute → persist terminal state → acknowledge`. If acknowledgement comes first and result storage fails, the queue considers the job complete while the user cannot find its result. If storage succeeds and the worker dies just before acknowledgement, the same message may be delivered again. Worker architecture therefore **exposes at-least-once delivery and idempotency; it does not eliminate them**. A user experience that appears exactly-once requires run identity, attempt identity, and idempotent side effects.
+
+## One worker does not have to run only one job
+
+Equating a worker with one OS thread makes concurrency inside the worker process hard to reason about. For an I/O-heavy agent, one worker process can run an asyncio event loop and advance a bounded number of jobs.
+
+```text
+Worker process
+   └─ asyncio event loop
+        ├─ run A ── await LLM ────── resume
+        ├─ run B ── await DB ─────── resume
+        └─ run C ── await search ─── resume
+```
+
+Concurrency must have a limit. Turning every queued message into a task will exhaust LLM rate limits, the database connection pool, or memory first.
+
+```python
+import asyncio
+
+MAX_IN_FLIGHT = 8
+
+async def worker_main() -> None:
+    in_flight: set[asyncio.Task] = set()
+
+    while True:
+        while len(in_flight) < MAX_IN_FLIGHT:
+            message = await job_queue.receive()
+            task = asyncio.create_task(handle_message(message))
+            in_flight.add(task)
+
+        done, in_flight = await asyncio.wait(
+            in_flight,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+        for task in done:
+            # Observe any error that escaped handle_message.
+            await task
+```
+
+On a shutdown signal, a real worker must stop claiming new messages, then finish or checkpoint in-flight work within a deadline before exiting. `MAX_IN_FLIGHT` should also reflect memory, downstream quotas, and job cost rather than remain an arbitrary constant.
+
+The same worker role can use a different implementation for CPU-bound work.
+
+```text
+I/O worker process
+   └─ asyncio event loop + bounded job concurrency
+
+CPU worker pool
+   └─ multiple processes, usually one task per allocated CPU slot
+
+GPU inference worker
+   └─ model server + batching + GPU memory ownership
+```
+
+In short, **a worker is a role; async, threads, and processes are tools for implementing that role**.
+
+## What changes when the API and worker have separate responsibilities
+
+| Responsibility | API | Worker |
+| --- | --- | --- |
+| Authentication | Establish request identity | Use validated identity context |
+| Authorization | Check permission to create the run | Optionally recheck fine-grained policy for tools |
+| Request validation | Check input schema and limits | Check execution-time invariants |
+| Run creation | Create `run_id` and acceptance state | Create attempt and transition to running |
+| Queue | Submit work | Claim, acknowledge, and retry work |
+| Agent execution | Optionally handle only short synchronous runs | Run long graphs and tool orchestration |
+| Progress/event | Provide queries and SSE delivery | Update state and publish events |
+| Result | Provide query endpoint | Store result and terminal failure |
+| Scaling signal | Request rate and connection count | Queue depth, run latency, and resource use |
+
+This separation does not require two repositories. Both roles can share the same domain model and application package. What matters is separating process lifecycles and scaling units.
+
+The API can optimize for short, predictable request handling. Workers can deploy and scale separately around long timeouts, tool credentials, CPU or GPU resources, and retry policy. The failure domains also separate: a backlog in the PDF parsing workers need not exhaust status endpoints and SSE connections.
+
+## What a worker does not guarantee
+
+Adding a worker improves the architecture diagram, but it does not automatically provide these properties:
+
+| Required property | Additional design |
+| --- | --- |
+| Recovery after process restart | Durable queue and redelivery |
+| Safe duplicate execution | Idempotency key and side-effect guard |
+| Resume of a long run | Checkpoint and resumable state |
+| User cancellation | Durable cancellation protocol |
+| Progress queries | External state/event storage |
+| Poison-message isolation | Maximum attempts and dead-letter policy |
+| Overload prevention | Admission control and backpressure |
+| Knowledge of the current executor | Lease, heartbeat, or pending ownership |
+
+That is why a queue and worker are not simply a heavier `create_task()`. The worker boundary creates a place to design recovery; it is not itself a recovery policy.
+
+## A worker is not a special Kubernetes object
+
+Kubernetes has workload resources such as `Deployment`, `StatefulSet`, and `Job`. The worker in an application architecture is not the name of a Kubernetes object.
+
+The API and worker can use the same container image:
+
+```text
+image: my-agent:1.0
+
+API Deployment
+  command: uvicorn app.api:app
+
+Worker Deployment
+  command: python -m app.worker
+```
+
+The two Deployments can share code and an image while using different commands, replica counts, resource requests, autoscaling signals, and secret scopes. A Kubernetes Deployment manages a set of Pods and their rollout, while Pods are relatively ephemeral execution units rather than permanent objects. ([Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), [Pod Lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/)) Progress stored only in a worker Pod's memory can therefore disappear when that Pod is replaced.
+
+A Kubernetes `Job` is a separate controller that runs one or more Pods to completion. ([Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/job/)) That does not mean every agent run should create a Kubernetes Job. For many short runs, a long-lived worker Deployment consuming a queue may be simpler. A large batch workload that needs strong resource isolation may fit a Kubernetes Job. The decision depends on workload granularity, startup cost, and isolation requirements.
+
+Article 11 covers Kubernetes deployment and autoscaling in more detail. For now, keep one mental model:
+
+> A container is not a worker. The application role responsible for an execution attempt received from a queue is the worker.
+
+## Deciding when ownership should move from the request to a worker
+
+Ask:
+
+1. Must execution continue after the client connection closes?
+2. Must the system rediscover the job after an API deployment or crash?
+3. Does it need retry, cancellation, progress, or audit?
+4. Does it need a different resource profile or scaling policy from the API?
+5. Must repeated delivery of the same run be handled safely?
+
+If most answers are no and the work is short, directly `await`ing it in the request handler is the simplest design. Even a few yes answers justify considering a queue and worker boundary. Architecture should grow from required failure semantics, not from a target component count.
+
+A worker gives the agent run a clear owner. It immediately raises the next questions:
+
+- Where does the worker's current state live?
+- How does the API read progress?
+- Where does a new worker resume after the previous one dies?
+- Should the final result and temporary scratch state share storage?
+
+An in-memory Python object cannot cross a process boundary. The next article, [**Where Does Agent State Live?**](/en/ai/agents/where-agent-state-lives/), separates agent state across PostgreSQL, Redis, checkpoints, and process memory—and distinguishes durable truth from hot operational state.

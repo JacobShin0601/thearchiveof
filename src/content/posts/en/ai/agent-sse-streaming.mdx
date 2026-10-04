@@ -1,0 +1,689 @@
+---
+title: "Let the Agent Speak While It Works: SSE, Generators, and Redis Streams"
+subtitle: "Safely stream snapshots and events over an HTTP connection with async generators"
+description: "Build an agent streaming endpoint from iterators and async generators through SSE framing, Redis Stream replay, heartbeats, disconnects, and backpressure."
+publishedDate: 2026-09-29
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - sse
+  - async-generator
+  - redis-streams
+  - fastapi
+  - streaming
+author: "Jacob Shin"
+featured: false
+draft: false
+comments: false
+language: "en"
+translationKey: "agent-sse-streaming"
+series: "Agent Engineering"
+seriesOrder: 7
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: evergreen
+lastReviewed: 2026-10-04
+nextReviewDate: 2027-10-04
+references:
+  - title: "Python Glossary: Iterator and Asynchronous Generator"
+    url: "https://docs.python.org/3/glossary.html"
+    publisher: "Python Documentation"
+  - title: "Asynchronous Generator Functions"
+    url: "https://docs.python.org/3/reference/expressions.html#asynchronous-generator-functions"
+    publisher: "Python Documentation"
+  - title: "Task Cancellation"
+    url: "https://docs.python.org/3/library/asyncio-task.html#task-cancellation"
+    publisher: "Python Documentation"
+  - title: "StreamingResponse"
+    url: "https://fastapi.tiangolo.com/advanced/custom-response/#streamingresponse"
+    publisher: "FastAPI Documentation"
+  - title: "Server-Sent Events"
+    url: "https://html.spec.whatwg.org/multipage/server-sent-events.html"
+    publisher: "WHATWG HTML Standard"
+  - title: "XREAD"
+    url: "https://redis.io/docs/latest/commands/xread/"
+    publisher: "Redis Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="How does an agent continuously send progress to the browser while it runs?">
+  The worker records state and events in Redis, while the API server <strong>uses an async generator to keep reading the Redis Stream and yield HTTP chunks framed as SSE</strong>. A generator is the Python mechanism that produces values incrementally, `StreamingResponse` sends those values in the HTTP body, and SSE is the wire protocol for event IDs, types, and data. Keeping these three layers separate is essential to correct reconnect, cancellation, and backpressure behavior.
+</AnswerBlock>
+
+Imagine asking an agent to analyze a company and staring at a spinner for 40 seconds. Even if the final answer is excellent, the user cannot tell whether the system has stalled, is retrieving data, or is waiting for approval.
+
+A real-time UI turns that gap into something legible.
+
+```text
+Connected
+✓ Internal document search complete
+✓ Financial data normalized
+→ Calculating valuation
+! Approval required for an action above $1,000
+```
+
+The previous article, [**State Is Not an Event**](/en/ai/agents/state-is-not-event/), stored the current snapshot in a Redis Hash and append-only events in a Redis Stream, using Stream IDs as cursors. The remaining problem is to keep carrying those events to the browser over an HTTP connection.
+
+Three concepts are often conflated:
+
+```text
+Async generator   How Python produces values one at a time
+StreamingResponse Server adapter that writes Python values as HTTP body chunks
+SSE               Text protocol that frames events inside those chunks
+```
+
+An async generator does not automatically create a network stream. SSE is not another name for a generator. Each layer owns a different responsibility.
+
+## First, distinguish what is being streamed
+
+“Agent streaming” can refer to at least three things.
+
+| Stream | Example | Characteristics |
+| --- | --- | --- |
+| Progress event | `research_completed`, `approval_required` | Low frequency; valuable to replay |
+| Output token | `a`, `g`, `e`, `n`, `t` | High-frequency partial output |
+| Final result | Completed report | One durable result |
+
+This article focuses on **progress event streaming**. These events remain in a Redis Stream for replay after reconnect, and their types form the UI timeline. Token streaming needs much higher throughput and different buffering, so Article 21 treats it separately.
+
+## An iterator is a protocol; a generator is an implementation
+
+In Python, an iterator is an object whose protocol allows callers to request the next value. We can implement `__iter__()` and `__next__()` directly.
+
+```python
+class StepIterator:
+    def __init__(self, steps: list[str]):
+        self.steps = steps
+        self.index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> str:
+        if self.index >= len(self.steps):
+            raise StopIteration
+
+        value = self.steps[self.index]
+        self.index += 1
+        return value
+
+for step in StepIterator(["research", "valuation", "report"]):
+    print(step)
+```
+
+A generator provides a concise way to implement an iterator.
+
+```python
+def steps():
+    yield "research"
+    yield "valuation"
+    yield "report"
+```
+
+When `yield` runs, the function pauses while preserving local variables and its execution position. It resumes there when the caller requests another value.
+
+```text
+Every generator is an iterator.
+Not every iterator is a generator.
+```
+
+In Python's terminology, an iterator's `__next__()` returns values and raises `StopIteration` when exhausted. An async iterator implements `__aiter__()` and an awaitable-returning `__anext__()`, then uses `StopAsyncIteration` to end. ([Python Glossary](https://docs.python.org/3/glossary.html#term-iterator))
+
+## Async generators fit network events naturally
+
+A synchronous generator blocks its current thread if producing the next value requires blocking I/O. An async generator is well suited to waiting asynchronously for the next Redis event.
+
+```python
+async def run_events(redis, stream_key: str, cursor: str):
+    while True:
+        response = await redis.xread(
+            streams={stream_key: cursor},
+            count=100,
+            block=15_000,
+        )
+
+        if not response:
+            continue
+
+        _, entries = response[0]
+        for event_id, fields in entries:
+            cursor = event_id
+            yield event_id, fields
+```
+
+This function contains both `await` and `yield`.
+
+- `await redis.xread(...)` returns control to the event loop while waiting.
+- `yield event` hands one ready event to the consumer and pauses the generator.
+- The loop proceeds only when the consumer asks for another value.
+
+Python defines a function containing `yield` inside `async def` as an asynchronous generator function. Calling it creates an async generator iterator, and `async for` repeatedly processes the awaitable from `__anext__()`. ([Asynchronous Generator Functions](https://docs.python.org/3/reference/expressions.html#asynchronous-generator-functions))
+
+```python
+async for event_id, fields in run_events(redis, stream_key, cursor):
+    print(event_id, fields)
+```
+
+So far, one Python object is consuming another. No bytes have reached a browser.
+
+## Something must connect `yield` to the HTTP body
+
+FastAPI's `StreamingResponse` accepts a synchronous or asynchronous iterator and sends each item as a response-body chunk. ([StreamingResponse](https://fastapi.tiangolo.com/advanced/custom-response/#streamingresponse))
+
+```python
+from fastapi.responses import StreamingResponse
+
+async def chunks():
+    yield b"first chunk\n"
+    yield b"second chunk\n"
+
+response = StreamingResponse(
+    chunks(),
+    media_type="text/plain",
+)
+```
+
+The relationship is:
+
+```text
+Redis XREAD
+    │ await
+    ▼
+async generator
+    │ yield str/bytes
+    ▼
+StreamingResponse / ASGI server
+    │ HTTP body chunks
+    ▼
+Browser
+```
+
+`StreamingResponse` does not collect every chunk in memory before completing the response. It gets an opportunity to transmit each value as the iterator produces it. Actual packet boundaries and the moment the browser receives data still depend on the ASGI server, HTTP stack, proxies, and buffering. One `yield` does not guarantee one network packet.
+
+## SSE is a framing rule inside an HTTP response
+
+An SSE response uses the `text/event-stream` media type. Each event consists of UTF-8 text fields and ends with a blank line.
+
+```text
+id: 1760000000123-0
+event: dcf_started
+data: {"scenario":"base"}
+
+```
+
+The main fields are:
+
+| Field | Role |
+| --- | --- |
+| `data` | Payload sent to the client |
+| `event` | Custom event type |
+| `id` | Last event ID used as a reconnect cursor |
+| `retry` | Hint for the user agent's reconnect delay |
+| Line beginning with `:` | Comment, useful as a heartbeat |
+
+Multiple `data:` fields are joined with newlines. Here, each event encodes its JSON on one line.
+
+```python
+import json
+
+def encode_sse(
+    *,
+    event_id: str | None = None,
+    event_type: str | None = None,
+    data: dict | None = None,
+    retry_ms: int | None = None,
+) -> str:
+    lines: list[str] = []
+
+    if event_id is not None:
+        if "\n" in event_id or "\r" in event_id:
+            raise ValueError("invalid SSE event id")
+        lines.append(f"id: {event_id}")
+
+    if event_type is not None:
+        if "\n" in event_type or "\r" in event_type:
+            raise ValueError("invalid SSE event type")
+        lines.append(f"event: {event_type}")
+
+    if retry_ms is not None:
+        lines.append(f"retry: {retry_ms}")
+
+    if data is not None:
+        payload = json.dumps(data, separators=(",", ":"))
+        lines.append(f"data: {payload}")
+
+    return "\n".join(lines) + "\n\n"
+
+def encode_heartbeat() -> str:
+    return ": heartbeat\n\n"
+```
+
+Rejecting newlines in event types and IDs prevents framing injection. The payload goes through a JSON encoder rather than direct string interpolation.
+
+The WHATWG HTML Standard defines the event-stream format, `id`, reconnection time, and `Last-Event-ID` behavior. ([Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html))
+
+## Join the snapshot and live events in one generator
+
+Article 6 established that a Redis Hash stores a `last_event_id` consistent with its snapshot. On a first connection, send that snapshot and then read events after its cursor.
+
+```python
+import asyncio
+from collections.abc import AsyncIterator
+
+TERMINAL_EVENTS = {
+    "run_succeeded",
+    "run_failed",
+    "run_cancelled",
+}
+
+async def sse_event_stream(
+    *,
+    request,
+    redis,
+    run_id: str,
+    resume_cursor: str | None,
+) -> AsyncIterator[str]:
+    state_key = f"agent:run:{{{run_id}}}:state"
+    stream_key = f"agent:run:{{{run_id}}}:events"
+
+    if resume_cursor is None:
+        snapshot = await redis.hgetall(state_key)
+        if not snapshot:
+            yield encode_sse(
+                event_type="resync_required",
+                data={"reason": "snapshot_missing"},
+            )
+            return
+
+        cursor = snapshot.get("last_event_id", "0-0")
+        snapshot_status = snapshot["status"]
+        yield encode_sse(
+            event_id=cursor,
+            event_type="snapshot",
+            data={
+                "status": snapshot_status,
+                "current_step": snapshot["current_step"],
+                "progress": int(snapshot["progress"]),
+            },
+            retry_ms=2_000,
+        )
+
+        if snapshot_status in {"succeeded", "failed", "cancelled"}:
+            return
+    else:
+        cursor = resume_cursor
+
+    try:
+        while True:
+            if await request.is_disconnected():
+                return
+
+            response = await redis.xread(
+                streams={stream_key: cursor},
+                count=100,
+                block=15_000,
+            )
+
+            if not response:
+                yield encode_heartbeat()
+                continue
+
+            _, entries = response[0]
+            for event_id, fields in entries:
+                cursor = event_id
+                event_type = fields["type"]
+
+                yield encode_sse(
+                    event_id=event_id,
+                    event_type=event_type,
+                    data={
+                        "type": event_type,
+                        "occurred_at": fields["occurred_at"],
+                        "payload": json.loads(
+                            fields.get("payload_json", "{}")
+                        ),
+                    },
+                )
+
+                if event_type in TERMINAL_EVENTS:
+                    return
+    except asyncio.CancelledError:
+        # Do not swallow cancellation from a client disconnect or server shutdown.
+        raise
+```
+
+The generator ends when:
+
+- The request disconnects.
+- It delivers a terminal event.
+- The ASGI server cancels its task.
+
+Swallowing `CancelledError` can break shutdown and structured cancellation. Python recommends `try/finally` for cleanup and, when `CancelledError` is explicitly caught, generally propagating it again after cleanup. ([Task Cancellation](https://docs.python.org/3/library/asyncio-task.html#task-cancellation))
+
+If the generator itself acquires a Redis connection or another resource, return it in `finally`.
+
+```python
+async def stream_with_dedicated_client(redis_pool, **kwargs):
+    redis = await redis_pool.acquire()
+    try:
+        async for chunk in sse_event_stream(redis=redis, **kwargs):
+            yield chunk
+    finally:
+        await redis_pool.release(redis)
+```
+
+Adapt the pool API to the redis-py version and wrapper in use. The important capacity-planning fact is that a long-lived response can occupy a connection for a long time.
+
+## Finish likely failures before streaming begins
+
+Once HTTP response headers have been sent, the server cannot replace the stream with a normal JSON `404` or `401`. Complete authentication, authorization, run lookup, and input validation before returning `StreamingResponse`.
+
+```python
+from fastapi import Depends, Header, HTTPException, Request
+from fastapi.responses import StreamingResponse
+
+@app.get("/runs/{run_id}/events")
+async def stream_run_events(
+    run_id: str,
+    request: Request,
+    last_event_id: str | None = Header(
+        default=None,
+        alias="Last-Event-ID",
+    ),
+    user: User = Depends(current_user),
+):
+    # Return the DB transaction/connection after the PostgreSQL lookup.
+    run = await run_repository.get_for_tenant(
+        run_id=run_id,
+        tenant_id=user.tenant_id,
+    )
+    if run is None:
+        raise HTTPException(404, "run not found")
+
+    generator = sse_event_stream(
+        request=request,
+        redis=redis,
+        run_id=run_id,
+        resume_cursor=last_event_id,
+    )
+
+    return StreamingResponse(
+        generator,
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+        },
+    )
+```
+
+`X-Accel-Buffering` is an implementation-specific way to disable buffering in some Nginx deployments, not a standard header understood by every proxy. Verify whether the actual ingress, CDN, and load balancer buffer streaming responses.
+
+Notice that the endpoint does not hold a PostgreSQL connection for the SSE lifetime. It returns the connection to the pool after authorization and leaves only a Redis read connection in the long-running loop.
+
+## Distinguish the first connection from reconnect
+
+The first connection receives a snapshot and its `last_event_id`. If the network drops after the browser processes an SSE `id`, the reconnect request can include `Last-Event-ID`. The server then reads Redis Stream entries after that cursor.
+
+```text
+First connection
+  snapshot(id=42) → event 43 → event 44
+
+disconnect
+
+Reconnect
+  Last-Event-ID: 44
+  XREAD after 44 → event 45 ...
+```
+
+Sending a fresh snapshot when the request already has a cursor can create confusing ordering between old-event replay and that snapshot. Define the paths explicitly:
+
+- No cursor: send the snapshot, then start the live stream after its cursor.
+- Cursor present: validate it, then replay entries after it.
+- Cursor older than retention: emit `resync_required` or direct the client to refetch the snapshot.
+
+The endpoint can apply Article 6's `cursor_is_too_old()` check before streaming. Because a header is untrusted text, validate the Stream ID syntax too.
+
+```python
+import re
+
+STREAM_ID_PATTERN = re.compile(r"^[0-9]+-[0-9]+$")
+
+def validate_stream_cursor(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if not STREAM_ID_PATTERN.fullmatch(value):
+        raise HTTPException(400, "invalid Last-Event-ID")
+    return value
+```
+
+## A heartbeat is not an application event
+
+An agent may wait 30 seconds for an LLM response without writing a Stream event. A proxy or browser can treat the connection as idle in that interval.
+
+When `XREAD BLOCK 15000` times out, send an SSE comment.
+
+```text
+: heartbeat
+
+```
+
+A colon-prefixed comment does not reach browser application event handlers, but its bytes traverse the connection. It:
+
+- Produces traffic on an idle connection.
+- Lets the server check for disconnects periodically.
+- Can expose a broken network path through a failed write.
+
+The interval should be shorter than the proxy idle timeout, but overly frequent heartbeats multiply unnecessary traffic by the connection count. Fifteen seconds is an example, not a universal setting; measure the deployment environment.
+
+Do not `XADD` heartbeats to the Redis Stream. Connection health is not a domain event. A thousand viewers can each send an independent heartbeat without polluting shared event history.
+
+## Disconnect begins a cancellation protocol
+
+Closing a browser tab should not necessarily cancel the agent run.
+
+```text
+SSE connection lifecycle       Agent run lifecycle
+─────────────────────────      ─────────────────────────
+tab closes → connection ends   worker may continue running
+network reconnect              subscribe from the same run cursor
+explicit cancel button         separate durable cancellation request
+```
+
+Cancelling the SSE generator **stops delivery work**. Cancelling worker execution requires a separate API and durable state transition. Conflating them would let a Wi-Fi change cancel the run. Article 13 therefore treats run cancellation as its own protocol.
+
+## Backpressure starts by acknowledging slow clients
+
+If a producer creates 100 events per second and a client can process ten, backlog must accumulate somewhere.
+
+A bad implementation prefetches Redis events forever into an unbounded in-process queue.
+
+```python
+# Avoid: memory can grow without regard to client speed.
+async def prefetch_forever(redis, queue, stream_key, cursor):
+    while True:
+        events = await redis.xread({stream_key: cursor}, count=1000)
+        for event in events:
+            await queue.put(event)
+```
+
+In the earlier async generator, the consumer must request the next chunk before the next loop proceeds. While `StreamingResponse` awaits transmission of the previous chunk, the generator does not read Redis without bound. This is the beginning of natural, pull-based backpressure.
+
+Application-level `yield` still does not directly control every network buffer. The ASGI server and kernel socket can buffer a limited amount, so add boundaries:
+
+- Limit replay batch size with `XREAD COUNT`.
+- Define the maximum lag a connection may catch up.
+- Resync from a snapshot when the cursor falls outside retention.
+- Set a slow-connection timeout or maximum lifetime.
+- Limit event payload size.
+- Size the Redis pool for the connection count.
+
+One blocking Redis connection per SSE client is simple at small scale but expensive as the viewer count grows. At that point, a process can use one reader per run and fan events out to multiple connections. That layer introduces its own queue bounds and slow-subscriber eviction policy.
+
+## Errors after streaming starts cannot change the HTTP status
+
+If Redis fails while the generator sends its third event, the response has already begun with `200 OK`. It cannot turn into a JSON `503`.
+
+The server can:
+
+1. Retry a temporary error within a bounded attempt count and deadline.
+2. Send an SSE `stream_error` control event when possible, then close.
+3. Close immediately and rely on client reconnect.
+
+In every case, logs should include the run ID, last cursor, and error class. Reconnect must resume from the same cursor.
+
+```python
+async def safe_sse_stream(**kwargs):
+    try:
+        async for chunk in sse_event_stream(**kwargs):
+            yield chunk
+    except asyncio.CancelledError:
+        raise
+    except RedisConnectionError:
+        logger.exception(
+            "run event stream failed",
+            extra={"run_id": kwargs["run_id"]},
+        )
+        yield encode_sse(
+            event_type="stream_error",
+            data={"retryable": True},
+            retry_ms=2_000,
+        )
+```
+
+The final `yield` may itself be undeliverable if the network is already gone. A control event is an extra signal; the Redis Stream cursor remains the basis for recovery.
+
+## Consume the stream with browser `EventSource`
+
+The browser's native `EventSource` API receives custom event types through `addEventListener`.
+
+```javascript
+const source = new EventSource(`/runs/${runId}/events`);
+
+source.addEventListener("snapshot", (message) => {
+  const snapshot = JSON.parse(message.data);
+  renderSnapshot(snapshot);
+});
+
+source.addEventListener("dcf_started", (message) => {
+  const event = JSON.parse(message.data);
+  timeline.upsert(message.lastEventId, event);
+});
+
+source.addEventListener("run_succeeded", (message) => {
+  const event = JSON.parse(message.data);
+  timeline.upsert(message.lastEventId, event);
+  source.close();
+  refreshFinalResult();
+});
+
+source.onerror = () => {
+  showConnectionState("reconnecting");
+};
+```
+
+Native `EventSource` cannot freely set arbitrary request headers like `fetch`. Choose same-origin secure cookies, a short-lived signed URL, or a fetch-based SSE client to fit the authentication architecture. Avoid long-lived access tokens in query strings because browser history and proxy logs may retain them.
+
+For cross-origin connections, configure CORS and credential policy explicitly. Also decide whether authorization only at connection start is sufficient. If access can be revoked during a run, define a maximum connection lifetime or periodic revalidation policy.
+
+## Choosing among SSE, polling, and WebSocket
+
+| Requirement | Polling | SSE | WebSocket |
+| --- | --- | --- | --- |
+| Server → browser updates | Possible | Natural | Possible |
+| Browser → server real-time messages | One request each | Separate HTTP API | Bidirectional |
+| Automatic reconnect | Build it | Browser support | Design a protocol |
+| Fits HTTP infrastructure | High | High; verify buffering | Requires Upgrade support |
+| Event ID and replay | Build it | Easy to join to protocol cursor | Build it |
+| Simple progress UI | Works, with delay and more requests | Strong default | Usually excessive |
+
+Agent progress is usually one-way, server to client. User approval, cancellation, and additional input can use ordinary POST endpoints, making SSE a simple fit.
+
+WebSocket is not inherently wrong. It may be better for continuous bidirectional messages such as low-latency control, voice, or collaboration. Choose transport from the communication shape, not from a rule that “agents use WebSockets.”
+
+## Production boundaries teams often miss
+
+### Proxy buffering
+
+The application may yield chunks while a proxy accumulates several before forwarding them. Localhost cadence does not guarantee production cadence. Test the actual streaming endpoint through the ingress and CDN.
+
+### Compression buffering
+
+Middleware or proxy compression can buffer small chunks. Check whether `text/event-stream` should be excluded from compression in the deployed environment.
+
+### Idle timeout
+
+Send heartbeats more frequently than load-balancer and proxy timeouts. Check every hop.
+
+### Connection limits
+
+Every open SSE connection uses a file descriptor, application task, socket buffer, and sometimes a Redis connection. Request rate alone is not enough for capacity planning.
+
+### Graceful shutdown
+
+During deployment, stop accepting new connections and close existing streams on the assumption that every client has a replayable cursor. Waiting forever for SSE connections to drain prevents deployments from completing.
+
+### Observability
+
+Measure active connections, connection duration, reconnect rate, heartbeat write failures, cursor lag, and Redis `XREAD` latency. Counting HTTP `200` responses cannot show whether the stream delivered events.
+
+## End-to-end mental model
+
+```text
+Worker
+  │ HSET + XADD
+  ▼
+Redis Hash + Stream
+  │ HGETALL / XREAD(cursor)
+  ▼
+Async generator
+  │ yield SSE frames
+  ▼
+StreamingResponse / ASGI
+  │ chunked HTTP body
+  ▼
+EventSource
+  │ event ID + type + JSON data
+  ▼
+Browser state + timeline
+```
+
+Each layer also fails differently.
+
+| Layer | Example failure | Recovery basis |
+| --- | --- | --- |
+| Worker | Process crash | Queue and checkpoint |
+| Redis projection | Key expiry | PostgreSQL snapshot fallback |
+| Redis Stream | Cursor trimmed | Snapshot resync |
+| API server | Deploy or restart | Client reconnect |
+| Network | Disconnect | Last event ID replay |
+| Browser | Tab refresh | Snapshot and cursor bootstrap |
+
+The SSE server does not own agent execution. It is a gateway that reads Redis events from a cursor and delivers them. The worker continues after the browser connection disappears; a reconnected browser reconstructs its UI from the snapshot and retained events.
+
+## Implementation checklist
+
+- Have iterator, async generator, HTTP streaming, and SSE been kept distinct?
+- Do authentication and authorization finish before the response begins?
+- Is the PostgreSQL connection released instead of held for the stream lifetime?
+- Does the first connection start from the snapshot cursor?
+- Does reconnect read after `Last-Event-ID`?
+- Are cursor syntax and the retention window validated?
+- Does Redis `XREAD` have a block timeout and count limit?
+- Does an empty read produce a heartbeat?
+- Is `CancelledError` allowed to propagate?
+- Does client disconnect remain separate from agent-run cancellation?
+- Does the stream close after a terminal event?
+- Is memory protected from unbounded queues for slow clients?
+- Are proxy buffering, compression, and idle timeout tested in production?
+- Does EventSource authentication avoid long-lived query-string tokens?
+
+The agent can now tell the browser what it is doing. One question remains: what state updates and custom events does the graph runtime itself emit inside the worker, and how do those differ from application state?
+
+The next article, **LangGraph Is Not an Architecture: Locating the Runtime Precisely**, examines `graph.astream()`, `updates`, `custom`, reducers, and checkpoints, and distinguishes LangGraph state, Redis state, and browser state.

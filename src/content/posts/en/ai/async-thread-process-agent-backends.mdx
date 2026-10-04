@@ -1,0 +1,358 @@
+---
+title: "Async, Threads, and Processes: What to Know Before Agent Workers"
+subtitle: "Waiting, blocking SDKs, and CPU-bound computation require different execution tools"
+description: "Classify agent-backend work as non-blocking I/O, blocking I/O, or CPU-bound computation, then choose among async, threads, and processes."
+publishedDate: 2026-09-21
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - asyncio
+  - threading
+  - multiprocessing
+  - concurrency
+  - cpu-bound
+author: "Jacob Shin"
+featured: false
+draft: false
+comments: false
+language: "en"
+translationKey: "async-thread-process-agent-backends"
+series: "Agent Engineering"
+seriesOrder: 3
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: evergreen
+lastReviewed: 2026-10-04
+nextReviewDate: 2027-10-04
+references:
+  - title: "threading — Thread-based Parallelism"
+    url: "https://docs.python.org/3/library/threading.html"
+    publisher: "Python Documentation"
+  - title: "multiprocessing — Process-based Parallelism"
+    url: "https://docs.python.org/3/library/multiprocessing.html"
+    publisher: "Python Documentation"
+  - title: "concurrent.futures — Launching Parallel Tasks"
+    url: "https://docs.python.org/3/library/concurrent.futures.html"
+    publisher: "Python Documentation"
+  - title: "Coroutines and Tasks: Running in Threads"
+    url: "https://docs.python.org/3/library/asyncio-task.html#running-in-threads"
+    publisher: "Python Documentation"
+  - title: "Python Support for Free Threading"
+    url: "https://docs.python.org/3/howto/free-threading-python.html"
+    publisher: "Python Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="Should an agent backend use async, threads, or processes?">
+  They are not competing options from which a system must choose only one. A natural starting point is <strong>async for non-blocking I/O waits, bounded thread offload for blocking I/O that would stall the event loop, and processes or a separate compute service for CPU-bound work</strong>. First classify whether the bottleneck is waiting or computing, then combine the appropriate execution tools within one system.
+</AnswerBlock>
+
+The previous article, [Why Agent Systems Need Async](/en/ai/agents/why-agent-systems-need-async/), examined an execution model that overlaps time spent waiting on LLMs, databases, and search APIs. Async lets independent I/O operations within a run progress together and advances other runs while one is waiting.
+
+Real agent backends, however, also contain code that cannot be awaited.
+
+- A legacy Python SDK exposes only a synchronous API.
+- A PDF parser keeps the CPU busy while converting a large document.
+- A Monte Carlo simulation performs millions of calculations.
+- Local embeddings or LLM inference run on a GPU.
+
+Putting all of this work inside `async def` does not turn it into an async workload. Calling a blocking function directly on the event-loop thread stalls other coroutines. Moving a CPU-bound loop to a thread does not automatically create multi-core parallelism.
+
+The essential question is not the syntax. It is **where the workload spends its time**.
+
+## Classify the bottleneck before choosing an execution tool
+
+Begin by sorting agent-backend work into three categories.
+
+| Workload | Where the time goes | Natural first choice |
+| --- | --- | --- |
+| Non-blocking I/O | Waiting for a network, database, or queue response | Async I/O |
+| Blocking I/O | Waiting while a synchronous SDK occupies the current thread | Bounded thread pool |
+| CPU-bound compute | Actual computation in Python or native code | Process or separate CPU/GPU service |
+
+The execution structure then looks like this:
+
+```text
+Agent run
+   │
+   ├─ LLM / PostgreSQL / Redis ── non-blocking wait ──> async task
+   │
+   ├─ legacy sync SDK ─────────── blocking wait ──────> bounded thread pool
+   │
+   └─ heavy calculation ───────── CPU execution ─────> process / compute service
+```
+
+The library name is not the classification criterion. One SDK may offer both async and synchronous clients. One function may combine I/O-bound file reads with CPU-bound parsing. Inspect the actual call path and identify **what it waits for and what it computes**.
+
+## Async: return control while waiting
+
+Asyncio provides cooperative concurrency. When a coroutine awaits non-blocking I/O, it returns control to the event loop, which advances another runnable task in the meantime.
+
+```python
+import asyncio
+
+async def build_context(query: str):
+    llm_task = asyncio.create_task(call_llm(query))
+    db_task = asyncio.create_task(query_postgres(query))
+    search_task = asyncio.create_task(search_documents(query))
+
+    llm, rows, documents = await asyncio.gather(
+        llm_task,
+        db_task,
+        search_task,
+    )
+    return {"llm": llm, "rows": rows, "documents": documents}
+```
+
+Concurrency is possible here not because the function has an `async` prefix, but because `call_llm`, `query_postgres`, and `search_documents` release control rather than occupy the thread while waiting for socket responses.
+
+The cost model of async fits I/O-heavy agents well. Tasks are lighter than OS threads, and one event loop can manage many waiting operations. But cooperation is also the model's weakness: if running code does not yield control, the event loop cannot advance another task.
+
+## A blocking call is more dangerous inside `async def`
+
+The following function looks async, but a synchronous SDK inside it blocks the event loop.
+
+```python
+async def enrich_customer(customer_id: str):
+    # While sync_crm_client.get() waits for a network response,
+    # other runs on this event loop cannot advance.
+    profile = sync_crm_client.get(customer_id)
+    return await summarize_profile(profile)
+```
+
+If one call takes 500 milliseconds, unrelated request timers, WebSocket heartbeats, and database-response handling can all be delayed for those 500 milliseconds. The effect may be invisible in development with one user, then appear abruptly as poor tail latency under concurrent traffic.
+
+If the library provides an async API, prefer it. Connection pooling, cancellation, and timeouts can then operate consistently with the event loop. When no async API exists and the work is blocking I/O, a thread can provide a compatibility bridge.
+
+## Threads: a compatibility tool that moves blocking code off the event loop
+
+A process can run multiple execution threads. They share the same memory, so objects do not need to be serialized across a process boundary, and synchronous libraries can often be called with relatively small changes.
+
+In an asyncio application, `asyncio.to_thread()` can run a blocking function on a separate thread.
+
+```python
+import asyncio
+
+def fetch_customer_sync(customer_id: str) -> dict:
+    return sync_crm_client.get(customer_id, timeout=5)
+
+async def enrich_customer(customer_id: str):
+    profile = await asyncio.to_thread(
+        fetch_customer_sync,
+        customer_id,
+    )
+    return await summarize_profile(profile)
+```
+
+The event-loop thread can now advance other coroutines while the CRM call waits. The official Python documentation likewise describes `asyncio.to_thread()` primarily as a way to run blocking I/O functions without blocking the event loop. ([Running in Threads](https://docs.python.org/3/library/asyncio-task.html#running-in-threads))
+
+But `to_thread()` does not transform blocking code into non-blocking code. The blocking still occurs; another thread bears the cost. The boundary therefore needs controls:
+
+- Set a timeout on the call itself.
+- Limit the number of concurrent blocking calls.
+- Do not casually share request-local mutable state after work moves to a thread.
+- Verify that the SDK is thread-safe.
+- Do not assume that canceling the awaitable terminates the underlying thread operation.
+
+The concurrency limit is especially important. Creating unbounded threads per request will exhaust an external API's rate limit, the connection pool, or memory first.
+
+```python
+import asyncio
+
+blocking_sdk_slots = asyncio.Semaphore(8)
+
+async def call_legacy_sdk(payload: dict) -> dict:
+    async with blocking_sdk_slots:
+        return await asyncio.to_thread(
+            legacy_sdk.execute,
+            payload,
+        )
+```
+
+A thread pool does not remove pressure; it moves pressure from the event loop to a thread queue. Pool size, timeouts, and upstream limits must be designed together to create backpressure.
+
+## Shared memory is convenient, not free
+
+Threads share a process's memory. That is convenient for large read-only configuration or an initialized client. If several threads modify the same mutable object, however, race conditions can result.
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+
+results: list[dict] = []
+results_lock = Lock()
+
+def collect_one(item: str) -> None:
+    result = blocking_lookup(item)
+    with results_lock:
+        results.append(result)
+
+with ThreadPoolExecutor(max_workers=8) as pool:
+    list(pool.map(collect_one, items))
+```
+
+This example protects changes to `results` with a lock, but a simpler design is often for worker threads to return values and for one owner to combine them. As shared state grows, we must reason about lock ordering, deadlocks, and races.
+
+A design in which multiple threads jointly mutate one Python object containing agent state is especially dangerous. Run state and event history need an explicit owner and storage boundary. The state article later in this series returns to that boundary.
+
+## The GIL does not make threads useless
+
+In a standard GIL-enabled CPython build, only one thread can execute Python bytecode at a time. Splitting a pure-Python CPU-bound loop across several threads therefore does not generally produce multi-core speedups. Context-switching overhead may even make it slower. The official Python documentation similarly recommends considering `multiprocessing` or `ProcessPoolExecutor` to use more CPU resources, while noting that threads remain appropriate for I/O-bound tasks. ([threading documentation](https://docs.python.org/3/library/threading.html))
+
+It would still be inaccurate to generalize this as “Python threads always execute one at a time.”
+
+- Another thread can advance while one waits for network or file I/O.
+- Some native extensions, including NumPy operations, may release the GIL during computation.
+- Python 3.13 introduced free-threaded builds that can disable the GIL, but they are not the default build; extension compatibility and measurements on the real workload still matter. ([Free-threading documentation](https://docs.python.org/3/howto/free-threading-python.html))
+
+A practical initial hypothesis can remain simple: **on ordinary GIL-enabled CPython, use threads for blocking-I/O compatibility and processes for heavy pure-Python computation**, then verify it with benchmarks.
+
+## Processes: use separate interpreters and memory for CPU parallelism
+
+Each process has an independent Python interpreter and memory space. Multiple processes can compute at the same time on multiple CPU cores, making them a natural fit for pure-Python CPU-bound workloads.
+
+The following example sends CPU-heavy scoring from an async agent to a process pool.
+
+```python
+import asyncio
+from concurrent.futures import ProcessPoolExecutor
+
+PROCESS_POOL = ProcessPoolExecutor(max_workers=4)
+
+def score_scenarios(scenarios: list[dict]) -> list[float]:
+    # CPU-bound pure-Python calculation
+    return [run_monte_carlo(scenario) for scenario in scenarios]
+
+async def calculate_risk(scenarios: list[dict]) -> list[float]:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        PROCESS_POOL,
+        score_scenarios,
+        scenarios,
+    )
+```
+
+The event loop can advance other I/O tasks while it waits for the result, and the CPU work executes in a separate process. Processes have clear costs, however.
+
+- Starting and maintaining a process costs more than a thread.
+- Arguments and results must be serializable across the process boundary.
+- Serialization and memory-copy overhead for large objects can erase the computational gain.
+- In-memory clients, open connections, and locks cannot be shared arbitrarily.
+- Pool creation and shutdown need explicit ownership in the application lifecycle.
+
+Spawning a new process for every small JSON parse is therefore a poor choice. Reuse a process pool over the application lifecycle. If the computation is sufficiently large and independent, a dedicated CPU worker or service may be the better boundary. The official Python documentation covers both `multiprocessing`'s ability to sidestep the GIL through subprocesses and the constraints of `ProcessPoolExecutor`. ([multiprocessing](https://docs.python.org/3/library/multiprocessing.html), [concurrent.futures](https://docs.python.org/3/library/concurrent.futures.html))
+
+## An agent backend can use all three
+
+A real run rarely contains only one kind of workload. Within one request, the LLM and database can wait asynchronously, a legacy SDK can be isolated in a thread, and substantial computation can move to a process or separate service.
+
+```python
+import asyncio
+
+async def execute_agent_run(request: dict) -> dict:
+    # 1. Native async I/O: make progress together on the event loop.
+    llm_task = asyncio.create_task(call_llm(request["prompt"]))
+    data_task = asyncio.create_task(query_postgres(request["account_id"]))
+
+    # 2. Blocking I/O: isolate it in a bounded thread pool.
+    crm_task = asyncio.create_task(
+        call_legacy_sdk({"account_id": request["account_id"]})
+    )
+
+    llm, data, crm = await asyncio.gather(
+        llm_task,
+        data_task,
+        crm_task,
+    )
+
+    # 3. CPU-bound calculation: assign it to the process pool.
+    risk = await calculate_risk(build_scenarios(data, crm))
+
+    return compose_answer(llm, data, crm, risk)
+```
+
+```text
+                         ┌─ LLM API ────────────────┐
+                         ├─ PostgreSQL ─────────────┤ async I/O
+Request ─> event loop ───┤                          ├─> compose result
+                         ├─ legacy SDK ─> thread ───┤
+                         └─ risk model ─> process ──┘
+```
+
+The event loop is the central scheduler in this structure, but it does not execute every kind of work itself. Async tasks overlap waiting, a bounded thread pool isolates unavoidable blocking I/O, and CPU-heavy work crosses a process boundary.
+
+Local LLM inference is another case. Model weights, batching, GPU memory, and kernel scheduling all require management, so a dedicated inference service is often more natural than calling inference through a `ProcessPoolExecutor` inside the web process. The async agent sends a network request to that service and awaits the result. From the agent's perspective, the operation is I/O-bound again.
+
+## Choose by bottleneck, not by library
+
+| Situation | First choice | Why | Watch for |
+| --- | --- | --- | --- |
+| LLM or search API call | Async client | Overlap network waits | Timeouts, rate limits, concurrency cap |
+| PostgreSQL or Redis access | Async driver | Advance another run while waiting on sockets | Connection-pool size |
+| Sync-only SaaS SDK | Thread offload | Isolate event-loop blocking | Thread safety, pool saturation |
+| File read | Async API or thread | May block, depending on OS and file API | File count, descriptor limit |
+| Large pure-Python computation | Process pool | Execute in parallel across cores | Serialization, startup, memory |
+| NumPy/native computation | Thread or process after measurement | The extension may release the GIL | Library behavior, oversubscription |
+| Large-scale Monte Carlo | Dedicated CPU worker | Independent scaling and resource control | Queue, result persistence, retry |
+| Local LLM inference | GPU inference service | Separate batching and GPU lifecycle | Admission control, model capacity |
+
+“First choice” is not a final answer. Measure the workload. Verify whether the SDK releases the GIL, how much data must cross a boundary, and where downstream limits sit. The table is a way to avoid starting from the wrong model.
+
+## Five recurring failures
+
+### 1. Calling a blocking SDK directly on the event loop
+
+The outer function is `async def`, so we assume everything inside it is non-blocking. The result is that one request's SDK latency delays other requests in the same process.
+
+### 2. Moving CPU-bound work to a thread and expecting scale-out
+
+For pure-Python computation on standard CPython, the GIL will likely prevent the desired multi-core parallelism. Thread offload may preserve event-loop responsiveness, but it does not make the computation itself finish sooner.
+
+### 3. Using a process for every small I/O operation
+
+Process startup, IPC, and serialization cost more than the work itself. Async or threads are more natural for I/O waits.
+
+### 4. Letting several threads mutate shared state without protection
+
+Tests may pass by accident, only for production concurrency to expose state corruption or a race that is difficult to reproduce. Prefer returning values for one owner to combine. If sharing is unavoidable, add explicit synchronization.
+
+### 5. Creating a new process pool for every web request
+
+The number of processes and duplicate memory grow with traffic. Manage the pool over the application lifecycle, or let a dedicated compute worker behind a queue own large jobs.
+
+## Async, threads, and processes do not own the lifecycle
+
+The three tools discussed so far mainly answer **how work progresses concurrently or executes in parallel**.
+
+- An async task overlaps I/O waits on the event loop.
+- A thread isolates a blocking call within the same process.
+- A process executes computation with separate interpreter state and memory.
+
+Production agents leave a different set of questions.
+
+- Should a five-minute run continue after the HTTP request disconnects?
+- If the process dies, who picks up unfinished work?
+- Where do state and progress live while a run retries?
+- How should the system constrain two simultaneous runs in one session?
+- Can in-progress work finish safely during a deployment?
+
+Choosing among `async`, `thread`, and `process` cannot answer them. They concern **who owns the execution lifecycle**.
+
+```text
+Concurrency primitive                     Lifecycle ownership
+──────────────────────────────────         ─────────────────────────────
+async / thread / process                   API process / queue / worker
+"How does work progress or compute?"       "Who is responsible to the end?"
+```
+
+A worker is not another name for a thread or a synonym for a process. One worker process can run an asyncio event loop, send blocking SDK calls to a thread pool, and delegate CPU computation to another process or compute service.
+
+> How work runs concurrently and who owns its lifecycle are different questions.
+
+The next article, **A Worker Is Not a Thread**, examines why API and execution processes are separated—and why a worker is a lifecycle-ownership boundary, not a concurrency primitive.

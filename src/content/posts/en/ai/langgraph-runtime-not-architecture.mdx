@@ -1,0 +1,567 @@
+---
+title: "LangGraph Is Not Architecture: Where the Runtime Actually Belongs"
+subtitle: "Separate graph state from application state to assign responsibility across workers, Redis, databases, and browsers"
+description: "A close look at LangGraph's graph.astream(), updates, custom streams, reducers, and checkpoints—and the boundary between an agent runtime and backend architecture."
+publishedDate: 2026-10-01
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+  - langgraph
+primaryTopic: ai-agents
+tags:
+  - langgraph
+  - agent-runtime
+  - state-management
+  - streaming
+  - checkpointing
+author: "Jacob Shin"
+featured: false
+draft: false
+comments: false
+language: "en"
+translationKey: "langgraph-runtime-not-architecture"
+series: "Agent Engineering"
+seriesOrder: 8
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: periodic
+lastReviewed: 2026-10-04
+nextReviewDate: 2027-01-04
+references:
+  - title: "LangGraph Streaming"
+    url: "https://docs.langchain.com/oss/python/langgraph/streaming"
+    publisher: "LangChain Documentation"
+  - title: "LangGraph Graph API Overview"
+    url: "https://docs.langchain.com/oss/python/langgraph/graph-api"
+    publisher: "LangChain Documentation"
+  - title: "LangGraph Persistence"
+    url: "https://docs.langchain.com/oss/python/langgraph/persistence"
+    publisher: "LangChain Documentation"
+  - title: "PregelProtocol astream Reference"
+    url: "https://reference.langchain.com/python/langgraph/pregel/protocol/PregelProtocol/astream"
+    publisher: "LangChain Reference"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="What should LangGraph own in an agent backend?">
+  LangGraph is an <strong>agent runtime</strong> that handles node execution, state transitions, branching, streaming, checkpointing, and resumption. It is not the entire backend architecture: it does not automatically own request authentication, run admission, queues, worker lifecycles, application records, Redis projections, SSE connections, or tenant isolation. Put the graph at the center of execution, but do not mistake the responsibilities outside it for responsibilities that have disappeared.
+</AnswerBlock>
+
+Once you start building an agent with LangGraph, everything tends to get pulled into the graph. The user's question goes into state. Search results go into state. Progress goes into state. The final report goes into state. A `thread_id` makes the session problem seem solved; a checkpointer makes the database problem seem solved. Because `graph.astream()` emits values, even the streaming API can look finished.
+
+That picture survives for quite a while in a local notebook.
+
+```text
+User Request
+    ↓
+LangGraph
+    ├─ search node
+    ├─ analyze node
+    └─ write node
+    ↓
+Final Answer
+```
+
+Production introduces questions outside the graph.
+
+- If the HTTP request disconnects, should graph execution be canceled too?
+- Who owns a run while it waits to execute?
+- Should browser-visible progress and internal graph documents live in the same state?
+- If a worker dies, how do we recover both the queue message and the checkpoint?
+- Who stops a user from supplying someone else's `thread_id`?
+- If the framework's event format changes, should the SSE client change with it?
+
+These questions do not expose a deficiency in LangGraph. They show that **a runtime and an architecture solve problems at different scopes**.
+
+## A runtime advances execution; architecture defines the contracts around it
+
+This series will place the components as follows.
+
+```text
+Browser
+   │ POST /runs, GET /events
+   ▼
+API ── authentication / authorization / admission
+   │
+   ▼
+Queue ── pending work / delivery / redelivery
+   │
+   ▼
+Worker ── attempt lifecycle / timeout / cancellation
+   │
+   ▼
+LangGraph ── node execution / transition / checkpoint / runtime stream
+   │
+   ├─ updates ──> Redis UI state
+   ├─ custom  ──> Redis event stream ──> SSE
+   └─ result  ──> PostgreSQL business record
+```
+
+LangGraph runs inside the worker. This placement does not make the graph unimportant. It makes clear **what the graph reliably owns**.
+
+| Layer | Primary responsibility |
+| --- | --- |
+| API | User authentication, permission to create a run, input validation, `202 Accepted` |
+| Queue | Durable delivery of work not yet processed |
+| Worker | Active attempt, heartbeat, cancellation, timeout, acknowledgment |
+| LangGraph | Node scheduling, state updates, conditional transitions, checkpoint/resume |
+| Redis | Fast UI snapshots and replayable progress events |
+| PostgreSQL | Authoritative run record and final result |
+| SSE gateway | Deliver events after a cursor to the browser |
+
+These boundaries may overlap in a particular product. A LangGraph-based server product may provide persistence or a run API as well. But we still need to ask **which component provides each guarantee**. When the library is embedded directly in a worker, the application must assemble these responsibilities explicitly.
+
+## Start by keeping graph state small
+
+Consider a graph that analyzes NVIDIA's recent earnings and valuation.
+
+```python
+from operator import add
+from typing import Annotated, TypedDict
+
+
+class AnalysisState(TypedDict):
+    query: str
+    documents: list[dict]
+    analysis: dict | None
+    report: str | None
+    status: str
+    warnings: Annotated[list[str], add]
+```
+
+This state is the **runtime working set** shared by graph nodes so they can perform the next computation.
+
+- `query`: Read by search and analysis.
+- `documents`: Search results read by the analysis node.
+- `analysis`: Read by the report node.
+- `status`: Represents the current phase inside the graph.
+- `warnings`: Accumulates warnings found by multiple nodes.
+
+Do not treat this state as the browser response schema or a database table. `documents` may contain hundreds of kilobytes of source text and provider metadata. `analysis` may contain internal scores and intermediate results intended for prompts. The browser needs little of this, and some of it may include internal material the tenant is not allowed to see.
+
+Design graph state around **what nodes need to execute**. Design UI state around **what the user needs to restore the current screen**. Design the business record around **what audit and product features require**.
+
+## A node returns an update, not the entire state
+
+A search node does not need to copy and return the entire `AnalysisState`.
+
+```python
+async def search_node(state: AnalysisState) -> dict:
+    documents = await search_provider.search(state["query"])
+
+    return {
+        "documents": documents,
+        "status": "analyzing",
+    }
+```
+
+Suppose the state before the node runs looks like this.
+
+```python
+{
+    "query": "NVDA margin and valuation analysis",
+    "documents": [],
+    "analysis": None,
+    "report": None,
+    "status": "searching",
+    "warnings": [],
+}
+```
+
+The search node changes only `documents` and `status`. The existing values of `query`, `analysis`, `report`, and `warnings` remain in place. When this partial update is applied to LangGraph's internal state, the reducer for each key determines the result.
+
+The official Graph API documentation is explicit: a key without a specified reducer is replaced by the new value. A key with a reducer, such as `Annotated[list[str], add]`, combines the existing value and the update through that reducer. ([Graph API: Reducers](https://docs.langchain.com/oss/python/langgraph/graph-api#reducers))
+
+```text
+Node output                    Graph state after reducer
+───────────────────────────    ─────────────────────────────
+documents = [doc1, doc2]   →   documents replaced
+status = "analyzing"       →   status replaced
+warnings = ["stale data"]  →   appended to existing warnings
+```
+
+A reducer is not merely a typing decoration. It is a runtime semantic that determines how updates are combined when two parallel branches update the same key. Conversely, returning `[]` will not clear a list with an `add` reducer: adding an empty list leaves the existing value intact. Accumulating fields therefore need separately designed reset semantics.
+
+There is, however, one crucial boundary.
+
+> **A LangGraph reducer defines how graph state updates are merged. It does not define concurrency control for Redis or PostgreSQL.**
+
+A reducer does not make a Redis write atomic, prevent two workers from executing the same run, or create a database transaction.
+
+## `updates` shows what a node changed, not the entire state
+
+Once the graph is compiled, `graph.astream()` can emit runtime output.
+
+```python
+async for part in graph.astream(
+    {
+        "query": request.query,
+        "documents": [],
+        "analysis": None,
+        "report": None,
+        "status": "searching",
+        "warnings": [],
+    },
+    config={"configurable": {"thread_id": run_id}},
+    stream_mode=["updates", "custom"],
+    version="v2",
+):
+    event_type = part["type"]
+    namespace = part["ns"]
+    data = part["data"]
+```
+
+In the current LangGraph stream-mode documentation, `version="v2"` provides a consistent `{type, ns, data}` `StreamPart` shape regardless of the number of modes or whether subgraphs are used. `updates` emits the state update returned by a node at each step; `custom` emits user-defined data sent from inside a node. ([LangGraph Streaming](https://docs.langchain.com/oss/python/langgraph/streaming))
+
+After the search node finishes, the `data` in an `updates` part looks roughly like this.
+
+```python
+{
+    "search_node": {
+        "documents": [
+            {"id": "10-k", "text": "..."},
+            {"id": "earnings-call", "text": "..."},
+        ],
+        "status": "analyzing",
+    }
+}
+```
+
+This is not the completed graph state. It identifies **which node updated which fields**. The `values` mode is available when full state is necessary, but a worker building a UI projection usually has no reason to receive every large document and the entire analysis again at every step.
+
+There is also a security implication. Fields treated like private channels in a graph's input or output schema may still be exposed through streaming. Do not proxy the runtime stream directly to an external client. Translate only application-approved fields into a separate contract.
+
+## `custom` is closer to an event than state
+
+An `updates` item appears when a node finishes and returns a state update. But if one node spends 40 seconds analyzing 100 documents, no update is visible until that node completes.
+
+Use the `custom` stream to report progress from inside the node.
+
+```python
+from langgraph.config import get_stream_writer
+
+
+async def analyze_documents(state: AnalysisState) -> dict:
+    writer = get_stream_writer()
+    results = []
+    total = len(state["documents"])
+
+    for index, document in enumerate(state["documents"]):
+        result = await analyst.analyze(document)
+        results.append(result)
+
+        writer({
+            "kind": "document_analyzed",
+            "completed": index + 1,
+            "total": total,
+            "document_id": document["id"],
+        })
+
+    return {
+        "analysis": aggregate(results),
+        "status": "writing",
+    }
+```
+
+`document_analyzed` does not exist to change the graph's durable working state. It is an event that tells a consumer what happened during execution.
+
+```text
+custom event                            final node update
+────────────────────────────────────    ──────────────────────────
+document 1 analyzed                     analysis = aggregate(...)
+document 2 analyzed                     status = "writing"
+document 3 analyzed
+...
+```
+
+If every progress event is continually appended to a list in graph state, checkpoints grow and every node input repeatedly carries unnecessary history. But if a fact is required for the next computation after a resume, it cannot live only as a transient event. The deciding question is not "Does the UI show it?" It is **"Does the next node need it to execute correctly?"**
+
+## The three states do not need to match
+
+The central distinction in this article fits in one line.
+
+```text
+LangGraph State  ≠  Redis UI State  ≠  Browser UI State
+```
+
+Each state has a different consumer and lifetime.
+
+| State | Primary consumer | Include | Avoid |
+| --- | --- | --- | --- |
+| LangGraph state | Nodes and runtime | Working data required for the next computation | Presentation-only UI text, unbounded event history |
+| Redis UI state | API/SSE and operations UI | Status, phase, progress, terminal summary | Large documents, private prompts, full reports |
+| Browser state | User interface | Displayable progress and a result link | Internal node payloads, unauthorized metadata |
+
+For example, a graph update may contain the full text of a document while the Redis snapshot records only the phase.
+
+```python
+PUBLIC_STATUS = {
+    "searching": "Finding sources",
+    "analyzing": "Analyzing sources",
+    "writing": "Writing the report",
+    "completed": "Complete",
+}
+
+
+async def project_update(redis, run_id: str, update: dict) -> None:
+    for node_name, changed in update.items():
+        status = changed.get("status")
+        if status is None:
+            continue
+
+        await redis.hset(
+            f"run:{run_id}:state",
+            mapping={
+                "status": status,
+                "label": PUBLIC_STATUS[status],
+                "last_node": node_name,
+            },
+        )
+```
+
+The omission of `changed["documents"]` from Redis is deliberate. Redis is a projection for the UI and operations, not a replica of graph memory.
+
+Browser state can be narrower again. Even when two users read the same Redis snapshot, tenant policy and user roles may hide cost or document names from one of them. That transformation belongs to application authorization, not framework state merging.
+
+## Translate runtime events into product events
+
+Exposing raw framework events as the SSE contract couples the client to the runtime implementation.
+
+```text
+Bad coupling
+LangGraph node name / StreamPart payload
+                ↓ exposed directly
+Browser interprets framework internals
+
+Recommended boundary
+LangGraph runtime output
+                ↓ application mapper
+Versioned product event
+                ↓ Redis Stream / SSE
+Browser interprets a stable contract
+```
+
+The application mapper owns allowlisting, validation, and versioning.
+
+```python
+def to_product_event(custom: dict) -> dict | None:
+    if custom.get("kind") != "document_analyzed":
+        return None
+
+    completed = int(custom["completed"])
+    total = int(custom["total"])
+
+    if total <= 0 or not 0 <= completed <= total:
+        raise ValueError("invalid progress payload")
+
+    return {
+        "type": "analysis_progressed",
+        "version": 1,
+        "payload": {
+            "completed": completed,
+            "total": total,
+        },
+    }
+```
+
+The public event can remain stable if the graph node is renamed to `analyze_documents_v2` or provider metadata is added to the internal payload. When product UI requirements change, update the mapper and event version deliberately.
+
+This boundary also reduces data leaks. Even if a query, prompt, or document text is accidentally passed to the `custom` writer, fields outside the allowlist do not reach the Redis Stream or browser.
+
+## The worker applies runtime output to application storage
+
+We can now bring the worker's responsibilities together.
+
+```python
+import json
+
+
+async def execute_run(run, graph, redis, repository) -> None:
+    await repository.mark_running(run.id, run.attempt_id)
+
+    try:
+        async for part in graph.astream(
+            initial_graph_state(run),
+            config={"configurable": {"thread_id": run.checkpoint_key}},
+            stream_mode=["updates", "custom"],
+            version="v2",
+        ):
+            if part["type"] == "updates":
+                await project_update(redis, run.id, part["data"])
+
+            elif part["type"] == "custom":
+                event = to_product_event(part["data"])
+                if event is not None:
+                    await redis.xadd(
+                        f"run:{run.id}:events",
+                        {"payload": json.dumps(event)},
+                    )
+
+        final_state = await graph.aget_state(
+            {"configurable": {"thread_id": run.checkpoint_key}}
+        )
+        report = final_state.values["report"]
+
+        await repository.complete_run(run.id, report)
+        await redis.xadd(
+            f"run:{run.id}:events",
+            {"payload": json.dumps({"type": "run_succeeded", "version": 1})},
+        )
+
+    except Exception as error:
+        await repository.fail_attempt(run.id, run.attempt_id, repr(error))
+        raise
+```
+
+This is conceptual code. Production also needs fencing tokens, leases, cancellation, deadlines, retry classification, and idempotency. The important part is the data flow.
+
+```text
+LangGraph update    → filtered Redis snapshot
+LangGraph custom    → validated product event → Redis Stream
+LangGraph result    → authoritative PostgreSQL result
+Exception           → attempt failure record → queue retry policy
+```
+
+LangGraph advances graph execution, but the worker owns **the lifecycle and external writes of this attempt**. The SSE connection does not participate. The gateway built in the previous article, [Let the Agent Speak While It Works](/en/ai/agents/agent-sse-streaming/), simply reads the Redis Stream from a cursor.
+
+## Checkpoints are powerful, but they do not replace the queue or business database
+
+A LangGraph checkpointer stores graph-state snapshots by thread. The official persistence documentation describes this as short-term, thread-scoped memory used for conversational continuity, human-in-the-loop workflows, time travel, and fault tolerance. It also distinguishes checkpoints from the store for application-defined data shared across threads. ([LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/persistence))
+
+```python
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+
+async with AsyncPostgresSaver.from_conn_string(CHECKPOINT_DSN) as checkpointer:
+    # Run await checkpointer.setup() separately during initial schema setup.
+    graph = builder.compile(checkpointer=checkpointer)
+
+    config = {
+        "configurable": {
+            "thread_id": server_generated_checkpoint_key,
+        }
+    }
+
+    result = await graph.ainvoke(graph_input, config=config)
+```
+
+A checkpoint answers questions like these.
+
+- At what state did this graph stop?
+- From which node can execution resume?
+- What was the runtime state before and after a HITL interrupt?
+
+The following questions require separate design.
+
+- Which worker should receive a run that has not started?
+- Who reclaims a pending message after a worker dies?
+- Which tenant and user may read this run?
+- Was a paid analysis finalized exactly once?
+- What is the retention policy for the final report and audit record?
+
+```text
+Checkpoint       state for continuing graph execution
+Queue            work delivery and redelivery
+Business DB      product record and authoritative result
+Event stream     observable progress history
+```
+
+One physical store can play several roles. PostgreSQL may hold both checkpoint and run tables. That does not make their schemas, consistency boundaries, or ownership identical.
+
+A `thread_id` is also a storage lookup key, not proof of authorization. Do not trust a client-supplied value directly. The API should verify the tenant's and user's access to the run, then place a server-side identifier in the graph configuration. The next article examines this distinction in more detail.
+
+## What belongs inside the graph, and what stays outside?
+
+When the boundary is unclear, ask what kind of decision the logic makes.
+
+| Concern | Default location | Reason |
+| --- | --- | --- |
+| Select the next analysis node | LangGraph | Execution transition based on current graph state |
+| Parallel branches and fan-in | LangGraph | Node dependencies and reducer semantics |
+| Pass a tool result to the next node | LangGraph state | Working data for the next computation |
+| Graph interruption and resumption point | Checkpointer | Runtime continuation |
+| Permission to create a run | API/application | Tenant and product policy |
+| Deliver waiting work | Queue | Ownership beyond a process lifetime |
+| Heartbeat for an active attempt | Worker/application | Worker-failure and reclamation decisions |
+| Browser progress snapshot | Redis projection | Fast reads and UI restoration |
+| Public SSE event schema | Application contract | Framework independence and data minimization |
+| Final report and billing status | Business DB | Authoritative product record |
+
+The answer does not always need to match this table. A managed agent server may take responsibility for parts of the queue, persistence, and run API. In that case, do not erase those rows. Assign their ownership to the managed service.
+
+## This is not an argument against LangGraph
+
+LangGraph is particularly useful when:
+
+- You want a stateful workflow with branches and cycles to be explicit.
+- Parallel node updates need to be combined through reducer semantics.
+- Execution must resume from the same graph state after a HITL interrupt.
+- The runtime must expose node updates, tokens, and custom progress.
+- You need checkpoints and execution history.
+
+Conversely, adding a graph to a fixed three-stage ETL process may cost more in abstraction than ordinary function calls. If the whole system is one open-ended tool loop, a bounded Python loop you own directly may be easier to read.
+
+The selection criterion is not "It is an agent, so use LangGraph."
+
+```text
+Are control flow and resume semantics complex?
+    ├─ Yes → A graph runtime becomes more valuable.
+    └─ No  → A plain-Python workflow may be simpler.
+```
+
+This view also extends the principle from [Do Agents Have to Be Graphs?](/en/ai/ax/why-i-am-removing-langgraph-from-agent-building/): "Freedom inside the agent, control at the boundary." A graph is not a synonym for the entire architecture. It is a runtime placed where explicit execution control is needed.
+
+## The faster an API changes, the more important the application boundary becomes
+
+LangGraph's streaming surface continues to evolve. The current official documentation recommends the event streaming API introduced in LangGraph 1.2 for new applications while continuing to document the stream-mode API that directly consumes `updates`, `custom`, and other modes. This article uses the `graph.astream(..., version="v2")` stream-mode API because it makes the boundary between runtime state and application projections especially clear.
+
+The lesson is not to freeze one version forever.
+
+```python
+async def runtime_events(graph, graph_input, config):
+    """Framework-specific adapter: keep this boundary narrow."""
+    async for part in graph.astream(
+        graph_input,
+        config=config,
+        stream_mode=["updates", "custom"],
+        version="v2",
+    ):
+        yield part
+```
+
+Keep framework-specific parsing in one adapter. Beyond it, use application-owned contracts such as `RunProgressed`, `ApprovalRequired`, and `RunSucceeded`. Then a migration to a new streaming API does not require replacing the Redis event schema, SSE client, and browser component at the same time.
+
+## Implementation checklist
+
+- Is LangGraph explicitly positioned as the runtime inside a worker?
+- Does graph state avoid UI history that the next node does not need?
+- Are reducers kept distinct from external database consistency?
+- Does the implementation understand the difference between `updates` and full `values`, consuming only the required data?
+- Does long-running work inside a node emit validated `custom` events?
+- Are raw `StreamPart` objects and private graph channels kept away from the browser?
+- Are LangGraph state, Redis UI state, and browser state defined separately?
+- Does Redis avoid mirroring large documents and internal prompts by default?
+- Are the roles of checkpoints, queues, the business database, and the event stream distinct?
+- Is `thread_id` kept separate from authorization?
+- Is the framework API isolated behind a narrow adapter?
+- Is there an explicit ordering and failure policy for recording the final result and terminal event?
+
+## Conclusion: Put the runtime in its proper place, and the architecture becomes visible
+
+LangGraph is a powerful runtime for expressing and advancing agent execution. Nodes update parts of state, reducers combine those updates, and conditional edges select the next path. `updates` makes state transitions observable; `custom` reports progress from inside a long-running node. Checkpoints provide the foundation for continuing an interrupted graph.
+
+Those capabilities do not automatically turn queue delivery, worker ownership, authorization, UI projections, SSE replay, and business records into one architecture.
+
+The argument comes down to two statements.
+
+> **LangGraph is not architecture. It is an agent runtime placed within an architecture.**
+
+> **LangGraph State, Redis UI State, and Browser UI State do not need to match—and usually should not.**
+
+The runtime now has a defined place. The next problem is how to connect an execution to the right conversation and isolate multiple concurrent runs.
+
+The next article, **A Conversation Is Not a Run: Designing Session Isolation**, covers the `Tenant → User → Session → Run` identity hierarchy, the exact role of `thread_id`, authorization, and a one-active-run policy.
