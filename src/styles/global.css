@@ -144,7 +144,6 @@ a:hover { color: var(--accent); }
 .arrow { font-family: var(--serif); font-size: 24px; }
 
 .latest { padding: 64px 0 40px; }
-.featured-research { padding-bottom: 10px; }
 .latest-articles { padding-top: 70px; }
 .post-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .post-card { min-width: 0; padding: 32px 6% 32px 0; border-bottom: 1px solid var(--line); }
@@ -158,15 +157,11 @@ a:hover { color: var(--accent); }
 .text-link { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
 .draft-label { display: inline-block; margin-bottom: 14px; padding: 4px 7px; background: #8b4c36; color: #fff; font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 
-.discovery-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8%; padding: 30px 0 70px; }
-.discovery-links > section { padding: 24px 0; border-bottom: 1px solid var(--line); }
-.discovery-links h2 { margin: 0 0 12px; font-family: var(--serif); font-size: 28px; font-weight: 400; }
-.discovery-links p { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; }
-.discovery-links a { color: var(--muted); font-size: 11px; text-decoration: none; text-transform: capitalize; }
-.home-series { margin: 0; padding: 0; list-style: none; }
+.home-series-section { padding: 64px 0 0; }
+.home-series { margin: 0; padding: 0; border-top: 1px solid var(--line); list-style: none; }
 .home-series li { display: grid; grid-template-columns: 32px 1fr; gap: 14px; padding: 24px 0; border-bottom: 1px solid var(--line); }
 .home-series li span { color: var(--muted); font-size: 10px; }
-.home-series a { font-family: var(--serif); font-size: 23px; text-decoration: none; }
+.home-series a { font-family: var(--serif); font-size: clamp(24px, 3vw, 34px); text-decoration: none; }
 .home-newsletter { padding-bottom: 90px; }
 .home-newsletter .newsletter-cta { margin-top: 0; }
 
@@ -408,7 +403,6 @@ html:lang(ko) .newsletter-cta h2 { font-size: clamp(22.4px, 3.2vw, 33.6px); }
   .post-card, .post-card.featured, .post-grid > .post-card:nth-child(even) { min-height: 0; padding: 30px 0; border-left: 0; }
   .post-card h3 { margin-top: 30px; }
   .manifesto { margin-bottom: 75px; padding: 60px 7%; }
-  .discovery-grid { grid-template-columns: 1fr; }
   .site-footer { flex-direction: column; gap: 34px; }
   .footer-links { flex-wrap: wrap; align-items: start; }
   .prose-grid { display: block; }
