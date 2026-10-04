@@ -1,0 +1,563 @@
+---
+title: "LangGraph는 Architecture가 아니다: Runtime의 정확한 위치"
+subtitle: "Graph state와 application state를 분리해 worker, Redis, DB, browser의 책임을 설계하는 법"
+description: "LangGraph의 graph.astream(), updates, custom, reducer와 checkpoint를 살펴보고 Agent runtime과 backend architecture의 경계를 구분합니다."
+publishedDate: 2026-10-01
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+  - langgraph
+primaryTopic: ai-agents
+tags:
+  - langgraph
+  - agent-runtime
+  - state-management
+  - streaming
+  - checkpointing
+author: "Jacob Shin"
+featured: false
+draft: false
+comments: false
+language: "ko"
+series: "Agent Engineering"
+seriesOrder: 8
+freshness: periodic
+lastReviewed: 2026-10-04
+nextReviewDate: 2027-01-04
+references:
+  - title: "LangGraph Streaming"
+    url: "https://docs.langchain.com/oss/python/langgraph/streaming"
+    publisher: "LangChain Documentation"
+  - title: "LangGraph Graph API Overview"
+    url: "https://docs.langchain.com/oss/python/langgraph/graph-api"
+    publisher: "LangChain Documentation"
+  - title: "LangGraph Persistence"
+    url: "https://docs.langchain.com/oss/python/langgraph/persistence"
+    publisher: "LangChain Documentation"
+  - title: "PregelProtocol astream Reference"
+    url: "https://reference.langchain.com/python/langgraph/pregel/protocol/PregelProtocol/astream"
+    publisher: "LangChain Reference"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="Agent backend에서 LangGraph는 어디까지 책임지는가?">
+  LangGraph는 node 실행, state transition, branching, streaming, checkpoint와 resume를 다루는 <strong>Agent runtime</strong>이다. 하지만 요청 인증, run 접수, queue, worker lifecycle, application record, Redis projection, SSE connection과 tenant isolation까지 자동으로 소유하는 전체 backend architecture는 아니다. Graph를 중심에 두되, graph 밖의 책임을 없어진 것으로 착각하지 않아야 한다.
+</AnswerBlock>
+
+LangGraph로 Agent를 만들기 시작하면 어느 순간 모든 것이 graph 안으로 빨려 들어간다. 사용자의 질문도 state에 넣고, 검색 결과도 state에 넣고, 진행률도 state에 넣고, 최종 report도 state에 넣는다. `thread_id`가 있으니 session도 해결된 듯하고, checkpointer가 있으니 database도 해결된 듯하다. `graph.astream()`이 값을 내보내니 streaming API까지 완성된 것처럼 보인다.
+
+로컬 notebook에서는 이 그림이 꽤 오래 버틴다.
+
+```text
+User Request
+    ↓
+LangGraph
+    ├─ search node
+    ├─ analyze node
+    └─ write node
+    ↓
+Final Answer
+```
+
+Production에 올리는 순간 graph 바깥의 질문이 생긴다.
+
+- HTTP request가 끊기면 graph 실행도 취소할 것인가?
+- 실행 대기 중인 run은 누가 소유하는가?
+- Browser에 보여줄 진행률과 graph 내부 document를 같은 state에 둘 것인가?
+- Worker가 죽으면 queue message와 checkpoint를 어떻게 함께 복구할 것인가?
+- 사용자가 다른 사람의 `thread_id`를 넣으면 누가 막는가?
+- Framework event 형식이 바뀌면 SSE client도 함께 바꿀 것인가?
+
+이 질문은 LangGraph의 부족함을 지적하는 것이 아니다. **Runtime과 architecture가 서로 다른 범위의 문제를 푼다**는 뜻이다.
+
+## Runtime은 실행을 진행시키고, architecture는 실행을 둘러싼 계약을 만든다
+
+이 시리즈에서 사용할 위치는 다음과 같다.
+
+```text
+Browser
+   │ POST /runs, GET /events
+   ▼
+API ── authentication / authorization / admission
+   │
+   ▼
+Queue ── pending work / delivery / redelivery
+   │
+   ▼
+Worker ── attempt lifecycle / timeout / cancellation
+   │
+   ▼
+LangGraph ── node execution / transition / checkpoint / runtime stream
+   │
+   ├─ updates ──> Redis UI state
+   ├─ custom  ──> Redis event stream ──> SSE
+   └─ result  ──> PostgreSQL business record
+```
+
+LangGraph는 worker 안에서 실행된다. 이 배치는 graph가 중요하지 않다는 뜻이 아니다. 오히려 graph가 **무엇을 확실히 소유하는지** 분명하게 만든다.
+
+| Layer | 주된 책임 |
+| --- | --- |
+| API | 사용자 인증, run 생성 권한, input validation, `202 Accepted` |
+| Queue | 아직 처리되지 않은 work의 durable delivery |
+| Worker | active attempt, heartbeat, cancellation, timeout, ack |
+| LangGraph | node scheduling, state update, conditional transition, checkpoint/resume |
+| Redis | 빠른 UI snapshot과 replay 가능한 progress event |
+| PostgreSQL | run의 authoritative record와 최종 결과 |
+| SSE gateway | cursor 이후 event를 browser에 전달 |
+
+제품에 따라 이 경계는 겹칠 수 있다. LangGraph 기반 server 제품이 persistence나 run API까지 제공할 수도 있다. 그래도 **어느 component가 어떤 보장을 제공하는지**를 묻는 일은 사라지지 않는다. Library를 직접 worker에 넣는 구조라면 위 책임은 application이 명시적으로 조립해야 한다.
+
+## 먼저 graph state를 작게 정의한다
+
+예제로 NVIDIA의 최근 실적과 valuation을 분석하는 graph를 생각해 보자.
+
+```python
+from operator import add
+from typing import Annotated, TypedDict
+
+
+class AnalysisState(TypedDict):
+    query: str
+    documents: list[dict]
+    analysis: dict | None
+    report: str | None
+    status: str
+    warnings: Annotated[list[str], add]
+```
+
+여기서 state는 graph node들이 다음 계산을 하기 위해 공유하는 **runtime working set**이다.
+
+- `query`: 검색과 분석이 읽는다.
+- `documents`: 검색 결과를 분석 node가 읽는다.
+- `analysis`: report node가 읽는다.
+- `status`: graph 안의 현재 phase를 표현한다.
+- `warnings`: 여러 node가 발견한 경고를 누적한다.
+
+이 state를 곧바로 browser response schema나 database table로 생각하면 안 된다. `documents`에는 수백 KB의 원문과 provider metadata가 들어갈 수 있고, `analysis`에는 내부 점수와 prompt용 intermediate result가 포함될 수 있다. Browser에는 대부분 필요 없으며, tenant가 볼 수 없는 내부 자료가 섞일 수도 있다.
+
+Graph state는 **node 실행에 필요한 모양**으로 설계한다. UI state는 **사용자가 현재 화면을 복원하는 데 필요한 모양**으로, business record는 **감사와 제품 기능에 필요한 모양**으로 설계한다.
+
+## Node는 전체 state가 아니라 update를 반환한다
+
+검색 node는 전체 `AnalysisState`를 복사해 반환할 필요가 없다.
+
+```python
+async def search_node(state: AnalysisState) -> dict:
+    documents = await search_provider.search(state["query"])
+
+    return {
+        "documents": documents,
+        "status": "analyzing",
+    }
+```
+
+Node 실행 전 state가 다음과 같다고 하자.
+
+```python
+{
+    "query": "NVDA margin and valuation analysis",
+    "documents": [],
+    "analysis": None,
+    "report": None,
+    "status": "searching",
+    "warnings": [],
+}
+```
+
+검색 node는 `documents`와 `status`만 바꾼다. `query`, `analysis`, `report`, `warnings`는 기존 값을 유지한다. 이 부분 update가 LangGraph 내부 state에 적용될 때 각 key의 reducer가 사용된다.
+
+공식 Graph API 문서의 규칙은 명확하다. Reducer를 지정하지 않은 key는 새 값으로 교체된다. `Annotated[list[str], add]`처럼 reducer를 지정한 key는 기존 값과 update를 reducer로 결합한다. ([Graph API: Reducers](https://docs.langchain.com/oss/python/langgraph/graph-api#reducers))
+
+```text
+Node output                    Graph state after reducer
+───────────────────────────    ─────────────────────────────
+documents = [doc1, doc2]   →   documents 교체
+status = "analyzing"       →   status 교체
+warnings = ["stale data"]  →   기존 warnings 뒤에 누적
+```
+
+Reducer는 단순한 typing decoration이 아니다. Parallel branch 두 개가 같은 key를 갱신할 때 결합 규칙을 결정하는 runtime semantics다. 반대로 `add` reducer가 붙은 list를 비우려고 `[]`를 반환해도 기존 값이 사라지지 않는다. 빈 list를 더한 결과는 그대로이기 때문이다. 누적 field의 reset semantics를 따로 설계해야 하는 이유다.
+
+그러나 여기서 중요한 경계가 하나 있다.
+
+> **LangGraph reducer는 graph state update를 합치는 규칙이지, Redis와 PostgreSQL의 동시성 제어 규칙이 아니다.**
+
+Reducer가 있다고 Redis write가 atomic해지거나, 두 worker가 같은 run을 실행하는 문제가 해결되거나, database transaction이 만들어지는 것은 아니다.
+
+## `updates`는 state 전체가 아니라 node가 바꾼 부분을 보여준다
+
+Graph를 구성한 뒤 `graph.astream()`으로 runtime output을 받을 수 있다.
+
+```python
+async for part in graph.astream(
+    {
+        "query": request.query,
+        "documents": [],
+        "analysis": None,
+        "report": None,
+        "status": "searching",
+        "warnings": [],
+    },
+    config={"configurable": {"thread_id": run_id}},
+    stream_mode=["updates", "custom"],
+    version="v2",
+):
+    event_type = part["type"]
+    namespace = part["ns"]
+    data = part["data"]
+```
+
+현재 LangGraph의 stream-mode 문서에서 `version="v2"`는 mode 수나 subgraph 사용 여부와 무관하게 `{type, ns, data}` 형태의 통일된 `StreamPart`를 제공한다. `updates`는 step마다 node가 반환한 state update를, `custom`은 node 내부에서 보낸 사용자 정의 data를 전달한다. ([LangGraph Streaming](https://docs.langchain.com/oss/python/langgraph/streaming))
+
+검색 node가 끝난 뒤 `updates` part의 `data`는 대략 다음과 같다.
+
+```python
+{
+    "search_node": {
+        "documents": [
+            {"id": "10-k", "text": "..."},
+            {"id": "earnings-call", "text": "..."},
+        ],
+        "status": "analyzing",
+    }
+}
+```
+
+이것은 완성된 graph state가 아니다. **어느 node가 어떤 부분을 갱신했는지**를 나타낸다. Full state가 필요하면 `values` mode가 있지만, worker가 UI projection을 만들기 위해 매 step마다 큰 document와 analysis 전체를 받을 이유는 대개 없다.
+
+또 하나의 보안상 함의가 있다. Graph의 input/output schema에서 private channel처럼 취급한 field라도 streaming에는 노출될 수 있다. 따라서 runtime stream을 그대로 외부 client에 proxy하지 말고, application이 허용한 field만 별도 contract로 변환해야 한다.
+
+## `custom`은 state가 아니라 실행 중 발생한 event에 가깝다
+
+`updates`는 node가 끝나 state update를 반환할 때 나온다. 그런데 document 100개를 분석하는 node 하나가 40초 걸린다면, node가 끝날 때까지 아무 update도 볼 수 없다.
+
+이때 `custom` stream을 사용해 node 내부 진행 상황을 보낼 수 있다.
+
+```python
+from langgraph.config import get_stream_writer
+
+
+async def analyze_documents(state: AnalysisState) -> dict:
+    writer = get_stream_writer()
+    results = []
+    total = len(state["documents"])
+
+    for index, document in enumerate(state["documents"]):
+        result = await analyst.analyze(document)
+        results.append(result)
+
+        writer({
+            "kind": "document_analyzed",
+            "completed": index + 1,
+            "total": total,
+            "document_id": document["id"],
+        })
+
+    return {
+        "analysis": aggregate(results),
+        "status": "writing",
+    }
+```
+
+`document_analyzed`는 graph의 durable working state를 바꾸기 위한 값이라기보다, 실행 도중 일어난 사실을 consumer에게 알리는 event다.
+
+```text
+custom event                            final node update
+────────────────────────────────────    ──────────────────────────
+document 1 analyzed                     analysis = aggregate(...)
+document 2 analyzed                     status = "writing"
+document 3 analyzed
+...
+```
+
+모든 progress event를 graph state list에 계속 append하면 checkpoint가 커지고 node input에도 불필요한 history가 반복해서 들어간다. 반대로 resume 후 다음 계산에 반드시 필요한 정보라면 transient event만으로 두면 안 된다. 판단 기준은 “UI에 보이는가”가 아니라 **다음 node가 정확히 실행되기 위해 필요한가**다.
+
+## 세 개의 state는 같을 필요가 없다
+
+이 글의 핵심 구분은 다음 한 줄이다.
+
+```text
+LangGraph State  ≠  Redis UI State  ≠  Browser UI State
+```
+
+각 state의 소비자와 수명이 다르다.
+
+| State | 주요 소비자 | 포함할 것 | 피할 것 |
+| --- | --- | --- | --- |
+| LangGraph state | Node와 runtime | 다음 계산에 필요한 working data | UI 표현 전용 text, 무한 event history |
+| Redis UI state | API/SSE와 운영 화면 | status, phase, progress, terminal summary | 대형 document, private prompt, 전체 report |
+| Browser state | 사용자 interface | 표시 가능한 progress와 result link | 내부 node payload, 권한 없는 metadata |
+
+예를 들어 graph update에는 document 원문이 포함되어도 Redis snapshot에는 phase만 반영할 수 있다.
+
+```python
+PUBLIC_STATUS = {
+    "searching": "자료를 찾는 중",
+    "analyzing": "자료를 분석하는 중",
+    "writing": "보고서를 작성하는 중",
+    "completed": "완료",
+}
+
+
+async def project_update(redis, run_id: str, update: dict) -> None:
+    for node_name, changed in update.items():
+        status = changed.get("status")
+        if status is None:
+            continue
+
+        await redis.hset(
+            f"run:{run_id}:state",
+            mapping={
+                "status": status,
+                "label": PUBLIC_STATUS[status],
+                "last_node": node_name,
+            },
+        )
+```
+
+`changed["documents"]`를 Redis에 mirror하지 않는 것이 의도다. Redis는 graph memory의 복제품이 아니라 UI와 운영을 위한 projection이다.
+
+Browser state는 한 번 더 좁아질 수 있다. 같은 Redis snapshot을 읽더라도 tenant policy와 user role에 따라 cost나 document name을 숨길 수 있다. 이 변환은 framework state merge가 아니라 application authorization의 영역이다.
+
+## Runtime event를 product event로 번역한다
+
+Framework가 내보내는 raw event를 그대로 SSE contract로 공개하면 client가 runtime 구현에 결합된다.
+
+```text
+나쁜 결합
+LangGraph node name / StreamPart payload
+                ↓ 그대로 노출
+Browser가 framework 내부 구조를 해석
+
+권장 경계
+LangGraph runtime output
+                ↓ application mapper
+Versioned product event
+                ↓ Redis Stream / SSE
+Browser가 안정된 contract를 해석
+```
+
+Application mapper는 allowlist, validation과 versioning을 담당한다.
+
+```python
+def to_product_event(custom: dict) -> dict | None:
+    if custom.get("kind") != "document_analyzed":
+        return None
+
+    completed = int(custom["completed"])
+    total = int(custom["total"])
+
+    if total <= 0 or not 0 <= completed <= total:
+        raise ValueError("invalid progress payload")
+
+    return {
+        "type": "analysis_progressed",
+        "version": 1,
+        "payload": {
+            "completed": completed,
+            "total": total,
+        },
+    }
+```
+
+Graph node 이름을 `analyze_documents_v2`로 바꾸거나 내부 payload에 provider metadata를 추가해도 public event는 유지할 수 있다. 반대로 product UI 요구가 바뀌면 mapper와 event version을 의도적으로 바꾼다.
+
+이 경계는 data leak도 줄인다. `custom` writer에 실수로 query, prompt 또는 document text가 들어와도 allowlist에 없는 field는 Redis Stream과 browser로 넘어가지 않는다.
+
+## Worker가 runtime output을 application storage에 반영한다
+
+이제 worker의 역할을 한데 모을 수 있다.
+
+```python
+import json
+
+
+async def execute_run(run, graph, redis, repository) -> None:
+    await repository.mark_running(run.id, run.attempt_id)
+
+    try:
+        async for part in graph.astream(
+            initial_graph_state(run),
+            config={"configurable": {"thread_id": run.checkpoint_key}},
+            stream_mode=["updates", "custom"],
+            version="v2",
+        ):
+            if part["type"] == "updates":
+                await project_update(redis, run.id, part["data"])
+
+            elif part["type"] == "custom":
+                event = to_product_event(part["data"])
+                if event is not None:
+                    await redis.xadd(
+                        f"run:{run.id}:events",
+                        {"payload": json.dumps(event)},
+                    )
+
+        final_state = await graph.aget_state(
+            {"configurable": {"thread_id": run.checkpoint_key}}
+        )
+        report = final_state.values["report"]
+
+        await repository.complete_run(run.id, report)
+        await redis.xadd(
+            f"run:{run.id}:events",
+            {"payload": json.dumps({"type": "run_succeeded", "version": 1})},
+        )
+
+    except Exception as error:
+        await repository.fail_attempt(run.id, run.attempt_id, repr(error))
+        raise
+```
+
+이 코드는 개념 예시다. Production에서는 fencing token, lease, cancellation, deadline, retry classification과 idempotency가 더 필요하다. 중요한 점은 data flow다.
+
+```text
+LangGraph update    → filtered Redis snapshot
+LangGraph custom    → validated product event → Redis Stream
+LangGraph result    → authoritative PostgreSQL result
+Exception           → attempt failure record → queue retry policy
+```
+
+LangGraph가 graph execution을 진행시키지만, worker가 **이번 attempt의 lifecycle과 external write**를 소유한다. SSE connection은 여기에 참여하지 않는다. 이전 글 [Agent가 일하면서 말하게 하기](/ai/agents/agent-sse-streaming/)에서 만든 gateway는 Redis Stream을 cursor부터 읽을 뿐이다.
+
+## Checkpoint는 강력하지만 queue와 business database를 대체하지 않는다
+
+LangGraph checkpointer는 graph state snapshot을 thread 단위로 저장한다. 공식 persistence 문서는 이를 conversation continuity, human-in-the-loop, time travel과 fault tolerance에 사용하는 short-term, thread-scoped memory로 설명한다. Application-defined cross-thread data를 위한 store와도 구분한다. ([LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/persistence))
+
+```python
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+
+async with AsyncPostgresSaver.from_conn_string(CHECKPOINT_DSN) as checkpointer:
+    # 최초 schema 준비 시에는 await checkpointer.setup()을 별도로 실행한다.
+    graph = builder.compile(checkpointer=checkpointer)
+
+    config = {
+        "configurable": {
+            "thread_id": server_generated_checkpoint_key,
+        }
+    }
+
+    result = await graph.ainvoke(graph_input, config=config)
+```
+
+Checkpoint가 답하는 질문은 이런 것이다.
+
+- 이 graph는 어느 state에서 멈췄는가?
+- Resume할 때 어느 node부터 이어갈 수 있는가?
+- HITL interrupt 전후의 runtime state는 무엇인가?
+
+반면 다음 질문은 별도 설계가 필요하다.
+
+- 아직 실행되지 않은 run을 어느 worker에게 전달할 것인가?
+- Worker가 죽은 뒤 누가 pending message를 reclaim하는가?
+- 어느 tenant와 user가 이 run을 읽을 수 있는가?
+- 사용자가 결제한 analysis가 한 번만 확정되었는가?
+- 최종 report와 audit record의 retention policy는 무엇인가?
+
+```text
+Checkpoint       graph execution을 다시 잇기 위한 state
+Queue            work delivery와 redelivery
+Business DB      product record와 authoritative result
+Event stream     관찰 가능한 progress history
+```
+
+한 저장소가 물리적으로 여러 역할을 맡을 수는 있다. PostgreSQL에 checkpoint table과 run table을 함께 둘 수도 있다. 하지만 schema, consistency boundary와 ownership까지 같은 것은 아니다.
+
+`thread_id` 역시 storage lookup key이지 authorization proof가 아니다. Client가 보낸 값을 그대로 신뢰하면 안 된다. API가 tenant와 user의 run 접근 권한을 확인한 뒤 server-side identifier를 graph config에 넣어야 한다. 이 구분은 다음 글에서 더 자세히 다룬다.
+
+## 무엇을 graph 안에 넣고 무엇을 밖에 둘까
+
+경계가 애매할 때는 “이 로직이 어떤 종류의 결정을 내리는가”를 묻는다.
+
+| 관심사 | 기본 위치 | 이유 |
+| --- | --- | --- |
+| 다음 분석 node 선택 | LangGraph | 현재 graph state에 따른 execution transition |
+| Parallel branch와 fan-in | LangGraph | node dependency와 reducer semantics |
+| Tool 결과를 다음 node에 전달 | LangGraph state | 다음 계산의 working data |
+| Graph 중단·재개 지점 | Checkpointer | runtime continuation |
+| Run 생성 권한 | API/application | tenant와 product policy |
+| 대기 work 전달 | Queue | process lifetime을 넘는 ownership |
+| Active attempt heartbeat | Worker/application | worker failure와 reclaim 판단 |
+| Browser progress snapshot | Redis projection | 빠른 read와 UI 복원 |
+| Public SSE event schema | Application contract | framework 독립성과 data minimization |
+| 최종 report와 billing status | Business DB | authoritative product record |
+
+항상 이 표와 같아야 한다는 뜻은 아니다. 예를 들어 managed Agent Server를 도입하면 queue, persistence와 run API 일부를 제품이 맡을 수 있다. 그때도 표를 지우는 대신 각 행의 owner를 managed service로 바꿔 적어야 한다.
+
+## LangGraph를 쓰지 말자는 글이 아니다
+
+LangGraph는 다음 조건에서 특히 유용하다.
+
+- Branch와 cycle이 있는 stateful workflow를 명시적으로 보고 싶다.
+- Parallel node update를 reducer semantics로 합쳐야 한다.
+- HITL interrupt 뒤 같은 graph state에서 resume해야 한다.
+- Node update, token과 custom progress를 runtime에서 관찰해야 한다.
+- Checkpoint와 execution history를 활용해야 한다.
+
+반대로 세 단계의 고정 ETL처럼 일반 함수 호출만으로 충분한 작업에 graph를 넣으면 abstraction cost가 더 클 수 있다. Open-ended tool loop 하나가 전부라면 직접 소유한 bounded Python loop가 더 읽기 쉬울 수 있다.
+
+선택 기준은 “Agent니까 LangGraph”가 아니다.
+
+```text
+Control flow와 resume semantics가 복잡한가?
+    ├─ Yes → Graph runtime의 가치가 커진다.
+    └─ No  → Plain Python workflow가 더 단순할 수 있다.
+```
+
+이 관점은 [에이전트는 꼭 그래프여야 할까](/ai/ax/why-i-am-removing-langgraph-from-agent-building/)에서 말한 “Agent 내부에서는 자유를, 시스템 경계에서는 통제를”라는 관점과도 이어진다. Graph는 architecture 전체의 동의어가 아니라, 명시적 실행 제어가 필요한 곳에 놓는 runtime이다.
+
+## API가 빠르게 변할수록 application boundary가 중요하다
+
+LangGraph의 streaming surface는 계속 발전하고 있다. 현재 공식 문서는 새 application에 LangGraph 1.2에서 도입된 event streaming API를 권장하면서도, `updates`, `custom` 등을 직접 소비하는 stream-mode API를 함께 문서화한다. 이 글은 runtime state와 application projection의 경계를 가장 분명히 보여주기 위해 `graph.astream(..., version="v2")` stream-mode API를 사용했다.
+
+여기서 얻을 교훈은 특정 version을 영원히 고정하라는 것이 아니다.
+
+```python
+async def runtime_events(graph, graph_input, config):
+    """Framework-specific adapter: keep this boundary narrow."""
+    async for part in graph.astream(
+        graph_input,
+        config=config,
+        stream_mode=["updates", "custom"],
+        version="v2",
+    ):
+        yield part
+```
+
+Framework-specific parsing을 adapter 한 곳에 모으고, 그 뒤에는 application-owned `RunProgressed`, `ApprovalRequired`, `RunSucceeded` 같은 contract를 사용한다. 그러면 새로운 streaming API로 옮겨도 Redis event schema, SSE client와 browser component를 동시에 갈아엎지 않아도 된다.
+
+## 구현 checklist
+
+- LangGraph가 worker 안의 runtime이라는 위치가 명시되어 있는가?
+- Graph state에 다음 node 실행에 필요하지 않은 UI history를 쌓고 있지 않은가?
+- Reducer와 external database consistency를 혼동하지 않는가?
+- `updates`와 full `values`의 차이를 이해하고 필요한 data만 소비하는가?
+- 긴 node 내부 progress는 validated `custom` event로 내보내는가?
+- Raw StreamPart나 private graph channel을 browser에 그대로 노출하지 않는가?
+- LangGraph state, Redis UI state와 browser state를 각각 정의했는가?
+- Redis에는 큰 document와 internal prompt를 무조건 mirror하지 않는가?
+- Checkpoint, queue, business DB와 event stream의 역할을 구분했는가?
+- `thread_id`를 authorization token처럼 사용하지 않는가?
+- Framework API를 좁은 adapter 뒤에 격리했는가?
+- Final result와 terminal event의 기록 순서 및 failure policy를 정했는가?
+
+## 결론: Runtime을 제자리에 놓으면 architecture가 보인다
+
+LangGraph는 Agent의 실행을 표현하고 진행시키는 강력한 runtime이다. Node가 state의 일부를 갱신하고, reducer가 update를 합치며, conditional edge가 다음 경로를 고른다. `updates`는 state transition을 관찰하게 하고, `custom`은 긴 node 내부의 진행 상황을 내보낸다. Checkpoint는 중단된 graph를 다시 잇는 기반이 된다.
+
+하지만 그 기능이 queue delivery, worker ownership, authorization, UI projection, SSE replay와 business record를 자동으로 하나의 architecture로 만들지는 않는다.
+
+핵심은 다음 두 문장이다.
+
+> **LangGraph는 architecture가 아니라 architecture 안에 배치되는 Agent runtime이다.**
+
+> **LangGraph State, Redis UI State와 Browser UI State는 같을 필요가 없고, 대개 같아서는 안 된다.**
+
+이제 runtime의 위치를 정했다. 다음 문제는 이 실행을 누구의 대화와 연결하고, 동시에 들어온 여러 run을 어떻게 격리하느냐다.
+
+다음 글 **Conversation은 Run이 아니다: Session Isolation 설계**에서는 `Tenant → User → Session → Run`의 identity hierarchy, `thread_id`의 정확한 역할, authorization과 one-active-run policy를 다룬다.

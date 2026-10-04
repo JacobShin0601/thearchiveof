@@ -1,4 +1,7 @@
 export const ARTICLE_KEYS = [
+  "agent-pattern-design",
+  "agent-sse-streaming",
+  "async-thread-process-agent-backends",
   "ax-is-transformation",
   "ax-should-start-narrow",
   "bayesian-statistics-dog-walk",
@@ -6,16 +9,21 @@ export const ARTICLE_KEYS = [
   "exponential-distribution-ai-handoff",
   "fde-economics-wonderful-reflection",
   "fde-loop-hyperscalers-palantir",
+  "langgraph-runtime-not-architecture",
   "multi-objective-optimization-battery-supply-chain",
   "pareto-optimization-dinner-with-friends",
   "poisson-demand-inventory",
   "poisson-demand-inventory-lab",
   "samsung-earnings-event-lab",
+  "state-is-not-event",
   "vllm-tuning-limited-gpus",
   "we-built-the-agent-platform-too-early",
   "what-is-optimization-dinner-with-friends",
+  "where-agent-state-lives",
   "who-disappears-first-ai-or-business-teams",
+  "why-agent-systems-need-async",
   "why-i-am-removing-langgraph-from-agent-building",
   "why-i-started-cfa-as-a-data-scientist",
-  "why-this-archive-is-open"
+  "why-this-archive-is-open",
+  "worker-is-not-thread"
 ];
