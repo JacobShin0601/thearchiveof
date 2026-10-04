@@ -85,6 +85,22 @@ a:hover { color: var(--accent); }
 .site-header .language-switch span { background: var(--ink); color: var(--paper); }
 
 .hero { padding: 64px 0 56px; border-bottom: 1px solid var(--ink); }
+.hero-brand {
+  display: flex;
+  align-items: center;
+  gap: clamp(28px, 5vw, 56px);
+}
+.hero-serif-a {
+  flex: none;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(84px, 14vw, 168px);
+  font-weight: 400;
+  letter-spacing: -.05em;
+  line-height: .82;
+}
+.hero-copy { min-width: 0; flex: 1; }
 .eyebrow { margin: 0; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .16em; line-height: 1.4; text-transform: uppercase; }
 .hero-wordmark {
   display: flex;
@@ -365,6 +381,8 @@ html:lang(ko) .newsletter-cta h2 { font-size: clamp(22.4px, 3.2vw, 33.6px); }
   .mobile-navigation li:last-child { padding: 10px 0 2px; border-bottom: 0; }
   .mobile-navigation nav > ul > li > a { display: block; padding: 10px 0; }
   .hero { padding-top: 62px; }
+  .hero-brand { gap: 20px; }
+  .hero-serif-a { font-size: clamp(64px, 20vw, 96px); }
   .hero-wordmark { margin-top: 18px; margin-bottom: 22px; font-size: clamp(36px, 9vw, 48px); }
   .hero-intro { max-width: none; font-size: clamp(20px, 4.4vw, 24px); }
   .category-grid { padding-top: 45px; }
