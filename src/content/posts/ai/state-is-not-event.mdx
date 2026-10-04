@@ -1,7 +1,7 @@
 ---
-title: "State는 Event가 아니다: 실시간 Agent UI를 설계하는 법"
+title: "State는 Event가 아니다: 실시간 Agent UI 설계법"
 subtitle: "Redis Hash snapshot과 Redis Stream event를 SSE 앞에서 안전하게 연결하기"
-description: "Agent의 현재 상태와 변경 이력을 분리하고 Redis Hash, Redis Stream, event ID, replay와 SSE reconnect를 코드로 구현합니다."
+description: "Agent의 현재 상태와 변경 이력을 분리하고 Redis Hash, Redis Stream, event ID, replay와 SSE 재연결을 코드로 구현합니다."
 publishedDate: 2026-09-27
 section: "AI & AX"
 subsection: "Agents"
@@ -20,6 +20,7 @@ featured: false
 draft: false
 comments: true
 language: "ko"
+translationKey: "state-is-not-event"
 series: "Agent Engineering"
 seriesOrder: 6
 freshness: evergreen
@@ -52,10 +53,10 @@ references:
 import AnswerBlock from '../../../components/AnswerBlock.astro';
 
 <AnswerBlock question="실시간 Agent UI에는 state와 event 중 무엇이 필요한가?">
-  둘 다 필요하다. <strong>State는 화면을 즉시 복원할 현재 snapshot이고, event는 그 상태에 도달하는 동안 무엇이 일어났는지 보여주는 시간순 기록</strong>이다. Redis Hash는 overwrite되는 current state에, Redis Stream은 append되는 event history에 맞는다. SSE는 둘을 browser로 전달하는 transport이며, event 자체나 저장소를 대신하지 않는다.
+  둘 다 필요하다. <strong>State는 화면을 즉시 복원할 현재 snapshot이고, event는 그 상태에 도달하는 동안 무엇이 일어났는지 보여주는 시간순 기록</strong>이다. Redis Hash는 덮어쓰는 현재 state에, Redis Stream은 추가되는 event 이력에 맞는다. SSE는 둘을 브라우저로 전달하는 전송 방식이며, event 자체나 저장소를 대신하지 않는다.
 </AnswerBlock>
 
-이전 글 [Agent State는 어디에 살아야 하는가](/ai/agents/where-agent-state-lives/)에서는 PostgreSQL에 durable run record를, Redis Hash에 hot state를, checkpoint에 resume snapshot을 두었다.
+이전 글 [Agent State는 어디에 살아야 하는가](/ai/agents/where-agent-state-lives/)에서는 PostgreSQL에 영속적 run 기록을, Redis Hash에 실시간 state를, checkpoint에 재개용 snapshot을 두었다.
 
 현재 Redis Hash가 다음과 같다고 하자.
 
@@ -83,19 +84,19 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 → dcf_started
 ```
 
-Hash field를 계속 overwrite하면 현재 값만 남는다. 반대로 event만 쌓으면 화면을 열 때마다 처음부터 모두 replay해서 현재 progress를 계산해야 한다. 둘은 같은 데이터를 중복 저장하는 실수가 아니라, 서로 다른 access pattern을 해결하는 의도적인 projection이다.
+Hash field를 계속 덮어쓰면 현재 값만 남는다. 반대로 event만 쌓으면 화면을 열 때마다 처음부터 모두 replay해서 현재 진행률을 계산해야 한다. 둘은 같은 데이터를 중복 저장하는 실수가 아니라, 서로 다른 접근 패턴을 해결하는 의도적인 투영값이다.
 
 ## State와 event는 서로 다른 질문에 답한다
 
 | 구분 | State | Event |
 | --- | --- | --- |
 | 질문 | 지금 어떤 상태인가? | 어떤 일이 일어났는가? |
-| 쓰기 방식 | 같은 field를 overwrite | 새 entry를 append |
-| 읽기 방식 | 최신 snapshot 한 번 | Cursor 이후의 range |
+| 쓰기 방식 | 같은 field를 덮어씀 | 새 entry를 추가 |
+| 읽기 방식 | 최신 snapshot 한 번 | Cursor 이후 범위 |
 | 대표 구조 | Redis Hash | Redis Stream |
 | 예시 | `progress=65` | `dcf_started` |
-| 보존 | 짧은 TTL 가능 | Replay window만큼 retention |
-| UI 역할 | 즉시 화면 복원 | Timeline과 incremental update |
+| 보존 | 짧은 TTL 가능 | Replay 범위만큼 보존 |
+| UI 역할 | 즉시 화면 복원 | 시간순 목록과 점진적 갱신 |
 
 핵심 차이는 시간이다.
 
@@ -111,13 +112,13 @@ time ─────────────────────────
                    변화의 순서
 ```
 
-Progress `65`는 event가 아니다. 시간이 지나 `70`으로 바뀌면 이전 값은 보통 필요 없다. 반면 `approval_required`는 사용자의 action과 audit에 의미가 있는 domain event다. Event type을 `progress_changed_to_61`, `progress_changed_to_62`처럼 남발하면 timeline이 noise로 가득 찬다.
+진행률 `65`는 event가 아니다. 시간이 지나 `70`으로 바뀌면 이전 값은 보통 필요 없다. 반면 `approval_required`는 사용자의 행동과 감사에 의미가 있는 도메인 event다. Event type을 `progress_changed_to_61`, `progress_changed_to_62`처럼 남발하면 시간순 목록이 잡음으로 가득 찬다.
 
 좋은 시작점은 다음과 같다.
 
-- State에는 자주 바뀌는 numeric progress와 현재 step을 둔다.
-- Event에는 사용자가 이해할 수 있는 단계 전환과 중요한 domain fact를 남긴다.
-- Token 하나마다 event를 만들지 않는다. Token streaming은 별도의 high-volume channel로 본다.
+- State에는 자주 바뀌는 수치형 진행률과 현재 단계를 둔다.
+- Event에는 사용자가 이해할 수 있는 단계 전환과 중요한 도메인 사실을 남긴다.
+- Token 하나마다 event를 만들지 않는다. Token streaming은 별도의 대용량 채널로 본다.
 
 ## Redis Hash와 Stream을 한 run에 나란히 둔다
 
@@ -141,7 +142,7 @@ HSET agent:run:{7d5}:state
   updated_at      2026-10-04T05:10:00Z
 ```
 
-Event Stream은 append-only timeline이다.
+Event Stream은 추가 전용 시간순 기록이다.
 
 ```text
 1760000000010-0  financial_data_loaded
@@ -149,11 +150,11 @@ Event Stream은 append-only timeline이다.
 1760000000123-0  dcf_started
 ```
 
-Redis Stream entry는 ID와 field-value pairs로 구성된다. `XADD`에 `*`를 사용하면 Redis가 monotonically increasing ID를 생성한다. 일반적인 ID 모양은 `<millisecondsTime>-<sequenceNumber>`지만 application은 이를 business timestamp로 계산하기보다 **opaque cursor**로 취급하는 편이 안전하다. ([XADD](https://redis.io/docs/latest/commands/xadd/))
+Redis Stream entry는 ID와 field-value 쌍으로 구성된다. `XADD`에 `*`를 사용하면 Redis가 단조 증가 ID를 생성한다. 일반적인 ID 모양은 `<millisecondsTime>-<sequenceNumber>`지만 애플리케이션은 이를 업무 timestamp로 계산하기보다 **opaque cursor**로 취급하는 편이 안전하다. ([XADD](https://redis.io/docs/latest/commands/xadd/))
 
 ## Event schema부터 고정한다
 
-Redis Stream은 schema를 강제하지 않는다. 그렇기 때문에 application이 stable envelope를 정의해야 한다.
+Redis Stream은 schema를 강제하지 않는다. 그렇기 때문에 애플리케이션이 안정적인 공통 형식을 정의해야 한다.
 
 ```python
 from dataclasses import dataclass, field
@@ -172,7 +173,7 @@ class RunEvent:
     )
 ```
 
-Event type은 UI 문장이 아니라 안정적인 machine-readable name으로 둔다.
+Event type은 UI 문장이 아니라 안정적인 기계 판독용 이름으로 둔다.
 
 ```text
 좋음
@@ -190,14 +191,14 @@ run_succeeded
 
 `occurred_at`과 Stream ID도 구분해야 한다.
 
-- Stream ID는 Redis 안에서 ordering과 cursor에 쓴다.
-- `occurred_at`은 producer가 기록한 domain timestamp다.
-- 여러 producer의 clock이 완벽히 일치한다고 가정하지 않는다.
-- UI ordering은 한 stream 안에서는 Stream ID를 우선한다.
+- Stream ID는 Redis 안에서 순서와 cursor에 쓴다.
+- `occurred_at`은 생산자가 기록한 도메인 timestamp다.
+- 여러 생산자의 시계가 완벽히 일치한다고 가정하지 않는다.
+- UI 순서는 한 stream 안에서는 Stream ID를 우선한다.
 
-## `XADD`로 event를 append한다
+## `XADD`로 event를 추가한다
 
-Plain redis-py async code는 다음처럼 시작할 수 있다.
+간단한 redis-py 비동기 코드는 다음처럼 시작할 수 있다.
 
 ```python
 import json
@@ -227,22 +228,22 @@ async def append_run_event(
     return event_id
 ```
 
-`MAXLEN ~ 1000`에 해당하는 approximate trimming을 함께 요청했다. Exact trimming은 threshold를 정확히 맞추지만 더 많은 work가 필요할 수 있다. Approximate trimming은 internal structure 단위로 효율적으로 제거하므로 실제 길이가 threshold보다 잠시 클 수 있다. ([XTRIM](https://redis.io/docs/latest/commands/xtrim/))
+`MAXLEN ~ 1000`에 해당하는 근사 trimming을 함께 요청했다. 정확한 trimming은 임계값을 정확히 맞추지만 더 많은 작업이 필요할 수 있다. 근사 trimming은 내부 구조 단위로 효율적으로 제거하므로 실제 길이가 임계값보다 잠시 클 수 있다. ([XTRIM](https://redis.io/docs/latest/commands/xtrim/))
 
-Event 수 기준이 아니라 시간 기준 retention이 필요하면 `MINID` 전략을 고려할 수 있다. 어떤 전략이든 "모든 event를 영구 보존"하는 것이 기본값이어서는 안 된다. Redis Stream은 UI replay window를 위한 operational log이고, 장기 audit가 필요하면 PostgreSQL이나 object storage에 별도로 보존한다.
+Event 수 기준이 아니라 시간 기준 보존이 필요하면 `MINID` 전략을 고려할 수 있다. 어떤 전략이든 "모든 event를 영구 보존"하는 것이 기본값이어서는 안 된다. Redis Stream은 UI replay 범위를 위한 운영 로그이고, 장기 감사가 필요하면 PostgreSQL이나 객체 저장소에 별도로 보존한다.
 
-## State update와 event append 사이에는 race가 있다
+## State 갱신과 event 추가 사이에는 경쟁 상태가 있다
 
-다음 두 command를 별도로 호출하면 중간 failure가 생긴다.
+다음 두 명령을 별도로 호출하면 중간 실패가 생긴다.
 
 ```python
 await redis.hset(state_key, mapping={"progress": 65})
 await redis.xadd(events_key, {"type": "dcf_started"})
 ```
 
-첫 번째 command 뒤에 worker가 죽으면 state는 65%인데 corresponding event는 없다. 반대로 event부터 쓰고 state update가 실패하면 timeline에는 DCF가 시작됐지만 snapshot은 이전 step에 머문다.
+첫 번째 명령 뒤에 worker가 죽으면 state는 65%인데 대응하는 event는 없다. 반대로 event부터 쓰고 state 갱신이 실패하면 시간순 목록에는 DCF가 시작됐지만 snapshot은 이전 단계에 머문다.
 
-모든 state update에 event가 필요한 것은 아니다. 하지만 하나의 domain transition이 snapshot과 timeline을 함께 바꾼다면 둘을 같은 atomic operation으로 묶는 것이 좋다.
+모든 state 갱신에 event가 필요한 것은 아니다. 하지만 하나의 도메인 전환이 snapshot과 시간순 목록을 함께 바꾼다면 둘을 같은 원자적 작업으로 묶는 것이 좋다.
 
 Auto-generated Stream ID를 state의 `last_event_id`에도 저장해야 하므로 Lua script가 편리하다. Script 안에서 `XADD` 결과를 받아 바로 `HSET`할 수 있다.
 
@@ -299,7 +300,7 @@ async def publish_transition(
     return result
 ```
 
-이 script는 Redis 안에서 state와 event의 local consistency를 만든다. PostgreSQL run record까지 포함하는 distributed transaction은 아니다. Terminal result는 Article 5에서 본 것처럼 PostgreSQL에 먼저 commit하고, 그다음 Redis projection과 terminal event를 갱신한다. Redis update가 실패하면 durable state에서 다시 reconcile할 수 있어야 한다.
+이 script는 Redis 안에서 state와 event의 로컬 일관성을 만든다. PostgreSQL run 기록까지 포함하는 분산 transaction은 아니다. 종료 결과는 5편에서 본 것처럼 PostgreSQL에 먼저 commit하고, 그다음 Redis 투영값과 종료 event를 갱신한다. Redis 갱신이 실패하면 영속적 state에서 다시 조정할 수 있어야 한다.
 
 ## 왜 state에 `last_event_id`가 필요한가
 
@@ -329,9 +330,9 @@ State와 event를 atomic하게 갱신하면서 state에 `last_event_id`를 넣�
 
 Snapshot 이후 event가 발생하면 그 ID는 snapshot cursor보다 크므로 `XREAD`가 읽는다. Snapshot 전에 발생한 event는 이미 snapshot에 반영되어 있고, timeline이 필요하면 `XRANGE`로 조회한다.
 
-## Initial load: snapshot과 최근 history를 함께 읽는다
+## 최초 로드: snapshot과 최근 이력을 함께 읽는다
 
-UI가 처음 열리면 current state와 최근 event 몇 개를 반환한다.
+UI가 처음 열리면 현재 state와 최근 event 몇 개를 반환한다.
 
 ```python
 from dataclasses import dataclass
@@ -373,7 +374,7 @@ async def load_run_bootstrap(
     )
 ```
 
-Authorization은 이 함수보다 먼저 수행해야 한다. API는 PostgreSQL에서 authenticated tenant가 `run_id`를 읽을 권한이 있는지 확인한 뒤 Redis key에 접근한다. Event payload에는 prompt, tool argument, PII, credential 같은 민감한 값이 들어갈 수 있으므로 UI에 필요한 최소 field만 publish한다.
+권한 확인은 이 함수보다 먼저 수행해야 한다. API는 PostgreSQL에서 인증된 tenant가 `run_id`를 읽을 권한이 있는지 확인한 뒤 Redis key에 접근한다. Event payload에는 prompt, 도구 인자, PII, 자격 증명 같은 민감한 값이 들어갈 수 있으므로 UI에 필요한 최소 field만 발행한다.
 
 ## `XREAD`로 cursor 이후 event를 읽는다
 
@@ -401,13 +402,13 @@ async def read_next_events(
     return entries
 ```
 
-`XREAD`에 전달한 ID는 exclusive cursor다. `176...-0`을 전달하면 그 ID보다 큰 entry를 반환한다. `BLOCK`은 새 data가 없을 때 일정 시간 기다리게 하며, timeout 후 empty response를 반환할 수 있다. 이 timeout은 SSE heartbeat를 보내거나 client disconnect를 확인할 기회를 만든다. ([XREAD](https://redis.io/docs/latest/commands/xread/))
+`XREAD`에 전달한 ID는 배타적 cursor다. `176...-0`을 전달하면 그 ID보다 큰 entry를 반환한다. `BLOCK`은 새 데이터가 없을 때 일정 시간 기다리게 하며, timeout 후 빈 응답을 반환할 수 있다. 이 timeout은 SSE heartbeat를 보내거나 client 연결 해제를 확인할 기회를 만든다. ([XREAD](https://redis.io/docs/latest/commands/xread/))
 
-`COUNT`도 중요하다. Reconnect 뒤 event가 많이 밀렸다면 한 번에 무제한으로 가져오지 않고 batch로 처리한다. 다음 batch의 cursor는 실제로 전달을 마친 마지막 event ID로 갱신한다.
+`COUNT`도 중요하다. 재연결 뒤 event가 많이 밀렸다면 한 번에 무제한으로 가져오지 않고 묶음으로 처리한다. 다음 묶음의 cursor는 실제로 전달을 마친 마지막 event ID로 갱신한다.
 
 ## Redis Stream ID를 SSE `id`로 전달한다
 
-SSE event는 text format이며 각 message를 빈 줄로 구분한다. Redis Stream ID를 SSE의 `id` field로 그대로 사용하면 storage cursor와 browser reconnect cursor가 하나로 연결된다.
+SSE event는 텍스트 형식이며 각 메시지를 빈 줄로 구분한다. Redis Stream ID를 SSE의 `id` field로 그대로 사용하면 저장소 cursor와 브라우저 재연결 cursor가 하나로 연결된다.
 
 ```text
 id: 1760000000123-0
@@ -436,13 +437,13 @@ def encode_sse(event_id: str, fields: dict[str, str]) -> str:
     )
 ```
 
-HTML Standard의 SSE model은 event에 `id`를 지정할 수 있고, user agent가 reconnect할 때 last event ID를 사용하도록 정의한다. ([Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html))
+HTML Standard의 SSE 모델은 event에 `id`를 지정할 수 있고, user agent가 재연결할 때 마지막 event ID를 사용하도록 정의한다. ([Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html))
 
-하지만 이 글에서는 SSE endpoint 전체를 만들지 않는다. Async generator, `StreamingResponse`, heartbeat comment, proxy buffering, disconnect cancellation은 다음 Article 7에서 다룬다. 여기서 중요한 것은 SSE가 **Redis Stream의 cursor-aware event를 전달하는 transport**라는 점이다.
+하지만 이 글에서는 SSE endpoint 전체를 만들지 않는다. Async generator, `StreamingResponse`, heartbeat comment, proxy buffering, 연결 해제 취소는 다음 7편에서 다룬다. 여기서 중요한 것은 SSE가 **Redis Stream의 cursor를 인식하는 event를 전달하는 전송 방식**이라는 점이다.
 
-## Reconnect는 replay이고 replay는 중복을 허용해야 한다
+## 재연결은 replay이며 replay는 중복을 허용해야 한다
 
-Network는 정확히 message 경계에서만 끊기지 않는다.
+네트워크는 정확히 메시지 경계에서만 끊기지 않는다.
 
 ```text
 Server: event 42를 socket에 씀
@@ -466,15 +467,15 @@ function applyRunEvent(message) {
 }
 ```
 
-실제 browser memory에 모든 ID를 영원히 보관할 필요는 없다. Timeline item을 event ID로 keying하거나 마지막으로 적용한 cursor와 ordering을 비교할 수 있다. 중요한 원칙은 "SSE는 exactly-once delivery"라고 가정하지 않는 것이다.
+실제 브라우저 메모리에 모든 ID를 영원히 보관할 필요는 없다. 시간순 항목의 key로 event ID를 사용하거나 마지막으로 적용한 cursor와 순서를 비교할 수 있다. 중요한 원칙은 "SSE는 정확히 한 번 전달된다"고 가정하지 않는 것이다.
 
-State update도 idempotent해야 한다. Event payload에 absolute progress `65`를 보내면 중복 적용해도 결과가 같다. `progress += 5` 같은 delta만 보내면 replay 시 70이 되는 문제가 생긴다.
+State 갱신도 멱등이어야 한다. Event payload에 절대 진행률 `65`를 보내면 중복 적용해도 결과가 같다. `progress += 5` 같은 증분만 보내면 replay 시 70이 되는 문제가 생긴다.
 
-## Cursor가 retention window보다 오래되면 snapshot으로 돌아간다
+## Cursor가 보존 범위보다 오래되면 snapshot으로 돌아간다
 
-Stream을 trim하면 오래된 client의 cursor가 이미 삭제되었을 수 있다. Redis는 cursor ID 자체가 없어도 그보다 큰 retained entry를 읽을 수 있지만, 삭제된 구간의 event는 복구할 수 없다.
+Stream을 trim하면 오래된 client의 cursor가 이미 삭제되었을 수 있다. Redis는 cursor ID 자체가 없어도 그보다 큰 보존 entry를 읽을 수 있지만, 삭제된 구간의 event는 복구할 수 없다.
 
-이때 조용히 일부 history만 보내면 UI가 incomplete timeline을 완전한 것으로 오해한다. Server는 cursor가 oldest retained ID보다 오래됐는지 확인하고 resync를 요구해야 한다.
+이때 조용히 일부 이력만 보내면 UI가 불완전한 시간순 목록을 완전한 것으로 오해한다. Server는 cursor가 보존된 가장 오래된 ID보다 오래됐는지 확인하고 재동기화를 요구해야 한다.
 
 ```python
 def parse_stream_id(value: str) -> tuple[int, int]:
@@ -502,15 +503,15 @@ async def cursor_is_too_old(
 
 Cursor가 너무 오래됐다면 protocol은 다음 중 하나를 선택할 수 있다.
 
-- SSE에 `resync_required` control event를 보내고 connection을 닫는다.
-- Client가 `GET /runs/{id}` bootstrap endpoint를 다시 호출한다.
-- Server가 새 snapshot event를 보내고 cursor를 latest boundary로 이동한다.
+- SSE에 `resync_required` 제어 event를 보내고 연결을 닫는다.
+- Client가 `GET /runs/{id}` 초기화 endpoint를 다시 호출한다.
+- Server가 새 snapshot event를 보내고 cursor를 최신 경계로 이동한다.
 
-가장 단순한 시작은 **snapshot 재조회 후 최신 cursor에서 재연결**이다. Timeline의 오래된 일부가 반드시 필요하다면 Redis retention을 늘리거나 durable event archive를 별도로 둔다.
+가장 단순한 시작은 **snapshot 재조회 후 최신 cursor에서 재연결**이다. 시간순 목록의 오래된 일부가 반드시 필요하다면 Redis 보존 기간을 늘리거나 영속적 event 보관소를 별도로 둔다.
 
 ## Snapshot 자체가 사라진 경우도 정해야 한다
 
-Article 5처럼 Redis Hash에는 TTL이 있을 수 있다. Run이 오래전에 끝나 state key와 stream key가 모두 만료되었다면 PostgreSQL durable record가 fallback이다.
+5편처럼 Redis Hash에는 TTL이 있을 수 있다. Run이 오래전에 끝나 state key와 stream key가 모두 만료되었다면 PostgreSQL의 영속적 기록을 대신 사용한다.
 
 ```text
 Redis state 있음
@@ -525,11 +526,11 @@ Redis state 없음, PostgreSQL active run
   → projection 재생성 또는 degraded response
 ```
 
-Redis miss를 곧바로 `404 run not found`로 해석하면 안 된다. Run의 존재와 authorization은 PostgreSQL이 결정한다.
+Redis에서 찾지 못했다고 곧바로 `404 run not found`로 해석하면 안 된다. Run의 존재와 권한은 PostgreSQL이 결정한다.
 
 ## Pub/Sub만 사용하면 왜 reconnect가 어려운가
 
-Redis Pub/Sub는 live fan-out에는 간단하다. 하지만 subscriber가 연결되어 있지 않을 때 publish된 message를 나중에 다시 읽을 수 없다. Redis 공식 문서는 Pub/Sub를 at-most-once delivery로 설명하며, network disconnect 등으로 subscriber가 처리하지 못한 message는 다시 전달되지 않는다고 명시한다. ([Redis Pub/Sub](https://redis.io/docs/latest/develop/pubsub/))
+Redis Pub/Sub는 실시간 fan-out에는 간단하다. 하지만 구독자가 연결되어 있지 않을 때 발행된 메시지를 나중에 다시 읽을 수 없다. Redis 공식 문서는 Pub/Sub를 최대 한 번 전달로 설명하며, 네트워크 연결 해제 등으로 구독자가 처리하지 못한 메시지는 다시 전달되지 않는다고 명시한다. ([Redis Pub/Sub](https://redis.io/docs/latest/develop/pubsub/))
 
 ```text
 Pub/Sub
@@ -541,11 +542,11 @@ XADD ──> retained entries
 XREAD(last_id) ──> disconnect 구간을 replay
 ```
 
-따라서 reconnect와 replay가 필요한 Agent UI에는 Stream이 자연스럽다. Pub/Sub를 notification wake-up 용도로 추가하고 실제 payload는 Stream에서 읽는 hybrid도 가능하지만, 처음부터 둘을 모두 도입할 필요는 없다. `XREAD BLOCK`만으로도 waiting reader를 깨우고 새 entry를 전달할 수 있다.
+따라서 재연결과 replay가 필요한 Agent UI에는 Stream이 자연스럽다. Pub/Sub를 알림 용도로 추가하고 실제 payload는 Stream에서 읽는 혼합 방식도 가능하지만, 처음부터 둘을 모두 도입할 필요는 없다. `XREAD BLOCK`만으로도 대기 중인 reader를 깨우고 새 entry를 전달할 수 있다.
 
 ## Consumer group은 SSE fan-out의 기본 선택이 아니다
 
-Redis Stream consumer group은 message를 여러 consumer에게 **분배**하고 acknowledgement와 pending ownership을 추적할 때 유용하다. Queue worker에는 잘 맞는다.
+Redis Stream consumer group은 메시지를 여러 consumer에게 **분배**하고 확인 처리와 대기 중인 작업의 소유권을 추적할 때 유용하다. Queue worker에는 잘 맞는다.
 
 하지만 같은 run을 보고 있는 browser 두 개는 둘 다 같은 event를 받아야 한다.
 
@@ -555,7 +556,7 @@ SSE viewer A ─┐
 SSE viewer B ─┘
 ```
 
-두 viewer를 같은 consumer group에 넣으면 event가 group consumer 사이에 분배되어 한쪽만 받을 수 있다. SSE viewer는 각자 cursor를 가진 `XREAD` reader로 시작하는 편이 맞다. Worker job queue와 UI event stream이 모두 Redis Stream을 쓴다고 해서 consumption pattern까지 같지는 않다.
+두 viewer를 같은 consumer group에 넣으면 event가 group consumer 사이에 분배되어 한쪽만 받을 수 있다. SSE viewer는 각자 cursor를 가진 `XREAD` reader로 시작하는 편이 맞다. Worker 작업 queue와 UI event stream이 모두 Redis Stream을 쓴다고 해서 소비 패턴까지 같지는 않다.
 
 ## Stream 하나를 run마다 만들 것인가
 
@@ -565,7 +566,7 @@ SSE viewer B ─┘
 agent:run:{run_id}:events
 ```
 
-장점은 authorization 이후 한 run만 읽기 쉽고, TTL과 trimming도 run lifecycle에 맞출 수 있다는 점이다. 단점은 run 수만큼 key 수가 늘어난다는 것이다.
+장점은 권한 확인 이후 한 run만 읽기 쉽고, TTL과 trimming도 run 수명 주기에 맞출 수 있다는 점이다. 단점은 run 수만큼 key 수가 늘어난다는 것이다.
 
 공용 Stream 하나에 모든 run event를 넣을 수도 있다.
 
@@ -575,13 +576,13 @@ agent:events
   run_id=91a type=research_completed
 ```
 
-하지만 `XREAD`는 arbitrary field filter를 제공하지 않으므로 특정 run만 보려는 SSE connection도 관계없는 event를 계속 읽고 application에서 걸러야 한다. Tenant별 stream이나 partitioned stream을 설계할 수 있지만 ordering, hot partition, retention이 복잡해진다.
+하지만 `XREAD`는 임의 field 필터를 제공하지 않으므로 특정 run만 보려는 SSE 연결도 관계없는 event를 계속 읽고 애플리케이션에서 걸러야 한다. Tenant별 stream이나 분할 stream을 설계할 수 있지만 순서, 집중된 partition, 보존 정책이 복잡해진다.
 
-초기 규모에서는 per-run Stream이 mental model과 security boundary가 단순하다. 실제 key cardinality와 connection 수를 측정한 뒤 partitioning을 바꾼다.
+초기 규모에서는 run별 Stream이 개념 모형과 보안 경계가 단순하다. 실제 key 수와 연결 수를 측정한 뒤 분할 방식을 바꾼다.
 
-## State와 event를 함께 publish하는 worker code
+## State와 event를 함께 발행하는 worker 코드
 
-Worker node가 끝날 때 domain transition을 publish하는 흐름을 합치면 다음과 같다.
+Worker node가 끝날 때 도메인 전환을 발행하는 흐름을 합치면 다음과 같다.
 
 ```python
 async def execute_valuation_step(
@@ -628,7 +629,7 @@ async def execute_valuation_step(
     return next_state
 ```
 
-Event payload에 valuation 전체를 복사하지 않았다. UI가 timeline을 그리는 데 필요한 작은 metadata만 넣고, 실제 결과는 checkpoint나 PostgreSQL result에 둔다. Stream entry가 작아야 replay와 memory usage를 제어하기 쉽다.
+Event payload에 가치 평가 전체를 복사하지 않았다. UI가 시간순 목록을 그리는 데 필요한 작은 metadata만 넣고, 실제 결과는 checkpoint나 PostgreSQL 결과에 둔다. Stream entry가 작아야 replay와 메모리 사용량을 제어하기 쉽다.
 
 ## Progress event와 domain event를 분리한다
 
@@ -643,13 +644,13 @@ Event payload에 valuation 전체를 복사하지 않았다. UI가 timeline을 �
 | Token 한 개 생성 | 별도 channel | X |
 | Run 성공 | O | O |
 
-Progress는 continuous projection이고 event는 meaningful transition이다. 이 기준이 없으면 LLM token, 내부 debug log, user-facing event가 한 stream에 섞인다. Traffic 특성과 retention이 완전히 다른 data를 같은 channel로 보내면 slow client와 memory pressure를 다루기 어려워진다.
+진행률은 연속적인 투영값이고 event는 의미 있는 전환이다. 이 기준이 없으면 LLM token, 내부 디버그 로그, 사용자용 event가 한 stream에 섞인다. 트래픽 특성과 보존 정책이 완전히 다른 데이터를 같은 채널로 보내면 느린 client와 메모리 압박을 다루기 어려워진다.
 
-특히 token streaming은 progress streaming과 다르다. Token은 high-volume partial output이고 `dcf_completed` 같은 event는 low-volume control signal이다. Article 21에서 이 차이를 별도로 다룬다.
+특히 token streaming은 진행률 streaming과 다르다. Token은 대용량 부분 출력이고 `dcf_completed` 같은 event는 소량의 제어 신호다. 21편에서 이 차이를 별도로 다룬다.
 
 ## Event sourcing 전체를 도입할 필요는 없다
 
-State와 event를 분리한다고 모든 application state를 event replay로만 재구성해야 하는 것은 아니다.
+State와 event를 분리한다고 모든 애플리케이션 state를 event replay로만 재구성해야 하는 것은 아니다.
 
 이 글의 구조는 full event sourcing보다 작다.
 
@@ -660,13 +661,13 @@ Redis Stream  bounded operational event history
 Checkpoint    resumable execution snapshot
 ```
 
-Redis Stream을 지워도 PostgreSQL result와 checkpoint가 남고, Hash를 다시 만들 수 있다. Event는 UI와 observability에 유용하지만 모든 business invariant의 유일한 source는 아니다.
+Redis Stream을 지워도 PostgreSQL 결과와 checkpoint가 남고, Hash를 다시 만들 수 있다. Event는 UI와 관측성에 유용하지만 모든 업무 불변 조건의 유일한 기준 정보는 아니다.
 
-Full event sourcing은 audit, temporal query, deterministic rebuild 같은 강한 요구가 있을 때 검토할 수 있다. 단지 실시간 progress UI가 필요하다는 이유만으로 system 전체를 event-sourced architecture로 바꿀 필요는 없다.
+완전한 event sourcing은 감사, 시간 쿼리, 결정론적 재구축 같은 강한 요구가 있을 때 검토할 수 있다. 단지 실시간 진행률 UI가 필요하다는 이유만으로 시스템 전체를 event 기반 아키텍처로 바꿀 필요는 없다.
 
 ## 실시간 UI의 전체 읽기 흐름
 
-최종적으로 browser가 run 화면을 여는 흐름은 다음과 같다.
+최종적으로 브라우저가 run 화면을 여는 흐름은 다음과 같다.
 
 ```text
 Browser                  API/SSE server                 Redis
@@ -693,23 +694,23 @@ Browser                  API/SSE server                 Redis
 
 1. Snapshot 덕분에 event 전체를 replay하지 않고 화면을 즉시 그린다.
 2. Cursor 덕분에 snapshot 이후 event를 놓치지 않는다.
-3. Stream retention을 넘긴 reconnect는 snapshot resync로 복구한다.
+3. Stream 보존 범위를 넘긴 재연결은 snapshot 재동기화로 복구한다.
 
-## 구현 전 확인할 checklist
+## 구현 전 확인 목록
 
 - Current snapshot과 append-only event가 다른 key인가?
 - State에 일관된 `last_event_id`가 저장되는가?
-- Snapshot과 event transition이 필요할 때 atomic하게 갱신되는가?
+- Snapshot과 event 전환이 필요할 때 원자적으로 갱신되는가?
 - Event envelope에 type, schema version, timestamp, attempt identity가 있는가?
 - Redis Stream ID를 opaque cursor로 취급하는가?
-- Reconnect 시 last event ID 이후를 replay하는가?
-- Duplicate event를 client가 안전하게 처리하는가?
-- Cursor가 trim window보다 오래됐을 때 resync protocol이 있는가?
-- Stream에 max length 또는 time-based retention이 있는가?
-- Redis miss일 때 PostgreSQL durable state로 fallback하는가?
-- Event payload에서 credential과 민감정보를 제거하는가?
+- 재연결 시 마지막 event ID 이후를 replay하는가?
+- 중복 event를 client가 안전하게 처리하는가?
+- Cursor가 trimming 범위보다 오래됐을 때 재동기화 protocol이 있는가?
+- Stream에 최대 길이 또는 시간 기반 보존 정책이 있는가?
+- Redis에서 찾지 못할 때 PostgreSQL의 영속적 state를 대신 사용하는가?
+- Event payload에서 자격 증명과 민감정보를 제거하는가?
 - UI viewer에 consumer group을 잘못 사용하지 않는가?
 
-이제 state와 event를 어디에 저장하고 어떤 cursor로 연결할지는 정했다. 다음 문제는 이 event를 HTTP connection 위에서 오래, 안전하게, 취소 가능하게 흘려보내는 것이다.
+이제 state와 event를 어디에 저장하고 어떤 cursor로 연결할지는 정했다. 다음 문제는 이 event를 HTTP 연결 위에서 오래, 안전하게, 취소 가능하게 흘려보내는 것이다.
 
-다음 글 **Agent가 일하면서 말하게 하기: SSE, Generator, Redis Streams**에서는 iterator와 generator의 차이, async generator, SSE endpoint, heartbeat, disconnect, proxy buffering, backpressure를 실제 Python server code로 구현한다.
+다음 글 **Agent가 일하면서 말하게 하기: SSE, Generator, Redis Streams**에서는 iterator와 generator의 차이, async generator, SSE endpoint, heartbeat, 연결 해제, proxy buffering, backpressure를 실제 Python 서버 코드로 구현한다.
