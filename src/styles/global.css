@@ -255,7 +255,25 @@ a:hover { color: var(--accent); }
 .article-content h3 { margin: 1.8em 0 .6em; font-size: 24px; font-weight: 400; line-height: 1.5; }
 .article-content a { color: var(--accent); }
 .article-content blockquote { margin: 2em 0; padding: 4px 0 4px 28px; border-left: 2px solid var(--accent); color: var(--muted); font-style: italic; }
-.article-content pre { overflow-x: auto; margin: 2em 0; padding: 22px; border: 1px solid var(--line); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.6; }
+.article-content pre {
+  overflow-x: auto;
+  margin: 2em 0;
+  padding: 24px 26px;
+  border: 1px solid #294c3e;
+  border-left: 3px solid #4f8068;
+  background: #17211c !important;
+  color: #edf1ec;
+  color-scheme: dark;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .04);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  tab-size: 2;
+}
+.article-content pre code { font-family: inherit; }
+.article-content pre::-webkit-scrollbar { height: 10px; }
+.article-content pre::-webkit-scrollbar-track { background: #111813; }
+.article-content pre::-webkit-scrollbar-thumb { background: #4f8068; border: 3px solid #111813; }
 .article-content :not(pre) > code { padding: 2px 5px; background: var(--paper-deep); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82em; }
 .article-content img { max-width: 100%; }
 .article-content hr { margin: 3em 0; border: 0; border-top: 1px solid var(--line); }
