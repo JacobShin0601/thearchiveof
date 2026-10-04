@@ -1,0 +1,109 @@
+---
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+---
+
+<section class="handoff-lab" data-component="ai-handoff-queue-lab-v1" data-language={language}>
+  <header>
+    <p class="eyebrow">THE ARCHIVE / LAB 03</p>
+    <h3>{ko ? 'AI 이관을 대기열로 바꾸기' : 'Turn AI handoffs into a queue'}</h3>
+    <p>{ko ? '사람 상담사 이관율, 평균 처리시간, 상담사 수와 목표 응답시간을 한 화면에서 비교합니다.' : 'Compare human handoff rate, average handle time, staffing, and target answer time in one view.'}</p>
+  </header>
+
+  <div class="lab-layout">
+    <div class="controls">
+      <label>{ko ? '전체 문의 λ (건/시간)' : 'All contacts, λ (per hour)'}<input type="number" name="contacts" min="1" max="1000" step="1" value="100" /></label>
+      <label>{ko ? '사람 상담사 이관율 p' : 'Human handoff rate, p'}<input type="range" name="handoff" min="1" max="100" step="1" value="20" /><output data-out="handoff">20%</output></label>
+      <label>{ko ? '평균 처리시간 AHT (분)' : 'Average handle time (min)'}<input type="number" name="aht" min="1" max="120" step="1" value="12" /></label>
+      <label>{ko ? '사람 상담사 수 c' : 'Human agents, c'}<input type="number" name="agents" min="1" max="200" step="1" value="7" /></label>
+      <label>{ko ? '목표 응답시간 (분)' : 'Target answer time (min)'}<input type="number" name="target" min="0" max="60" step="0.5" value="5" /></label>
+    </div>
+
+    <div class="results" aria-live="polite">
+      <div><span>{ko ? '인간 상담 도착률 pλ' : 'Human arrival rate, pλ'}</span><strong data-out="humanRate">20.0/시간</strong></div>
+      <div><span>{ko ? '평균 이관 간격' : 'Mean handoff interval'}</span><strong data-out="interarrival">3.00분</strong></div>
+      <div><span>{ko ? '제공 부하' : 'Offered load'}</span><strong data-out="load">4.00 Erlangs</strong></div>
+      <div><span>{ko ? '상담사 가동률' : 'Agent utilization'}</span><strong data-out="utilization">57.1%</strong></div>
+      <div><span>{ko ? '평균 대기시간' : 'Average wait'}</span><strong data-out="averageWait">0.54분</strong></div>
+      <div><span data-out="serviceLabel">{ko ? '5분 내 연결확률' : 'Answered within 5 min'}</span><strong data-out="serviceLevel">96.1%</strong></div>
+      <p class="status" data-out="status">{ko ? '이 단순 모형에서는 대기열이 안정적입니다.' : 'The queue is stable under this simplified model.'}</p>
+    </div>
+  </div>
+
+  <div class="comparison">
+    <p class="eyebrow">STAFFING COMPARISON</p>
+    <h4>{ko ? '상담사 한 명의 차이는 서비스 수준을 얼마나 바꿀까?' : 'How much can one more agent change service level?'}</h4>
+    <div class="staffing" data-out="staffing"></div>
+  </div>
+
+  <div class="arrival-view">
+    <div><p class="eyebrow">ONE ILLUSTRATIVE HOUR</p><h4>{ko ? '평균 간격은 시간표가 아니다' : 'A mean interval is not a timetable'}</h4><p>{ko ? '아래 점은 같은 평균 이관율에서 만들어 본 한 시간의 가상 이관 시점입니다. 다시 그릴 때마다 달라지지만 평균 도착률은 같습니다.' : 'These marks show one simulated hour of handoff times at the same mean rate. Regenerating changes the pattern, not the mean arrival rate.'}</p></div>
+    <div class="arrival-chart"><div class="axis"><span>0</span><span>15</span><span>30</span><span>45</span><span>60 {ko ? '분' : 'min'}</span></div><div class="marks" data-out="marks"></div><button type="button" data-action="reroll">{ko ? '다시 시뮬레이션' : 'Simulate again'}</button></div>
+  </div>
+  <p class="note">{ko ? 'Illustrative model · 독립적인 푸아송 도착, 일정한 이관확률, 지수분포 처리시간, 고객 이탈 없음, 동질적인 상담사를 가정합니다. 실제 인력계획에는 시간대별 수요, 이탈, 휴식·교육·후처리, 숙련도와 근무표 제약이 필요합니다.' : 'Illustrative model · Assumes independent Poisson arrivals, a constant handoff probability, exponential handling times, no abandonment, and interchangeable agents. Actual workforce planning also needs interval demand, abandonment, shrinkage, skill mix, and schedule constraints.'}</p>
+</section>
+
+<script>
+  import { track } from '../../scripts/track';
+  import { erlangC, humanHandoffRate, meanInterarrivalMinutes } from '../../lib/contact-center-queue';
+
+  const randomExponential = (ratePerHour: number) => ratePerHour > 0 ? -Math.log(1 - Math.random()) / ratePerHour : Infinity;
+
+  function render(root: HTMLElement, reroll = false, trackChange = false) {
+    const value = (name: string) => Number(root.querySelector<HTMLInputElement>(`[name="${name}"]`)?.value ?? 0);
+    const contacts = Math.max(0, value('contacts'));
+    const handoffShare = Math.min(1, Math.max(0, value('handoff') / 100));
+    const aht = Math.max(0.1, value('aht'));
+    const agents = Math.max(1, Math.round(value('agents')));
+    const target = Math.max(0, value('target'));
+    const humanRate = humanHandoffRate(contacts, handoffShare);
+    const metrics = erlangC(humanRate, aht, agents, target);
+    const language = root.dataset.language === 'en' ? 'en' : 'ko';
+    const write = (name: string, text: string) => { const output = root.querySelector<HTMLElement>(`[data-out="${name}"]`); if (output) output.textContent = text; };
+    const perHour = language === 'ko' ? '/시간' : '/hr';
+    const minutes = language === 'ko' ? '분' : ' min';
+    write('handoff', `${Math.round(handoffShare * 100)}%`);
+    write('humanRate', `${humanRate.toFixed(1)}${perHour}`);
+    write('interarrival', Number.isFinite(meanInterarrivalMinutes(humanRate)) ? `${meanInterarrivalMinutes(humanRate).toFixed(2)}${minutes}` : '—');
+    write('load', `${metrics.offeredLoad.toFixed(2)} Erlangs`);
+    write('utilization', `${(metrics.utilization * 100).toFixed(1)}%`);
+    write('serviceLabel', language === 'ko' ? `${target}분 내 연결확률` : `Answered within ${target} min`);
+    write('averageWait', metrics.stable ? `${metrics.averageWaitMinutes.toFixed(2)}${minutes}` : '∞');
+    write('serviceLevel', metrics.stable ? `${(metrics.serviceLevel * 100).toFixed(1)}%` : '0.0%');
+    write('status', metrics.stable
+      ? (language === 'ko' ? '이 단순 모형에서는 대기열이 안정적입니다.' : 'The queue is stable under this simplified model.')
+      : (language === 'ko' ? '처리능력이 평균 도착률 이하라 대기열이 안정되지 않습니다.' : 'Capacity is at or below the mean arrival rate, so the queue is unstable.'));
+    root.classList.toggle('is-unstable', !metrics.stable);
+
+    const staffing = root.querySelector<HTMLElement>('[data-out="staffing"]');
+    if (staffing) staffing.innerHTML = Array.from({ length: 5 }, (_, index) => {
+      const count = Math.max(1, agents - 2 + index);
+      const trial = erlangC(humanRate, aht, count, target);
+      const percent = trial.stable ? Math.max(0, Math.min(100, trial.serviceLevel * 100)) : 0;
+      const metric = trial.stable ? `${percent.toFixed(1)}%` : (language === 'ko' ? '불안정' : 'Unstable');
+      return `<div class="staff-row"><span>${count}${language === 'ko' ? '명' : ' agents'}</span><span class="bar"><i style="width:${percent}%"></i></span><b>${metric}</b></div>`;
+    }).join('');
+
+    if (reroll || !root.dataset.arrivals) {
+      const arrivals: number[] = [];
+      let time = randomExponential(humanRate) * 60;
+      while (time < 60) { arrivals.push(time); time += randomExponential(humanRate) * 60; }
+      root.dataset.arrivals = arrivals.join(',');
+    }
+    const marks = root.querySelector<HTMLElement>('[data-out="marks"]');
+    if (marks) marks.innerHTML = (root.dataset.arrivals || '').split(',').filter(Boolean).map((raw) => `<i style="left:${Math.min(100, Number(raw) / 60 * 100)}%"></i>`).join('');
+    if (trackChange) track('code_run', { articleSlug: 'ai-handoff-queue-lab', language, component: 'ai-handoff-queue-lab-v1' });
+  }
+
+  document.querySelectorAll<HTMLElement>('.handoff-lab').forEach((root) => {
+    render(root, true);
+    let tracked = false;
+    root.addEventListener('input', () => { render(root, true, !tracked); tracked = true; });
+    root.querySelector<HTMLButtonElement>('[data-action="reroll"]')?.addEventListener('click', () => render(root, true, true));
+  });
+</script>
+
+<style>
+  .handoff-lab{margin:2.2rem 0;padding:clamp(1rem,3vw,1.8rem);border:1px solid var(--ink);background:var(--paper-deep);font-family:var(--sans);font-size:.84rem;line-height:1.55}.handoff-lab h3,.handoff-lab h4{font-family:var(--serif);line-height:1.2}.handoff-lab h3{margin:.35rem 0;font-size:1.6rem}.handoff-lab h4{margin:.25rem 0 .55rem;font-size:1.12rem}.handoff-lab .eyebrow{margin:0;color:var(--accent);font-size:.67rem;font-weight:800;letter-spacing:.12em}.handoff-lab header>p:not(.eyebrow),.arrival-view p:not(.eyebrow){color:var(--muted)}.lab-layout{display:grid;grid-template-columns:minmax(220px,.85fr) 1.35fr;gap:1rem;margin-top:1.35rem}.controls{display:grid;align-content:start;gap:.6rem}.controls label{display:grid;grid-template-columns:1fr auto;gap:.45rem;align-items:center;padding:.72rem;background:var(--paper);border:1px solid var(--line);color:var(--muted);font-size:.72rem}.controls input[type="number"]{width:88px;min-height:36px;padding:.3rem .45rem;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;text-align:right}.controls input[type="range"]{grid-column:1/-1;width:100%;accent-color:var(--accent)}.controls output{color:var(--accent);font-weight:700}.results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}.results>div{display:grid;gap:.35rem;min-height:86px;padding:.75rem;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--paper)}.results span{color:var(--muted);font-size:.67rem}.results strong{align-self:end;color:var(--accent);font-size:1.02rem;font-variant-numeric:tabular-nums}.status{grid-column:1/-1;margin:0;padding:.7rem .8rem;border:1px solid var(--line);border-top:0;background:var(--paper);font-weight:700}.is-unstable .status{color:#7a3826}.comparison,.arrival-view{margin-top:1.35rem;padding-top:1.2rem;border-top:1px solid var(--line)}.staffing{display:grid;gap:.55rem;margin-top:.8rem}.staff-row{display:grid;grid-template-columns:82px 1fr 74px;gap:.65rem;align-items:center;font-size:.72rem}.staff-row .bar{height:8px;background:var(--line);overflow:hidden}.staff-row i{display:block;height:100%;background:var(--accent)}.staff-row b{text-align:right;font-variant-numeric:tabular-nums}.arrival-view{display:grid;grid-template-columns:.85fr 1.15fr;gap:1.5rem;align-items:end}.arrival-chart{padding:.95rem;background:var(--paper);border:1px solid var(--line)}.axis{display:flex;justify-content:space-between;color:var(--muted);font-size:.62rem}.marks{position:relative;height:54px;margin:.45rem 0;border-bottom:1px solid var(--ink);background:repeating-linear-gradient(90deg,transparent 0,transparent calc(25% - 1px),var(--line) calc(25% - 1px),var(--line) 25%)}.marks i{position:absolute;bottom:0;width:2px;height:38px;background:var(--accent);transform:translateX(-1px)}.arrival-chart button{padding:.52rem .7rem;border:1px solid var(--ink);background:transparent;color:var(--ink);font:inherit;font-size:.7rem;cursor:pointer}.arrival-chart button:hover{background:var(--ink);color:var(--paper)}.note{margin:1.2rem 0 0;color:var(--muted);font-size:.68rem}@media(max-width:700px){.lab-layout,.arrival-view{grid-template-columns:1fr}.results{grid-template-columns:repeat(2,minmax(0,1fr))}.controls input[type="number"]{width:96px}}
+</style>

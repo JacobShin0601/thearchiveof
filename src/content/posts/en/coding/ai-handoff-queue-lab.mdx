@@ -1,0 +1,88 @@
+---
+title: "AI Handoff Queue Simulator"
+subtitle: "How do handoff rate, handling time, and staffing change customer waits?"
+description: "Change an AI contact center's human handoff rate, average handle time, and staffing to compare wait times and service levels in an M/M/c queue."
+publishedDate: 2026-10-04
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics:
+  - enterprise-ai
+  - optimization
+primaryTopic: enterprise-ai
+tags:
+  - exponential-distribution
+  - queueing-theory
+  - contact-center
+  - ai-handoff
+  - simulation
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "ai-handoff-queue-lab"
+localization:
+  locale: "en-US"
+  defaultContext: "An international reader evaluating AI customer-service operations."
+  strategy: "localized-adaptation"
+methodology: "The model treats all contacts as a Poisson process, independently hands each contact to a human with probability p, and calculates λH = pλ. Handling times are exponential and c agents form an M/M/c queue. Erlang C gives average waits and answer probabilities within the target; illustrative arrival marks come from exponential random draws."
+freshness: evergreen
+lastReviewed: 2026-10-04
+nextReviewDate: 2027-10-04
+references:
+  - title: "Exponential, Gamma and Chi-Square Distributions — STAT 414"
+    url: "https://online.stat.psu.edu/stat414/Lesson15"
+    publisher: "Penn State Department of Statistics"
+  - title: "Lecture 5: Poisson Combining and Splitting"
+    url: "https://ocw.mit.edu/courses/6-262-discrete-stochastic-processes-spring-2011/resources/lecture-5-poisson-combining-and-splitting/"
+    publisher: "MIT OpenCourseWare"
+  - title: "Telephone Call Centers: Tutorial, Review, and Research Prospects"
+    url: "https://faculty.wharton.upenn.edu/wp-content/uploads/2012/04/Gans-Koole-Mandelbaum-CCReview.pdf"
+    publisher: "Manufacturing & Service Operations Management"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AiHandoffQueueLab from '../../../../components/interactive/AiHandoffQueueLab.astro';
+
+<AnswerBlock question="If AI handles 80% of contacts, can the human team shrink by 80%?">
+  <strong>No.</strong> The share solved by AI reduces the average workload reaching humans, but arrivals and handling times still vary. Staffing should not merely cover the average workload. It must absorb simultaneous arrivals while meeting a chosen waiting-time target.
+</AnswerBlock>
+
+This is a companion Lab to [What Is the Exponential Distribution?](/en/math/statistics/exponential-distribution-ai-handoff/). The original article uses AI-to-human handoffs to explain exponential waiting times, Poisson thinning, memorylessness, and M/M/c queues. Here, change the numbers directly.
+
+The default scenario has 100 incoming contacts per hour, a 20% human handoff rate, and a 12-minute average handle time. Humans receive 20 contacts per hour, while one agent completes five per hour on average. The offered load is four Erlangs. Four agents match mean demand but leave no capacity to clear a queue. With seven agents, this simplified model answers about 96.1% of contacts within five minutes.
+
+## Change the handoff rate and staffing
+
+The values below are educational assumptions, not an estimate for a particular company or contact center. Arrivals are independent Poisson events, handling times are exponential, customers do not abandon, and every agent has the same skill and service rate.
+
+<AiHandoffQueueLab language="en" />
+
+## Why 80% AI containment does not imply an 80% staffing cut
+
+Lower the handoff rate from 20% to 10%. With every other input unchanged, human arrivals fall from 20 to 10 contacts per hour and the mean interval grows from three to six minutes. That is a meaningful improvement.
+
+It does not mechanically halve the required team. A six-minute average interval can still contain two arrivals in one minute or none for a while. An average is not a timetable. And after AI resolves routine tracking and information requests, human agents may face more exceptions, cancellations, and disputes. If average handle time rises, the offered load does not fall as much as the handoff rate suggests.
+
+## Stable is not the same as meeting a service target
+
+At 20 human contacts per hour and a 12-minute average handle time, one agent has a service rate of five contacts per hour. Offered load is:
+
+$$
+a = \frac{\lambda_H}{\mu} = \frac{20}{5} = 4\text{ Erlangs}.
+$$
+
+With $c$ agents, this simplified queue is stable only when $c\mu > \lambda_H$. Four agents match mean capacity and cannot recover from a queue. Yet stability does not guarantee an adequate experience: five agents are stable in the default scenario, but answer only about 63.5% of contacts within five minutes. Seven reach about 96.1%.
+
+In this Lab, staffing is not a universal cost-minimizing answer. It is an operating decision for meeting a chosen waiting-time target.
+
+## What the model leaves out
+
+- Arrival rate $\lambda_H$ may change by time of day, day of week, and incident state.
+- The AI handoff rate $p$ can vary with the model, knowledge base, contact type, and customer preference for a person.
+- Handling times may have a longer tail than an exponential distribution, and vary by agent and case type.
+- Customers can abandon while waiting; Erlang A may then be a more suitable model.
+- Real operations include breaks, training, after-contact work, absence, shift constraints, and skill-based routing.
+
+This Lab is therefore a <strong>starting point for reasoning</strong>, not a workforce-management system. Its purpose is to connect the AI-resolved share with the arrival rate, handling time, variability, and service objective of the work left for humans.
