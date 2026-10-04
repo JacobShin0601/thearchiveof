@@ -2,37 +2,149 @@
 interface Props { language?: 'ko' | 'en' }
 const { language = 'ko' } = Astro.props;
 const ko = language === 'ko';
-const patterns = ko ? [
-  { number: '01', title: '단일 에이전트 + 도구', use: '하나의 역할이 도구를 골라 여러 단계를 처리할 때', diagram: 'single' },
-  { number: '02', title: '순차 워크플로', use: '순서가 고정된 반복 업무를 단계별로 넘길 때', diagram: 'sequential' },
-  { number: '03', title: '병렬 워크플로', use: '서로 독립적인 조사·분석을 동시에 돌릴 때', diagram: 'parallel' },
-  { number: '04', title: '계층적 작업 분해', use: '큰 목표를 계획과 전문 작업으로 계속 쪼갤 때', diagram: 'hierarchical' },
-] : [
-  { number: '01', title: 'Single agent + tools', use: 'One role selects tools for a multi-step task', diagram: 'single' },
-  { number: '02', title: 'Sequential workflow', use: 'A repeatable task has a fixed handoff order', diagram: 'sequential' },
-  { number: '03', title: 'Parallel workflow', use: 'Independent research or analysis can run together', diagram: 'parallel' },
-  { number: '04', title: 'Hierarchical decomposition', use: 'A broad goal needs repeated planning and delegation', diagram: 'hierarchical' },
+const t = (koText: string, enText: string) => ko ? koText : enText;
+type Box = { x: number; y: number; w: number; title: string; sub?: string; kind?: string };
+type Edge = { d: string; returned?: boolean };
+const box = (x: number, y: number, w: number, title: string, sub = '', kind = ''): Box => ({ x, y, w, title, sub, kind });
+const patterns: { key: string; title: string; summary: string; takeaway: string; boxes: Box[]; edges: Edge[]; notes?: {x: number; y: number; text: string}[] }[] = [
+  {
+    key: 'single',
+    title: t('단일 에이전트 + 도구', 'Single agent + tools'),
+    summary: t('한 에이전트가 판단하고, 필요한 도구를 호출한다.', 'One agent reasons and calls the tools it needs.'),
+    takeaway: t('검색·계산은 도구가 하고, 다음 행동과 최종 답변은 같은 에이전트가 결정한다. 필요한 만큼 호출과 관찰을 반복한다.', 'Tools search and calculate. The same agent observes the results, decides what to do next, and writes the answer.'),
+    boxes: [
+      box(110, 8, 180, t('사용자 요청', 'User request'), t('“기업을 분석해줘”', '“Analyze this company”')),
+      box(110, 114, 180, t('에이전트 1명', 'One agent'), t('판단 · 도구 선택 · 관찰', 'Reason · choose · observe'), 'agent'),
+      box(8, 230, 112, t('검색 도구', 'Search tool'), t('뉴스 조회', 'Fetch news'), 'tool'),
+      box(144, 230, 112, t('DB 도구', 'Database'), t('실적 조회', 'Fetch earnings'), 'tool'),
+      box(280, 230, 112, t('계산 도구', 'Calculator'), t('수치 계산', 'Compute metrics'), 'tool'),
+      box(110, 328, 180, t('최종 답변', 'Final answer'), '', 'result'),
+    ],
+    edges: [
+      {d:'M200 56 V112'},
+      {d:'M150 162 V190 H56 V228'}, {d:'M192 162 V228'}, {d:'M250 162 V190 H328 V228'},
+      {d:'M74 230 V204 H165 V164',returned:true}, {d:'M208 230 V164',returned:true}, {d:'M346 230 V204 H235 V164',returned:true},
+      {d:'M290 138 H398 V306 H200 V326'},
+    ],
+    notes:[{x:90,y:100,text:t('실선: 호출 / 점선: 결과', 'Solid: call / dashed: result')},{x:90,y:310,text:t('완료 시 답변', 'Answer when ready')}],
+  },
+  {
+    key:'sequential',
+    title:t('순차 워크플로', 'Sequential workflow'),
+    summary:t('작업 1 → 2 → 3 → 4를 마친 뒤 결과를 종합한다.', 'Complete tasks 1 → 2 → 3 → 4, then synthesize.'),
+    takeaway:t('앞 단계의 결과를 다음 단계에 넘긴다. 종합 단계는 누적된 작업 결과를 받아 하나의 답변으로 정리한다.', 'Each step passes its result forward. The final step combines the accumulated results into one answer.'),
+    boxes:[
+      box(70,8,260,t('작업 1 · 자료 수집','Task 1 · Gather sources'),t('뉴스와 실적을 모은다','Collect news and earnings')),
+      box(70,88,260,t('작업 2 · 핵심 추출','Task 2 · Extract facts'),t('필요한 사실을 추린다','Select the relevant facts')),
+      box(70,168,260,t('작업 3 · 분석','Task 3 · Analyze'),t('수치와 의미를 해석한다','Interpret metrics and meaning')),
+      box(70,248,260,t('작업 4 · 검증','Task 4 · Verify'),t('분석을 근거와 대조한다','Check claims against evidence')),
+      box(70,328,260,t('종합 · 최종 답변','Synthesize · Final answer'),'', 'result'),
+    ],
+    edges:[{d:'M200 56 V86'},{d:'M200 136 V166'},{d:'M200 216 V246'},{d:'M200 296 V326'}],
+  },
+  {
+    key:'parallel',
+    title:t('병렬 워크플로','Parallel workflow'),
+    summary:t('독립적인 작업을 동시에 시작하고, 결과를 모은다.', 'Start independent tasks together, then combine results.'),
+    takeaway:t('각 에이전트는 다른 에이전트의 결과를 기다리지 않고 일한다. 종합 단계에서 세 결과를 함께 읽는다.', 'Each agent works without waiting for the others. A synthesis step reads all three results together.'),
+    boxes:[
+      box(110,8,180,t('요청 · 작업 분배','Request · Fan out')),
+      box(8,120,112,t('조사 에이전트','Research agent'),t('뉴스 조사','Research news'),'agent'),
+      box(144,120,112,t('분석 에이전트','Analysis agent'),t('실적 분석','Analyze earnings'),'agent'),
+      box(280,120,112,t('위험 에이전트','Risk agent'),t('위험 조사','Investigate risks'),'agent'),
+      box(8,220,112,t('조사 결과','News findings'),'', 'result'),
+      box(144,220,112,t('분석 결과','Financial findings'),'', 'result'),
+      box(280,220,112,t('위험 결과','Risk findings'),'', 'result'),
+      box(110,328,180,t('종합 · 최종 답변','Synthesize · Answer'),'', 'result'),
+    ],
+    edges:[{d:'M200 56 V78 H64 V118'},{d:'M200 56 V118'},{d:'M200 78 H336 V118'},
+      {d:'M64 168 V218'},{d:'M200 168 V218'},{d:'M336 168 V218'},
+      {d:'M64 268 V298 H200 V326'},{d:'M200 268 V326'},{d:'M336 268 V298 H200'}],
+  },
+  {
+    key:'hierarchy',
+    title:t('계층적 작업 분해','Hierarchical decomposition'),
+    summary:t('상위 에이전트가 목표를 나누고, 하위에서 다시 나눈다.', 'A lead delegates goals; specialists break them down again.'),
+    takeaway:t('위에서 아래로 일을 맡기고, 아래에서 위로 결과를 보고한다. 담당 에이전트가 하위 결과를 정리하고 총괄이 최종 답변을 만든다.', 'Tasks flow down; results return up. Specialists combine their workers’ findings, and the lead produces the final answer.'),
+    boxes:[
+      box(110,8,180,t('총괄 에이전트','Lead agent'),t('계획 · 위임 · 최종 종합','Plan · delegate · synthesize'),'agent'),
+      box(30,140,150,t('조사 담당','Research lead'),t('조사를 다시 분해','Split research tasks'),'agent'),
+      box(220,140,150,t('분석 담당','Analysis lead'),t('분석을 다시 분해','Split analysis tasks'),'agent'),
+      box(4,284,90,t('뉴스 조사','News'),t('하위 작업 1','Subtask 1')),
+      box(104,284,90,t('공시 조사','Filings'),t('하위 작업 2','Subtask 2')),
+      box(206,284,90,t('매출 분석','Revenue'),t('하위 작업 3','Subtask 3')),
+      box(306,284,90,t('비용 분석','Costs'),t('하위 작업 4','Subtask 4')),
+    ],
+    edges:[
+      {d:'M155 56 V92 H95 V138'},{d:'M245 56 V92 H285 V138'},
+      {d:'M115 140 V108 H175 V58',returned:true},{d:'M305 140 V108 H225 V58',returned:true},
+      {d:'M75 188 V224 H39 V282'},{d:'M130 188 V224 H139 V282'},
+      {d:'M265 188 V224 H241 V282'},{d:'M320 188 V224 H341 V282'},
+      {d:'M59 284 V242 H95 V190',returned:true},{d:'M159 284 V242 H150 V190',returned:true},
+      {d:'M261 284 V242 H285 V190',returned:true},{d:'M361 284 V242 H340 V190',returned:true},
+    ],
+    notes:[{x:200,y:364,text:t('실선 ↓ 작업 위임    점선 ↑ 결과 보고', 'Solid ↓ delegation    Dashed ↑ results')}],
+  },
 ];
 ---
 
 <figure class="pattern-map">
-  <div class="map-header">
-    <div><p class="eyebrow">AGENT DESIGN PATTERNS</p><h2>{ko ? '먼저 네 가지 기본 형태를 보자' : 'Start with four basic shapes'}</h2></div>
-    <p>{ko ? '모든 요청에 멀티 에이전트가 필요한 것은 아니다. 작업의 의존성, 동시성, 분해 수준에 따라 가장 작은 구조부터 고른다.' : 'Not every request needs multiple agents. Start with the smallest structure that fits its dependencies, concurrency, and decomposition.'}</p>
-  </div>
+  <header>
+    <p class="eyebrow">AGENT DESIGN PATTERNS</p>
+    <h2>{t('먼저 네 가지 기본 형태를 보자', 'Start with four basic shapes')}</h2>
+    <p>{t('상자 안에는 누가 무엇을 하는지, 화살표에는 작업과 결과가 어디로 흐르는지를 표시했다.', 'Boxes show who does what. Arrows show where tasks and results go.')}</p>
+  </header>
   <div class="pattern-grid">
-    {patterns.map((pattern) => <section class="pattern-card">
-      <div class="card-heading"><span>{pattern.number}</span><h3>{pattern.title}</h3></div>
-      {pattern.diagram === 'single' && <div class="diagram single" aria-label={ko ? '사용자에서 에이전트와 도구를 거쳐 답변으로 이어지는 흐름' : 'A flow from user to agent and tools to answer'}><b>{ko ? '요청' : 'Request'}</b><i>→</i><strong>{ko ? '에이전트' : 'Agent'}</strong><div><em>{ko ? '검색' : 'Search'}</em><em>{ko ? '데이터' : 'Data'}</em><em>{ko ? '실행' : 'Act'}</em></div><i>→</i><b>{ko ? '답변' : 'Answer'}</b></div>}
-      {pattern.diagram === 'sequential' && <div class="diagram sequence" aria-label={ko ? '추출, 정리, 적재가 차례로 이어지는 흐름' : 'A flow from extract to clean to load'}><b>{ko ? '추출' : 'Extract'}</b><i>→</i><b>{ko ? '정리' : 'Clean'}</b><i>→</i><b>{ko ? '적재' : 'Load'}</b></div>}
-      {pattern.diagram === 'parallel' && <div class="diagram parallel" aria-label={ko ? '하나의 요청이 조사, 데이터, 검증으로 갈라졌다 종합되는 흐름' : 'A request fans out to research, data, and validation before synthesis'}><b>{ko ? '요청' : 'Request'}</b><div><em>{ko ? '조사' : 'Research'}</em><em>{ko ? '데이터' : 'Data'}</em><em>{ko ? '검증' : 'Review'}</em></div><strong>{ko ? '종합' : 'Synthesis'}</strong></div>}
-      {pattern.diagram === 'hierarchical' && <div class="diagram hierarchy" aria-label={ko ? '목표가 계획, 전문 작업, 하위 작업으로 분해되는 계층' : 'A goal decomposed into a plan, specialists, and sub-tasks'}><strong>{ko ? '목표 / 계획' : 'Goal / plan'}</strong><div><b>{ko ? '조사' : 'Research'}</b><b>{ko ? '분석' : 'Analysis'}</b><b>{ko ? '작성' : 'Write'}</b></div><div class="workers"><em>{ko ? '자료' : 'Sources'}</em><em>{ko ? '계산' : 'Model'}</em><em>{ko ? '초안' : 'Draft'}</em></div></div>}
-      <p>{pattern.use}</p>
-    </section>)}
+    {patterns.map((pattern, index) => {
+      const id = `pattern-${language}-${pattern.key}`;
+      return <section class="pattern-card">
+        <div class="card-heading"><span>0{index + 1}</span><h3>{pattern.title}</h3></div>
+        <p class="summary">{pattern.summary}</p>
+        <svg viewBox="0 0 404 384" role="img" aria-labelledby={`${id}-title ${id}-desc`}>
+          <title id={`${id}-title`}>{pattern.title}</title>
+          <desc id={`${id}-desc`}>{pattern.summary} {pattern.takeaway}</desc>
+          <defs>
+            <marker id={`${id}-arrow`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#6874a6"/></marker>
+            <marker id={`${id}-return`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#268577"/></marker>
+          </defs>
+          {pattern.edges.map(edge => <path class:list={['edge', {returned: edge.returned}]} d={edge.d} marker-end={`url(#${id}-${edge.returned ? 'return' : 'arrow'})`}/>)}
+          {pattern.boxes.map(node => <g class:list={['node', node.kind]}>
+            <rect x={node.x} y={node.y} width={node.w} height="48" rx="8"/>
+            <text x={node.x + node.w / 2} y={node.y + (node.sub ? 20 : 29)}>{node.title}</text>
+            {node.sub && <text class="sub" x={node.x + node.w / 2} y={node.y + 37}>{node.sub}</text>}
+          </g>)}
+          {pattern.notes?.map(note => <text class="note" x={note.x} y={note.y}>{note.text}</text>)}
+        </svg>
+        <p class="takeaway">{pattern.takeaway}</p>
+      </section>;
+    })}
   </div>
-  <figcaption>{ko ? <>Google Cloud의 에이전트 설계 패턴 중 단일 에이전트, 순차, 병렬, 계층적 작업 분해를 읽기 위한 축약 지도다. 루프·비평·코디네이터 같은 다른 패턴은 뒤에서 필요에 따라 결합한다.</> : <>A compact map of four Google Cloud agent design patterns: single agent, sequential, parallel, and hierarchical task decomposition. Loop, critique, and coordinator patterns can be added later when the work requires them.</>}</figcaption>
+  <figcaption>{t('Google Cloud의 설계 패턴 중 네 가지를 간추린 지도다. 순차·병렬은 실행 순서, 계층형은 위임 구조를 보여준다. 계층 안에서도 순차 또는 병렬 실행을 조합할 수 있다.', 'Four patterns adapted from Google Cloud. Sequential and parallel describe execution order; hierarchy describes delegation. A hierarchy can use sequential or parallel execution within its branches.')}</figcaption>
 </figure>
 
 <style>
-  .pattern-map{margin:2.5rem 0;padding:clamp(1rem,3vw,1.5rem);border:1px solid var(--border-color,#d8d8df);border-radius:1rem;background:color-mix(in srgb,var(--card-bg,#fff) 95%,#6572b7 5%)}.map-header{display:grid;grid-template-columns:1fr minmax(14rem,.85fr);gap:1.25rem;align-items:end;margin-bottom:1.1rem}.eyebrow{margin:0;color:#5966a6;font-size:.72rem;font-weight:800;letter-spacing:.1em}.map-header h2{margin:.25rem 0 0;font-family:var(--serif);font-size:clamp(1.45rem,3vw,2rem);line-height:1.2}.map-header>p{margin:0;color:var(--text-muted,#5f6571);font-size:.85rem;line-height:1.55}.pattern-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem}.pattern-card{display:grid;grid-template-rows:auto 1fr auto;gap:.65rem;min-width:0;padding:.8rem;border:1px solid var(--border-color,#d8d8df);border-radius:.7rem;background:var(--background,#fff)}.card-heading{display:flex;gap:.45rem;align-items:baseline}.card-heading span{color:#5966a6;font-size:.68rem;font-weight:800}.card-heading h3{margin:0;font-family:var(--serif);font-size:1rem;line-height:1.2}.pattern-card>p{margin:0;color:var(--text-muted,#5f6571);font-size:.75rem;line-height:1.45}.diagram{min-height:94px;display:flex;align-items:center;justify-content:center;gap:.25rem;color:#30385c;font-size:.67rem}.diagram b,.diagram strong,.diagram em{padding:.3rem .38rem;border:1px solid #aeb7dd;border-radius:.3rem;background:color-mix(in srgb,var(--background,#fff) 80%,#9da8d8 20%);font-style:normal;line-height:1.15;text-align:center}.diagram strong{border-color:#6572b7;background:color-mix(in srgb,var(--background,#fff) 72%,#6572b7 28%)}.diagram i{color:#6572b7;font-style:normal}.single{flex-wrap:wrap}.single>div{display:grid;grid-template-columns:repeat(3,1fr);gap:.2rem;flex-basis:100%;padding:.3rem;border-top:1px dashed #aeb7dd;border-bottom:1px dashed #aeb7dd}.single>div em{font-size:.57rem}.sequence{flex-wrap:wrap}.parallel{display:grid;grid-template-columns:1fr;gap:.35rem}.parallel>b,.parallel>strong{justify-self:center}.parallel>div,.hierarchy>div{display:grid;grid-template-columns:repeat(3,1fr);gap:.25rem;position:relative}.parallel>div:before,.hierarchy>div:before{content:'';position:absolute;top:-.25rem;left:16%;right:16%;border-top:1px solid #aeb7dd}.parallel em{font-size:.6rem}.hierarchy{display:grid;grid-template-columns:1fr;gap:.4rem}.hierarchy>strong{justify-self:center}.hierarchy>div{padding-top:.35rem}.hierarchy .workers{padding-top:.35rem}.hierarchy b,.hierarchy em{font-size:.59rem}.pattern-map figcaption{margin-top:1rem;color:var(--text-muted,#5f6571);font-size:.76rem;line-height:1.5}@media(max-width:850px){.pattern-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.map-header{grid-template-columns:1fr}.pattern-grid{grid-template-columns:1fr}.diagram{min-height:78px}}
+  .pattern-map { margin:2.5rem 0; padding:clamp(.75rem, 2vw, 1.5rem); border:1px solid var(--border-color,#d8d8df); border-radius:1rem; background:color-mix(in srgb,var(--card-bg,#fff) 95%,#6572b7 5%); }
+  header { margin-bottom:1.5rem; }
+  .eyebrow { margin:0; color:#5966a6; font-size:.72rem; font-weight:800; letter-spacing:.1em; }
+  header h2 { margin:.4rem 0 .6rem; font-family:var(--serif); font-size:clamp(1.45rem,3vw,2rem); line-height:1.25; }
+  header>p:last-child, figcaption { color:var(--text-muted,#5f6571); font-size:.85rem; line-height:1.6; }
+  .pattern-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+  .pattern-card { min-width:0; padding:1rem; border:1px solid var(--border-color,#d8d8df); border-radius:.8rem; background:var(--background,#fff); }
+  .card-heading { display:flex; gap:.6rem; align-items:baseline; }
+  .card-heading span { color:#5966a6; font-size:.8rem; font-weight:800; }
+  .card-heading h3 { margin:0; font-size:1.1rem; line-height:1.3; }
+  .summary { min-height:3em; margin:.6rem 0 .8rem; font-size:.85rem; line-height:1.5; color:var(--text-muted,#5f6571); }
+  svg { display:block; width:100%; height:auto; overflow:visible; }
+  .edge { fill:none; stroke:#6874a6; stroke-width:1.8; stroke-linejoin:round; }
+  .edge.returned { stroke:#268577; stroke-dasharray:4 3; }
+  .node rect { fill:#f1f3fa; stroke:#bac3df; }
+  .node.agent rect { fill:#e5e9fa; stroke:#7988be; stroke-width:1.5; }
+  .node.tool rect { fill:#fbfaf5; stroke:#c7b98f; }
+  .node.result rect { fill:#eaf5f0; stroke:#91bdaf; }
+  text { text-anchor:middle; font-family:var(--sans, sans-serif); font-size:13px; font-weight:650; fill:#30385c; }
+  text.sub { font-size:11px; font-weight:400; fill:#566078; }
+  text.note { font-size:11px; font-weight:500; fill:#63708b; }
+  .takeaway { margin:1rem 0 0; padding-top:.8rem; border-top:1px solid var(--border-color,#d8d8df); color:var(--text-muted,#5f6571); font-size:.82rem; line-height:1.6; }
+  figcaption { margin-top:1rem; }
+  @media(max-width:680px) { .pattern-grid { grid-template-columns:1fr; } .pattern-card { padding:.85rem; } .summary { min-height:0; } }
 </style>
