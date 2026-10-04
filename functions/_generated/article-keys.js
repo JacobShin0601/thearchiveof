@@ -23,5 +23,6 @@ export const ARTICLE_KEYS = [
   "why-i-am-removing-langgraph-from-agent-building",
   "why-i-started-cfa-as-a-data-scientist",
   "why-this-archive-is-open",
-  "will-rogo-eat-financial-ai"
+  "will-rogo-eat-financial-ai",
+  "worker-is-not-thread"
 ];
