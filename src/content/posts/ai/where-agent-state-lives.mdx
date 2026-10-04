@@ -1,0 +1,940 @@
+---
+title: "Agent State는 어디에 살아야 하는가: Redis, PostgreSQL, Checkpoint"
+subtitle: "현재 진행 상태부터 durable run record와 재개 가능한 snapshot까지"
+description: "Agent 실행 상태를 PostgreSQL, Redis, checkpoint, process memory로 나누고 Python 코드로 저장·조회·동시성·복구 흐름을 구현합니다."
+publishedDate: 2026-10-04
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - redis
+  - postgresql
+  - jsonb
+  - checkpointing
+  - agent-state
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: false
+language: "ko"
+translationKey: "where-agent-state-lives"
+series: "Agent Engineering"
+seriesOrder: 5
+freshness: evergreen
+lastReviewed: 2026-10-04
+nextReviewDate: 2027-10-04
+references:
+  - title: "PostgreSQL JSON Types"
+    url: "https://www.postgresql.org/docs/current/datatype-json.html"
+    publisher: "PostgreSQL Documentation"
+  - title: "Redis Hashes"
+    url: "https://redis.io/docs/latest/develop/data-types/hashes/"
+    publisher: "Redis Documentation"
+  - title: "EXPIRE"
+    url: "https://redis.io/docs/latest/commands/expire/"
+    publisher: "Redis Documentation"
+  - title: "Redis Transactions"
+    url: "https://redis.io/docs/latest/develop/using-commands/transactions/"
+    publisher: "Redis Documentation"
+  - title: "Pipelines and Transactions"
+    url: "https://redis.io/docs/latest/develop/clients/redis-py/transpipe/"
+    publisher: "Redis Documentation"
+  - title: "Redis Persistence"
+    url: "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/"
+    publisher: "Redis Documentation"
+  - title: "LangGraph Persistence"
+    url: "https://docs.langchain.com/oss/python/langgraph/persistence"
+    publisher: "LangChain Documentation"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="Agent state는 어디에 저장해야 하는가?">
+  하나의 저장소에 전부 넣지 않는다. <strong>PostgreSQL은 run과 결과의 durable source of truth, Redis는 자주 바뀌고 다시 만들 수 있는 hot operational state, checkpoint는 중단 지점에서 재개하기 위한 execution snapshot, process memory는 잃어도 되는 local working state</strong>로 나눈다. 저장 위치는 속도보다 그 상태가 어떤 failure를 견뎌야 하고 얼마나 오래 살아야 하는지로 결정한다.
+</AnswerBlock>
+
+이전 글 [Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/)에서는 장시간 Agent run의 lifecycle을 API request에서 queue와 worker로 넘겼다. 이제 worker가 실행을 맡았다고 해보자.
+
+Worker는 research를 끝냈고 valuation step으로 넘어갔다. 진행률은 65%다. 사용자는 browser를 새로고침했고, 그 순간 worker Pod가 재시작됐다.
+
+여기서 "state"라는 한 단어가 서로 다른 질문을 가리킨다.
+
+- 이 run은 누구의 요청이며 최종적으로 성공했는가?
+- 지금 어떤 step을 실행 중이고 진행률은 몇 퍼센트인가?
+- Worker가 다시 시작하면 어느 node부터 재개해야 하는가?
+- 현재 함수가 쓰는 HTTP client와 임시 parsing buffer는 어디에 있는가?
+
+이 네 상태는 수명도, 읽는 주체도, failure requirement도 다르다. 전부 Python dictionary 하나에 넣으면 process restart를 견디지 못한다. 전부 PostgreSQL row 하나에 넣으면 작은 progress update마다 durable row를 계속 갱신하게 된다. 전부 Redis에 넣으면 빠르지만 business record와 재개 semantics가 cache policy에 묶인다.
+
+Agent state 설계는 database 선택 문제가 아니라 **서로 다른 종류의 진실을 분리하는 문제**다.
+
+## 먼저 state를 네 층으로 나눈다
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ Durable business state                                      │
+│ run identity, ownership, terminal status, result, audit      │
+│ → PostgreSQL                                                 │
+├──────────────────────────────────────────────────────────────┤
+│ Hot operational state                                       │
+│ progress, current step, heartbeat, active attempt            │
+│ → Redis                                                      │
+├──────────────────────────────────────────────────────────────┤
+│ Resume state                                                 │
+│ graph values, next nodes, completed work, checkpoint metadata│
+│ → durable checkpoint store                                   │
+├──────────────────────────────────────────────────────────────┤
+│ Local working state                                         │
+│ open clients, parser buffer, memoized objects                │
+│ → process memory                                             │
+└──────────────────────────────────────────────────────────────┘
+```
+
+| State 종류 | 대표 질문 | 필요한 수명 | 자연스러운 위치 |
+| --- | --- | --- | --- |
+| Durable run record | 누가 무엇을 요청했고 어떻게 끝났는가? | 서비스·process restart 이후에도 보존 | PostgreSQL |
+| Hot state | 지금 어디까지 왔는가? | 실행 중 빠르게 읽고, 이후 만료 가능 | Redis |
+| Checkpoint | 어디에서 안전하게 다시 시작하는가? | Run의 resume·retention policy만큼 | PostgreSQL 기반 checkpointer 등 |
+| Local state | 현재 함수가 작업하는 데만 필요한가? | Process lifetime 이하 | Python memory |
+
+Checkpoint는 database 제품명이 아니다. **재개 가능한 snapshot이라는 데이터의 의미**다. PostgreSQL에도 저장할 수 있고, 요구하는 durability에 따라 다른 backend를 사용할 수도 있다. 반대로 Redis에 값을 저장했다고 모두 cache인 것도 아니다. Redis의 persistence와 replication을 어떻게 설정했는지에 따라 보장 수준이 달라진다.
+
+그래도 기본 설계에서는 경계를 단순하게 두는 편이 좋다.
+
+> Redis 전체를 잃어도 run의 존재와 최종 결과는 설명할 수 있어야 한다. Worker memory 전체를 잃어도 checkpoint 이후부터는 다시 실행할 수 있어야 한다.
+
+## 하나의 run이 실제로 어떤 state를 만드는가
+
+기업 분석 Agent가 다음 순서로 실행된다고 하자.
+
+```text
+research → financial_data → valuation → report → approval
+```
+
+같은 시점의 state를 저장소별로 펼치면 다음과 같다.
+
+```text
+PostgreSQL: agent_runs
+  run_id          = 7d5...
+  tenant_id       = acme
+  session_id      = 91a...
+  status          = running
+  input           = {"ticker": "NVDA"}
+  final_result    = null
+  version         = 3
+
+Redis: agent:run:{7d5...}:state
+  status          = running
+  current_step    = valuation
+  progress        = 65
+  attempt_id      = 4fe...
+  heartbeat_at    = 2026-10-04T04:10:00Z
+  version         = 18
+
+Checkpoint 12
+  values          = {research output, normalized financials, assumptions}
+  next_nodes      = [valuation]
+  completed_nodes = [research, financial_data]
+```
+
+세 복사본이 완전히 같은 내용을 가져야 하는 것은 아니다. 오히려 역할이 달라야 한다.
+
+- PostgreSQL은 "run은 존재하며 아직 terminal state가 아니다"를 보존한다.
+- Redis는 UI와 운영자가 지금 보고 싶은 최신 projection을 제공한다.
+- Checkpoint는 새 worker가 computation을 이어갈 충분한 state를 보존한다.
+
+## PostgreSQL: durable source of truth를 작게 유지한다
+
+Run table은 system of record다. 사용자에게 결과를 보여주고, authorization을 검사하고, billing이나 audit의 근거로 사용할 수 있어야 한다.
+
+먼저 자주 검색하고 조인하는 값은 relational column으로 둔다.
+
+```sql
+CREATE TABLE agent_runs (
+    run_id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    session_id UUID NOT NULL,
+
+    status TEXT NOT NULL CHECK (
+        status IN ('queued', 'running', 'waiting_approval',
+                   'succeeded', 'failed', 'cancelled')
+    ),
+
+    input JSONB NOT NULL,
+    final_result JSONB,
+    error JSONB,
+
+    version BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX agent_runs_session_created_idx
+    ON agent_runs (tenant_id, session_id, created_at DESC);
+
+CREATE INDEX agent_runs_active_idx
+    ON agent_runs (tenant_id, status, updated_at)
+    WHERE status IN ('queued', 'running', 'waiting_approval');
+```
+
+`tenant_id`, `session_id`, `status`, timestamp를 JSONB 안에 감추지 않은 이유가 있다.
+
+- Authorization query와 foreign key를 명확하게 만들 수 있다.
+- Active run이나 session history를 일반 B-tree index로 찾을 수 있다.
+- Status에 `CHECK` constraint를 걸어 잘못된 transition의 일부를 막을 수 있다.
+- Operational query가 매번 JSON path를 해석하지 않아도 된다.
+
+반면 provider별 model option, tool-specific result, nested assumption처럼 구조가 유연한 값은 JSONB에 잘 맞는다. PostgreSQL의 `jsonb`는 JSON을 decomposed binary format으로 저장해 처리할 때 다시 parsing할 필요가 없고 indexing도 지원한다. 다만 문서 구조가 flexible하더라도 어느 정도 예측 가능한 schema를 유지하라고 공식 문서도 권장한다. ([PostgreSQL JSON Types](https://www.postgresql.org/docs/current/datatype-json.html))
+
+### JSONB는 schema를 없애는 도구가 아니다
+
+좋은 구분은 다음과 같다.
+
+| 값 | 권장 형태 | 이유 |
+| --- | --- | --- |
+| `tenant_id`, `session_id` | Relational column | 조인·authorization·index |
+| `status`, `created_at` | Relational column | 자주 필터·정렬 |
+| LLM provider options | JSONB | Provider마다 optional field가 다름 |
+| Tool output payload | JSONB 또는 별도 table | 구조가 다양하지만 audit 범위 고려 |
+| Token usage 합계 | Relational column | 집계와 billing query가 잦다면 column |
+| 전체 message history | 별도 rows | 한 JSONB document의 무한 성장을 피함 |
+
+큰 state document 하나를 매 step마다 통째로 갱신하는 것은 피해야 한다. PostgreSQL은 JSONB column 일부만 바꾸는 표현을 지원하지만, concurrency control 관점에서는 row update다. 공식 문서도 큰 JSON document update가 row-level lock을 획득하므로 document 크기와 lock contention을 고려하라고 설명한다.
+
+즉 다음 구조는 편해 보여도 시간이 지나면 부담이 된다.
+
+```sql
+-- 모든 대화, event, tool result, checkpoint를 한 row에 계속 append
+UPDATE agent_runs
+SET state = state || $1::jsonb
+WHERE run_id = $2;
+```
+
+Run record, message, tool execution, checkpoint처럼 수명과 query pattern이 다른 데이터는 별도 table로 나누는 편이 낫다.
+
+## PostgreSQL update에는 version을 둔다
+
+Worker, cancellation API, approval handler가 같은 run을 동시에 갱신할 수 있다. 마지막 write가 무조건 이기는 방식이면 늦게 도착한 `running` update가 이미 기록된 `cancelled`를 덮을 수 있다.
+
+`version`을 이용한 optimistic concurrency control은 stale writer를 감지하는 단순한 방법이다.
+
+```python
+import json
+from dataclasses import dataclass
+from typing import Any
+
+@dataclass(frozen=True)
+class ConcurrentRunUpdate(Exception):
+    run_id: str
+    expected_version: int
+
+async def transition_run(
+    conn,
+    *,
+    run_id: str,
+    expected_version: int,
+    next_status: str,
+    final_result: dict[str, Any] | None = None,
+) -> int:
+    row = await conn.fetchrow(
+        """
+        UPDATE agent_runs
+        SET status = $1,
+            final_result = COALESCE($2::jsonb, final_result),
+            version = version + 1,
+            updated_at = NOW(),
+            finished_at = CASE
+                WHEN $1 IN ('succeeded', 'failed', 'cancelled') THEN NOW()
+                ELSE finished_at
+            END
+        WHERE run_id = $3
+          AND version = $4
+        RETURNING version
+        """,
+        next_status,
+        json.dumps(final_result) if final_result is not None else None,
+        run_id,
+        expected_version,
+    )
+
+    if row is None:
+        raise ConcurrentRunUpdate(run_id, expected_version)
+
+    return row["version"]
+```
+
+Version mismatch가 발생하면 무조건 같은 update를 재시도해서는 안 된다. 최신 row를 다시 읽고, `cancelled → running` 같은 금지된 transition인지 판단해야 한다. State machine rule은 application code나 database constraint/trigger로 명시적으로 강제한다.
+
+```python
+ALLOWED_TRANSITIONS = {
+    "queued": {"running", "cancelled"},
+    "running": {"waiting_approval", "succeeded", "failed", "cancelled"},
+    "waiting_approval": {"running", "cancelled"},
+    "succeeded": set(),
+    "failed": set(),
+    "cancelled": set(),
+}
+
+def assert_transition(current: str, target: str) -> None:
+    if target not in ALLOWED_TRANSITIONS[current]:
+        raise ValueError(f"invalid run transition: {current} -> {target}")
+```
+
+LLM이 status를 결정하게 두지 않는 것도 중요하다. Model은 "분석이 끝났다"고 말할 수 있지만 terminal transition은 required output validation과 persistence가 완료된 뒤 deterministic code가 수행해야 한다.
+
+## Redis: 최신 operational projection을 빠르게 읽는다
+
+Redis에는 UI와 운영 loop가 자주 읽는 작은 current-state projection을 둔다.
+
+```text
+Key
+agent:run:{run_id}:state
+
+Hash fields
+status          running
+current_step    valuation
+progress        65
+attempt_id      4fe...
+heartbeat_at    2026-10-04T04:10:00Z
+updated_at      2026-10-04T04:10:00Z
+version         18
+detail_json     {"company":"NVIDIA","scenario":3}
+```
+
+Redis Hash는 field-value pair collection이다. `HSET`으로 일부 field를 갱신하고 `HMGET`이나 `HGETALL`로 읽을 수 있어 flat한 current-state object에 잘 맞는다. Hash field value는 기본적으로 string/bytes이므로 nested object는 JSON string으로 직렬화하거나 Redis JSON 같은 별도 data type을 선택해야 한다. ([Redis Hashes](https://redis.io/docs/latest/develop/data-types/hashes/))
+
+여기서는 별도 module 의존 없이 Hash를 사용한다.
+
+```python
+import json
+from datetime import UTC, datetime
+from redis.asyncio import Redis
+
+HOT_STATE_TTL_SECONDS = 24 * 60 * 60
+
+def run_state_key(run_id: str) -> str:
+    # 중괄호는 Redis Cluster에서 같은 run의 관련 key를
+    # 같은 hash slot에 묶고 싶을 때 사용할 수 있다.
+    return f"agent:run:{{{run_id}}}:state"
+
+async def write_hot_state(
+    redis: Redis,
+    *,
+    run_id: str,
+    status: str,
+    current_step: str,
+    progress: int,
+    attempt_id: str,
+    version: int,
+    detail: dict,
+) -> None:
+    if not 0 <= progress <= 100:
+        raise ValueError("progress must be between 0 and 100")
+
+    now = datetime.now(UTC).isoformat()
+    key = run_state_key(run_id)
+
+    async with redis.pipeline(transaction=True) as pipe:
+        pipe.hset(
+            key,
+            mapping={
+                "status": status,
+                "current_step": current_step,
+                "progress": progress,
+                "attempt_id": attempt_id,
+                "heartbeat_at": now,
+                "updated_at": now,
+                "version": version,
+                "detail_json": json.dumps(detail),
+            },
+        )
+        pipe.expire(key, HOT_STATE_TTL_SECONDS)
+        await pipe.execute()
+```
+
+`HSET`과 `EXPIRE`를 transaction pipeline에 넣은 이유는 둘을 하나의 단위로 실행하기 위해서다. State write만 성공하고 process가 죽어 TTL 설정이 빠지면 temporary key가 영구히 남을 수 있다. Redis transaction은 `MULTI`/`EXEC` 사이의 command를 하나의 isolated operation으로 실행하고, redis-py pipeline은 command batching과 transaction을 지원한다. ([Redis Transactions](https://redis.io/docs/latest/develop/using-commands/transactions/), [redis-py Pipelines](https://redis.io/docs/latest/develop/clients/redis-py/transpipe/))
+
+읽을 때는 storage representation을 domain type으로 복원한다.
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class HotRunState:
+    status: str
+    current_step: str
+    progress: int
+    attempt_id: str
+    updated_at: str
+    version: int
+    detail: dict
+
+async def read_hot_state(
+    redis: Redis,
+    run_id: str,
+) -> HotRunState | None:
+    raw = await redis.hgetall(run_state_key(run_id))
+    if not raw:
+        return None
+
+    return HotRunState(
+        status=raw["status"],
+        current_step=raw["current_step"],
+        progress=int(raw["progress"]),
+        attempt_id=raw["attempt_id"],
+        updated_at=raw["updated_at"],
+        version=int(raw["version"]),
+        detail=json.loads(raw.get("detail_json", "{}")),
+    )
+```
+
+이 예시는 Redis client를 `decode_responses=True`로 생성했다고 가정한다. 그렇지 않으면 key와 value가 `bytes`로 반환되므로 decoding layer가 필요하다.
+
+## Redis key에는 identity와 수명을 함께 설계한다
+
+Key naming은 단순한 미관이 아니다. 누가 읽을 수 있고, 무엇과 함께 삭제되며, Cluster에서 어떤 multi-key operation이 가능한지에 영향을 준다.
+
+권장 시작점은 다음과 같다.
+
+```text
+agent:run:{run_id}:state
+agent:run:{run_id}:lease
+agent:run:{run_id}:cancel
+```
+
+여기서 `{run_id}`는 Redis Cluster hash tag다. 같은 중괄호 값을 가진 key는 같은 hash slot으로 배치할 수 있다. Multi-key transaction이나 Lua script가 필요한 관련 key를 같은 slot에 두는 데 유용하다. 하지만 모든 tenant key를 `{tenant_id}` 하나로 묶으면 큰 tenant가 한 slot에 몰릴 수 있다. 실제 access pattern을 보고 hash tag를 정해야 한다.
+
+더 중요한 보안 원칙이 있다.
+
+> Redis key에 tenant id가 들어 있다고 authorization이 되는 것은 아니다.
+
+API는 PostgreSQL의 `tenant_id`와 authenticated principal을 기준으로 run 접근 권한을 확인한 뒤 Redis를 읽어야 한다. 사용자가 전달한 `run_id`로 Redis를 바로 조회하고 결과를 반환하면 cross-tenant data leak가 생길 수 있다.
+
+## TTL은 cleanup이자 semantics다
+
+Hot state는 영원히 남을 필요가 없다. 실행 중에는 update마다 TTL을 refresh하고, terminal 상태가 PostgreSQL에 기록된 뒤에는 더 짧은 TTL로 바꿀 수 있다.
+
+```python
+RUNNING_TTL = 24 * 60 * 60
+TERMINAL_TTL = 60 * 60
+
+async def mark_hot_state_terminal(
+    redis: Redis,
+    *,
+    run_id: str,
+    status: str,
+    version: int,
+) -> None:
+    if status not in {"succeeded", "failed", "cancelled"}:
+        raise ValueError("terminal status required")
+
+    key = run_state_key(run_id)
+    async with redis.pipeline(transaction=True) as pipe:
+        pipe.hset(
+            key,
+            mapping={
+                "status": status,
+                "progress": 100 if status == "succeeded" else 0,
+                "version": version,
+                "updated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+        pipe.expire(key, TERMINAL_TTL)
+        await pipe.execute()
+```
+
+Redis의 `EXPIRE`는 key 전체에 TTL을 설정한다. `HSET`처럼 value를 제자리에서 변경하는 command는 기존 key timeout을 제거하지 않지만, `SET`처럼 key value를 교체하는 operation은 timeout을 지울 수 있다. 구현을 바꿀 때 TTL이 계속 유지된다고 가정하지 말고 command semantics를 확인해야 한다. ([EXPIRE](https://redis.io/docs/latest/commands/expire/))
+
+TTL이 만료되었다고 run이 사라진 것은 아니다. Redis miss가 발생하면 API는 PostgreSQL durable state로 fallback해야 한다. 이것이 Redis를 projection으로 두는 장점이다.
+
+```text
+GET /runs/{run_id}
+   │
+   ├─ PostgreSQL: authorization + durable status/result
+   │
+   └─ Redis: current step/progress가 있으면 응답에 보강
+```
+
+## Redis update에도 순서가 필요하다
+
+Parallel node나 retry가 있는 Agent에서는 늦게 도착한 update가 최신 progress를 덮을 수 있다.
+
+```text
+Worker A writes version 19, progress 70
+Worker B arrives late with version 18, progress 60
+
+Blind HSET result → UI가 70%에서 60%로 되돌아감
+```
+
+한 run의 coordinator만 progress를 쓰도록 ownership을 좁히는 것이 가장 단순하다. 그래도 stale update 가능성이 있다면 version compare와 write를 Redis 안에서 atomic하게 실행해야 한다. Read 후 application에서 비교하고 다시 `HSET`하면 두 command 사이에 race가 생긴다.
+
+Lua script는 compare와 update를 한 server-side operation으로 묶을 수 있다.
+
+```python
+UPDATE_IF_NEWER = """
+local current = redis.call('HGET', KEYS[1], 'version')
+local proposed = tonumber(ARGV[1])
+
+if current and proposed <= tonumber(current) then
+    return 0
+end
+
+redis.call(
+    'HSET', KEYS[1],
+    'version', ARGV[1],
+    'status', ARGV[2],
+    'current_step', ARGV[3],
+    'progress', ARGV[4],
+    'updated_at', ARGV[5]
+)
+redis.call('EXPIRE', KEYS[1], ARGV[6])
+return 1
+"""
+
+async def update_if_newer(
+    redis: Redis,
+    *,
+    run_id: str,
+    version: int,
+    status: str,
+    current_step: str,
+    progress: int,
+) -> bool:
+    result = await redis.eval(
+        UPDATE_IF_NEWER,
+        1,
+        run_state_key(run_id),
+        version,
+        status,
+        current_step,
+        progress,
+        datetime.now(UTC).isoformat(),
+        RUNNING_TTL,
+    )
+    return result == 1
+```
+
+Redis transaction의 `WATCH`/`MULTI`/`EXEC`로 optimistic locking을 구현할 수도 있다. `WATCH`한 key가 `EXEC` 전에 바뀌면 transaction이 abort되고 client가 최신 값을 읽어 다시 판단한다. Lua와 `WATCH` 중 무엇을 쓸지는 update complexity와 client retry 요구에 따라 고른다.
+
+Version이 있다고 writer 권한 문제가 사라지지는 않는다. Old attempt가 우연히 더 큰 version을 만들 수 있다면 current `attempt_id`도 비교해야 한다. Queue claim 또는 lease가 바뀌었을 때 이전 worker의 update를 거부하는 fencing token이 필요할 수 있다. 이 문제는 Article 10의 worker recovery에서 더 자세히 다룬다.
+
+## Redis Hash에 무엇을 넣지 말아야 하는가
+
+Hash가 편하다고 모든 state를 field로 계속 추가하면 또 하나의 거대한 document가 된다.
+
+다음은 피하는 편이 좋다.
+
+- 전체 prompt와 모든 LLM response
+- 수천 개의 event를 `event_1`, `event_2` field로 누적
+- 큰 document corpus와 binary file
+- 유일한 final result 복사본
+- Audit에 필요한 tool execution history
+- 재개에 필요한 유일한 checkpoint
+
+Redis Hash는 **작고 현재적인 projection**에 적합하다. Nested state가 크고 부분 query가 필요하면 Redis JSON을 검토할 수 있지만, data model의 의미가 달라지는 것은 아니다. Event history에는 append semantics가 필요하고, snapshot에는 snapshot semantics가 필요하다. Article 6에서 Hash state와 Redis Stream event를 구분한다.
+
+`HGETALL`은 field 수에 비례해 응답이 커진다. 작은 state object에는 괜찮지만 hash가 커지면 필요한 field만 `HMGET`으로 읽는 편이 낫다. Redis 공식 문서도 `HGETALL`을 hash 크기 `N`에 대한 O(N) command로 분류한다.
+
+## Redis persistence를 켜도 역할은 자동으로 바뀌지 않는다
+
+Redis는 memory-only cache로만 쓸 수 있는 제품이 아니다. RDB snapshot, AOF, RDB+AOF 같은 persistence option을 제공한다. AOF도 fsync policy에 따라 durability와 latency trade-off가 달라진다. ([Redis Persistence](https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/))
+
+그렇지만 "AOF를 켰으니 모든 business record를 Redis로 옮긴다"는 결론은 성급하다. Source of truth는 disk write 여부만으로 결정되지 않는다.
+
+- Transaction과 constraint가 어떤 domain invariant를 지키는가?
+- Backup과 point-in-time recovery가 어떻게 운영되는가?
+- Long-term query, join, audit 요구가 있는가?
+- Memory pressure와 eviction policy가 무엇인가?
+- Cross-region failover에서 허용하는 data loss window는 얼마인가?
+- Team이 어떤 storage를 가장 잘 운영할 수 있는가?
+
+Redis를 durable primary store로 설계할 수는 있다. 다만 그러려면 그것이 명시적인 architecture decision이어야 한다. 이 글의 기본 모델에서는 PostgreSQL이 durable run record를, Redis가 없어져도 복구 가능한 hot projection을 맡는다.
+
+특히 Redis에 eviction policy가 설정되어 있다면 memory pressure로 TTL 전 key가 제거될 가능성을 이해해야 한다. 중요한 state와 disposable cache를 같은 instance에 섞을 때는 memory policy와 capacity isolation을 함께 검토한다.
+
+## Checkpoint는 현재 status보다 훨씬 많은 것을 담는다
+
+Redis hot state가 다음과 같다고 해보자.
+
+```json
+{
+  "status": "running",
+  "current_step": "valuation",
+  "progress": 65
+}
+```
+
+이 정보만으로 valuation을 다시 시작할 수는 없다. 어떤 financial data를 사용했고, research node의 output이 무엇이며, 어떤 dependency가 끝났는지 알 수 없기 때문이다.
+
+Checkpoint는 execution을 재개할 수 있는 snapshot이다.
+
+```python
+from dataclasses import dataclass, field
+from typing import Any
+
+@dataclass(frozen=True)
+class AgentCheckpoint:
+    run_id: str
+    checkpoint_id: str
+    sequence: int
+    values: dict[str, Any]
+    next_nodes: list[str]
+    completed_nodes: list[str]
+    metadata: dict[str, Any] = field(default_factory=dict)
+```
+
+Checkpoint에는 보통 다음 정보가 필요하다.
+
+- Graph state values
+- 다음에 실행할 node 또는 ready set
+- 완료된 node와 그 output reference
+- Pending approval이나 interrupt 정보
+- Checkpoint sequence와 parent checkpoint
+- State schema version
+- 재현에 필요한 model/tool configuration reference
+
+반대로 open database connection, HTTP client, coroutine object처럼 serialization할 수 없고 process에 종속된 object는 넣지 않는다. 새 worker가 resource를 다시 만들고, checkpoint에는 resource를 재구성할 identity와 data만 남긴다.
+
+## Durable checkpoint를 PostgreSQL에 저장하는 예
+
+Framework-independent schema는 다음처럼 시작할 수 있다.
+
+```sql
+CREATE TABLE agent_checkpoints (
+    run_id UUID NOT NULL REFERENCES agent_runs(run_id),
+    checkpoint_id UUID NOT NULL,
+    sequence BIGINT NOT NULL,
+    parent_checkpoint_id UUID,
+
+    state_schema_version INTEGER NOT NULL,
+    values JSONB NOT NULL,
+    next_nodes TEXT[] NOT NULL,
+    completed_nodes TEXT[] NOT NULL,
+    metadata JSONB NOT NULL DEFAULT '{}',
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    PRIMARY KEY (run_id, checkpoint_id),
+    UNIQUE (run_id, sequence)
+);
+
+CREATE INDEX agent_checkpoints_latest_idx
+    ON agent_checkpoints (run_id, sequence DESC);
+```
+
+저장과 조회 코드는 append-only snapshot처럼 다룬다.
+
+```python
+import json
+
+async def save_checkpoint(conn, checkpoint: AgentCheckpoint) -> None:
+    await conn.execute(
+        """
+        INSERT INTO agent_checkpoints (
+            run_id,
+            checkpoint_id,
+            sequence,
+            parent_checkpoint_id,
+            state_schema_version,
+            values,
+            next_nodes,
+            completed_nodes,
+            metadata
+        ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9::jsonb)
+        """,
+        checkpoint.run_id,
+        checkpoint.checkpoint_id,
+        checkpoint.sequence,
+        checkpoint.metadata.get("parent_checkpoint_id"),
+        checkpoint.metadata.get("state_schema_version", 1),
+        json.dumps(checkpoint.values),
+        checkpoint.next_nodes,
+        checkpoint.completed_nodes,
+        json.dumps(checkpoint.metadata),
+    )
+
+async def load_latest_checkpoint(conn, run_id: str):
+    return await conn.fetchrow(
+        """
+        SELECT *
+        FROM agent_checkpoints
+        WHERE run_id = $1
+        ORDER BY sequence DESC
+        LIMIT 1
+        """,
+        run_id,
+    )
+```
+
+Checkpoint를 같은 row에 계속 overwrite하지 않고 sequence별로 남기면 어느 snapshot까지 durable했는지 알 수 있고, debugging이나 human-in-the-loop resume에도 도움이 된다. 대신 storage가 무한히 증가하지 않도록 retention과 compaction policy가 필요하다.
+
+모든 node 뒤에 전체 state를 저장해야 하는 것도 아니다. Checkpoint frequency에는 trade-off가 있다.
+
+| 자주 저장 | 드물게 저장 |
+| --- | --- |
+| Failure 후 재실행 범위가 작다 | Write와 storage 비용이 작다 |
+| DB write와 serialization 비용이 커진다 | 비싼 tool call을 다시 수행할 수 있다 |
+| HITL interrupt 위치가 세밀하다 | Resume point가 거칠다 |
+
+Side effect 직전·직후, 비싼 tool call 완료 후, HITL interrupt 전에 checkpoint를 두는 식으로 recovery cost를 기준으로 결정한다.
+
+## Checkpoint schema도 versioning해야 한다
+
+오늘 state가 다음 모양이라고 하자.
+
+```json
+{
+  "ticker": "NVDA",
+  "valuation": {"multiple": 31.2}
+}
+```
+
+다음 배포에서 `valuation`을 `scenarios` 배열로 바꾸면 이전 checkpoint를 새 code가 읽지 못할 수 있다. 따라서 checkpoint에는 `state_schema_version`을 두고 migration 또는 compatibility layer를 마련해야 한다.
+
+```python
+def migrate_checkpoint(values: dict, from_version: int) -> dict:
+    if from_version == 1:
+        valuation = values.pop("valuation", None)
+        if valuation is not None:
+            values["scenarios"] = [
+                {"name": "base", **valuation}
+            ]
+        from_version = 2
+
+    if from_version != 2:
+        raise ValueError(f"unsupported checkpoint version: {from_version}")
+
+    return values
+```
+
+장시간 run이 여러 deployment version을 가로지를 수 있다면 code version도 metadata에 남기고, 새 worker가 old checkpoint를 읽을 수 있는 기간을 release policy에 포함해야 한다.
+
+## Worker code에서 세 저장소를 연결해 보자
+
+이제 run 하나가 실제로 움직이는 순서를 합쳐보자.
+
+```python
+async def execute_run(
+    *,
+    run_id: str,
+    attempt_id: str,
+    postgres,
+    redis: Redis,
+) -> None:
+    async with postgres.acquire() as conn:
+        run = await conn.fetchrow(
+            "SELECT * FROM agent_runs WHERE run_id = $1",
+            run_id,
+        )
+        checkpoint = await load_latest_checkpoint(conn, run_id)
+
+    state = restore_state(run, checkpoint)
+    hot_version = 0
+
+    for step in ready_steps(state):
+        hot_version += 1
+        await update_if_newer(
+            redis,
+            run_id=run_id,
+            version=hot_version,
+            status="running",
+            current_step=step.name,
+            progress=estimate_progress(state, step),
+        )
+
+        output = await step.execute(state)
+        state = apply_output(state, step, output)
+
+        if should_checkpoint(step, state):
+            async with postgres.acquire() as conn:
+                await save_checkpoint(
+                    conn,
+                    build_checkpoint(run_id, state),
+                )
+
+    result = build_final_result(state)
+
+    async with postgres.acquire() as conn:
+        current = await conn.fetchrow(
+            "SELECT status, version FROM agent_runs WHERE run_id = $1",
+            run_id,
+        )
+        assert_transition(current["status"], "succeeded")
+        durable_version = await transition_run(
+            conn,
+            run_id=run_id,
+            expected_version=current["version"],
+            next_status="succeeded",
+            final_result=result,
+        )
+
+    # Durable terminal result가 먼저다. Redis는 그다음 최신 projection을 맞춘다.
+    await mark_hot_state_terminal(
+        redis,
+        run_id=run_id,
+        status="succeeded",
+        version=durable_version,
+    )
+```
+
+이 코드는 중요한 write ordering을 보여준다.
+
+1. 실행 중 progress는 Redis에 자주 쓴다.
+2. Resume point에서는 durable checkpoint를 저장한다.
+3. Final result와 terminal status는 PostgreSQL에 먼저 commit한다.
+4. 그 후 Redis projection을 terminal 상태로 맞춘다.
+
+마지막 Redis write가 실패해도 PostgreSQL에는 성공 결과가 남는다. API가 durable row를 우선하면 사용자에게 잘못된 `running` 상태를 영원히 보여주지 않는다. Reconciliation job이 terminal run의 Redis projection을 정리할 수도 있다.
+
+## API는 durable state와 hot state를 합쳐 읽는다
+
+Status endpoint는 Redis만 읽으면 안 된다. 먼저 tenant authorization과 durable state를 확인하고, run이 active할 때 hot projection을 보강한다.
+
+```python
+from fastapi import HTTPException
+
+async def get_run_view(
+    *,
+    run_id: str,
+    tenant_id: str,
+    conn,
+    redis: Redis,
+) -> dict:
+    run = await conn.fetchrow(
+        """
+        SELECT run_id, tenant_id, status, final_result, error,
+               created_at, updated_at
+        FROM agent_runs
+        WHERE run_id = $1 AND tenant_id = $2
+        """,
+        run_id,
+        tenant_id,
+    )
+    if run is None:
+        raise HTTPException(404, "run not found")
+
+    response = {
+        "run_id": str(run["run_id"]),
+        "status": run["status"],
+        "result": run["final_result"],
+        "error": run["error"],
+        "updated_at": run["updated_at"].isoformat(),
+    }
+
+    if run["status"] in {"queued", "running", "waiting_approval"}:
+        hot = await read_hot_state(redis, run_id)
+        if hot is not None:
+            response["progress"] = hot.progress
+            response["current_step"] = hot.current_step
+            response["heartbeat_at"] = hot.updated_at
+
+    return response
+```
+
+여기서 Redis timeout은 짧아야 한다. Hot projection이 잠시 unavailable하다고 전체 status endpoint가 30초씩 멈출 이유는 없다. Redis read가 실패하면 progress를 생략하고 durable state를 반환하는 degraded mode를 둘 수 있다.
+
+반대로 terminal status에서는 PostgreSQL 결과가 권위 있다. Redis에 아직 `running`이 남아 있어도 UI는 durable `succeeded`를 우선해야 한다.
+
+## Failure마다 무엇이 남는지 확인한다
+
+| Failure | PostgreSQL | Redis | Checkpoint | 기대 동작 |
+| --- | --- | --- | --- | --- |
+| Browser refresh | 유지 | 유지 | 유지 | API가 state를 다시 조합 |
+| API process restart | 유지 | 외부 Redis라면 유지 | 유지 | Run 조회 계속 가능 |
+| Worker process crash | `running`일 수 있음 | heartbeat가 오래됨 | 마지막 snapshot 유지 | Queue redelivery 후 resume |
+| Redis key expiry | 유지 | 사라짐 | 유지 | Durable state fallback, projection 재생성 |
+| Redis 전체 loss | 유지 | 사라짐 | durable store라면 유지 | Progress 일부 손실, run/result 보존 |
+| PostgreSQL unavailable | 읽기·terminal commit 불가 | hot state만 남을 수 있음 | 저장 불가 | 성공으로 완료 처리하지 않음 |
+| Deploy로 state schema 변경 | 유지 | projection 재생성 가능 | migration 필요 | Versioned loader 사용 |
+
+이 표에서 중요한 행은 PostgreSQL unavailable이다. Tool 실행은 끝났지만 final result를 commit하지 못했다면 worker는 message를 성공으로 acknowledge해서는 안 된다. 그렇지 않으면 계산은 끝났지만 system of record에는 결과가 없는 상태가 된다.
+
+Side-effecting tool이 포함되면 retry가 같은 action을 다시 실행할 수 있으므로 idempotency가 필요하다. 이것은 Article 15에서 별도로 다룬다.
+
+## 자주 보이는 anti-pattern
+
+### 1. 모든 state를 Python dictionary에 둔다
+
+Local demo에는 충분하지만 process restart와 multi-worker execution을 견디지 못한다. Memory에는 다시 만들 수 있는 object만 둔다.
+
+### 2. PostgreSQL JSONB 하나에 모든 것을 넣는다
+
+Schema 변경은 쉬워 보이지만 hot row contention, document growth, query 복잡도가 커진다. 자주 조회하는 identity와 status는 column으로, 반복되는 entity는 table로 분리한다.
+
+### 3. Redis가 빠르다는 이유로 final result의 유일한 복사본을 둔다
+
+TTL, eviction, persistence policy가 business retention과 충돌할 수 있다. Redis를 authoritative store로 쓸 것이라면 cache와 다른 운영 보장을 명시해야 한다.
+
+### 4. Redis `HSET`을 last-write-wins로 사용한다
+
+Retry와 parallel branch에서 stale progress가 최신 state를 덮는다. Single writer, version, attempt fencing 가운데 필요한 boundary를 둔다.
+
+### 5. TTL 없는 temporary key를 만든다
+
+완료된 run의 hot state가 영구히 쌓인다. Write와 TTL을 같은 transaction/script 안에 두고 terminal retention을 별도로 정한다.
+
+### 6. Redis state를 event history처럼 사용한다
+
+Hash를 계속 overwrite하면 현재 값은 알 수 있지만 어떻게 그 상태에 도달했는지는 사라진다. 반대로 모든 progress event를 replay해서 현재 화면을 만들면 단순 조회가 비싸진다. State와 event는 다른 data model이다.
+
+### 7. Checkpoint에 process object를 넣는다
+
+Client, file handle, coroutine은 새 worker에서 복원할 수 없다. Serializable state와 resource identity만 저장하고 runtime resource는 재생성한다.
+
+## Plain Python 개념을 LangGraph에 mapping하면
+
+이 글의 구조는 특정 framework에 종속되지 않는다. LangGraph를 사용한다면 checkpoint 개념은 checkpointer에 mapping된다. 공식 문서는 checkpointer가 thread의 graph-state snapshot을 저장하고, store는 thread 밖에서 application-defined long-term data를 저장한다고 구분한다. In-memory saver는 process restart 뒤 유지되지 않으므로 production에는 persistent checkpointer가 필요하다고도 설명한다. ([LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/persistence))
+
+```text
+이 글의 개념                    LangGraph에서의 mapping
+───────────────────────────    ─────────────────────────────
+Run의 durable business record   Application PostgreSQL tables
+Resume 가능한 graph snapshot    Checkpointer
+Cross-thread long-term memory    Store
+현재 progress projection         Application-managed Redis state
+Process-local temporary state    Runtime memory
+```
+
+`thread_id`를 넘기고 checkpointer를 연결했다고 run record, authorization, UI progress, event history가 모두 해결되는 것은 아니다. Framework graph state와 application business state는 겹치는 부분이 있지만 같은 것은 아니다. 이 차이는 Article 8에서 더 자세히 다룬다.
+
+## State를 어디에 둘지는 failure requirement로 결정한다
+
+최종 판단은 다음 질문으로 할 수 있다.
+
+1. 이 값은 process가 죽어도 남아야 하는가?
+2. 사용자가 며칠 뒤에도 조회하거나 audit해야 하는가?
+3. 초당 여러 번 갱신되고 여러 client가 빠르게 읽는가?
+4. Worker가 이 값만으로 안전하게 재개할 수 있는가?
+5. TTL이나 eviction으로 사라져도 다시 만들 수 있는가?
+6. 동시에 쓰는 주체가 둘 이상인가?
+7. Schema 변경 뒤에도 old run이 읽혀야 하는가?
+
+답에 따라 저장 위치뿐 아니라 version, TTL, transaction, retention까지 결정된다.
+
+```text
+PostgreSQL
+  durable truth: run, identity, status, result, audit
+
+Redis Hash
+  hot projection: current step, progress, heartbeat
+
+Checkpoint
+  resume snapshot: values, next nodes, completed work
+
+Process memory
+  disposable runtime objects
+```
+
+이제 "지금 상태가 무엇인가"는 저장할 수 있다. 하지만 실시간 UI와 debugging에는 다른 질문이 남는다.
+
+- Research가 끝났다는 사실을 한 번만 전달하려면?
+- 사용자가 reconnect했을 때 놓친 progress를 어떻게 다시 받는가?
+- 현재 snapshot과 과거에 일어난 일의 목록을 같은 Redis Hash로 처리해도 되는가?
+
+다음 글 **State는 Event가 아니다**에서는 current snapshot과 append-only event history를 분리하고, Redis Hash와 Redis Stream이 각각 어떤 access pattern을 푸는지 살펴본다.
