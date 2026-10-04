@@ -20,5 +20,6 @@ export const ARTICLE_KEYS = [
   "why-agent-systems-need-async",
   "why-i-am-removing-langgraph-from-agent-building",
   "why-i-started-cfa-as-a-data-scientist",
-  "why-this-archive-is-open"
+  "why-this-archive-is-open",
+  "worker-is-not-thread"
 ];
