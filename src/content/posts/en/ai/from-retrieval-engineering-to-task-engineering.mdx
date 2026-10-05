@@ -1,0 +1,269 @@
+---
+title: 'From Retrieval Engineering to Task Engineering'
+subtitle: 'What changes when RAG becomes an investment research agent?'
+description: 'AI engineering is moving from optimizing retrieval pipelines to specifying, constraining, and evaluating complete research tasks.'
+publishedDate: 2026-10-05
+section: 'AI & AX'
+subsection: 'AX'
+contentType: research
+topics: [ai-agents, rag, evaluation, enterprise-ai]
+primaryTopic: ai-agents
+tags: [rag, agent-engineering, task-engineering, investment-research, evaluation]
+author: 'Jacob Shin'
+language: en
+translationKey: from-retrieval-engineering-to-task-engineering
+localization:
+  locale: en-US
+  defaultContext: 'Institutional investment research using SEC filings, earnings transcripts, market data, and consensus estimates.'
+  strategy: localized-adaptation
+draft: true
+featured: false
+comments: true
+pillar: false
+freshness: periodic
+lastReviewed: 2026-10-05
+nextReviewDate: 2026-12-28
+dataThrough: 2026-10-05
+methodology: 'Compared the original RAG literature, information-retrieval research, official engineering guidance, and published financial-services cases, then proposed an evaluation hierarchy for investment research agents.'
+series: 'Enterprise AX'
+seriesOrder: 5
+references:
+  - title: 'Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks'
+    url: 'https://arxiv.org/abs/2005.11401'
+    publisher: 'NeurIPS'
+  - title: 'RAGAS: Automated Evaluation of Retrieval Augmented Generation'
+    url: 'https://aclanthology.org/2024.eacl-demo.16/'
+    publisher: 'EACL'
+  - title: 'Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods'
+    url: 'https://research.google/pubs/reciprocal-rank-fusion-outperforms-condorcet-and-individual-rank-learning-methods/'
+    publisher: 'SIGIR'
+  - title: 'Create a Hybrid Query in Azure AI Search'
+    url: 'https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query'
+    publisher: 'Microsoft Learn'
+  - title: 'Building Effective AI Agents'
+    url: 'https://www.anthropic.com/engineering/building-effective-agents'
+    publisher: 'Anthropic'
+  - title: 'A Practical Guide to Building Agents'
+    url: 'https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf'
+    publisher: 'OpenAI'
+  - title: 'Evaluate Agent Workflows'
+    url: 'https://developers.openai.com/api/docs/guides/agent-evals'
+    publisher: 'OpenAI'
+  - title: 'Demystifying Evals for AI Agents'
+    url: 'https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents'
+    publisher: 'Anthropic'
+  - title: 'Tools Specification'
+    url: 'https://modelcontextprotocol.io/specification/2025-06-18/server/tools'
+    publisher: 'Model Context Protocol'
+  - title: 'Backtesting & Simulation'
+    url: 'https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/backtesting-and-simulation'
+    publisher: 'CFA Institute'
+  - title: 'EDGAR Timestamps'
+    url: 'https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps'
+    publisher: 'U.S. SEC'
+  - title: 'How Balyasny Asset Management Built an AI Research Engine'
+    url: 'https://openai.com/index/balyasny-asset-management/'
+    publisher: 'OpenAI'
+  - title: 'Morgan Stanley Uses AI Evals to Shape the Future of Financial Services'
+    url: 'https://openai.com/index/morgan-stanley/'
+    publisher: 'OpenAI'
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import TaskEngineeringDiagrams from '../../../../components/TaskEngineeringDiagrams.astro';
+
+<AnswerBlock question="What changes when RAG becomes an agent?">
+  RAG engineering optimized the retrieval of relevant information. Agent engineering increasingly optimizes the <strong>reliable completion of an entire task</strong>. As models absorb more of the control loop, the engineer's work moves from prescribing every route to specifying the task, environment, tools, constraints, state, and evaluation criteria.
+</AnswerBlock>
+
+A few years ago, building an enterprise generative AI system usually meant building RAG well. Teams debated chunk size, embedding models, vector indexes, BM25, metadata filters, rerankers, and context allocation. Those problems have not disappeared. They have become the substrate on which agents make decisions.
+
+What has changed is the location of the bottleneck.
+
+<TaskEngineeringDiagrams kind="stack" language="en" caption="From embedding and retrieval to task and evaluation: the bottleneck is moving up the stack." />
+
+The central RAG question was, “Did the system retrieve the right evidence?” The central agent question is, “Did the system complete the task reliably within its environment and constraints?” The model is becoming less like a component inside the workflow and more like the runtime of the workflow.
+
+This is not an argument that agents replace RAG or that every workflow should become autonomous. Deterministic code still belongs wherever order, permission, and exactness are part of the contract. The real shift is in **the boundary between what engineers control directly and what they delegate to the model**.
+
+## We were retrieval engineers
+
+The original [RAG paper](https://arxiv.org/abs/2005.11401) combined a model's parametric memory with an external non-parametric memory accessed through retrieval. It offered a way to update knowledge and recover provenance without putting every fact inside model weights.
+
+Turning that architecture into a production system created an entire engineering discipline:
+
+- How large should chunks be, and how much should they overlap?
+- Should tables, footnotes, headings, and prose use the same segmentation strategy?
+- Should the system use dense retrieval alone or combine it with BM25?
+- Should metadata constraints apply before or after candidate retrieval?
+- Should the query be rewritten or expanded into several queries?
+- How should multiple ranked lists be fused?
+- How many candidates should reach the reranker?
+- Which documents deserve the limited context budget?
+
+Financial documents make the trade-off obvious. A ticker, CUSIP or ISIN, a GAAP line item, or a product name may require exact lexical matching. A question such as “How is the company investing to expand capacity?” depends more on semantic meaning. Lexical retrieval is strong at the first problem; dense retrieval is strong at the second.
+
+That is why hybrid search became a practical default. [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query), for example, can run keyword and vector queries in parallel and combine their rankings through Reciprocal Rank Fusion. RRF itself dates to a [2009 SIGIR paper](https://research.google/pubs/reciprocal-rank-fusion-outperforms-condorcet-and-individual-rank-learning-methods/). [RAG-Fusion](https://arxiv.org/abs/2402.03367) extends the idea by generating multiple queries and fusing their result lists.
+
+Semantic reranking then operates on the candidate set. This distinction matters: a reranker does not search the full corpus again. As Microsoft's [semantic ranker documentation](https://learn.microsoft.com/en-us/azure/search/semantic-search-overview) makes clear, it reranks results that survived the first stage. If the relevant 10-K footnote never enters that set, a better reranker cannot recover it.
+
+Production RAG was never merely a chatbot attached to a vector database. It was a multi-stage information-retrieval system.
+
+## RAG became engineering when evaluation became diagnostic
+
+Strong RAG teams did not stop at “the answer looks good.” They built evaluation sets that connected real queries to relevant documents or chunks and, where possible, reference answers. They then measured the pipeline by stage.
+
+| Layer | Question | Representative metrics |
+|---|---|---|
+| Retrieval | Did we find the required evidence? | Hit Rate@K, Recall@K, Precision@K |
+| Ranking | Did we place the important evidence near the top? | MRR, NDCG |
+| Context | Did the generator receive useful context? | Context Precision, Context Recall |
+| Generation | Is the answer supported and responsive? | Faithfulness, Relevance, Correctness |
+| End to end | Did the system solve the user's problem? | Task-specific score, expert review |
+
+[RAGAS](https://aclanthology.org/2024.eacl-demo.16/) helped formalize the idea that retrieval, context, and generation quality are different dimensions. The distinction is operationally useful. When the final answer is wrong, engineers need to know whether the failure came from retrieval, ranking, truncation, or generation.
+
+Stage-level gains must still connect to the final task. A 2026 [production-style study](https://arxiv.org/abs/2603.02153) found that RAG-Fusion improved raw recall, but the benefit was largely neutralized after reranking budgets and context truncation were applied. A better retrieval metric does not automatically produce a better answer.
+
+**RAG engineering matured when we stopped evaluating only the final answer.**
+
+## Early agents put intelligence in the harness
+
+Early agent systems could not safely leave long-horizon work to the model. Engineers implemented much of the intelligence outside it:
+
+`Planner → Retriever → Financial Analyst → Critic → Writer`
+
+Graph frameworks made the route explicit: classify, search, analyze, critique, retry, and write. The engineer chose the agents, their sequence, retry rules, critique points, and available tools. The harness compensated for model instability.
+
+This remains a valid design. Anthropic's [Building Effective AI Agents](https://www.anthropic.com/engineering/building-effective-agents) distinguishes workflows, where code defines the route, from agents, where the model dynamically directs its process and tool use. A predictable task may be better served by a workflow; an open-ended task may benefit from model-led decisions.
+
+The shift is not about discarding graphs. As I argued in [Do Agents Have to Be Graphs?](/en/ai/ax/why-i-am-removing-langgraph-from-agent-building/), it is about **fixing only the routes that truly need to be fixed**.
+
+## Finance needed a tighter harness
+
+An investment research agent is not simply a web-search agent. Its working environment may include SEC filings, earnings transcripts, market data, consensus estimates, internal research, news, SQL, Python, and valuation models. Each source carries licensing, permissions, timestamps, units, currencies, and revision histories.
+
+Even tool granularity becomes a design decision. A single `get_financial_data()` interface is simple but ambiguous. Splitting it into `get_income_statement()`, `get_consensus()`, `get_management_guidance()`, and `get_price_history()` adds clarity but may produce overlapping choices. OpenAI's [practical guide to agents](https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf) notes that similarity and overlap among tools can matter more than the raw number of tools.
+
+Tool and MCP engineering is therefore more than wrapping an API. It includes input and output schemas, permissions, timeouts, retries, idempotency, provenance, and source metadata. The [MCP tools specification](https://modelcontextprotocol.io/specification/2025-06-18/server/tools) likewise addresses schema validation, access control, rate limits, timeouts, and audit logging.
+
+The early goal of financial agent engineering could be summarized as follows:
+
+> **Make the model operate safely inside a carefully engineered harness.**
+
+## The model absorbed more of the control loop
+
+Reasoning models can now perform more decomposition, planning, tool selection, replanning, error recovery, and long-horizon execution. OpenAI describes an agent as a system in which the LLM manages workflow execution, chooses tools according to state, and can correct failed actions. Anthropic similarly describes augmented LLMs that generate search queries, select tools, and decide what information to retain.
+
+At some point, a complex workflow built to compensate for an earlier model can begin to constrain a newer one.
+
+The old instruction might say:
+
+> Read the filing first, compare competitors second, and run the critic last.
+
+A task-based instruction can say:
+
+> Using only information available as of July 31, 2026, determine whether the latest quarterly margin decline invalidates the investment thesis. Compare hypotheses involving price, mix, raw materials, and utilization; check two competitors; attach a source and as-of time to every numerical claim; and state what evidence would falsify the conclusion.
+
+The second instruction is not less specific. It is more precise about the objective, constraints, and success criteria while leaving the order of discovery to the model. The system supplies tools, data, permissions, memory and state, budgets, and evaluation criteria. The agent has more freedom over how it gathers evidence and revises intermediate hypotheses.
+
+This is Task Engineering.
+
+<TaskEngineeringDiagrams kind="runtime" language="en" caption="RAG optimizes a pipeline. An agent navigates an environment." />
+
+## From Workflow Engineering to Task Engineering
+
+| | RAG | Early agent | Task-based agent |
+|---|---|---|---|
+| Input | Query | Workflow | Task |
+| Control | Retrieval pipeline | Engineer | Model + constraints |
+| Main abstraction | Document or chunk | Agent or node | Task and environment |
+| Knowledge access | Vector index | Tools | Tools + environment |
+| Optimization target | Retrieval quality | Orchestration | Task completion |
+| Debugging unit | Query and answer | Node or tool call | Trajectory and outcome |
+| Evaluation | Hit@K, faithfulness | Step success | Task success + reliability |
+
+> **The model is becoming less like a component inside the workflow and more like the runtime of the workflow.**
+
+Autonomy is a means, not the objective. Payments, orders, permission changes, and official calculations still benefit from deterministic code and validation. By contrast, deciding which document to read next or which competing explanation to investigate cannot always be enumerated in advance.
+
+A good task-based agent is not an unconstrained agent. It is an agent whose freedom has explicit boundaries.
+
+## Agent evaluation moves from answers to outcomes
+
+Early agent discussions tend to focus on architecture: single agent or multi-agent, LangGraph or plain Python, MCP or direct functions. Mature systems converge on a more important question:
+
+> **Does it reliably complete the task?**
+
+An agent leaves more than an answer. It leaves a trajectory: `Task → Trial → Trajectory → Outcome`. An investment research run might search a filing, inspect a footnote, execute a Python calculation, compare a competitor, revise a hypothesis, read a transcript, and then form a conclusion.
+
+OpenAI's [agent evaluation guidance](https://developers.openai.com/api/docs/guides/agent-evals) recommends starting with end-to-end traces that capture model calls, tool calls, guardrails, and handoffs, then moving to repeatable datasets and evaluation runs.
+
+The evaluator should not require one canonical path. A sensible trajectory can still reach the wrong outcome, while a surprising route can be valid. The goal is to ask whether the agent gathered the required evidence, avoided prohibited actions, and reached a verifiable conclusion—not whether it replayed an engineer's preferred sequence.
+
+<TaskEngineeringDiagrams kind="research-loop" language="en" caption="Research is not retrieval. It is a loop of evidence, testing, and revision." />
+
+## An evaluation stack for investment research agents
+
+Investment research requires a more granular stack than a single accuracy score. I propose eight layers.
+
+| Level | Evaluation target | Core question |
+|---|---|---|
+| L1 | Tool correctness | Did the agent call the right tool with valid arguments and permissions? |
+| L2 | Data correctness | Are the number, unit, currency, period, and entity correct? |
+| L3 | Point-in-time correctness | Was the information actually knowable at the decision time? |
+| L4 | Evidence coverage | Did the agent examine material supporting and conflicting evidence? |
+| L5 | Hypothesis quality | Did it form competing hypotheses and test them in discriminating ways? |
+| L6 | Groundedness | Can every material claim and number be traced to its source? |
+| L7 | Task outcome | Did the result satisfy the research objective and decision format? |
+| L8 | Reliability | Does it succeed repeatedly, with the tail of severe errors controlled? |
+
+<TaskEngineeringDiagrams kind="evaluation" language="en" caption="Validate tools and data before grading reasoning and outcomes." />
+
+This is a diagnostic hierarchy, not merely a scorecard. If an investment conclusion is wrong, the team should check for a unit error at L2 or temporal leakage at L3 before trying to repair reasoning at L5.
+
+Task outcome should not be equated with subsequent P&L. A sound decision can lose money, and a weak decision can profit by chance. L7 should ask whether the agent completed the required analysis with the information available at the time and communicated its conclusion, uncertainty, and falsification conditions. Returns belong to a separate, long-horizon validation layer.
+
+## Finance needs point-in-time truth
+
+Most QA systems ask, “Was the answer correct?” Investment research must ask one more question:
+
+> **Could the agent have known it at that time?**
+
+Suppose an agent reconstructs an investment decision as of January 10, 2026. It must not use a consensus estimate revised on January 15, a filing released on January 20, or a financial series that was later restated. The answer may look accurate today and still be invalid as historical research. The look-ahead bias familiar from quantitative backtesting appears in research agents as well. The [CFA Institute](https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/backtesting-and-simulation) identifies look-ahead bias as a central backtesting risk.
+
+One `date` field is not enough. At minimum, a financial research system should distinguish:
+
+| Field | Meaning |
+|---|---|
+| `event_time` | When the economic event or reporting period occurred |
+| `published_at` | When the issuer released the information |
+| `available_at` | When the agent's data source actually exposed it |
+| `ingested_at` | When the internal system captured it |
+| `revision_at` | When a correction, restatement, or vendor revision was incorporated |
+
+Even [SEC EDGAR](https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps) distinguishes the reporting period, official filing date, acceptance date and time, and later change date. A statement with `period_end = 2025-12-31` that was filed in February 2026 did not exist for an agent making a decision in January.
+
+Point-in-time correctness is not metadata hygiene. It is a functional requirement for an honest investment agent.
+
+## Reliability matters more than the demo
+
+Agents may read different documents and use tools in different sequences when they repeat the same task. A single impressive run does not establish production readiness.
+
+Anthropic's [guide to agent evals](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents) explains the distinction through `pass@k` and `pass^k`. The first measures the probability of at least one success across k trials. The second measures the probability that all k trials succeed. At a 75% per-trial success rate, the probability of three consecutive successes is only about 42%.
+
+For ideation, one good result among several attempts may be useful. For an investment memo delivered to a client, a risk-limit check, or a regulatory review, repeated consistency matters more. Teams must track not only average accuracy but also the frequency and severity of dangerous failures.
+
+> **Finance does not need an agent that can produce a brilliant report. It needs an agent that does not occasionally produce a dangerously wrong one.**
+
+Published financial-services cases also return to evaluation. According to OpenAI's customer stories, [Morgan Stanley](https://openai.com/index/morgan-stanley/) evaluated use cases against real workflows and expert feedback before deployment, while [Balyasny](https://openai.com/index/balyasny-asset-management/) evaluates models across more than twelve dimensions using internal benchmarks and proprietary financial data. These are vendor-published cases, not independent audits, but the engineering lesson is useful: scaling the product required scaling the evaluation system.
+
+## Evaluate one level higher
+
+RAG taught us not to trust the final answer without evaluating the retrieval that produced it. Agents repeat the same lesson one level higher.
+
+The defining skill of an agent engineer will not be the ability to draw a more elaborate graph. It will be the ability to specify a valuable task, design the model's environment and tools, establish deterministic boundaries where necessary, and evaluate trajectories and outcomes repeatedly.
+
+Retrieval still matters. Tools and MCP matter. Workflows and harnesses are not disappearing. They are becoming lower layers in a system whose objective is to complete a task safely and verifiably.
+
+> **RAG taught us to evaluate retrieval instead of trusting the final answer. Agents will force us to do the same thing one level higher: evaluate the task, not the demo.**

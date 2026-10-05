@@ -1,0 +1,84 @@
+---
+interface Props {
+  kind: 'stack' | 'runtime' | 'research-loop' | 'evaluation';
+  caption: string;
+  language?: 'ko' | 'en';
+}
+
+const { kind, caption, language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+
+const stackItems = [
+  ['Embedding', ko ? '표현' : 'Representation'],
+  ['Retrieval', ko ? '검색' : 'Search'],
+  ['Tool', ko ? '인터페이스' : 'Interface'],
+  ['Workflow', ko ? '제어' : 'Control'],
+  ['Task', ko ? '목표' : 'Objective'],
+  ['Evaluation', ko ? '신뢰도' : 'Reliability'],
+];
+
+const evalItems = [
+  ['L8', 'Reliability'],
+  ['L7', 'Task outcome'],
+  ['L6', 'Groundedness'],
+  ['L5', 'Hypothesis quality'],
+  ['L4', 'Evidence coverage'],
+  ['L3', 'Point-in-time'],
+  ['L2', 'Data correctness'],
+  ['L1', 'Tool correctness'],
+];
+---
+
+<figure class="task-figure">
+  {kind === 'stack' && <div class="stack">
+    {stackItems.map(([title, detail], index) => (
+      <div class:list={['stack-item', { active: index >= 4 }]}>
+        <strong>{title}</strong><span>{detail}</span><i>{index < stackItems.length - 1 ? '→' : ''}</i>
+      </div>
+    ))}
+    <p>{ko ? '병목은 스택의 위쪽으로 이동한다.' : 'The bottleneck is moving up the stack.'}</p>
+  </div>}
+
+  {kind === 'runtime' && <div class="comparison">
+    <section>
+      <span class="eyebrow">RAG</span>
+      <div class="linear"><b>Query</b><i>→</i><b>Retrieve</b><i>→</i><b>Rank</b><i>→</i><b>Context</b><i>→</i><b>Answer</b></div>
+      <p>{ko ? '정해진 검색 파이프라인을 최적화한다.' : 'Optimize a defined retrieval pipeline.'}</p>
+    </section>
+    <section class="accent">
+      <span class="eyebrow">Agent</span>
+      <div class="goal"><b>Task</b><i>↓</i></div>
+      <div class="loop"><b>Observe</b><i>↔</i><b>Think</b><i>↔</i><b>Act</b><span>Tools</span></div>
+      <div class="goal"><i>↓</i><b>Outcome</b></div>
+      <p>{ko ? '환경을 탐색하며 실행 경로를 만든다.' : 'Navigate an environment and form a trajectory.'}</p>
+    </section>
+  </div>}
+
+  {kind === 'research-loop' && <div class="research-loop">
+    <div class="linear"><b>Thesis</b><i>→</i><b>Hypotheses</b><i>→</i><b>Evidence</b><i>→</i><b>Tests</b></div>
+    <div class="decision"><strong>Contradiction?</strong><span>Yes → {ko ? '가설 수정' : 'Revise'}</span><span>No → {ko ? '불확실성과 반증 조건을 포함해 결론' : 'Conclude with uncertainty and falsifiers'}</span></div>
+    <p class="rail">Point-in-time filter · Provenance · Competing evidence</p>
+  </div>}
+
+  {kind === 'evaluation' && <div class="evaluation-wrap">
+    <div class="evaluation">
+      {evalItems.map(([level, name], index) => (
+        <div class:list={['eval-item', `group-${Math.floor(index / 3)}`]}><b>{level}</b><span>{name}</span></div>
+      ))}
+    </div>
+    <aside><strong>{ko ? '아래에서 위로 진단한다' : 'Debug bottom-up'}</strong><span>Integrity → Research quality → Production readiness</span></aside>
+  </div>}
+
+  <figcaption>{caption}</figcaption>
+</figure>
+
+<style>
+  .task-figure{margin:2.4rem 0;padding:1.2rem;border:1px solid var(--border-color,#d8d8df);border-radius:1rem;background:color-mix(in srgb,var(--card-bg,#fff) 94%,#6572b7 6%)}
+  .task-figure figcaption{font-size:.86rem;line-height:1.5;color:var(--text-muted,#5f6571);margin-top:1rem}
+  .stack{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.45rem;align-items:stretch}.stack-item{position:relative;display:grid;place-content:center;text-align:center;gap:.25rem;min-height:5rem;padding:.55rem;background:var(--background,#fff);border:1px solid var(--border-color,#ddd);border-radius:.7rem}.stack-item.active{border-color:#6572b7;background:color-mix(in srgb,var(--background,#fff) 85%,#6572b7 15%)}.stack-item strong{font-size:.82rem;overflow-wrap:anywhere}.stack-item span{font-size:.72rem;color:var(--text-muted,#666)}.stack-item i{position:absolute;right:-.38rem;top:1.8rem;z-index:2;color:#6572b7;font-style:normal}.stack>p{grid-column:1/-1;margin:.4rem 0 0;font-size:.86rem;font-weight:700;color:#4e5b99;text-align:right}
+  .comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}.comparison section{padding:1rem;background:var(--background,#fff);border:1px solid var(--border-color,#ddd);border-radius:.75rem}.comparison section.accent{border-color:#6572b7;background:color-mix(in srgb,var(--background,#fff) 87%,#6572b7 13%)}.eyebrow{font-size:.74rem;font-weight:800;letter-spacing:.08em;color:#5966a6}.linear,.loop,.goal{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:.3rem;margin:.8rem 0}.linear b,.loop b,.goal b{font-size:.76rem;padding:.2rem .38rem;border-radius:.35rem;background:color-mix(in srgb,var(--background,#fff) 74%,#9da8d8 26%);overflow-wrap:anywhere}.linear i,.loop i,.goal i{font-style:normal;color:#6572b7}.loop span{font-size:.72rem;font-weight:700;color:#5966a6;border:1px dashed #6572b7;border-radius:.35rem;padding:.18rem .35rem}.comparison p{font-size:.82rem;line-height:1.5;margin:.65rem 0 0;text-align:center}
+  .research-loop{display:grid;gap:.8rem}.decision{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;padding:.8rem;border:1px solid #6572b7;border-radius:.75rem;background:var(--background,#fff)}.decision strong{grid-column:1/-1;text-align:center;color:#4e5b99}.decision span{font-size:.8rem;line-height:1.45;padding:.55rem;border-radius:.55rem;background:color-mix(in srgb,var(--background,#fff) 82%,#9da8d8 18%)}.rail{margin:0;padding:.5rem;text-align:center;font-size:.78rem;font-weight:700;color:#5966a6;border:1px dashed #6572b7;border-radius:.55rem}
+  .evaluation-wrap{display:grid;grid-template-columns:minmax(0,2fr) minmax(11rem,1fr);gap:.8rem;align-items:center}.evaluation{display:grid;gap:.35rem}.eval-item{display:grid;grid-template-columns:2.4rem 1fr;gap:.45rem;align-items:center;padding:.5rem .65rem;border:1px solid var(--border-color,#ddd);border-radius:.5rem;background:var(--background,#fff)}.eval-item b{color:#4e5b99}.eval-item span{font-size:.82rem}.eval-item.group-0{border-color:#6572b7}.eval-item.group-1{margin-inline:.5rem}.eval-item.group-2{margin-inline:1rem}.evaluation-wrap aside{display:grid;gap:.45rem;padding:.85rem;border-left:3px solid #6572b7}.evaluation-wrap aside strong{font-size:.88rem}.evaluation-wrap aside span{font-size:.76rem;line-height:1.45;color:var(--text-muted,#666)}
+  @media(max-width:760px){.stack{grid-template-columns:repeat(2,minmax(0,1fr))}.stack-item i{display:none}.comparison{grid-template-columns:1fr}.evaluation-wrap{grid-template-columns:1fr}.evaluation-wrap aside{border-left:0;border-top:3px solid #6572b7}.eval-item.group-1,.eval-item.group-2{margin-inline:0}}
+  @media(max-width:460px){.task-figure{padding:.85rem}.stack{grid-template-columns:1fr}.decision{grid-template-columns:1fr}.decision strong{grid-column:auto}.linear{gap:.22rem}.linear b{font-size:.72rem}}
+</style>
