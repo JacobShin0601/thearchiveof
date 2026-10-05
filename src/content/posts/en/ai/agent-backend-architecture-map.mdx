@@ -179,7 +179,7 @@ Brokers usually offer **at-least-once delivery**, not exactly-once execution.
 - After lease expiry, another worker may claim the same job
 - Retries can publish twice
 
-Agent steps may call LLMs, external APIs, or create tickets—**side effects**. Workers must decide “is this the first processing of this message?” via `attempt_id`, lease, or idempotency keys. Do not expect the queue to dedupe; design **idempotent steps and explicit duplicate detection**.
+Agent steps may call LLMs, external APIs, or create tickets—**side effects**. Workers must decide “is this the first processing of this message?” via `attempt_id`, lease, or idempotency keys. Do not expect the queue to dedupe; design **idempotent steps and explicit duplicate detection**. At-least-once delivery and idempotent side effects are developed in [Can an Agent Tool Execute Exactly Once?](/en/ai/agents/agent-tool-idempotency-approval-retry/).
 
 | Guarantee | Meaning | Typical agent response |
 | --- | --- | --- |

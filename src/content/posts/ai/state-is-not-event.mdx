@@ -714,6 +714,6 @@ Browser                  API/SSE server                 Redis
 - Event payload에서 자격 증명과 민감정보를 제거하는가?
 - UI viewer에 consumer group을 잘못 사용하지 않는가?
 
-이제 state와 event를 어디에 저장하고 어떤 cursor로 연결할지는 정했다. 다음 문제는 이 event를 HTTP 연결 위에서 오래, 안전하게, 취소 가능하게 흘려보내는 것이다.
+이제 state와 event를 어디에 저장하고 어떤 cursor로 연결할지는 정했다. 그다음은 송금처럼 **부수 효과가 있는 Tool**이 Queue 재전달과 timeout 아래에서도 한 번의 사용자 의도로 수렴하게 만드는 일이다.
 
-다음 글 **Agent가 일하면서 말하게 하기: SSE, Generator, Redis Streams**에서는 iterator와 generator의 차이, async generator, SSE endpoint, heartbeat, 연결 해제, proxy buffering, backpressure를 실제 Python 서버 코드로 구현한다.
+다음 글 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)에서는 승인, action fingerprint, idempotency key와 `outcome_unknown` 처리를 다룬다. 그다음 [Agent가 일하면서 말하게 하기](/ai/agents/agent-sse-streaming/)에서 승인·실행·reconciliation 상태를 SSE로 전달한다.
