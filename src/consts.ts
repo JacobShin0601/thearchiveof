@@ -1,5 +1,6 @@
 import type { CollectionEntry } from 'astro:content';
 import topicRegistry from './data/topics.json';
+import { seriesSlug } from './lib/series-catalog';
 
 export const SITE_TITLE = 'The Archive of';
 export const SITE_DESCRIPTION =
@@ -9,7 +10,7 @@ export { DEFAULT_SOCIAL_IMAGE, resolveSocialImage } from './lib/social-image';
 
 export const CONTENT_TYPES = ['foundation', 'research', 'current', 'implementation', 'perspective'] as const;
 
-export { SERIES } from './data/series';
+export { AI_VALUE_CHAIN_SERIES, SERIES } from './data/series';
 
 export const TOPICS = topicRegistry;
 export const TOPIC_CLUSTERS = [...new Set(TOPICS.map((topic) => topic.cluster))].map((name) => ({
@@ -119,13 +120,20 @@ export function topicPath(topic: string, language: 'ko' | 'en' = 'ko') {
 
 export function seriesPath(series: string, language: 'ko' | 'en' = 'ko') {
   const prefix = language === 'en' ? '/en' : '';
-  return `${prefix}/series/${slugify(series)}/`;
+  return `${prefix}/series/${seriesSlug(series)}/`;
 }
 
 export {
   catalogTopLevelSeriesNames,
   isCatalogTopLevelSeries,
+  resolveSeriesNameFromSlug,
   seriesDefinition,
+  seriesDescription,
+  seriesDisplayTitle,
+  seriesEyebrowSuffix,
+  seriesHomeBlurb,
+  seriesMode,
+  seriesSlug,
   sortSeriesNames,
 } from './lib/series-catalog';
 

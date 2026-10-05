@@ -1,0 +1,144 @@
+---
+export interface Props {
+  language?: 'ko' | 'en';
+}
+
+const { language = 'ko' } = Astro.props;
+
+const copy = {
+  ko: {
+    caption: 'AI 가치사슬 지도 (분석 범위)',
+    note: '자본과 비용은 아래·위로 이동하고, 가치 포착은 반드시 기술 스택의 순서대로 발생하지 않는다.',
+    layers: [
+      { title: '컴퓨트와 인프라', hint: '누가 자본을 투입하는가?' },
+      { title: '모델과 추론', hint: '무엇이 commodity가 되는가?' },
+      { title: '플랫폼·데이터·유통', hint: '누가 가격 결정력을 갖는가?' },
+      { title: '애플리케이션과 Vertical AI', hint: '데이터와 workflow는 누구에게 남는가?' },
+      { title: '비즈니스 모델과 밸류에이션', hint: '규모가 커질수록 경제성이 좋아지는가?' },
+    ],
+  },
+  en: {
+    caption: 'AI value chain map (analytical scope)',
+    note: 'Capital and cost move up and down the stack; value capture does not follow stack order.',
+    layers: [
+      { title: 'Compute & Infrastructure', hint: 'Who commits capital?' },
+      { title: 'Models & Inference', hint: 'What becomes a commodity?' },
+      { title: 'Platforms, Data & Distribution', hint: 'Who has pricing power?' },
+      { title: 'Applications & Vertical AI', hint: 'Who keeps data and workflow?' },
+      { title: 'Business Models & Valuation', hint: 'Do economics improve with scale?' },
+    ],
+  },
+} as const;
+
+const diagram = copy[language];
+const figureId = `ai-value-chain-map-${language}`;
+---
+
+<figure class="ai-value-chain-map" aria-labelledby={figureId}>
+  <figcaption id={figureId}>{diagram.caption}</figcaption>
+  <p class="ai-value-chain-note">{diagram.note}</p>
+  <ol class="ai-value-chain-stack">
+    {diagram.layers.map((layer, index) => (
+      <li class="ai-value-chain-layer">
+        <span class="layer-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+        <div class="layer-body">
+          <p class="layer-title">{layer.title}</p>
+          <p class="layer-hint"><span class="hint-label">{language === 'ko' ? '질문' : 'Question'}:</span> {layer.hint}</p>
+        </div>
+        {index < diagram.layers.length - 1 && (
+          <span class="layer-arrow" aria-hidden="true">↓</span>
+        )}
+      </li>
+    ))}
+  </ol>
+</figure>
+
+<style>
+  .ai-value-chain-map {
+    margin: 1.5rem 0 2rem;
+    padding: 1.25rem;
+    border: 1px solid var(--line);
+    background: var(--paper-deep);
+    font-family: var(--sans);
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+  .ai-value-chain-map figcaption {
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+  }
+  .ai-value-chain-note {
+    margin: 0 0 1rem;
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+  .ai-value-chain-stack {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .ai-value-chain-layer {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.65rem 0.75rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .layer-index {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 0.82rem;
+    padding-top: 0.1rem;
+  }
+  .layer-body {
+    grid-column: 2;
+  }
+  .layer-title {
+    margin: 0;
+    font-weight: 600;
+  }
+  .layer-hint {
+    margin: 0.35rem 0 0;
+    font-size: 0.84rem;
+    color: var(--muted);
+  }
+  .hint-label {
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .layer-arrow {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--muted);
+    font-weight: 700;
+    line-height: 1;
+    margin-top: -0.15rem;
+  }
+  @media (min-width: 720px) {
+    .ai-value-chain-stack {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0.65rem;
+      align-items: stretch;
+    }
+    .ai-value-chain-layer {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+      text-align: left;
+    }
+    .layer-index {
+      grid-column: 1;
+    }
+    .layer-body {
+      grid-column: 1;
+    }
+    .layer-arrow {
+      display: none;
+    }
+  }
+</style>
