@@ -33,9 +33,9 @@ references:
   - title: 'Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods'
     url: 'https://research.google/pubs/reciprocal-rank-fusion-outperforms-condorcet-and-individual-rank-learning-methods/'
     publisher: 'SIGIR'
-  - title: 'Create a Hybrid Query in Azure AI Search'
-    url: 'https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query'
-    publisher: 'Microsoft Learn'
+  - title: 'Reciprocal rank fusion'
+    url: 'https://docs.opensearch.org/latest/vector-search/ai-search/hybrid-search/rrf/'
+    publisher: 'OpenSearch Documentation'
   - title: 'EDGAR Timestamps'
     url: 'https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps'
     publisher: 'U.S. SEC'
@@ -77,7 +77,7 @@ import TaskEngineeringDiagrams from '../../../components/TaskEngineeringDiagrams
 
 RAG의 출발점은 모델의 parameter에만 의존하지 않고 외부의 non-parametric memory를 검색해 생성 과정에 공급하는 것이었다. 2020년 [RAG 논문](https://arxiv.org/abs/2005.11401)은 지식 업데이트와 provenance를 다룰 수 있는 구조를 보여주었다. 이를 실제 서비스로 옮기면서 chunking, embedding, lexical·semantic search, metadata filter, query rewriting, rank fusion, reranking과 context allocation이 하나의 엔지니어링 분야가 됐다.
 
-기업 문서는 이 복잡성을 잘 보여준다. 사번, 티켓 번호, SKU, 계약 조항처럼 정확한 문자열이 중요한 질의에는 lexical search가 강하다. “이 고객이 환불 예외 조건에 해당하는가?”처럼 여러 문장의 의미와 맥락을 연결해야 하는 질의에는 dense retrieval이 유리하다. 실무에서는 두 검색을 병렬로 실행하고 RRF로 결과를 합치는 hybrid search를 자주 사용한다. [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query)도 keyword와 vector query를 함께 실행해 RRF로 통합한다.
+기업 문서는 이 복잡성을 잘 보여준다. 사번, 티켓 번호, SKU, 계약 조항처럼 정확한 문자열이 중요한 질의에는 lexical search가 강하다. “이 고객이 환불 예외 조건에 해당하는가?”처럼 여러 문장의 의미와 맥락을 연결해야 하는 질의에는 dense retrieval이 유리하다. 실무에서는 두 검색을 병렬로 실행하고 RRF로 결과를 합치는 hybrid search를 자주 사용한다. [OpenSearch](https://docs.opensearch.org/latest/vector-search/ai-search/hybrid-search/)처럼 벡터 검색을 지원하는 검색 엔진은 lexical clause와 semantic clause를 `hybrid` query로 묶고 search pipeline에서 RRF로 순위를 합친다.
 
 그 뒤의 reranker는 전체 corpus를 다시 찾지 않는다. 1차 검색이 올린 후보만 재정렬한다. 최초 검색에서 빠진 10-K의 핵심 주석은 좋은 reranker도 되살릴 수 없다. Production RAG가 “vector DB를 붙인 chatbot”이 아니라 여러 단계의 정보검색 시스템인 이유다.
 
@@ -255,5 +255,3 @@ Task가 사용하는 정보에는 대부분 시간과 적용 범위가 있다. �
 Retrieval Engineering은 Agent가 아는 것을 늘리는 계층이다. Task Engineering은 그 지식을 사용해 목표와 제약을 관리하고, 도구와 상태를 조정하며, 검증 가능한 결과를 만들거나 명시적으로 보류하는 시스템 설계다.
 
 따라서 이동의 방향은 “검색을 버리고 task로 간다”가 아니다. 검색 품질을 계속 측정하면서 그 위에 실행 계약, 상태, 정책, verification과 handoff를 추가하는 것이다. 복잡한 graph 자체가 목표도 아니다. 중요한 것은 어떤 판단을 모델에 맡기고 어떤 경계를 시스템이 소유할지 명확히 하는 일이다.
-
-다음으로는 [Agent Pattern Design](/ai/agents/agent-pattern-design/)에서 task를 구성하는 제어 패턴을, [Agent Backend Architecture Map](/ai/agents/agent-backend-architecture-map/)에서 API·Queue·Worker·State·SSE가 이 실행을 어떻게 지탱하는지 이어서 볼 수 있다.
