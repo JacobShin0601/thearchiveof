@@ -10,7 +10,7 @@ import Analytics from '../components/Analytics.astro';
 interface Props {
   title?: string;
   description?: string;
-  canonical?: URL;
+  canonical?: URL | null;
   type?: 'website' | 'article';
   publishedDate?: Date;
   updatedDate?: Date;
@@ -21,6 +21,7 @@ interface Props {
   language?: 'ko' | 'en';
   breadcrumbs?: Array<{ name: string; url: string }>;
   alternateLanguageUrl?: string;
+  languageSwitchUrl?: string;
   indexable?: boolean;
   socialImage?: string;
 }
@@ -39,6 +40,7 @@ const {
   language = 'ko',
   breadcrumbs,
   alternateLanguageUrl,
+  languageSwitchUrl,
   indexable,
   socialImage,
 } = Astro.props;
@@ -67,7 +69,7 @@ const {
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
-    <SiteHeader language={language} alternateLanguageUrl={alternateLanguageUrl} />
+    <SiteHeader language={language} alternateLanguageUrl={languageSwitchUrl ?? alternateLanguageUrl} />
     <main id="main-content">
       <slot />
     </main>

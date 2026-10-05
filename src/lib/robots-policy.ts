@@ -1,3 +1,5 @@
+import { SITE_URL } from '../site-origin.ts';
+
 export const productionRobotsPolicy = `# The Archive — Production crawler policy
 
 # OpenAI / ChatGPT Search
@@ -59,7 +61,7 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://thearchiveof.com/sitemap-index.xml
+Sitemap: ${SITE_URL}/sitemap-index.xml
 `;
 
 export const previewRobotsPolicy = `# Drafts live here. Crawlers may fetch only to honor noindex.
