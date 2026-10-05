@@ -1,7 +1,7 @@
 ---
 title: "Agent Backend Architecture at a Glance: How APIs, Queues, Workers, State, and SSE Fit Together"
-subtitle: "The execution plane after pattern design — command, observation, state, and deployment in one map"
-description: "How API, queue, worker, PostgreSQL, Redis, and SSE connect in an agent backend—202 acceptance, outbox, fencing, and stream idempotency in one map."
+subtitle: "Execution architecture boundaries — mental model, failure modes, optional deep dives"
+description: "How API, queue, worker, PostgreSQL, Redis, and SSE divide responsibility in an agent backend. Implementation detail lives in follow-up articles."
 publishedDate: 2026-09-18
 section: "AI & AX"
 subsection: "Agents"
@@ -43,9 +43,6 @@ references:
   - title: "PostgreSQL JSON Types"
     url: "https://www.postgresql.org/docs/current/datatype-json.html"
     publisher: "PostgreSQL Documentation"
-  - title: "pgvector"
-    url: "https://github.com/pgvector/pgvector"
-    publisher: "pgvector"
   - title: "Redis Streams"
     url: "https://redis.io/docs/latest/develop/data-types/streams/"
     publisher: "Redis Documentation"
@@ -57,45 +54,64 @@ references:
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
 import AgentBackendArchitectureMap from '../../../../components/AgentBackendArchitectureMap.astro';
 
-<AnswerBlock question="How should an agent backend connect API, queue, worker, state, and SSE?">
-  A long-running agent run should not stay bound to one HTTP request. <strong>The API validates and accepts work, then returns 202 with a run_id; the queue keeps execution intent outside any single process; the worker owns the current attempt’s lifecycle; PostgreSQL holds durable runs, results, and checkpoints; Redis holds hot snapshots and event streams; SSE carries only the observation path to the browser.</strong> Split command (solid) from observation (dashed) so disconnect, retry, duplicate execution, and stale progress become separate problems.
+<AnswerBlock question="How should you think about a production agent backend?">
+  <strong>The API does not run the agent; it accepts work for an agent run.</strong> The queue keeps execution intent outside any single process; the worker owns the run; PostgreSQL holds durable state; Redis holds runtime coordination and short-lived events; SSE delivers progress to the user.
 </AnswerBlock>
 
-The previous article, [Agent Pattern Design](/en/ai/agents/agent-pattern-design/), treated an agent as a composition of bounded control flows: tool use, parallelism, planning, HITL, retry, and reflection. Patterns answer **what happens inside a run**.
+The previous article, [Agent Pattern Design](/en/ai/agents/agent-pattern-design/), covered **control-flow patterns** inside a run: tool use, parallelism, planning, HITL, retry, and reflection.
 
-Production immediately adds different questions:
+This article has a different job. It is not **how to implement** a production agent backend, but **how to split responsibilities and boundaries** so later implementation articles have a shared map.
 
-- Should a 30-second or three-minute run stay inside an HTTP handler?
+## 1. When agent runs get long, the problem changes
+
+At first, running an agent inside a FastAPI handler is fine.
+
+When a run takes three minutes instead of thirty seconds, the story changes. The user may close the browser, a Pod may restart, or the same request may arrive twice. The backend stops being a simple LLM app and becomes a small **distributed system**.
+
+Production questions follow quickly:
+
+- Should an HTTP handler hold the run until it finishes?
 - When the user closes a tab, should execution stop?
-- Where do progress and checkpoints live, and what do we stream to the browser?
+- Where do progress and checkpoints live, and what do we show in the browser?
 - If an API Pod restarts, how do we rediscover in-flight runs?
 
-This article is the **one-page map** for those questions. Later articles go deep in Python; here we align components and ownership first.
+The mental model below is the starting point.
 
-## 1. After patterns, you need a backend map
-
-Demos often start a run with one line:
-
-```python
-asyncio.create_task(run_agent(request))
-return {"status": "started"}
+```text
+API        = accept work
+Queue      = preserve execution intent
+Worker     = execute the run
+PostgreSQL = durable state / source of truth
+Redis      = runtime state / coordination / short-lived events
+SSE        = deliver progress to the user
 ```
 
-From a pattern perspective, a tool loop is running. From a backend perspective, **who issued the run_id, where do clients poll after failure, and does work survive deploy** are still undefined.
+The main questions this article answers:
 
-After patterns, Agent Engineering aligns on one **whole backend diagram** first. This article is that map; the following articles are tools and code per layer.
+```text
+Why do we need a queue?
+Why does duplicate execution happen?
+Why is the gap between DB and queue dangerous?
+Why must SSE reconnect be designed for?
+```
 
-| Layer | This article | Deeper dives |
+| Layer | This article | Follow-ups |
 | --- | --- | --- |
 | Concurrency | async/thread/process vs worker role | [Why Agent Systems Need Async](/en/ai/agents/why-agent-systems-need-async/), [Async, Threads, and Processes](/en/ai/agents/async-thread-process-agent-backends/) |
 | Accept & execute | 202, queue, worker ownership | [Worker Is Not a Thread](/en/ai/agents/worker-is-not-thread/) |
 | State | PostgreSQL vs Redis | [Where Agent State Lives](/en/ai/agents/where-agent-state-lives/), [State Is Not an Event](/en/ai/agents/state-is-not-event/) |
-| Delivery | SSE and replay | [Agent SSE Streaming](/en/ai/agents/agent-sse-streaming/) |
-| Framework | LangGraph as runtime, not architecture | [LangGraph Runtime ≠ Architecture](/en/ai/agents/langgraph-runtime-not-architecture/) |
+| Delivery | SSE and observation | [Agent SSE Streaming](/en/ai/agents/agent-sse-streaming/) |
+| Side effects | Surviving duplicates | [Can an Agent Tool Execute Exactly Once?](/en/ai/agents/agent-tool-idempotency-approval-retry/) |
 
-## 2. One map: command flow and observation flow
+## 2. The architecture map
 
-In the figure below, **solid** arrows are how the user **commands** execution. **Dashed** arrows are how the browser **observes** progress. The design starts by refusing to merge both into one long HTTP call.
+**Solid** arrows are how the user **commands** execution. **Dashed** arrows are how the browser **observes** progress.
+
+```text
+Browser → API → Queue → Worker
+              ↓
+         PostgreSQL · Redis → SSE → Browser
+```
 
 <AgentBackendArchitectureMap kind="overview" language="en" />
 
@@ -104,42 +120,30 @@ Command:     Browser ──POST──> API ──publish──> Queue ──clai
 Observation: Browser <──SSE── API <──read──── Redis / PostgreSQL <──write── Worker
 ```
 
-The worker runs LLM calls, tools, and checkpoints. The API mostly creates runs, publishes to the queue, serves reads, and relays SSE. That split lets API and worker replica counts track **different resource profiles**.
+The worker runs LLM calls, tools, and checkpoints. The API mostly accepts runs, publishes to the queue, serves reads, and relays SSE. That split lets API and worker replica counts track **different resources**.
 
-### Four boundaries to read in the diagram
+### Command path vs observation path
 
-The map has many boxes, but only four handoff contracts matter:
-
-| Boundary | What crosses it | What does not | Failure response |
-| --- | --- | --- | --- |
-| Browser → API | User intent, idempotency key | Execution lifetime | Detect duplicate submissions |
-| API → Queue | `run_id`, minimal execution payload | User HTTP connection | Outbox relay retries publish |
-| Queue → Worker | Claim, lease, `attempt_id` | Exactly-once guarantee | Another worker reclaims after lease expiry |
-| Worker → Stores | Versioned snapshot, events, result | Process memory | Resume and reconcile from durable state |
-
-**PostgreSQL and Redis are not interchangeable “state stores.”** PostgreSQL is the record that must explain a run after restart. Redis is a bounded projection layer for active coordination and delivery. SSE is not a store at all; it transports snapshots and events that already exist elsewhere.
-
-The edge from a worker to an external LLM or tool is also different from an internal state transition. It needs timeouts and retries, plus an explicit idempotency contract for side effects such as creating a ticket or charging an account.
-
-## 3. Pod, process, worker, thread — not the same axis
-
-When Kubernetes, Python, and agent vocabulary land in one sentence, designs wobble.
-
-| Term | What it denotes | Agent backend example |
+| Path | Flow | Remember |
 | --- | --- | --- |
-| **Pod** | Schedulable, restartable unit ([Pod Lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/)) | One Pod in the API Deployment, one in the worker Deployment |
-| **Process** | OS-isolated running program | Uvicorn worker process inside a Pod |
-| **Worker (role)** | Service that claims queue jobs and owns a run attempt | `agent-worker` Deployment |
-| **Thread / async task** | In-process concurrency **tool** | Thread pool for a blocking SDK |
+| **Command** | Browser → API → Queue → Worker | The HTTP handler does not own run lifetime |
+| **Observation** | Worker → state/event store → SSE → Browser | A disconnect does not have to stop the run |
 
-When a Pod restarts, its processes and asyncio tasks go with it. The **worker role** is designed so queue messages and PostgreSQL runs let another Pod resume. A “thread pool worker” is parallel hardware inside one process—not the same thing as a queue consumer.
+## 3. The API accepts; it does not execute
 
-## 4. The API does not own execution — `202 Accepted`
+Demos often start with:
 
-Starting a long run usually follows this contract:
+```python
+asyncio.create_task(run_agent(request))
+return {"status": "started"}
+```
+
+From a pattern view, a loop is running. From a backend view, **run_id, failure lookup, and survival across deploy** are still undefined.
+
+Starting a long run usually follows:
 
 1. Validate and authorize
-2. Insert a run row in PostgreSQL (`submitting` or `queued`)
+2. Insert a run row in PostgreSQL
 3. Publish an execution message to the queue
 4. Return **`202 Accepted`** and `run_id`
 
@@ -154,159 +158,208 @@ async def create_run(request: RunRequest, user: User = Depends(current_user)):
     return {"run_id": run_id, "status": "queued"}
 ```
 
+> This snippet is a **minimal illustration of responsibility split**. In production you must handle the dual-write gap between DB writes and queue publish.
+
 `202` means the request was accepted and processing continues asynchronously—not that the browser connection guarantees survival. Queues, workers, and durable state provide that.
 
-FastAPI [Background Tasks](https://fastapi.tiangolo.com/tutorial/background-tasks/) suit short post-response work; the same docs steer heavy work toward queues. Agent runs usually belong in the second bucket.
+FastAPI [Background Tasks](https://fastapi.tiangolo.com/tutorial/background-tasks/) suit short post-response work; agent runs usually belong in a queue.
 
-## 5. HTTP disconnect vs the worker
+## 4. The queue separates execution lifecycle
 
-Closing a tab or dropping SSE removes the **observation path** only. A run already accepted on the command path typically keeps going.
+The queue’s job is not to **run work faster**, but to **separate the API request lifecycle from the agent execution lifecycle**.
 
-```text
-POST /runs              → 202 + run_id   (handler returns)
-GET /runs/{id}/events   → SSE            (disconnect stops chunks; worker continues)
-```
+- The API submits a job.
+- The worker consumes it.
+- If the worker dies, the job may be **redelivered**.
+- **Duplicate execution** is therefore a normal failure mode.
 
-An SSE handler may watch `request.is_disconnected()` and signal cancellation—that is product policy. The default assumption is **run lifetime ≠ HTTP connection lifetime**. Progress and checkpoints live in Redis and PostgreSQL; the browser catches up with `Last-Event-ID`.
+Steps with side effects must ask “is this the first processing of this message?” via run rows, attempts, or idempotency keys. [Can an Agent Tool Execute Exactly Once?](/en/ai/agents/agent-tool-idempotency-approval-retry/) continues that thread.
 
-The asyncio task inside a worker does not share lifecycle with the API handler that once streamed events. Cancelling the stream does not stop the queue consumer in another Pod.
+<details class="tmi">
+<summary>TMI — Why can a queue lead to duplicate execution?</summary>
 
-## 6. The queue is not exactly-once
-
-Brokers usually offer **at-least-once delivery**, not exactly-once execution.
+Brokers usually offer **at-least-once delivery**:
 
 - If a consumer dies before ack, the message reappears
-- After lease expiry, another worker may claim the same job
-- Retries can publish twice
+- After lease or visibility timeout, another worker may claim the same job
+- Retries may publish twice
 
-Agent steps may call LLMs, external APIs, or create tickets—**side effects**. Workers must decide “is this the first processing of this message?” via `attempt_id`, lease, or idempotency keys. Do not expect the queue to dedupe; design **idempotent steps and explicit duplicate detection**. At-least-once delivery and idempotent side effects are developed in [Can an Agent Tool Execute Exactly Once?](/en/ai/agents/agent-tool-idempotency-approval-retry/).
+Do not expect the queue to dedupe; design **idempotent steps and explicit duplicate detection**. Ack timing, idempotency keys, and lease expiration are wired in implementation articles.
+</details>
 
-| Guarantee | Meaning | Typical agent response |
-| --- | --- | --- |
-| At-most-once | Loss possible, no duplicates | Rare for important runs |
-| At-least-once | Duplicates possible, low loss | Default with queue + worker |
-| Effectively-once | Looks once to users | Idempotent effects + dedup |
+## 5. The worker owns the agent run
 
-## 7. Transactional outbox — tie acceptance to publish
+The **worker role** claims queue jobs and owns the **current attempt** lifecycle: LLM calls, tool loop, checkpoints, and terminal status commits.
 
-Separate `run_store.create` and `job_queue.publish` calls leave gaps: a row without a message, or a message without a row, if the process dies between them.
+Calls to external LLMs or business databases are not the same as internal state transitions—they need timeouts, retries, and **idempotent side effects**.
 
-Production often uses a **transactional outbox**:
+Closing a tab or dropping SSE removes the **observation path** only. An accepted run typically keeps going. Cancellation is product policy; the default is **run lifetime ≠ HTTP connection lifetime**.
+
+## 6. Where does state live?
+
+Do not put every kind of state in one store.
+
+| Component | Main responsibility |
+| --- | --- |
+| **PostgreSQL** | Durable run state, checkpoints, results, audit |
+| **Redis** | Runtime state, coordination, short-lived event history |
+| **Queue** | Execution intent / delivery |
+| **Object storage** | Large outputs and artifacts (when needed) |
+
+PostgreSQL holds **recoverable truth**. Redis holds **fast-changing** progress and coordination.
+
+Retrieval storage (embeddings, RAG indexes) is a **separate concern**; this article covers execution architecture only.
+
+<details class="tmi">
+<summary>TMI — What if the DB commit succeeds but queue publish fails?</summary>
+
+Separate `run_store.create` and `job_queue.publish` calls leave gaps:
+
+- A run row without a queue message if the process dies after commit
+- A message without a row if the transaction fails after publish
+
+Using DB and queue separately introduces a **consistency problem**. Production systems often use a **transactional outbox**:
 
 ```text
 BEGIN;
   INSERT INTO agent_runs (...);
   INSERT INTO outbox (topic, payload) VALUES ('run.execute', ...);
 COMMIT;
-──> relay process reads outbox and publishes to the queue
+──> publisher worker reads outbox, publishes to queue, sets processed_at
 ```
 
-Committing run and outbox together means a dead API process still leaves recoverable intent for a relay. Alternatives make the queue authoritative and lean harder on consumer idempotency. Either way, before `202` the system must leave **execution intent you can rediscover later**.
+Before returning `202`, the system must leave **execution intent you can rediscover later**.
+</details>
 
-## 8. PostgreSQL and Redis — what goes where
+<details class="tmi">
+<summary>TMI — How do you update Redis progress and event streams atomically?</summary>
 
-Do not put every kind of state in one store.
+At map level, Redis is for runtime coordination. In implementation, teams often combine a Hash (current snapshot), a bounded Stream (recent events), and **Lua scripts** for atomic updates. TTL, stream limits, and consumer offsets connect in [Agent SSE Streaming](/en/ai/agents/agent-sse-streaming/) and [State Is Not an Event](/en/ai/agents/state-is-not-event/).
+</details>
 
-| Store | Good fit | Why |
-| --- | --- | --- |
-| **PostgreSQL** | Run metadata, final status, JSON/JSONB input and results, checkpoint snapshots, audit | ACID, reporting, retention ([JSON types](https://www.postgresql.org/docs/current/datatype-json.html)) |
-| **PostgreSQL + pgvector** | Embeddings, RAG context | Tool retrieval colocated with lifecycle data ([pgvector](https://github.com/pgvector/pgvector)) |
-| **Redis Hash** | Current progress, heartbeat, `last_event_id` | Frequent updates, TTL, UI snapshot |
-| **Redis Stream** | Bounded delivery events, SSE replay cursor ([Streams](https://redis.io/docs/latest/develop/data-types/streams/)) | Short reconnect window for observation |
+> **Mid-article recap:** The API accepts work, the queue delivers it to a worker, durable state records outcomes, and SSE shows that state to the user.
 
-Workers commit checkpoints to PostgreSQL and use atomic Lua for Hash + Stream on UI transitions. PostgreSQL answers “did this run ultimately succeed?” Redis answers “what should the UI show right now?” Bound Stream length and retention; send long-term event history and audit records to PostgreSQL or a separate log system.
+## 7. Separate execution from observation — SSE
 
-## 9. `updated_at` alone does not fix concurrency
+SSE is **independent of agent execution**.
 
-Two workers updating the same run can let **late stale progress** overwrite fresh state. Comparing only `updated_at` does not prove a write belongs to the current attempt.
-
-Safer patterns:
-
-- Monotonic **version** or sequence
-- **Fencing token** with queue **lease** — reject writes from a worker whose lease expired
-- Single writer — one attempt owns hot-path updates
-
-```python
-async def update_progress(run_id: str, attempt_id: str, version: int, progress: int) -> bool:
-    return await run_store.update_if_match(
-        run_id,
-        attempt_id=attempt_id,
-        expected_version=version,
-        progress=progress,
-    )
-```
-
-Redis snapshots with only `updated_at` suffer the same race: a late heartbeat from an old attempt can rewind the bar. [Where Agent State Lives](/en/ai/agents/where-agent-state-lives/) goes deeper on version and fencing.
-
-## 10. SSE, replay, and idempotency
-
-The observation path sends `id`, `event`, and `data` per the [WHATWG SSE](https://html.spec.whatwg.org/multipage/server-sent-events.html) format. Clients reconnect with `Last-Event-ID`; servers resume with `XREAD` from the Redis Stream cursor.
-
-Think about idempotency at two layers:
-
-1. **Transport** — delivering the same Stream entry twice after reconnect should be harmless (`event_id` dedup in the UI)
-2. **Domain** — publishing the same transition twice should not flip snapshot twice (Lua atomicity, version checks)
+- If the browser disconnects, the worker should keep running.
+- On return, the user needs the **current snapshot** or **recent events** again.
 
 ```text
-id: 1696400000000-0
-event: progress
-data: {"progress": 65, "step": "dcf"}
+Worker → State / Event Store → SSE endpoint → Browser
 ```
 
-When a generator sees disconnect, it stops HTTP chunks only. Events already appended remain for the next SSE session. **A broken stream is not a run rollback**.
+The observation path sends `id`, `event`, and `data` per the [WHATWG SSE](https://html.spec.whatwg.org/multipage/server-sent-events.html) format. When a generator sees disconnect, it stops HTTP chunks only. **A broken stream is not a run rollback**.
 
-## 11. Dev vs prod: why split Deployments
+<details class="tmi">
+<summary>TMI — After SSE reconnects, how are events recovered?</summary>
 
-Locally, API and worker in one process or Pod is fine for learning. In production, split [Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/).
+Clients reconnect with `Last-Event-ID`; servers resume from an event-store cursor. Redis Streams, sequence numbers, replay windows, and transport vs domain idempotency are developed in [Agent SSE Streaming](/en/ai/agents/agent-sse-streaming/).
+</details>
+
+## 8. What if two workers run the same run?
+
+Queues and leases alone do not prove an old worker is gone. Design for **multiple workers touching the same run**.
+
+<details class="tmi">
+<summary>TMI — Worker A was presumed dead; B took over—then A wakes up late?</summary>
+
+```text
+Worker A → fencing token 41
+Worker B → fencing token 42
+
+Storage accepts only token >= current token
+
+A write rejected · B write accepted
+```
+
+**Fencing tokens**, monotonic **versions**, and queue **leases** reduce stale writers overwriting fresh progress. Comparing only `updated_at` does not prove a write belongs to the current attempt. See [Where Agent State Lives](/en/ai/agents/where-agent-state-lives/).
+</details>
+
+## 9. Pod, process, worker, thread
+
+When Kubernetes, Python, and agent vocabulary land in one sentence, designs wobble. **A worker is not a Pod.**
+
+| Term | Meaning |
+| --- | --- |
+| **Pod** | Kubernetes scheduling / deployment unit |
+| **Process** | OS execution unit |
+| **Worker** | Job execution unit (queue consumer **role**) |
+| **Thread / async task** | Concurrency primitive inside a process |
+
+When a Pod restarts, its processes and asyncio tasks go with it. The **worker role** is designed so queue messages and PostgreSQL runs let another Pod resume. A “thread pool worker” is not the same as a queue consumer.
+
+## 10. Async, thread, process — inside the worker
+
+| Tool | When |
+| --- | --- |
+| **async** | Overlap many I/O waits in one process |
+| **thread** | Isolate blocking SDK calls |
+| **process / separate worker** | CPU-heavy or isolated execution |
+
+Python GIL and executor details continue in [Why Agent Systems Need Async](/en/ai/agents/why-agent-systems-need-async/) and [Async, Threads, and Processes](/en/ai/agents/async-thread-process-agent-backends/).
+
+## 11. Why split API and worker deployments
+
+Locally, API and worker in one process or Pod is enough to learn. In production, split [Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/).
 
 <AgentBackendArchitectureMap kind="deployment" language="en" />
 
-| Environment | Shape | Benefit |
+| | API | Worker |
 | --- | --- | --- |
-| Dev | Single process or Pod | Simple debugging |
-| Prod | `agent-api` + `agent-worker` Deployments | Independent scale and rolling updates |
+| **Scale on** | HTTP request volume | Execution workload, queue depth |
+| **Pods** | `agent-api` | `agent-worker` |
+| **Shared** | Queue · PostgreSQL · Redis | |
 
-Scale API replicas for short HTTP latency; scale workers for GPU, memory, and concurrent runs. Pair graceful shutdown (`SIGTERM`, finish or release leases) with [Pod Lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/) behavior.
+Putting everything in one Pod makes **independent scaling** hard.
 
-## 12. One run through the system
+## 12. Graceful shutdown
 
-The lifecycle figure shows how command and observation interleave over time.
+Pod termination is not just “kill the process”—it is an **in-flight run ownership** problem.
+
+1. Stop accepting new jobs
+2. Finish or hand off running jobs
+3. Save checkpoints
+4. Decide ack vs requeue
+5. Exit
+
+After [SIGTERM](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/), align lease release and ack order with [Pod Lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/) behavior. Do not ack a queue message before committing an important result to PostgreSQL.
+
+## 13. Architecture recap
+
+```text
+API        → accept (202 + run_id)
+Queue      → separate lifecycle, redelivery possible
+Worker     → own attempt, run tool loop
+PostgreSQL → durable truth
+Redis      → runtime / coordination / short observation
+SSE        → observation only, not execution owner
+```
+
+Failures on the same axes:
+
+| Failure mode | Remember |
+| --- | --- |
+| Duplicate execution | Redelivery is normal; design for idempotency |
+| Dual write (DB ↔ queue) | Tie acceptance to publish, e.g. outbox |
+| Stale progress | Reject late writes with attempt/version/fencing |
+| SSE disconnect | Run continues; reconnect restores snapshot/events |
+
+Tool loops, HITL, and retry from pattern design run **inside the worker**. This map fixes **which infrastructure owns lifecycle** around that loop.
 
 <AgentBackendArchitectureMap kind="lifecycle" language="en" />
 
-```text
-1. POST /runs
-2. PostgreSQL run row (submitting → queued)
-3. outbox / queue publish
-4. 202 + run_id
-5. worker claim → running
-6. checkpoint / progress / stream events
-7. completed or failed (PostgreSQL commit)
-8. GET /runs/{id}, SSE replay for observation
-```
+## 14. Next: implementation
 
-### Failure paths matter as much as the happy path
+This article defines **architecture boundaries** only. Follow-ups implement, in code:
 
-Each numbered step needs a recovery source:
+- FastAPI submit endpoint
+- Queue publisher (or outbox relay)
+- Worker process
+- PostgreSQL run state
+- Redis progress state
+- SSE streaming endpoint
+- Retry and idempotency
 
-| Failure point | Information that must remain | Next action |
-| --- | --- | --- |
-| API exits after run creation | `agent_runs` + outbox row | Relay publishes to queue |
-| Worker exits after claim | Queue lease + `attempt_id` | A new attempt reclaims after expiry |
-| Tool finishes but checkpoint fails | Non-terminal run state | Do not ack; retry idempotently |
-| Redis eviction or TTL expiry | PostgreSQL snapshot and result | Reload snapshot and reset stream cursor |
-| SSE disconnects | Bounded recent Stream events or PostgreSQL snapshot | Reconnect and replay, or resync |
-
-Termination order is part of the contract. A worker does not ack a queue message before committing an important result to PostgreSQL. Conversely, a failed Redis progress write should not roll back a completed business result. Rebuild the Redis projection from PostgreSQL instead.
-
-Tool loops, HITL, and retry from pattern design run in steps 5–6 **inside the worker**. This map fixes **which infrastructure owns the lifecycle** around that loop.
-
----
-
-It is time to step one level inward from the whole map.
-
-An agent worker runs while waiting on LLMs, databases, search APIs, and other tools. To stack that waiting time safely across many tasks, you first need an async execution model.
-
-The next article, [Why Agent Systems Need Async](/en/ai/agents/why-agent-systems-need-async/), starts with overlapping I/O waits inside the worker. After that, the series covers execution tools, queue and worker ownership, PostgreSQL and Redis boundaries, SSE delivery, and where the runtime sits.
-
-The full learning path is on the [Agent Engineering series](/en/series/agent-engineering/) page.
+Next, [Why Agent Systems Need Async](/en/ai/agents/why-agent-systems-need-async/) covers overlapping I/O waits inside the worker. The full path is on the [Agent Engineering series](/en/series/agent-engineering/) page.
