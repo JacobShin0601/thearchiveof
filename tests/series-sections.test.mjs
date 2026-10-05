@@ -79,6 +79,11 @@ test('AI Value Chain uses research mode and stable slug', () => {
   assert.equal(seriesDisplayTitle(AI_VALUE_CHAIN_SERIES, 'en'), 'Investing Across the AI Stack');
 });
 
+test('Optimization shows localized Korean title', () => {
+  assert.equal(seriesDisplayTitle('Optimization', 'ko'), '최적화');
+  assert.equal(seriesDisplayTitle('Optimization', 'en'), 'Optimization');
+});
+
 test('progress label includes stage and article index', () => {
   const { visible, aria } = progressLabel({
     seriesName: AGENT_ENGINEERING_SERIES,
