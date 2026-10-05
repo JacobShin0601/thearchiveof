@@ -9,6 +9,7 @@ import {
   progressLabel,
   seriesUsesParts,
   trackProgressLabel,
+  appliedTrackPath,
 } from '../src/lib/series-sections.ts';
 import { catalogTopLevelSeriesNames, isCatalogTopLevelSeries } from '../src/lib/series-catalog.ts';
 
@@ -44,6 +45,11 @@ test('Internal LLM Serving is hidden from top-level series catalogs', () => {
     catalogTopLevelSeriesNames(['Optimization', INTERNAL_LLM_SERVING_SERIES, 'Agent Engineering']),
     ['Optimization', 'Agent Engineering'],
   );
+});
+
+test('applied track detail pages nest under the parent series slug', () => {
+  assert.equal(appliedTrackPath(INTERNAL_LLM_SERVING_SERIES), '/series/agent-engineering/vllm-serving/');
+  assert.equal(appliedTrackPath(INTERNAL_LLM_SERVING_SERIES, 'en'), '/en/series/agent-engineering/vllm-serving/');
 });
 
 test('applied track progress label references parent series', () => {
