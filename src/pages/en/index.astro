@@ -3,12 +3,12 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostCard from '../../components/PostCard.astro';
 import NewsletterCTA from '../../components/NewsletterCTA.astro';
-import { SECTIONS, seriesPath, sortSeriesNames } from '../../consts';
+import { catalogTopLevelSeriesNames, SECTIONS, seriesPath, sortSeriesNames } from '../../consts';
 import { isVisiblePost } from '../../environment';
 
 const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en'))
   .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
-const activeSeries = sortSeriesNames([...new Set(posts.flatMap((post) => post.data.series ? [post.data.series] : []))]);
+const activeSeries = sortSeriesNames(catalogTopLevelSeriesNames(new Set(posts.flatMap((post) => post.data.series ? [post.data.series] : []))));
 ---
 
 <BaseLayout language="en" alternateLanguageUrl="/">

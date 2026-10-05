@@ -9,29 +9,7 @@ export { DEFAULT_SOCIAL_IMAGE, resolveSocialImage } from './lib/social-image';
 
 export const CONTENT_TYPES = ['foundation', 'research', 'current', 'implementation', 'perspective'] as const;
 
-export const SERIES = [
-  {
-    name: 'Agent Engineering',
-    description: {
-      ko: '에이전트 패턴에서 비동기 실행, 상태, 스트리밍, 런타임까지 프로덕션 시스템의 핵심을 순서대로 다룹니다.',
-      en: 'A practical path through agent patterns, asynchronous execution, state, streaming, and production runtimes.',
-    },
-  },
-  {
-    name: 'Enterprise AX',
-    description: {
-      ko: 'AI를 도입하는 데서 멈추지 않고, 기업의 업무와 조직을 실제로 바꾸는 방법을 현장 관점에서 다룹니다.',
-      en: 'A field-driven series on moving beyond AI adoption to redesign enterprise work and operating models.',
-    },
-  },
-  {
-    name: 'Optimization',
-    description: {
-      ko: '목적함수와 제약, 상충하는 목표를 실제 의사결정 문제와 연결해 설명합니다.',
-      en: 'Objectives, constraints, and trade-offs explained through practical decision problems.',
-    },
-  },
-] as const;
+export { SERIES } from './data/series';
 
 export const TOPICS = topicRegistry;
 export const TOPIC_CLUSTERS = [...new Set(TOPICS.map((topic) => topic.cluster))].map((name) => ({
@@ -144,17 +122,12 @@ export function seriesPath(series: string, language: 'ko' | 'en' = 'ko') {
   return `${prefix}/series/${slugify(series)}/`;
 }
 
-export function seriesDefinition(name: string) {
-  return SERIES.find((series) => series.name === name);
-}
-
-export function sortSeriesNames<T extends string>(names: T[]) {
-  const order = new Map<string, number>(SERIES.map((series, index) => [series.name, index]));
-  return names.sort((a, b) => {
-    const rankDifference = (order.get(a) ?? Number.MAX_SAFE_INTEGER) - (order.get(b) ?? Number.MAX_SAFE_INTEGER);
-    return rankDifference || a.localeCompare(b);
-  });
-}
+export {
+  catalogTopLevelSeriesNames,
+  isCatalogTopLevelSeries,
+  seriesDefinition,
+  sortSeriesNames,
+} from './lib/series-catalog';
 
 export function labelFromSlug(slug: string) {
   const registered = TOPICS.find((topic) => topic.slug === slug);
