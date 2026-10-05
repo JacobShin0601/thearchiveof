@@ -57,7 +57,7 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
   둘 다 필요하다. <strong>State는 화면을 즉시 복원할 현재 snapshot이고, event는 그 상태에 도달하는 동안 무엇이 일어났는지 보여주는 시간순 기록</strong>이다. Redis Hash는 덮어쓰는 현재 state에, Redis Stream은 추가되는 event 이력에 맞는다. SSE는 둘을 브라우저로 전달하는 전송 방식이며, event 자체나 저장소를 대신하지 않는다.
 </AnswerBlock>
 
-이전 글 [Agent State는 어디에 살아야 하는가](/ai/agents/where-agent-state-lives/)에서는 PostgreSQL에 영속적 run 기록과 재시작 기준 snapshot을, Redis Hash에는 **UI·운영용 hot projection**을, checkpoint에 재개용 graph snapshot을 두었다. Hash field는 PostgreSQL row를 대체하지 않는다.
+이전 글 [Agent State는 어디에 있어야 하는가](/ai/agents/where-agent-state-lives/)에서는 PostgreSQL에 영속적 run 기록과 재시작 기준 snapshot을, Redis Hash에는 **UI·운영용 hot projection**을, checkpoint에 재개용 graph snapshot을 두었다. Hash field는 PostgreSQL row를 대체하지 않는다.
 
 현재 Redis Hash 투영값이 다음과 같다고 하자.
 
