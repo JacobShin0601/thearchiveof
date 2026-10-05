@@ -9,7 +9,10 @@ import Comments from '../../../components/Comments.astro';
 import UsefulReaction from '../../../components/UsefulReaction.astro';
 import AdSlot from '../../../components/AdSlot.astro';
 import References from '../../../components/References.astro';
-import { postPath, sectionPath, seriesPath, subsectionPath, topicPath } from '../../../consts';
+import SeriesArticleNav from '../../../components/SeriesArticleNav.astro';
+import SeriesProgress from '../../../components/SeriesProgress.astro';
+import { postPath, sectionPath, subsectionPath, topicPath } from '../../../consts';
+import type { SeriesPartId } from '../../../lib/series-sections';
 import { isVisiblePost } from '../../../environment';
 
 export const getStaticPaths = (async () => {
@@ -106,6 +109,13 @@ const articleKey = post.data.translationKey
         <span>/</span>
         <time datetime={post.data.publishedDate.toISOString()}>{date}</time>
       </div>
+      <SeriesProgress
+        seriesName={post.data.series ?? ''}
+        seriesPart={post.data.seriesPart as SeriesPartId | undefined}
+        seriesOrder={post.data.seriesOrder}
+        totalInSeries={seriesPosts.length}
+        language={post.data.language}
+      />
       <h1>{post.data.title}</h1>
       {post.data.subtitle && <p class="article-subtitle">{post.data.subtitle}</p>}
       <p class="dek">{post.data.description}</p>
@@ -136,13 +146,12 @@ const articleKey = post.data.translationKey
     />
 
     {post.data.series && (
-      <nav class="series-nav" aria-label={`${post.data.series} series`}>
-        <p class="eyebrow">Series · <a href={seriesPath(post.data.series, post.data.language)}>{post.data.series}</a></p>
-        <div>
-          {previousInSeries ? <a href={postPath(previousInSeries)}>← {previousInSeries.data.title}</a> : <span></span>}
-          {nextInSeries && <a href={postPath(nextInSeries)}>{nextInSeries.data.title} →</a>}
-        </div>
-      </nav>
+      <SeriesArticleNav
+        post={post}
+        previousInSeries={previousInSeries}
+        nextInSeries={nextInSeries}
+        language={post.data.language}
+      />
     )}
 
     <AdSlot position="article-end" />

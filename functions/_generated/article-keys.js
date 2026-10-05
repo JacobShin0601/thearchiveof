@@ -1,6 +1,7 @@
 export const ARTICLE_KEYS = [
   "agent-pattern-design",
   "agent-sse-streaming",
+  "ai-handoff-queue-lab",
   "async-thread-process-agent-backends",
   "ax-is-transformation",
   "ax-should-start-narrow",
@@ -14,8 +15,10 @@ export const ARTICLE_KEYS = [
   "pareto-optimization-dinner-with-friends",
   "poisson-demand-inventory",
   "poisson-demand-inventory-lab",
+  "queueing-theory-everyday-llm",
   "samsung-earnings-event-lab",
   "state-is-not-event",
+  "vllm-troubleshooting-metrics",
   "vllm-tuning-limited-gpus",
   "we-built-the-agent-platform-too-early",
   "what-is-optimization-dinner-with-friends",
@@ -25,5 +28,6 @@ export const ARTICLE_KEYS = [
   "why-i-am-removing-langgraph-from-agent-building",
   "why-i-started-cfa-as-a-data-scientist",
   "why-this-archive-is-open",
+  "will-rogo-eat-financial-ai",
   "worker-is-not-thread"
 ];

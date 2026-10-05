@@ -1,0 +1,84 @@
+---
+title: "AI 이관 대기열 시뮬레이터"
+subtitle: "이관율·처리시간·상담사 수를 바꾸면, 고객 대기는 어떻게 달라질까?"
+description: "AI 상담의 사람 상담사 이관율, 평균 처리시간과 상담사 수를 바꾸며 M/M/c 대기열의 대기시간과 서비스 수준을 비교합니다."
+publishedDate: 2026-10-04
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics:
+  - enterprise-ai
+  - optimization
+primaryTopic: enterprise-ai
+tags:
+  - exponential-distribution
+  - queueing-theory
+  - contact-center
+  - ai-handoff
+  - simulation
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "ko"
+translationKey: "ai-handoff-queue-lab"
+methodology: "전체 문의를 Poisson 과정으로, 사람 상담사 이관을 독립확률 p로 두어 λH = pλ를 계산한다. 처리시간은 지수분포, 상담사 수는 c인 M/M/c 대기열을 가정한다. 평균 대기시간과 목표시간 내 연결 확률은 Erlang C 공식으로 계산하며, 가상 도착 시점은 지수분포 난수로 생성한다."
+freshness: evergreen
+lastReviewed: 2026-10-04
+nextReviewDate: 2027-10-04
+references:
+  - title: "Exponential, Gamma and Chi-Square Distributions — STAT 414"
+    url: "https://online.stat.psu.edu/stat414/Lesson15"
+    publisher: "Penn State Department of Statistics"
+  - title: "Lecture 5: Poisson Combining and Splitting"
+    url: "https://ocw.mit.edu/courses/6-262-discrete-stochastic-processes-spring-2011/resources/lecture-5-poisson-combining-and-splitting/"
+    publisher: "MIT OpenCourseWare"
+  - title: "Telephone Call Centers: Tutorial, Review, and Research Prospects"
+    url: "https://faculty.wharton.upenn.edu/wp-content/uploads/2012/04/Gans-Koole-Mandelbaum-CCReview.pdf"
+    publisher: "Manufacturing & Service Operations Management"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import AiHandoffQueueLab from '../../../components/interactive/AiHandoffQueueLab.astro';
+
+<AnswerBlock question="AI가 80%를 처리하면 상담사도 80% 줄일 수 있을까?">
+  <strong>그렇지 않다.</strong> AI가 해결한 비율은 사람 상담사에게 남는 문의의 평균량을 줄이지만, 남은 문의의 도착 간격과 처리시간은 여전히 흔들린다. 상담사 수는 평균 업무량을 겨우 감당하는 최소 인원이 아니라, 문의가 동시에 몰릴 때도 목표 대기시간을 지킬 수 있는 수준으로 정해야 한다.
+</AnswerBlock>
+
+이 페이지는 [지수분포란 무엇인가?](/math/statistics/exponential-distribution-ai-handoff/)와 함께 보는 실험이다. 원글에서는 AI가 사람 상담사에게 넘기는 문의를 사례로 지수분포, 푸아송 솎기, 무기억성과 M/M/c 대기열을 설명했다. 여기서는 숫자를 직접 바꿔본다.
+
+기본 설정은 시간당 전체 문의 100건, 사람 상담사 이관율 20%, 평균 처리시간 12분이다. 사람에게 넘어오는 문의는 시간당 평균 20건이고, 상담사 한 명의 평균 처리능력은 시간당 5건이다. 제공 부하는 4 Erlangs가 된다. 상담사 4명은 평균 처리능력이 도착률과 같지만, 이 상태에서는 대기열이 안정되지 않는다. 7명을 두면 이 단순 모형에서 5분 내 연결 확률은 약 96.1%가 된다.
+
+## 이관율과 상담사 수를 직접 바꿔 보기
+
+아래 도구의 수치는 교육용 가정이다. 특정 기업이나 고객센터의 실제 문의량·인력계획·서비스 수준을 추정하지 않는다. 도착은 독립적인 푸아송 과정, 처리시간은 지수분포, 고객 이탈은 없고 모든 상담사의 숙련도는 같다고 가정한다.
+
+<AiHandoffQueueLab language="ko" />
+
+## 80%를 AI가 처리해도 80% 감원으로 이어지지 않는 이유
+
+이관율을 20%에서 10%로 낮춰 보자. 다른 조건이 같다면 사람 상담사에게 도착하는 문의는 시간당 20건에서 10건으로 줄고, 평균 이관 간격은 3분에서 6분으로 길어진다. 분명 중요한 개선이다.
+
+하지만 이 변화만으로 상담사 수를 기계적으로 절반으로 줄일 수는 없다. 평균 6분 간격이라도 1분 안에 두 건이 들어올 수 있고, 한동안 조용할 수도 있다. 평균은 일정한 시간표가 아니다. 또 AI가 단순 조회와 안내를 해결하고 나면 사람 상담사는 예외 처리, 해지, 분쟁처럼 시간이 오래 걸리는 문의를 더 많이 맡을 수 있다. 이관율이 내려가도 평균 처리시간(AHT)이 늘면 제공 부하의 감소 폭은 작아진다.
+
+## 안정적이라는 것과 서비스 목표를 달성한다는 것은 다르다
+
+사람 상담사 도착률이 시간당 20건이고 평균 처리시간이 12분이면 상담사 한 명의 처리율은 시간당 5건이다. 제공 부하는 다음과 같다.
+
+$$
+a = \frac{\lambda_H}{\mu} = \frac{20}{5} = 4\text{ Erlangs}.
+$$
+
+상담사 수가 $c$일 때 $c\mu > \lambda_H$여야 이 단순 대기열은 안정된다. 4명은 평균 처리능력이 도착률과 같아서 쌓인 대기열을 해소할 여력이 없다. 그러나 5명이라고 해서 충분한 서비스 수준이 보장되는 것도 아니다. 기본 설정에서 5명은 안정적이지만, 5분 안에 연결되는 고객은 약 63.5%다. 7명이 되어야 약 96.1%에 이른다.
+
+이 Lab에서 상담사 수는 비용을 최소화하는 정답이 아니라, 선택한 대기시간 목표를 달성하기 위한 운영 변수다.
+
+## 이 모형이 현실에서 빠뜨리는 것
+
+- 도착률 $\lambda_H$는 시간대·요일·서비스 장애에 따라 달라질 수 있다.
+- AI 이관율 $p$도 모델, 지식베이스, 문의 유형과 고객의 사람 상담 요청에 따라 달라진다.
+- 처리시간은 지수분포보다 긴 꼬리를 가질 수 있고, 상담사와 문의 유형별 차이도 크다.
+- 고객은 기다리다 이탈할 수 있다. 이 경우 Erlang A 같은 모형을 고려할 수 있다.
+- 실제 운영에는 휴식, 교육, 후처리, 결근, 교대 제약과 숙련도별 라우팅이 들어간다.
+
+따라서 이 실험은 인력배치 시스템이 아니라 <strong>생각의 출발점</strong>이다. AI가 처리한 비율 하나에서 멈추지 않고, 사람에게 남은 업무의 도착률·처리시간·변동성·서비스 목표를 함께 연결하는 것이 목적이다.

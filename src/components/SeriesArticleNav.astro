@@ -1,0 +1,59 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { postPath, seriesPath } from '../consts';
+import {
+  nextStageBridgeLabel,
+  partMeta,
+  seriesUsesParts,
+  type SeriesPartId,
+} from '../lib/series-sections';
+
+interface Props {
+  post: CollectionEntry<'posts'>;
+  previousInSeries?: CollectionEntry<'posts'>;
+  nextInSeries?: CollectionEntry<'posts'>;
+  language: 'ko' | 'en';
+}
+
+const { post, previousInSeries, nextInSeries, language } = Astro.props;
+const isKo = language === 'ko';
+const seriesName = post.data.series;
+const currentPart = post.data.seriesPart as SeriesPartId | undefined;
+const nextPart = nextInSeries?.data.seriesPart as SeriesPartId | undefined;
+const crossesStage =
+  seriesUsesParts(seriesName)
+  && currentPart
+  && nextPart
+  && nextPart !== currentPart;
+const isLastInSeries = !nextInSeries;
+---
+
+<nav class="series-nav" aria-label={`${seriesName} series`}>
+  <p class="eyebrow">
+    Series · <a href={seriesPath(seriesName!, language)}>{seriesName}</a>
+  </p>
+  {crossesStage && nextPart && (
+    <p class="series-nav-stage">
+      {isKo ? '다음 단계' : 'Next stage'}: {partMeta(nextPart).title[language]}
+    </p>
+  )}
+  <div>
+    {previousInSeries ? (
+      <a href={postPath(previousInSeries)}>← {previousInSeries.data.title}</a>
+    ) : (
+      <span></span>
+    )}
+    {nextInSeries ? (
+      <a href={postPath(nextInSeries)}>{nextInSeries.data.title} →</a>
+    ) : (
+      <span></span>
+    )}
+  </div>
+  {isLastInSeries && seriesName && (
+    <p class="series-nav-overview">
+      <a href={seriesPath(seriesName, language)}>
+        {isKo ? '시리즈 전체 보기' : 'View full series'}
+      </a>
+    </p>
+  )}
+</nav>

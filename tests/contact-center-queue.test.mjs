@@ -30,3 +30,4 @@ test('a queue at or above full utilization is unstable', () => {
   assert.equal(four.serviceLevel, 0);
   assert.equal(four.averageWaitMinutes, Number.POSITIVE_INFINITY);
 });
+

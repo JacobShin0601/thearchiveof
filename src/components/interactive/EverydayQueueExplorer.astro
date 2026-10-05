@@ -1,0 +1,172 @@
+---
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+---
+
+<section class="everyday-queue" data-component="everyday-queue-explorer-v1" data-language={language}>
+  <p class="eyebrow">{ko ? '직접 실험' : 'Interactive experiment'}</p>
+  <h3>{ko ? '같은 줄을 마트·주차장·AI 서버로 바꿔보자' : 'Run the same queue as a checkout, garage, or AI server'}</h3>
+  <p>{ko
+    ? '아래 결과는 독립적인 푸아송 도착과 하나의 공동 대기열을 기본으로 한 교육용 이산사건 시뮬레이션입니다. 상황을 바꾸면 단위와 초기값이 달라지지만 계산 구조는 같습니다.'
+    : 'This educational discrete-event simulation starts with independent Poisson arrivals and one pooled queue. Switching scenes changes the units and presets while preserving the same queueing structure.'}</p>
+
+  <div class="scenario-tabs" role="group" aria-label={ko ? '상황 선택' : 'Choose a scene'}>
+    <button type="button" data-scenario="checkout" class="active">{ko ? '마트 계산대' : 'Checkout'}</button>
+    <button type="button" data-scenario="parking">{ko ? '주차장 입구' : 'Parking entrance'}</button>
+    <button type="button" data-scenario="llm">{ko ? 'LLM 서버' : 'LLM server'}</button>
+  </div>
+
+  <div class="queue-inputs">
+    <label><span data-label="arrival">{ko ? '분당 도착 고객' : 'Arrivals per minute'}</span><input type="number" name="arrival" min="0.05" max="100" step="0.05" value="1.2" /></label>
+    <label><span data-label="service">{ko ? '평균 결제시간(분)' : 'Mean checkout time (min)'}</span><input type="number" name="service" min="0.05" max="60" step="0.05" value="1.2" /></label>
+    <label><span data-label="servers">{ko ? '계산대 수' : 'Checkout lanes'}</span><input type="number" name="servers" min="1" max="50" step="1" value="2" /></label>
+    <label>
+      <span>{ko ? '처리시간 변동성' : 'Service-time variability'}</span>
+      <select name="variability">
+        <option value="0.25">{ko ? '낮음' : 'Low'}</option>
+        <option value="1" selected>{ko ? '보통' : 'Medium'}</option>
+        <option value="1.5">{ko ? '높음' : 'High'}</option>
+      </select>
+    </label>
+    <label>
+      <span>{ko ? '줄의 구조' : 'Queue layout'}</span>
+      <select name="mode">
+        <option value="pooled" selected>{ko ? '공동 대기열' : 'Pooled queue'}</option>
+        <option value="separate">{ko ? '각 서버별 줄' : 'Separate lines'}</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="queue-stage" aria-hidden="true">
+    <div class="arrival-stream"><i></i><i></i><i></i><i></i><i></i></div>
+    <span class="stage-arrow">→</span>
+    <div class="waiting-line"><i></i><i></i><i></i></div>
+    <span class="stage-arrow">→</span>
+    <div class="servers" data-stage="servers"><b></b><b></b></div>
+  </div>
+
+  <div class="queue-results" aria-live="polite">
+    <div><span>{ko ? '계획 가동률' : 'Planned utilization'}</span><strong data-out="utilization">72.0%</strong></div>
+    <div><span>{ko ? '평균 대기시간' : 'Average wait'}</span><strong data-out="averageWait">—</strong></div>
+    <div><span>{ko ? 'p95 대기시간' : 'p95 wait'}</span><strong data-out="p95Wait">—</strong></div>
+    <div><span>{ko ? '평균 줄 길이' : 'Average queue length'}</span><strong data-out="queueLength">—</strong></div>
+    <div><span>{ko ? '기다린 비율' : 'Share that waited'}</span><strong data-out="waitedShare">—</strong></div>
+  </div>
+
+  <p class="queue-status" data-out="status"></p>
+  <p class="queue-note">{ko
+    ? 'Illustrative · 4시간을 고정 seed로 반복하는 단순 모형입니다. 실제 주차장은 유한한 주차면과 내부 spillback을, LLM 서빙은 token 길이·KV cache·prefill/decode·batching을 별도로 모델링해야 합니다.'
+    : 'Illustrative · The model runs a four-hour trace with a fixed seed. A real garage needs finite parking capacity and internal spillback; LLM serving needs token lengths, KV cache, prefill/decode, and batching.'}</p>
+</section>
+
+<script>
+  import { track } from '../../scripts/track';
+  import { simulateQueue, type QueueMode } from '../../lib/everyday-queue';
+
+  type Language = 'ko' | 'en';
+  type ScenarioName = 'checkout' | 'parking' | 'llm';
+  type Scenario = {
+    arrival: number;
+    service: number;
+    servers: number;
+    variability: number;
+    labels: Record<Language, { arrival: string; service: string; servers: string; unit: string; entity: string }>;
+  };
+
+  const scenarios: Record<ScenarioName, Scenario> = {
+    checkout: {
+      arrival: 1.2, service: 1.2, servers: 2, variability: 1,
+      labels: {
+        ko: { arrival: '분당 도착 고객', service: '평균 결제시간(분)', servers: '계산대 수', unit: '분', entity: '명' },
+        en: { arrival: 'Customers per minute', service: 'Mean checkout time (min)', servers: 'Checkout lanes', unit: ' min', entity: ' people' },
+      },
+    },
+    parking: {
+      arrival: 0.8, service: 1.8, servers: 2, variability: 0.6,
+      labels: {
+        ko: { arrival: '분당 도착 차량', service: '평균 입장 처리시간(분)', servers: '입구 차로 수', unit: '분', entity: '대' },
+        en: { arrival: 'Cars per minute', service: 'Mean entry time (min)', servers: 'Entry lanes', unit: ' min', entity: ' cars' },
+      },
+    },
+    llm: {
+      arrival: 3.2, service: 0.45, servers: 2, variability: 1.5,
+      labels: {
+        ko: { arrival: '분당 도착 요청', service: '평균 처리시간(분)', servers: '병렬 worker 수', unit: '분', entity: '건' },
+        en: { arrival: 'Requests per minute', service: 'Mean service time (min)', servers: 'Parallel workers', unit: ' min', entity: ' requests' },
+      },
+    },
+  };
+
+  function render(root: HTMLElement, trackChange = false) {
+    const language: Language = root.dataset.language === 'en' ? 'en' : 'ko';
+    const scenario = (root.dataset.scenario ?? 'checkout') as ScenarioName;
+    const labels = scenarios[scenario].labels[language];
+    const number = (name: string) => Number(root.querySelector<HTMLInputElement>(`[name="${name}"]`)?.value ?? 0);
+    const mode = (root.querySelector<HTMLSelectElement>('[name="mode"]')?.value ?? 'pooled') as QueueMode;
+    const result = simulateQueue({
+      arrivalRatePerMinute: number('arrival'),
+      averageServiceMinutes: number('service'),
+      servers: number('servers'),
+      serviceCv: number('variability'),
+      mode,
+      durationMinutes: 240,
+      seed: 20261002,
+    });
+    const write = (name: string, value: string) => {
+      const node = root.querySelector<HTMLElement>(`[data-out="${name}"]`);
+      if (node) node.textContent = value;
+    };
+    write('utilization', `${(result.utilization * 100).toFixed(1)}%`);
+    write('averageWait', `${result.averageWaitMinutes.toFixed(2)}${labels.unit}`);
+    write('p95Wait', `${result.p95WaitMinutes.toFixed(2)}${labels.unit}`);
+    write('queueLength', `${result.averageQueueLength.toFixed(2)}${labels.entity}`);
+    write('waitedShare', `${(result.waitedShare * 100).toFixed(1)}%`);
+    write('status', result.stable
+      ? (language === 'ko' ? '평균 처리능력이 도착률보다 큽니다. 변동성 때문에 대기는 여전히 생길 수 있습니다.' : 'Mean capacity exceeds arrivals. Variability can still create a wait.')
+      : (language === 'ko' ? '평균 도착률이 처리능력 이상입니다. 이 상태가 계속되면 줄이 안정되지 않습니다.' : 'Mean arrivals meet or exceed capacity. If this persists, the queue is unstable.'));
+    root.classList.toggle('is-unstable', !result.stable);
+
+    const stage = root.querySelector<HTMLElement>('[data-stage="servers"]');
+    if (stage) stage.innerHTML = Array.from({ length: Math.min(8, Math.max(1, Math.round(number('servers')))) }, () => '<b></b>').join('');
+    if (trackChange) track('code_run', { articleSlug: 'queueing-theory-everyday-llm', language, component: 'everyday-queue-explorer-v1' });
+  }
+
+  document.querySelectorAll<HTMLElement>('.everyday-queue').forEach((root) => {
+    root.dataset.scenario = 'checkout';
+    let tracked = false;
+    const setScenario = (name: ScenarioName) => {
+      const scenario = scenarios[name];
+      const language: Language = root.dataset.language === 'en' ? 'en' : 'ko';
+      root.dataset.scenario = name;
+      root.querySelectorAll<HTMLButtonElement>('[data-scenario]').forEach((button) => button.classList.toggle('active', button.dataset.scenario === name));
+      const setInput = (field: string, value: number) => {
+        const input = root.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${field}"]`);
+        if (input) input.value = String(value);
+      };
+      setInput('arrival', scenario.arrival);
+      setInput('service', scenario.service);
+      setInput('servers', scenario.servers);
+      setInput('variability', scenario.variability);
+      for (const field of ['arrival', 'service', 'servers'] as const) {
+        const label = root.querySelector<HTMLElement>(`[data-label="${field}"]`);
+        if (label) label.textContent = scenario.labels[language][field];
+      }
+      render(root, tracked);
+      tracked = true;
+    };
+    root.querySelectorAll<HTMLButtonElement>('[data-scenario]').forEach((button) => {
+      button.addEventListener('click', () => setScenario((button.dataset.scenario ?? 'checkout') as ScenarioName));
+    });
+    root.addEventListener('input', () => {
+      render(root, tracked);
+      tracked = true;
+    });
+    render(root);
+  });
+</script>
+
+<style>
+  .everyday-queue{margin:2.2rem 0;padding:1.35rem;border:1px solid var(--ink);background:var(--paper-deep);font-family:var(--sans);font-size:.82rem;line-height:1.55}.everyday-queue h3{margin:.5rem 0 .4rem;font-family:var(--serif);font-size:1.45rem}.everyday-queue>p:not(.eyebrow):not(.queue-status){color:var(--muted)}.scenario-tabs{display:flex;flex-wrap:wrap;gap:.45rem;margin:1.2rem 0}.scenario-tabs button{min-height:38px;padding:.45rem .8rem;border:1px solid var(--line);background:var(--paper);color:var(--muted);font:inherit;cursor:pointer}.scenario-tabs button.active{border-color:var(--accent);background:var(--accent);color:var(--paper)}.queue-inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}.queue-inputs label{display:grid;grid-template-columns:1fr auto;gap:.45rem;align-items:center;padding:.7rem;background:var(--paper);border:1px solid var(--line);color:var(--muted);font-size:.72rem}.queue-inputs input,.queue-inputs select{width:116px;min-height:38px;padding:.35rem .5rem;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:inherit}.queue-inputs input{text-align:right}.queue-stage{display:flex;align-items:center;justify-content:center;gap:.65rem;min-height:82px;margin:1rem 0;padding:.75rem;border:1px solid var(--line);background:var(--paper)}.arrival-stream,.waiting-line,.servers{display:flex;align-items:center;gap:.25rem;min-width:50px}.arrival-stream i,.waiting-line i{width:11px;height:11px;border-radius:50%;background:var(--accent)}.waiting-line{padding:.35rem;border-bottom:2px solid var(--line)}.waiting-line i{background:#9b5038}.servers{display:grid;grid-template-columns:repeat(4,13px);gap:.25rem}.servers b{display:block;width:13px;height:22px;background:var(--accent)}.stage-arrow{color:var(--muted)}.queue-results{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}.queue-results>div{display:grid;gap:.35rem;min-height:84px;padding:.75rem;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--paper)}.queue-results span{color:var(--muted);font-size:.66rem}.queue-results strong{align-self:end;color:var(--accent);font-size:.98rem;font-variant-numeric:tabular-nums}.queue-status{margin:.9rem 0 0;padding:.65rem .75rem;border-left:3px solid var(--accent);background:var(--paper);font-weight:700}.everyday-queue.is-unstable .queue-status{border-color:#9b5038;color:#7a3826}.queue-note{margin:.9rem 0 0;font-size:.7rem}
+  @media(max-width:720px){.everyday-queue{padding:1rem}.queue-results{grid-template-columns:repeat(2,minmax(0,1fr))}.queue-results>div:last-child{grid-column:1 / -1}.queue-inputs{grid-template-columns:1fr}}
+</style>
