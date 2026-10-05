@@ -1,6 +1,6 @@
 ---
 interface Props {
-  kind: 'stack' | 'runtime' | 'research-loop' | 'evaluation';
+  kind: 'stack' | 'runtime' | 'shift' | 'task-loop' | 'architecture' | 'research-loop' | 'evaluation';
   caption: string;
   language?: 'ko' | 'en';
 }
@@ -27,9 +27,91 @@ const evalItems = [
   ['L2', 'Data correctness'],
   ['L1', 'Tool correctness'],
 ];
+
+const shiftItems = ko
+  ? [
+      ['Retrieval', '문서·데이터·근거를 찾는다'],
+      ['Task', '목표·제약·도구·상태를 관리하며 업무를 수행한다'],
+      ['Outcome', '검증 가능한 결과를 만들고 필요하면 사람에게 넘긴다'],
+    ]
+  : [
+      ['Retrieval', 'Find documents, data, and evidence'],
+      ['Task', 'Manage the goal, constraints, tools, and state'],
+      ['Outcome', 'Produce a verifiable result or hand off to a person'],
+    ];
+
+const taskLoopItems = ko
+  ? ['사용자 목표', 'Task Contract', '계획·분해', '근거 검색', '도구 사용', '결과 검증']
+  : ['User Goal', 'Task Contract', 'Plan / Decompose', 'Retrieve Context', 'Use Tools', 'Verify Outcome'];
+
+const architectureItems = ko
+  ? [
+      ['Retrieval service', '근거와 최신 문맥'],
+      ['Tool gateway', '스키마·권한·부수 효과'],
+      ['State / checkpoint', '재개 가능한 실행 상태'],
+      ['Policy / approval', '제약과 사람의 승인'],
+      ['Verifier / evaluator', '단계와 결과 검증'],
+      ['Result / evidence', '결과와 감사 가능한 근거'],
+    ]
+  : [
+      ['Retrieval service', 'Evidence and current context'],
+      ['Tool gateway', 'Schemas, permissions, side effects'],
+      ['State / checkpoint', 'Resumable execution state'],
+      ['Policy / approval', 'Constraints and human approval'],
+      ['Verifier / evaluator', 'Step and outcome verification'],
+      ['Result / evidence', 'Results and auditable evidence'],
+    ];
 ---
 
-<figure class="task-figure">
+<figure class="task-figure" aria-label={caption}>
+  {kind === 'shift' && (
+    <div class="shift" role="list">
+      {shiftItems.map(([title, detail], index) => (
+        <div class="shift-item" role="listitem">
+          <span class="step-number">{String(index + 1).padStart(2, '0')}</span>
+          <strong>{title}</strong>
+          <span>{detail}</span>
+          {index < shiftItems.length - 1 && <i aria-hidden="true">↓</i>}
+        </div>
+      ))}
+      <p>{ko ? 'Retrieval은 Task를 대체하는 반대편이 아니라, Task가 반복해서 사용하는 capability다.' : 'Retrieval is not the opposite of a task. It is a capability the task can invoke repeatedly.'}</p>
+    </div>
+  )}
+
+  {kind === 'task-loop' && (
+    <div class="task-loop">
+      <ol aria-label={ko ? '상위 업무 루프' : 'Top-level task loop'}>
+        {taskLoopItems.map((item, index) => (
+          <li>
+            <span class="step-number">{String(index + 1).padStart(2, '0')}</span>
+            <strong>{item}</strong>
+            {index < taskLoopItems.length - 1 && <i aria-hidden="true">→</i>}
+          </li>
+        ))}
+      </ol>
+      <div class="loop-outcomes">
+        <p><b>{ko ? '충분함' : 'Sufficient'}</b><span>→ {ko ? '완료' : 'Finalize'}</span></p>
+        <p><b>{ko ? '부족함' : 'Insufficient'}</b><span>↺ {ko ? '검색·실행 재진입' : 'Retrieve or act again'}</span></p>
+        <p><b>{ko ? '위험함' : 'Risky'}</b><span>→ {ko ? '사람에게 이관' : 'Human handoff'}</span></p>
+      </div>
+    </div>
+  )}
+
+  {kind === 'architecture' && (
+    <div class="architecture">
+      <header>
+        <span class="eyebrow">{ko ? '시스템 경계' : 'System boundary'}</span>
+        <strong>Task Orchestrator</strong>
+        <p>{ko ? '목표와 계약을 실행 상태로 바꾸고 각 capability를 조정한다.' : 'Turns the goal and contract into execution state and coordinates each capability.'}</p>
+      </header>
+      <ul>
+        {architectureItems.map(([title, detail]) => (
+          <li><strong>{title}</strong><span>{detail}</span></li>
+        ))}
+      </ul>
+    </div>
+  )}
+
   {kind === 'stack' && <div class="stack">
     {stackItems.map(([title, detail], index) => (
       <div class:list={['stack-item', { active: index >= 4 }]}>
@@ -75,10 +157,14 @@ const evalItems = [
 <style>
   .task-figure{margin:2.4rem 0;padding:1.2rem;border:1px solid var(--border-color,#d8d8df);border-radius:1rem;background:color-mix(in srgb,var(--card-bg,#fff) 94%,#6572b7 6%)}
   .task-figure figcaption{font-size:.86rem;line-height:1.5;color:var(--text-muted,#5f6571);margin-top:1rem}
+  .step-number{font-size:.7rem;font-weight:800;letter-spacing:.08em;color:#5966a6}
+  .shift{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem}.shift-item{position:relative;display:grid;gap:.35rem;align-content:start;min-height:7.5rem;padding:.9rem;border:1px solid var(--border-color,#ddd);border-radius:.7rem;background:var(--background,#fff)}.shift-item>span:last-of-type{font-size:.82rem;line-height:1.5;color:var(--text-muted,#666)}.shift-item i{position:absolute;left:50%;bottom:-.85rem;font-style:normal;font-weight:800;color:#5966a6;transform:translateX(-50%)}.shift>p{grid-column:1/-1;margin:.15rem 0 0;padding:.7rem;border-left:3px solid #5966a6;font-size:.84rem;line-height:1.55}
+  .task-loop{display:grid;gap:1rem}.task-loop ol{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.45rem;margin:0;padding:0;list-style:none}.task-loop li{position:relative;display:grid;gap:.35rem;align-content:start;min-height:5.5rem;padding:.65rem;border:1px solid var(--border-color,#ddd);border-radius:.6rem;background:var(--background,#fff)}.task-loop li strong{font-size:.78rem;line-height:1.35}.task-loop li i{position:absolute;right:-.42rem;top:2.1rem;z-index:2;font-style:normal;color:#5966a6}.loop-outcomes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.55rem}.loop-outcomes p{display:grid;gap:.2rem;margin:0;padding:.65rem;border:1px solid var(--border-color,#ddd);border-radius:.55rem;background:var(--background,#fff);font-size:.78rem}.loop-outcomes p:nth-child(2){border-style:dashed}.loop-outcomes p:nth-child(3){border-width:2px}.loop-outcomes span{color:var(--text-muted,#666)}
+  .architecture{display:grid;grid-template-columns:minmax(12rem,.8fr) minmax(0,2fr);gap:.8rem}.architecture header{display:grid;align-content:center;gap:.4rem;padding:1rem;border:2px solid #5966a6;border-radius:.7rem;background:var(--background,#fff)}.architecture header p{margin:0;font-size:.8rem;line-height:1.5;color:var(--text-muted,#666)}.architecture ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem;margin:0;padding:0;list-style:none}.architecture li{display:grid;gap:.25rem;padding:.65rem;border:1px solid var(--border-color,#ddd);border-radius:.55rem;background:var(--background,#fff)}.architecture li strong{font-size:.78rem}.architecture li span{font-size:.74rem;line-height:1.4;color:var(--text-muted,#666)}
   .stack{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.45rem;align-items:stretch}.stack-item{position:relative;display:grid;place-content:center;text-align:center;gap:.25rem;min-height:5rem;padding:.55rem;background:var(--background,#fff);border:1px solid var(--border-color,#ddd);border-radius:.7rem}.stack-item.active{border-color:#6572b7;background:color-mix(in srgb,var(--background,#fff) 85%,#6572b7 15%)}.stack-item strong{font-size:.82rem;overflow-wrap:anywhere}.stack-item span{font-size:.72rem;color:var(--text-muted,#666)}.stack-item i{position:absolute;right:-.38rem;top:1.8rem;z-index:2;color:#6572b7;font-style:normal}.stack>p{grid-column:1/-1;margin:.4rem 0 0;font-size:.86rem;font-weight:700;color:#4e5b99;text-align:right}
   .comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}.comparison section{padding:1rem;background:var(--background,#fff);border:1px solid var(--border-color,#ddd);border-radius:.75rem}.comparison section.accent{border-color:#6572b7;background:color-mix(in srgb,var(--background,#fff) 87%,#6572b7 13%)}.eyebrow{font-size:.74rem;font-weight:800;letter-spacing:.08em;color:#5966a6}.linear,.loop,.goal{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:.3rem;margin:.8rem 0}.linear b,.loop b,.goal b{font-size:.76rem;padding:.2rem .38rem;border-radius:.35rem;background:color-mix(in srgb,var(--background,#fff) 74%,#9da8d8 26%);overflow-wrap:anywhere}.linear i,.loop i,.goal i{font-style:normal;color:#6572b7}.loop span{font-size:.72rem;font-weight:700;color:#5966a6;border:1px dashed #6572b7;border-radius:.35rem;padding:.18rem .35rem}.comparison p{font-size:.82rem;line-height:1.5;margin:.65rem 0 0;text-align:center}
   .research-loop{display:grid;gap:.8rem}.decision{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;padding:.8rem;border:1px solid #6572b7;border-radius:.75rem;background:var(--background,#fff)}.decision strong{grid-column:1/-1;text-align:center;color:#4e5b99}.decision span{font-size:.8rem;line-height:1.45;padding:.55rem;border-radius:.55rem;background:color-mix(in srgb,var(--background,#fff) 82%,#9da8d8 18%)}.rail{margin:0;padding:.5rem;text-align:center;font-size:.78rem;font-weight:700;color:#5966a6;border:1px dashed #6572b7;border-radius:.55rem}
   .evaluation-wrap{display:grid;grid-template-columns:minmax(0,2fr) minmax(11rem,1fr);gap:.8rem;align-items:center}.evaluation{display:grid;gap:.35rem}.eval-item{display:grid;grid-template-columns:2.4rem 1fr;gap:.45rem;align-items:center;padding:.5rem .65rem;border:1px solid var(--border-color,#ddd);border-radius:.5rem;background:var(--background,#fff)}.eval-item b{color:#4e5b99}.eval-item span{font-size:.82rem}.eval-item.group-0{border-color:#6572b7}.eval-item.group-1{margin-inline:.5rem}.eval-item.group-2{margin-inline:1rem}.evaluation-wrap aside{display:grid;gap:.45rem;padding:.85rem;border-left:3px solid #6572b7}.evaluation-wrap aside strong{font-size:.88rem}.evaluation-wrap aside span{font-size:.76rem;line-height:1.45;color:var(--text-muted,#666)}
-  @media(max-width:760px){.stack{grid-template-columns:repeat(2,minmax(0,1fr))}.stack-item i{display:none}.comparison{grid-template-columns:1fr}.evaluation-wrap{grid-template-columns:1fr}.evaluation-wrap aside{border-left:0;border-top:3px solid #6572b7}.eval-item.group-1,.eval-item.group-2{margin-inline:0}}
-  @media(max-width:460px){.task-figure{padding:.85rem}.stack{grid-template-columns:1fr}.decision{grid-template-columns:1fr}.decision strong{grid-column:auto}.linear{gap:.22rem}.linear b{font-size:.72rem}}
+  @media(max-width:760px){.shift{grid-template-columns:1fr}.shift-item{min-height:0}.task-loop ol{grid-template-columns:1fr}.task-loop li{min-height:0}.task-loop li i{right:auto;left:50%;top:auto;bottom:-.72rem;transform:rotate(90deg)}.loop-outcomes{grid-template-columns:1fr}.architecture{grid-template-columns:1fr}.stack{grid-template-columns:repeat(2,minmax(0,1fr))}.stack-item i{display:none}.comparison{grid-template-columns:1fr}.evaluation-wrap{grid-template-columns:1fr}.evaluation-wrap aside{border-left:0;border-top:3px solid #6572b7}.eval-item.group-1,.eval-item.group-2{margin-inline:0}}
+  @media(max-width:460px){.task-figure{padding:.85rem}.architecture ul{grid-template-columns:1fr}.stack{grid-template-columns:1fr}.decision{grid-template-columns:1fr}.decision strong{grid-column:auto}.linear{gap:.22rem}.linear b{font-size:.72rem}}
 </style>
