@@ -35,10 +35,14 @@ describe('production sitemap filter', () => {
     assert.equal(isPublicSitemapPath('/en/ai/ai-engineering/vllm-tuning-limited-gpus/'), true);
     assert.equal(isPublicSitemapPath('/series/optimization/'), true);
     assert.equal(isPublicSitemapPath('/en/series/optimization/'), true);
+    assert.equal(isPublicSitemapPath('/series/agent-engineering/vllm-serving/'), true);
+    assert.equal(isPublicSitemapPath('/en/series/agent-engineering/vllm-serving/'), true);
     assert.equal(isPublicSitemapPath('/en/misc/essays/'), true);
   });
 
   it('omits empty listings and topic hubs without enough published articles', () => {
+    assert.equal(isPublicSitemapPath('/series/internal-llm-serving/'), false);
+    assert.equal(isPublicSitemapPath('/en/series/internal-llm-serving/'), false);
     assert.equal(isPublicSitemapPath('/series/understanding-rates/'), false);
     assert.equal(isPublicSitemapPath('/en/series/understanding-rates/'), false);
     assert.equal(isPublicSitemapPath('/coding/ai-engineering/'), false);

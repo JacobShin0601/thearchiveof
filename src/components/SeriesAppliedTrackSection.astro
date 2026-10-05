@@ -1,10 +1,10 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 import PostCard from './PostCard.astro';
-import { seriesPath } from '../consts';
 import {
   AGENT_ENGINEERING_APPLIED_TRACKS,
   appliedTrackDetailMeta,
+  appliedTrackPath,
 } from '../lib/series-sections';
 
 interface Props {
@@ -39,13 +39,13 @@ const isKo = language === 'ko';
     {isKo ? (
       <>
         세 편의 읽기 순서는{' '}
-        <a href={seriesPath(detailSeriesName, language)}>Inference Serving 학습 경로</a>
+        <a href={appliedTrackPath(detailSeriesName, language)}>Inference Serving · vLLM 학습 경로</a>
         에서 볼 수 있습니다.
       </>
     ) : (
       <>
         Reading order for all three articles is on the{' '}
-        <a href={seriesPath(detailSeriesName, language)}>Inference Serving learning path</a>.
+        <a href={appliedTrackPath(detailSeriesName, language)}>Inference Serving · vLLM learning path</a>.
       </>
     )}
   </p>

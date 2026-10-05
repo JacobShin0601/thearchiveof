@@ -1,0 +1,67 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import { postPath, seriesDefinition, seriesPath } from '../../../../consts';
+import { isVisiblePost } from '../../../../environment';
+import {
+  AGENT_ENGINEERING_APPLIED_TRACKS,
+  appliedTrackDetailMeta,
+  SERIES_APPLIED_TRACK_DETAIL,
+} from '../../../../lib/series-sections';
+
+export const getStaticPaths = (() =>
+  AGENT_ENGINEERING_APPLIED_TRACKS.map((detailSeriesName) => {
+    const meta = SERIES_APPLIED_TRACK_DETAIL[detailSeriesName];
+    return {
+      params: { series: meta.parentSlug, track: meta.trackSlug },
+      props: { detailSeriesName },
+    };
+  })) satisfies GetStaticPaths;
+
+const { detailSeriesName } = Astro.props as { detailSeriesName: string };
+const meta = appliedTrackDetailMeta(detailSeriesName);
+const posts = (await getCollection('posts', ({ data }) =>
+  isVisiblePost(data) && data.language === 'en' && data.series === detailSeriesName))
+  .sort((a, b) => (a.data.seriesOrder ?? 999) - (b.data.seriesOrder ?? 999));
+const description = seriesDefinition(detailSeriesName)?.description.en ?? meta.sectionDek.en;
+const trackPath = `/series/${meta.parentSlug}/${meta.trackSlug}/`;
+---
+
+<BaseLayout
+  title={meta.trackTitle.en}
+  description={description}
+  language="en"
+  alternateLanguageUrl={trackPath}
+  indexable={posts.length > 0}
+>
+  <section class="listing-page shell">
+    <header>
+      <p class="eyebrow">
+        <a href="/en/series/">Series</a>
+        {' / '}
+        <a href={seriesPath(meta.parentSeries, 'en')}>{meta.parentSeries}</a>
+        {' / Applied Track'}
+      </p>
+      <h1>{meta.trackTitle.en}</h1>
+      <p>{description}</p>
+    </header>
+    {posts.length > 0 ? (
+      <ol class="series-articles">
+        {posts.map((post, index) => (
+          <li>
+            <span>{String(post.data.seriesOrder ?? index + 1).padStart(2, '0')}</span>
+            <div>
+              <p class="post-meta">{post.data.section} / {post.data.subsection} / {post.data.contentType}</p>
+              <h2><a href={postPath(post)}>{post.data.title}</a></h2>
+              {post.data.subtitle && <p class="post-subtitle">{post.data.subtitle}</p>}
+              <p>{post.data.description}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    ) : (
+      <p class="empty-state">Articles for this track are being prepared.</p>
+    )}
+  </section>
+</BaseLayout>
