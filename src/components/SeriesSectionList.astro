@@ -2,8 +2,6 @@
 import type { CollectionEntry } from 'astro:content';
 import PostCard from './PostCard.astro';
 import {
-  nextPartId,
-  nextStageBridgeLabel,
   partIdsForSeries,
   partMeta,
   postsInPart,
@@ -20,36 +18,28 @@ const partIds = partIdsForSeries(seriesName);
 ---
 
 <div class="series-section-list">
-  {partIds.map((partId, index) => {
+  {partIds.map((partId) => {
     const meta = partMeta(partId);
     const sectionPosts = postsInPart(posts, partId);
-    const followingPart = nextPartId(seriesName, partId);
     return (
-      <>
-        <section class="series-section-block" aria-labelledby={`series-part-${partId}`}>
-          <header class="series-section-heading">
-            <p class="eyebrow">{String(meta.index).padStart(2, '0')}</p>
-            <h2 id={`series-part-${partId}`}>{meta.title[language]}</h2>
-            <p class="series-section-dek">{meta.description[language]}</p>
-          </header>
-          {sectionPosts.length > 0 ? (
-            <div class="post-grid series-section-grid">
-              {sectionPosts.map((post) => (
-                <PostCard post={post} />
-              ))}
-            </div>
-          ) : (
-            <p class="empty-state">
-              {language === 'ko' ? '이 단계의 글이 준비 중입니다.' : 'Articles for this stage are being prepared.'}
-            </p>
-          )}
-        </section>
-        {followingPart && index < partIds.length - 1 && (
-          <p class="series-stage-bridge" aria-hidden="true">
-            {nextStageBridgeLabel(seriesName, followingPart, language)}
+      <section class="series-section-block" aria-labelledby={`series-part-${partId}`}>
+        <header class="series-section-heading">
+          <p class="eyebrow">{String(meta.index).padStart(2, '0')}</p>
+          <h2 id={`series-part-${partId}`}>{meta.title[language]}</h2>
+          <p class="series-section-dek">{meta.description[language]}</p>
+        </header>
+        {sectionPosts.length > 0 ? (
+          <div class="post-grid series-section-grid">
+            {sectionPosts.map((post) => (
+              <PostCard post={post} />
+            ))}
+          </div>
+        ) : (
+          <p class="empty-state">
+            {language === 'ko' ? '이 단계의 글이 준비 중입니다.' : 'Articles for this stage are being prepared.'}
           </p>
         )}
-      </>
+      </section>
     );
   })}
 </div>

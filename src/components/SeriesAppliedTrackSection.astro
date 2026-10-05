@@ -23,11 +23,6 @@ const isKo = language === 'ko';
     <p class="eyebrow">{isKo ? 'Applied Track' : 'Applied Track'}</p>
     <h2 id="series-applied-track">{meta.trackTitle[language]}</h2>
     <p class="series-section-dek">{meta.sectionDek[language]}</p>
-    <p class="series-track-overview">
-      <a href={seriesPath(detailSeriesName, language)}>
-        {isKo ? '전체 학습 경로 보기' : 'View full learning path'}
-      </a>
-    </p>
   </header>
   {trackPosts.length > 0 ? (
     <div class="post-grid series-section-grid">
@@ -40,4 +35,18 @@ const isKo = language === 'ko';
       {isKo ? '이 트랙의 글이 준비 중입니다.' : 'Articles for this track are being prepared.'}
     </p>
   )}
+  <p class="series-track-path">
+    {isKo ? (
+      <>
+        세 편의 읽기 순서는{' '}
+        <a href={seriesPath(detailSeriesName, language)}>Inference Serving 학습 경로</a>
+        에서 볼 수 있습니다.
+      </>
+    ) : (
+      <>
+        Reading order for all three articles is on the{' '}
+        <a href={seriesPath(detailSeriesName, language)}>Inference Serving learning path</a>.
+      </>
+    )}
+  </p>
 </section>
