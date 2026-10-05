@@ -1,10 +1,10 @@
+import { SITE_URL } from '../site-origin.ts';
+
 export const siteAuthor = {
   name: 'Jacob Shin',
   url: '/about/',
   sameAs: ['https://github.com/JacobShin0601'],
 } as const;
-
-const SITE_ORIGIN = 'https://thearchiveof.com';
 
 export function personSchema(name: string = siteAuthor.name) {
   const person: {
@@ -19,7 +19,7 @@ export function personSchema(name: string = siteAuthor.name) {
 
   if (name !== siteAuthor.name) return person;
 
-  person.url = new URL(siteAuthor.url, SITE_ORIGIN).toString();
+  person.url = new URL(siteAuthor.url, SITE_URL).toString();
   if (siteAuthor.sameAs.length > 0) person.sameAs = [...siteAuthor.sameAs];
   return person;
 }

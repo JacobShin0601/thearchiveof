@@ -35,6 +35,7 @@ const allPosts = await getCollection('posts', ({ data }) => isVisiblePost(data))
 const translation = post.data.translationKey
   ? allPosts.find((candidate) => candidate.data.translationKey === post.data.translationKey && candidate.data.language !== post.data.language)
   : undefined;
+const translationUrl = translation ? postPath(translation) : undefined;
 const languagePrefix = isKo ? '' : '/en';
 const sectionHref = `${languagePrefix}/${sectionPath(post.data.section)}/`;
 const subsectionHref = `${languagePrefix}/${sectionPath(post.data.section)}/${subsectionPath(post.data.section, post.data.subsection)}/`;
@@ -81,7 +82,8 @@ const articleKey = post.data.translationKey
   tags={[...post.data.topics, ...post.data.tags]}
   language={post.data.language}
   socialImage={post.data.socialImage}
-  alternateLanguageUrl={translation ? postPath(translation) : (isKo ? '/en/' : '/')}
+  alternateLanguageUrl={translationUrl}
+  languageSwitchUrl={translationUrl ?? (isKo ? '/en/' : '/')}
   breadcrumbs={[
     { name: isKo ? '홈' : 'Home', url: isKo ? '/' : '/en/' },
     { name: post.data.section, url: sectionHref },

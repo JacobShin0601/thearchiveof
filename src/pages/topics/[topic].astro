@@ -40,7 +40,8 @@ const hasEnglishTopic = enPosts.some((post) => post.data.topics.includes(topic))
   title={definition?.nameKo ?? topic}
   description={definition?.descriptionKo ?? `${topic} 관련 글을 연결한 지식 허브입니다.`}
   language="ko"
-  alternateLanguageUrl={hasEnglishTopic ? topicPath(topic, 'en') : '/en/topics/'}
+  alternateLanguageUrl={hasEnglishTopic ? topicPath(topic, 'en') : undefined}
+  languageSwitchUrl={hasEnglishTopic ? topicPath(topic, 'en') : '/en/topics/'}
   indexable={indexable}
 >
   <section class="listing-page shell topic-hub">
