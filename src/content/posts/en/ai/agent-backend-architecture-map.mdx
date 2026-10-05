@@ -23,7 +23,7 @@ language: "en"
 translationKey: "agent-backend-architecture-map"
 series: "Agent Engineering"
 seriesOrder: 2
-seriesPart: "execution"
+seriesPart: "design"
 localization:
   locale: "en-US"
   strategy: "localized-adaptation"
@@ -83,7 +83,7 @@ return {"status": "started"}
 
 From a pattern perspective, a tool loop is running. From a backend perspective, **who issued the run_id, where do clients poll after failure, and does work survive deploy** are still undefined.
 
-The execution track in Agent Engineering fills that gap. This piece is the **whole diagram**; the following articles are tools and code per layer.
+After patterns, Agent Engineering aligns on one **whole backend diagram** first. This article is that map; the following articles are tools and code per layer.
 
 | Layer | This article | Deeper dives |
 | --- | --- | --- |
@@ -303,12 +303,10 @@ Tool loops, HITL, and retry from pattern design run in steps 5–6 **inside the 
 
 ---
 
-Next articles fill each arrow with code and policy:
+It is time to step one level inward from the whole map.
 
-- [Why Agent Systems Need Async](/en/ai/agents/why-agent-systems-need-async/)
-- [Async, Threads, and Processes](/en/ai/agents/async-thread-process-agent-backends/)
-- [Worker Is Not a Thread](/en/ai/agents/worker-is-not-thread/)
-- [Where Agent State Lives](/en/ai/agents/where-agent-state-lives/)
-- [State Is Not an Event](/en/ai/agents/state-is-not-event/)
-- [Agent SSE Streaming](/en/ai/agents/agent-sse-streaming/)
-- [LangGraph Runtime ≠ Architecture](/en/ai/agents/langgraph-runtime-not-architecture/)
+An agent worker runs while waiting on LLMs, databases, search APIs, and other tools. To stack that waiting time safely across many tasks, you first need an async execution model.
+
+The next article, [Why Agent Systems Need Async](/en/ai/agents/why-agent-systems-need-async/), starts with overlapping I/O waits inside the worker. After that, the series covers execution tools, queue and worker ownership, PostgreSQL and Redis boundaries, SSE delivery, and where the runtime sits.
+
+The full learning path is on the [Agent Engineering series](/en/series/agent-engineering/) page.

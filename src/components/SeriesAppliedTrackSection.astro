@@ -1,0 +1,43 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import PostCard from './PostCard.astro';
+import { seriesPath } from '../consts';
+import {
+  AGENT_ENGINEERING_APPLIED_TRACKS,
+  appliedTrackDetailMeta,
+} from '../lib/series-sections';
+
+interface Props {
+  detailSeriesName: (typeof AGENT_ENGINEERING_APPLIED_TRACKS)[number];
+  trackPosts: CollectionEntry<'posts'>[];
+  language: 'ko' | 'en';
+}
+
+const { detailSeriesName, trackPosts, language } = Astro.props;
+const meta = appliedTrackDetailMeta(detailSeriesName);
+const isKo = language === 'ko';
+---
+
+<section class="series-section-block series-applied-track" aria-labelledby="series-applied-track">
+  <header class="series-section-heading">
+    <p class="eyebrow">{isKo ? 'Applied Track' : 'Applied Track'}</p>
+    <h2 id="series-applied-track">{meta.trackTitle[language]}</h2>
+    <p class="series-section-dek">{meta.sectionDek[language]}</p>
+    <p class="series-track-overview">
+      <a href={seriesPath(detailSeriesName, language)}>
+        {isKo ? '전체 학습 경로 보기' : 'View full learning path'}
+      </a>
+    </p>
+  </header>
+  {trackPosts.length > 0 ? (
+    <div class="post-grid series-section-grid">
+      {trackPosts.map((post) => (
+        <PostCard post={post} />
+      ))}
+    </div>
+  ) : (
+    <p class="empty-state">
+      {isKo ? '이 트랙의 글이 준비 중입니다.' : 'Articles for this track are being prepared.'}
+    </p>
+  )}
+</section>

@@ -1,11 +1,28 @@
 import type { CollectionEntry } from 'astro:content';
 
 export const AGENT_ENGINEERING_SERIES = 'Agent Engineering';
+export const INTERNAL_LLM_SERVING_SERIES = 'Internal LLM Serving';
 
 export const SERIES_PART_IDS = ['design', 'execution', 'state', 'delivery'] as const;
 export type SeriesPartId = (typeof SERIES_PART_IDS)[number];
 
 export type LocalizedCopy = { ko: string; en: string };
+
+export const SERIES_APPLIED_TRACK_DETAIL: Record<
+  string,
+  { parentSeries: string; trackTitle: LocalizedCopy; sectionDek: LocalizedCopy }
+> = {
+  [INTERNAL_LLM_SERVING_SERIES]: {
+    parentSeries: AGENT_ENGINEERING_SERIES,
+    trackTitle: { ko: 'Inference Serving · vLLM', en: 'Inference Serving · vLLM' },
+    sectionDek: {
+      ko: '내부 GPU에서 vLLM으로 서빙하는 이유, 튜닝, 성능 진단까지 이어지는 선택형 실전 경로',
+      en: 'A focused path on internal vLLM serving, tuning under GPU limits, and troubleshooting slowdowns',
+    },
+  },
+};
+
+export const AGENT_ENGINEERING_APPLIED_TRACKS = [INTERNAL_LLM_SERVING_SERIES] as const;
 
 export const SERIES_PART_ORDER: Record<string, readonly SeriesPartId[]> = {
   [AGENT_ENGINEERING_SERIES]: ['design', 'execution', 'state', 'delivery'],
@@ -17,10 +34,10 @@ export const SERIES_PART_META: Record<
 > = {
   design: {
     index: 1,
-    title: { ko: '설계와 제어 흐름', en: 'Design and control flow' },
+    title: { ko: '설계와 전체 구조', en: 'Design and overall structure' },
     description: {
-      ko: '에이전트 패턴과 제어 흐름의 기본 설계',
-      en: 'Agent patterns and the shape of control flow',
+      ko: '에이전트의 제어 패턴과 이를 실행할 backend의 전체 책임 경계를 먼저 그립니다.',
+      en: 'Agent control patterns and the backend’s overall boundaries of responsibility before execution details.',
     },
   },
   execution: {
@@ -100,15 +117,14 @@ export function progressLabel(options: {
   const partNum = partIndexInSeries(seriesName, partId);
   const partTotal = partCountForSeries(seriesName);
   const title = part.title[language];
-  const seriesUpper = seriesName.toUpperCase();
 
   if (language === 'ko') {
-    const visible = `${seriesUpper} · ${partNum}/${partTotal} ${title} · 시리즈 ${seriesOrder}/${totalInSeries}`;
+    const visible = `${partTotal}개 학습 단계 중 ${partNum}번째 · ${title} · 전체 ${totalInSeries}편 중 ${seriesOrder}번째 글`;
     const aria = `${seriesName} 시리즈, ${partTotal}개 학습 단계 중 ${partNum}번째 ${title}, 전체 ${totalInSeries}편 중 ${seriesOrder}번째 글`;
     return { visible, aria };
   }
 
-  const visible = `${seriesUpper} · ${partNum}/${partTotal} ${title} · Series ${seriesOrder}/${totalInSeries}`;
+  const visible = `Stage ${partNum} of ${partTotal} · ${title} · Article ${seriesOrder} of ${totalInSeries}`;
   const aria = `${seriesName} series, stage ${partNum} of ${partTotal}: ${title}, article ${seriesOrder} of ${totalInSeries}`;
   return { visible, aria };
 }
@@ -120,4 +136,33 @@ export function nextStageBridgeLabel(
 ): string {
   const title = partMeta(nextPartIdValue).title[language];
   return language === 'ko' ? `다음: ${title}` : `Next: ${title}`;
+}
+
+export function isAppliedTrackDetailSeries(seriesName: string | undefined): seriesName is string {
+  return Boolean(seriesName && seriesName in SERIES_APPLIED_TRACK_DETAIL);
+}
+
+export function appliedTrackDetailMeta(detailSeriesName: string) {
+  return SERIES_APPLIED_TRACK_DETAIL[detailSeriesName];
+}
+
+const INFERENCE_SERVING_TRACK_LABEL = 'Inference Serving';
+
+export function trackProgressLabel(options: {
+  detailSeriesName: string;
+  seriesOrder: number;
+  totalInTrack: number;
+  language: 'ko' | 'en';
+}): { visible: string; aria: string } {
+  const { detailSeriesName, seriesOrder, totalInTrack, language } = options;
+  const { parentSeries } = appliedTrackDetailMeta(detailSeriesName);
+  const visible = `${parentSeries} / ${INFERENCE_SERVING_TRACK_LABEL} · ${seriesOrder} of ${totalInTrack}`;
+
+  if (language === 'ko') {
+    const aria = `${parentSeries} 시리즈, Inference Serving 트랙, ${totalInTrack}편 중 ${seriesOrder}편째`;
+    return { visible, aria };
+  }
+
+  const aria = `${parentSeries} series, Inference Serving track, article ${seriesOrder} of ${totalInTrack}`;
+  return { visible, aria };
 }
