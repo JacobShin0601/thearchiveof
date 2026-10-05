@@ -28,7 +28,7 @@ localization:
   locale: "en-US"
   strategy: "localized-adaptation"
 freshness: evergreen
-lastReviewed: 2026-10-04
+lastReviewed: 2026-10-05
 nextReviewDate: 2027-10-04
 references:
   - title: "asyncio — Asynchronous I/O"
@@ -40,6 +40,9 @@ references:
   - title: "Developing with asyncio"
     url: "https://docs.python.org/3/library/asyncio-dev.html"
     publisher: "Python Documentation"
+  - title: "Async Support"
+    url: "https://www.python-httpx.org/async/"
+    publisher: "HTTPX"
 ---
 
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
@@ -217,6 +220,41 @@ async def blocking_wait():
 ```
 
 Adding `async def` to a function does not turn blocking code inside it into non-blocking code. That distinction is especially dangerous in agents. An LLM SDK may be async, but if a tracing exporter, database driver, or file operation is synchronous, that call can delay other runs on the same event loop.
+
+## External HTTP APIs: blocking calls versus awaitable I/O
+
+Agent runs frequently call **HTTP APIs**—CRM, search, payment gateways, and more. A synchronous `requests` client holds the **current thread, and therefore the event-loop thread**, for the entire socket wait. Even inside a coroutine, there is no `await` point, so the coroutine does not yield control.
+
+```python
+import requests
+
+async def fetch_quote_bad(symbol: str) -> dict:
+    # While DNS, TLS, and the response body are read, no other coroutine advances.
+    response = requests.get(
+        f"https://api.example.com/quotes/{symbol}",
+        timeout=10,
+    )
+    response.raise_for_status()
+    return response.json()
+```
+
+While Run A remains inside `requests.get()`, the event loop cannot wake Run B even if Run B only needs to read from Redis in the same process.
+
+`httpx.AsyncClient` with `await client.get()` turns network waiting into awaitable I/O. Until the response is ready, the coroutine returns control and the event loop can advance other tasks. ([HTTPX async documentation](https://www.python-httpx.org/async/))
+
+```python
+import httpx
+
+async def fetch_quote(symbol: str, client: httpx.AsyncClient) -> dict:
+    response = await client.get(
+        f"https://api.example.com/quotes/{symbol}",
+        timeout=10.0,
+    )
+    response.raise_for_status()
+    return response.json()
+```
+
+This article stops at **the principle and a minimal example**. Reusing a connection pool, overlapping calls with `asyncio.gather()`, concurrency caps, timeouts, and retry policy are covered in the next article, [Async, Threads, and Processes](/en/ai/agents/async-thread-process-agent-backends/), with HTTPX as the concrete client.
 
 ## Concurrency is not parallelism
 

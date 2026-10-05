@@ -28,9 +28,18 @@ localization:
   locale: "en-US"
   strategy: "localized-adaptation"
 freshness: evergreen
-lastReviewed: 2026-10-04
+lastReviewed: 2026-10-05
 nextReviewDate: 2027-10-04
 references:
+  - title: "asyncio — Asynchronous I/O"
+    url: "https://docs.python.org/3/library/asyncio.html"
+    publisher: "Python Documentation"
+  - title: "Coroutines and Tasks"
+    url: "https://docs.python.org/3/library/asyncio-task.html"
+    publisher: "Python Documentation"
+  - title: "Async Support"
+    url: "https://www.python-httpx.org/async/"
+    publisher: "HTTPX"
   - title: "threading — Thread-based Parallelism"
     url: "https://docs.python.org/3/library/threading.html"
     publisher: "Python Documentation"
@@ -114,6 +123,53 @@ async def build_context(query: str):
 Concurrency is possible here not because the function has an `async` prefix, but because `call_llm`, `query_postgres`, and `search_documents` release control rather than occupy the thread while waiting for socket responses.
 
 The cost model of async fits I/O-heavy agents well. Tasks are lighter than OS threads, and one event loop can manage many waiting operations. But cooperation is also the model's weakness: if running code does not yield control, the event loop cannot advance another task.
+
+## Operate external HTTP with `httpx.AsyncClient`
+
+The previous article established the **principle** that `await client.get()` yields control during network waits. Agent backends often assemble customer context from several HTTP APIs. At that point it helps to treat client lifetime, connection pooling, concurrency caps, timeouts, error handling, and retries as one operational pattern.
+
+Creating a new `AsyncClient` on every request repeats TCP/TLS handshake and pool setup and can look like a short burst to upstream services. **Reusing one client** over a run or process lifetime is what makes a keep-alive connection pool worthwhile. ([HTTPX async documentation](https://www.python-httpx.org/async/))
+
+Independent profile fetches can overlap with `asyncio.gather()`. Choose `gather`'s failure semantics to match the business meaning. With the default `return_exceptions=False`, the first exception propagates to the caller, but remaining awaitables are not automatically canceled. If one customer API can fail while others still support a partial answer, `return_exceptions=True`—then filter successes—or an explicit per-result error type may fit better. If one failed branch invalidates the entire run, propagating the exception and stopping is appropriate. ([`asyncio.gather`](https://docs.python.org/3/library/asyncio-task.html#asyncio.gather))
+
+Protect upstream rate limits and your own connection pool with a ceiling on **concurrent in-flight HTTP calls**. An `asyncio.Semaphore` enforces that cap at coroutine scope.
+
+```python
+import asyncio
+import httpx
+
+api_slots = asyncio.Semaphore(10)
+
+async def fetch_profile(client: httpx.AsyncClient, customer_id: str) -> dict:
+    async with api_slots:
+        response = await client.get(
+            f"https://api.example.com/customers/{customer_id}",
+            timeout=httpx.Timeout(10.0, connect=2.0),
+        )
+        response.raise_for_status()
+        return response.json()
+
+async def load_context(customer_ids: list[str]) -> list[dict]:
+    async with httpx.AsyncClient() as client:
+        return await asyncio.gather(
+            *(fetch_profile(client, customer_id) for customer_id in customer_ids),
+        )
+```
+
+`httpx.Timeout(10.0, connect=2.0)` sets separate limits on **the full request** and **connection establishment**. Without a connect timeout, DNS or TLS can hang for a long time; without an overall timeout, a slow upstream keeps a coroutine reserved. `response.raise_for_status()` raises `HTTPStatusError` for non-2xx responses, reducing the mistake of parsing JSON before noticing failure. **Client 4xx** responses such as 401, 403, and 404 often will not succeed on retry. **429, 502, and 503** may be transient, but unbounded retries harm both upstream and your own queue. Retries need an explicit policy—maximum attempts, backoff, jitter, idempotency—and a **hard cap**.
+
+When only a synchronous SDK exists, you cannot swap in an async HTTP client. Use `asyncio.to_thread()` to move blocking calls off the event loop and limit concurrent blocking work with the thread pool and a semaphore. Conversely, when an async API exists, opening and closing `AsyncClient()` **on every request** throws away pooling benefits:
+
+```python
+async def load_context_bad(customer_ids: list[str]) -> list[dict]:
+    results = []
+    for customer_id in customer_ids:
+        async with httpx.AsyncClient() as client:  # new pool every time
+            results.append(await fetch_profile(client, customer_id))
+    return results
+```
+
+In production, create an `AsyncClient` at application startup and close it on shutdown, or inject a shared client into the run handler. Read auth headers and base URLs from configuration; do not embed real API keys in examples.
 
 ## A blocking call is more dangerous inside `async def`
 
@@ -305,7 +361,7 @@ Local LLM inference is another case. Model weights, batching, GPU memory, and ke
 
 “First choice” is not a final answer. Measure the workload. Verify whether the SDK releases the GIL, how much data must cross a boundary, and where downstream limits sit. The table is a way to avoid starting from the wrong model.
 
-## Five recurring failures
+## Six recurring failures
 
 ### 1. Calling a blocking SDK directly on the event loop
 
@@ -326,6 +382,10 @@ Tests may pass by accident, only for production concurrency to expose state corr
 ### 5. Creating a new process pool for every web request
 
 The number of processes and duplicate memory grow with traffic. Manage the pool over the application lifecycle, or let a dedicated compute worker behind a queue own large jobs.
+
+### 6. Creating a new `AsyncClient` for every HTTP call
+
+Combined with a sequential for-loop, latency grows and the connection pool is discarded each time. Prefer a shared client with `gather` and a semaphore, or deliberately choose the `to_thread` path when the SDK is sync-only.
 
 ## Async, threads, and processes do not own the lifecycle
 

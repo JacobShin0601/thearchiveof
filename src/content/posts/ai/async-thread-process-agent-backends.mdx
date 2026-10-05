@@ -25,9 +25,18 @@ series: "Agent Engineering"
 seriesOrder: 3
 seriesPart: "execution"
 freshness: evergreen
-lastReviewed: 2026-10-04
+lastReviewed: 2026-10-05
 nextReviewDate: 2027-10-04
 references:
+  - title: "asyncio — Asynchronous I/O"
+    url: "https://docs.python.org/3/library/asyncio.html"
+    publisher: "Python Documentation"
+  - title: "Coroutines and Tasks"
+    url: "https://docs.python.org/3/library/asyncio-task.html"
+    publisher: "Python Documentation"
+  - title: "Async Support"
+    url: "https://www.python-httpx.org/async/"
+    publisher: "HTTPX"
   - title: "threading — Thread-based Parallelism"
     url: "https://docs.python.org/3/library/threading.html"
     publisher: "Python Documentation"
@@ -111,6 +120,53 @@ async def build_context(query: str):
 여기서 동시 실행이 가능한 이유는 함수 앞에 `async`가 붙었기 때문이 아니다. `call_llm`, `query_postgres`, `search_documents`가 소켓 응답을 기다릴 때 thread를 붙잡지 않고 실행권을 양보하기 때문이다.
 
 Async의 비용 모델은 I/O 중심 Agent에 잘 맞는다. Task는 OS thread보다 가볍고, 하나의 event loop가 많은 대기 작업을 관리할 수 있다. 하지만 협력적이라는 것은 약점이기도 하다. 실행 중인 코드가 실행권을 양보하지 않으면 event loop는 다른 task를 진행할 수 없다.
+
+## `httpx.AsyncClient`로 외부 HTTP를 운영한다
+
+이전 글에서는 `await client.get()`이 네트워크 대기 중 실행권을 양보한다는 **원리**를 봤다. Agent backend에서는 같은 고객 컨텍스트를 여러 HTTP API에서 모으는 일이 흔하다. 이때는 클라이언트 수명 주기, connection pool, 동시성 상한, timeout, 오류 처리, 재시도를 한 패턴으로 묶는 편이 낫다.
+
+`AsyncClient`를 요청마다 새로 만들면 TCP/TLS handshake와 pool 설정 비용이 반복되고, 상위 서비스 입장에서는 짧은 burst로 보일 수 있다. Run이나 process 수명 주기에 맞춰 **하나의 클라이언트를 재사용**하면 keep-alive connection pool이 실제로 의미를 갖는다. ([HTTPX async 문서](https://www.python-httpx.org/async/))
+
+독립적인 프로필 조회는 `asyncio.gather()`로 겹칠 수 있다. 다만 `gather`의 실패 정책은 업무 의미에 맞게 고른다. 기본값(`return_exceptions=False`)에서는 첫 예외가 호출자에게 전파되지만, 나머지 awaitable이 자동으로 모두 취소되는 것은 아니다. 한 고객 API만 실패해도 나머지 컨텍스트로 부분 답변을 만들 수 있다면 `return_exceptions=True`로 실패를 결과 목록에 모으거나, 성공한 결과만 필터링하는 쪽이 낫다. 반대로 한 분기 실패가 전체 run을 무효로 만든다면 예외를 그대로 올려 전체를 중단하는 편이 맞다. ([`asyncio.gather`](https://docs.python.org/3/library/asyncio-task.html#asyncio.gather))
+
+외부 API rate limit과 연결 풀을 보호하려면 **동시 in-flight HTTP 수**에 상한을 둔다. `asyncio.Semaphore`는 coroutine 단위에서 그 상한을 강제하는 작은 도구다.
+
+```python
+import asyncio
+import httpx
+
+api_slots = asyncio.Semaphore(10)
+
+async def fetch_profile(client: httpx.AsyncClient, customer_id: str) -> dict:
+    async with api_slots:
+        response = await client.get(
+            f"https://api.example.com/customers/{customer_id}",
+            timeout=httpx.Timeout(10.0, connect=2.0),
+        )
+        response.raise_for_status()
+        return response.json()
+
+async def load_context(customer_ids: list[str]) -> list[dict]:
+    async with httpx.AsyncClient() as client:
+        return await asyncio.gather(
+            *(fetch_profile(client, customer_id) for customer_id in customer_ids),
+        )
+```
+
+`httpx.Timeout(10.0, connect=2.0)`은 **전체 요청**과 **연결 수립**에 각각 상한을 둔다. connect timeout이 없으면 DNS나 TLS에서 hang이 길어질 수 있고, 전체 timeout이 없으면 느린 upstream이 coroutine을 오래 붙잡는다. `response.raise_for_status()`는 2xx가 아니면 `HTTPStatusError`를 올려 “JSON 파싱까지 간 뒤에야 실패를 알게 되는” 실수를 줄인다. 401·403·404 같은 **클라이언트 4xx**는 재시도해도 성공하지 않는 경우가 많고, 429·502·503은 **일시적**일 수 있지만 무한 재시도는 upstream과 자신의 queue를 함께 망가뜨린다. 재시도는 명시적 정책—최대 횟수, backoff, jitter, idempotency—과 **상한**이 있어야 한다.
+
+동기 전용 SDK만 있다면 async HTTP 클라이언트로 바꿀 수 없다. 그때는 `asyncio.to_thread()`로 blocking 호출을 event loop 밖으로 옮기고, thread pool과 semaphore로 동시 blocking 호출 수를 제한한다. 반대로 async API가 있는데도 아래처럼 **요청마다** `AsyncClient()`를 열고 닫는 패턴은 pool 이점을 버리는 안티패턴이다.
+
+```python
+async def load_context_bad(customer_ids: list[str]) -> list[dict]:
+    results = []
+    for customer_id in customer_ids:
+        async with httpx.AsyncClient() as client:  # 매번 새 pool
+            results.append(await fetch_profile(client, customer_id))
+    return results
+```
+
+운영 환경에서는 애플리케이션 startup에서 `AsyncClient`를 만들고 shutdown에서 닫거나, run handler가 공유 클라이언트를 주입받는 구조가 더 낫다. 인증 헤더나 base URL은 환경 설정에서 읽되, 예시 코드에는 실제 API 키를 넣지 않는다.
 
 ## `async def` 안의 blocking call은 더 위험하다
 
@@ -302,7 +358,7 @@ async def execute_agent_run(request: dict) -> dict:
 
 여기서 “첫 선택”은 최종 답이 아니다. 작업 부하를 측정하고, 실제 SDK가 GIL을 해제하는지, 데이터 전송량이 얼마나 큰지, 하위 서비스 한도가 무엇인지 확인해야 한다. 하지만 이 표는 잘못된 출발을 피하게 한다.
 
-## 자주 생기는 다섯 가지 실패
+## 자주 생기는 여섯 가지 실패
 
 ### 1. Blocking SDK를 event loop에서 직접 호출한다
 
@@ -323,6 +379,10 @@ Process 경계의 시작, IPC, 직렬화 비용이 실제 작업보다 커진다
 ### 5. Web request마다 process pool을 새로 만든다
 
 트래픽과 함께 process 수가 폭증하고 메모리가 중복된다. 풀은 애플리케이션 수명 주기에서 관리하거나, 큰 작업은 queue 뒤의 전용 연산 worker가 소유하게 해야 한다.
+
+### 6. HTTP 호출마다 `AsyncClient`를 새로 만든다
+
+순차 for-loop와 결합하면 latency도 늘고 connection pool도 매번 버려진다. 공유 클라이언트, `gather`, semaphore를 함께 쓰거나, SDK가 동기식뿐이면 `to_thread` 경로를 의도적으로 선택한다.
 
 ## Async, thread, process는 수명 주기의 책임 주체가 아니다
 
