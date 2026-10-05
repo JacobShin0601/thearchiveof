@@ -1,14 +1,14 @@
 ---
 title: 'Retrieval Engineering에서 Task Engineering으로'
 subtitle: 'RAG가 Agent가 될 때, AI 엔지니어링의 중심은 어떻게 이동하는가'
-description: '검색 파이프라인 최적화에서 금융 리서치 과업 완수로, RAG 이후 추상화와 평가 단위가 어떻게 바뀌는지 살펴본다.'
+description: '필요한 정보를 찾는 검색 시스템에서 검증 가능한 업무 결과를 완성하는 시스템으로, AI 엔지니어링의 확장을 살펴본다.'
 publishedDate: 2026-10-05
 section: 'AI & AX'
 subsection: 'AX'
 contentType: research
 topics: [ai-agents, rag, evaluation, enterprise-ai]
 primaryTopic: ai-agents
-tags: [rag, agent-engineering, task-engineering, investment-research, evaluation]
+tags: [rag, agent-engineering, task-engineering, workflow, evaluation]
 author: 'Jacob Shin'
 language: ko
 translationKey: from-retrieval-engineering-to-task-engineering
@@ -20,7 +20,7 @@ freshness: periodic
 lastReviewed: 2026-10-05
 nextReviewDate: 2026-12-28
 dataThrough: 2026-10-05
-methodology: 'RAG 원 논문, 정보검색 연구, AI 기업의 공식 엔지니어링 문서와 금융기관 사례를 비교하고 투자 리서치 업무에 맞는 평가 계층을 제안했다.'
+methodology: 'RAG 원 논문, 정보검색 연구와 AI 기업의 공식 엔지니어링 문서를 비교하고 규정 검토, 고객지원, 인사, 조달과 리서치에 공통으로 적용할 수 있는 task 설계 모델을 제안했다.'
 series: 'Enterprise AX'
 seriesOrder: 5
 references:
@@ -101,7 +101,7 @@ import TaskEngineeringDiagrams from '../../../components/TaskEngineeringDiagrams
 
 RAG의 출발점은 모델의 parameter에만 의존하지 않고 외부의 non-parametric memory를 검색해 생성 과정에 공급하는 것이었다. 2020년 [RAG 논문](https://arxiv.org/abs/2005.11401)은 지식 업데이트와 provenance를 다룰 수 있는 구조를 보여주었다. 이를 실제 서비스로 옮기면서 chunking, embedding, lexical·semantic search, metadata filter, query rewriting, rank fusion, reranking과 context allocation이 하나의 엔지니어링 분야가 됐다.
 
-금융 문서는 이 복잡성을 잘 보여준다. `AAPL`, ISIN, 회계 계정명처럼 정확한 문자열이 중요한 질의에는 lexical search가 강하다. “생산능력 확대를 위해 회사가 어떤 투자를 하고 있는가?”처럼 의미가 중요한 질의에는 dense retrieval이 유리하다. 실무에서는 두 검색을 병렬로 실행하고 RRF로 결과를 합치는 hybrid search를 자주 사용한다. [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query)도 keyword와 vector query를 함께 실행해 RRF로 통합한다.
+기업 문서는 이 복잡성을 잘 보여준다. 사번, 티켓 번호, SKU, 계약 조항처럼 정확한 문자열이 중요한 질의에는 lexical search가 강하다. “이 고객이 환불 예외 조건에 해당하는가?”처럼 여러 문장의 의미와 맥락을 연결해야 하는 질의에는 dense retrieval이 유리하다. 실무에서는 두 검색을 병렬로 실행하고 RRF로 결과를 합치는 hybrid search를 자주 사용한다. [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query)도 keyword와 vector query를 함께 실행해 RRF로 통합한다.
 
 그 뒤의 reranker는 전체 corpus를 다시 찾지 않는다. 1차 검색이 올린 후보만 재정렬한다. 최초 검색에서 빠진 10-K의 핵심 주석은 좋은 reranker도 되살릴 수 없다. Production RAG가 “vector DB를 붙인 chatbot”이 아니라 여러 단계의 정보검색 시스템인 이유다.
 
@@ -133,7 +133,7 @@ Task Engineering에서도 이 품질은 그대로 필요하다. 차이는 retrie
 → 완료·보류·추가 입력 요청
 ```
 
-이 구조는 출장비뿐 아니라 금융 리서치, 인사, 고객지원과 조달에도 적용할 수 있다. 다만 이 예시는 시스템 경계를 설명하기 위한 개념 모델이다. 실제 회사 규정이나 금융·인사 판단을 대신하는 자동화 구현이 아니다.
+이 구조는 출장비뿐 아니라 고객지원, 인사, 조달, 준법 검토와 리서치에도 적용할 수 있다. 다만 이 예시는 시스템 경계를 설명하기 위한 개념 모델이다. 실제 회사 규정이나 전문적인 판단을 대신하는 자동화 구현이 아니다.
 
 | 관점 | Retrieval Engineering | Task Engineering |
 | --- | --- | --- |
@@ -270,11 +270,11 @@ LLM은 자연어 목표를 작업 후보로 바꾸고, 관련 맥락에서 계�
 
 어떤 문서를 다음에 읽을지처럼 모든 분기를 미리 열거하기 어려운 구간은 모델이 탐색할 수 있다. 돈을 보내거나 권한을 바꾸는 행동, 공식 금액 계산과 승인 조건은 코드가 소유해야 한다. 좋은 Task-based Agent는 자유로운 Agent가 아니라 **자유의 경계가 명확한 Agent**다.
 
-## 금융 리서치에서는 시간과 근거가 계약의 일부다
+## 도메인이 달라도 시간과 근거는 계약의 일부다
 
-금융 리서치 Agent는 SEC·DART 공시, earnings transcript, 시장 데이터, consensus, 내부 리서치, SQL과 Python을 오간다. 각 소스에는 라이선스, 권한, 단위, 통화와 수정 이력이 붙는다. 따라서 “이번 분기 마진 하락이 투자 가설을 훼손하는가?”라는 목표만으로는 부족하다. 기준 시점, 비교할 가설, 필수 근거, 허용 데이터와 반증 조건까지 Task Contract에 들어가야 한다.
+Task가 사용하는 정보에는 대부분 시간과 적용 범위가 있다. 인사 규정은 법인과 직급에 따라 달라지고, 고객지원 정책은 상품과 구매 시점에 따라 바뀌며, 조달 계약은 개정본과 승인 권한이 중요하다. 리서치 데이터에는 라이선스, 단위, 통화와 수정 이력이 붙는다. 따라서 “이 요청을 처리하라”는 목표만으로는 부족하다. 기준 시점, 적용 조직, 필수 근거, 허용 데이터와 예외 조건까지 Task Contract에 들어가야 한다.
 
-특히 하나의 `date` 필드만으로는 point-in-time truth를 지킬 수 없다.
+예를 들어 환불을 판단하는 task가 오늘의 정책을 과거 주문에 소급 적용하거나, 채용 심사 task가 마감 후 수정된 자료를 당시 제출본처럼 사용하면 결과는 그럴듯해도 잘못됐다. 리서치에서도 판단 시점 이후에 공개된 수치를 사용하면 같은 문제가 발생한다. 하나의 `date` 필드만으로는 이런 point-in-time truth를 지킬 수 없다.
 
 | 필드 | 의미 |
 |---|---|
@@ -284,9 +284,9 @@ LLM은 자연어 목표를 작업 후보로 바꾸고, 관련 맥락에서 계�
 | `ingested_at` | 내부 시스템이 정보를 수집한 시점 |
 | `revision_at` | 정정, 재작성 또는 vendor 수정이 반영된 시점 |
 
-[SEC EDGAR](https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps)만 보더라도 보고기간, filing date, acceptance time과 사후 변경일은 다르다. 2026년 1월의 판단을 재현하면서 2월에 공개된 재무제표를 사용하면 답은 그럴듯해도 task는 실패다. Point-in-time correctness와 evidence completeness는 부가적인 metadata가 아니라 결과 계약의 일부다.
+[SEC EDGAR](https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps)만 보더라도 보고기간, filing date, acceptance time과 사후 변경일은 다르다. 같은 원칙은 정책의 시행일, 계약 개정일, 티켓 생성 시점과 데이터 수집 시점에도 적용된다. Point-in-time correctness와 evidence completeness는 특정 도메인만의 부가 metadata가 아니라 결과 계약의 일부다.
 
-<TaskEngineeringDiagrams kind="research-loop" caption="투자 리서치 task는 한 번의 검색이 아니라 근거를 모으고 경쟁 가설을 검증하며 부족한 문맥을 다시 찾는 반복 과정이다." />
+<TaskEngineeringDiagrams kind="research-loop" caption="근거 기반 task는 한 번의 검색이 아니라 증거를 모으고 가능한 설명을 검증하며 부족한 문맥을 다시 찾는 반복 과정이다." />
 
 ## 검색이 아는 것을 늘리고, Task가 결과를 완성한다
 
