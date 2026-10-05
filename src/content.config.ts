@@ -26,6 +26,7 @@ const posts = defineCollection({
     draft: z.boolean().default(false),
     series: z.string().optional(),
     seriesOrder: z.number().int().positive().optional(),
+    seriesPart: z.enum(['design', 'execution', 'state', 'delivery']).optional(),
     language: z.enum(['ko', 'en']).default('ko'),
     translationKey: slug.optional(),
     localization: z.object({

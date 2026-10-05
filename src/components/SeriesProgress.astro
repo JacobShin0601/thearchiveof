@@ -1,0 +1,39 @@
+---
+import {
+  progressLabel,
+  seriesUsesParts,
+  type SeriesPartId,
+} from '../lib/series-sections';
+
+interface Props {
+  seriesName: string;
+  seriesPart?: SeriesPartId;
+  seriesOrder?: number;
+  totalInSeries: number;
+  language: 'ko' | 'en';
+}
+
+const { seriesName, seriesPart, seriesOrder, totalInSeries, language } = Astro.props;
+
+const show =
+  seriesUsesParts(seriesName)
+  && seriesPart
+  && seriesOrder != null
+  && totalInSeries > 0;
+
+const labels = show
+  ? progressLabel({
+      seriesName,
+      partId: seriesPart,
+      seriesOrder,
+      totalInSeries,
+      language,
+    })
+  : null;
+---
+
+{show && labels && (
+  <p class="series-progress" aria-label={labels.aria}>
+    <span class="series-progress-visible" aria-hidden="true">{labels.visible}</span>
+  </p>
+)}

@@ -2,8 +2,10 @@
 import type { GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import SeriesSectionList from '../../components/SeriesSectionList.astro';
 import { postPath, seriesDefinition, slugify } from '../../consts';
 import { isVisiblePost } from '../../environment';
+import { seriesUsesParts } from '../../lib/series-sections';
 
 export const getStaticPaths = (async () => {
   const posts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko');
@@ -25,18 +27,26 @@ const description = seriesDefinition(name)?.description.ko
       <h1>{name}</h1>
       <p>{description}</p>
     </header>
-    {posts.length > 0 ? <ol class="series-articles">
-      {posts.map((post, index) => (
-        <li>
-          <span>{String(post.data.seriesOrder ?? index + 1).padStart(2, '0')}</span>
-          <div>
-            <p class="post-meta">{post.data.section} / {post.data.subsection} / {post.data.contentType}</p>
-            <h2><a href={postPath(post)}>{post.data.title}</a></h2>
-            {post.data.subtitle && <p class="post-subtitle">{post.data.subtitle}</p>}
-            <p>{post.data.description}</p>
-          </div>
-        </li>
-      ))}
-    </ol> : <p class="empty-state">This series is being prepared. Its articles will appear here in reading order.</p>}
+    {posts.length > 0 ? (
+      seriesUsesParts(name) ? (
+        <SeriesSectionList seriesName={name} posts={posts} language="ko" />
+      ) : (
+        <ol class="series-articles">
+          {posts.map((post, index) => (
+            <li>
+              <span>{String(post.data.seriesOrder ?? index + 1).padStart(2, '0')}</span>
+              <div>
+                <p class="post-meta">{post.data.section} / {post.data.subsection} / {post.data.contentType}</p>
+                <h2><a href={postPath(post)}>{post.data.title}</a></h2>
+                {post.data.subtitle && <p class="post-subtitle">{post.data.subtitle}</p>}
+                <p>{post.data.description}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )
+    ) : (
+      <p class="empty-state">This series is being prepared. Its articles will appear here in reading order.</p>
+    )}
   </section>
 </BaseLayout>
