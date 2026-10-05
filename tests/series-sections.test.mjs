@@ -39,10 +39,10 @@ test('progress label includes stage and article index', () => {
     seriesName: AGENT_ENGINEERING_SERIES,
     partId: 'execution',
     seriesOrder: 3,
-    totalInSeries: 8,
+    totalInSeries: 9,
     language: 'ko',
   });
   assert.match(visible, /2\/4/);
-  assert.match(visible, /시리즈 3\/8/);
+  assert.match(visible, /시리즈 3\/9/);
   assert.match(aria, /3번째/);
 });

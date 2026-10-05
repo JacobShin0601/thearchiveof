@@ -1,0 +1,367 @@
+---
+interface Props {
+  kind: 'overview' | 'deployment' | 'lifecycle';
+  language?: 'ko' | 'en';
+}
+
+const { kind, language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+
+const captions = {
+  overview: ko
+    ? '그림 1. Agent backend — 명령 흐름(실선)과 관측 흐름(점선)'
+    : 'Figure 1. Agent backend — command flow (solid) and observation flow (dashed)',
+  deployment: ko
+    ? '그림 2. 개발(단일 process/Pod 가능)과 운영(API·Worker Deployment 분리)'
+    : 'Figure 2. Dev (single process/Pod) vs prod (separate API and Worker Deployments)',
+  lifecycle: ko
+    ? '그림 3. 하나의 run이 시스템을 통과하는 순서'
+    : 'Figure 3. One run through the system',
+};
+
+const overviewLegend = ko
+  ? [
+      ['실선 화살표', '명령: 사용자 → API → Queue → Worker'],
+      ['점선 화살표', '관측: Worker → 저장소 → SSE → 사용자'],
+    ]
+  : [
+      ['Solid arrow', 'Command: user → API → Queue → Worker'],
+      ['Dashed arrow', 'Observation: Worker → stores → SSE → user'],
+    ];
+
+const lifecycleSteps = ko
+  ? [
+      'POST /runs',
+      'PostgreSQL에 run 생성',
+      'Queue publish',
+      '202 + run_id',
+      'Worker claim → running',
+      'checkpoint / progress / event',
+      'completed 또는 failed',
+      'API·SSE로 조회',
+    ]
+  : [
+      'POST /runs',
+      'Create run in PostgreSQL',
+      'Publish to queue',
+      '202 + run_id',
+      'Worker claim → running',
+      'checkpoint / progress / events',
+      'completed or failed',
+      'Read via API / SSE',
+    ];
+---
+
+<figure class="agent-backend-map" aria-labelledby={`agent-backend-${kind}-${language}`}>
+  <figcaption id={`agent-backend-${kind}-${language}`}>{captions[kind]}</figcaption>
+
+  {kind === 'overview' && (
+    <>
+      <ul class="legend" aria-label={ko ? '화살표 범례' : 'Arrow legend'}>
+        {overviewLegend.map(([label, detail]) => (
+          <li>
+            <span class="swatch" data-flow={label.includes('점') || label.includes('Dashed') ? 'observe' : 'command'} />
+            <span><strong>{label}</strong> — {detail}</span>
+          </li>
+        ))}
+      </ul>
+      <div class="stack overview">
+        <div class="node browser">{ko ? 'Browser' : 'Browser'}</div>
+        <div class="arrow command" aria-hidden="true" />
+        <div class="node api">
+          <strong>{ko ? 'API Deployment' : 'API Deployment'}</strong>
+          <ul>
+            <li>{ko ? 'PostgreSQL: run·checkpoint·result' : 'PostgreSQL: run, checkpoint, result'}</li>
+            <li>{ko ? 'Queue에 실행 요청 게시' : 'Publish execution to queue'}</li>
+            <li>{ko ? 'Redis/SSE에서 진행 이벤트 조회' : 'Read progress events via Redis / SSE'}</li>
+          </ul>
+        </div>
+        <div class="arrow command" aria-hidden="true" />
+        <div class="node queue">{ko ? 'Queue' : 'Queue'}</div>
+        <div class="arrow command" aria-hidden="true" />
+        <div class="node worker">
+          <strong>{ko ? 'Worker Deployment' : 'Worker Deployment'}</strong>
+          <ul>
+            <li>{ko ? 'Agent 실행' : 'Run agent graph'}</li>
+            <li>{ko ? 'PostgreSQL에 durable state' : 'Durable state → PostgreSQL'}</li>
+            <li>{ko ? 'Redis에 짧은 상태·이벤트' : 'Short-lived state / events → Redis'}</li>
+            <li>{ko ? 'LLM·Tool·DB 호출' : 'LLM, tools, databases'}</li>
+          </ul>
+        </div>
+        <div class="observe-band">
+          <span class="observe-label">{ko ? '관측 흐름' : 'Observation'}</span>
+          <div class="observe-path">
+            <span>{ko ? 'Worker' : 'Worker'}</span>
+            <span class="arrow observe inline" aria-hidden="true" />
+            <span>{ko ? 'PostgreSQL · Redis' : 'PostgreSQL · Redis'}</span>
+            <span class="arrow observe inline" aria-hidden="true" />
+            <span>{ko ? 'SSE API' : 'SSE API'}</span>
+            <span class="arrow observe inline" aria-hidden="true" />
+            <span>{ko ? 'Browser' : 'Browser'}</span>
+          </div>
+        </div>
+      </div>
+    </>
+  )}
+
+  {kind === 'deployment' && (
+    <div class="deploy-grid">
+      <section class="deploy-panel" data-env="dev">
+        <h3>{ko ? '개발' : 'Development'}</h3>
+        <p>{ko ? 'API와 worker를 한 process 또는 한 Pod에서 실행할 수 있음' : 'API and worker may share one process or one Pod'}</p>
+        <div class="pod single">
+          <span>{ko ? 'Process / Pod' : 'Process / Pod'}</span>
+          <span class="role">{ko ? 'HTTP + Agent run' : 'HTTP + agent runs'}</span>
+        </div>
+      </section>
+      <section class="deploy-panel" data-env="prod">
+        <h3>{ko ? '운영' : 'Production'}</h3>
+        <p>
+          {ko
+            ? '별도 Deployment · Pod 집합 — 확장·배포·장애 수명이 분리됨'
+            : 'Separate Deployments and Pod sets — scale, deploy, and fail independently'}
+        </p>
+        <div class="deploy-col">
+          <strong>{ko ? 'API Deployment' : 'API Deployment'}</strong>
+          <div class="pod">API Pod 1</div>
+          <div class="pod">API Pod 2</div>
+          <div class="pod">API Pod 3</div>
+          <span class="scale-note">{ko ? 'HTTP 요청량 기준 확장' : 'Scale on HTTP load'}</span>
+        </div>
+        <div class="deploy-col">
+          <strong>{ko ? 'Worker Deployment' : 'Worker Deployment'}</strong>
+          <div class="pod">Worker Pod 1</div>
+          <div class="pod">Worker Pod 2</div>
+          <span class="scale-note">
+            {ko ? 'Queue 길이 · CPU/GPU · 외부 API 부하' : 'Queue depth, CPU/GPU, external API load'}
+          </span>
+        </div>
+      </section>
+    </div>
+  )}
+
+  {kind === 'lifecycle' && (
+    <ol class="lifecycle">
+      {lifecycleSteps.map((step) => (
+        <li>{step}</li>
+      ))}
+    </ol>
+  )}
+</figure>
+
+<style>
+  .agent-backend-map {
+    margin: 2rem 0;
+    padding: 1.25rem;
+    border: 1px solid var(--line);
+    background: var(--paper-deep);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+  .agent-backend-map figcaption {
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+  .legend {
+    margin: 0 0 1rem;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+  }
+  .legend li {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+  .swatch {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 0.35rem;
+    margin-top: 0.45rem;
+    border-radius: 1px;
+  }
+  .swatch[data-flow='command'] {
+    background: var(--accent);
+  }
+  .swatch[data-flow='observe'] {
+    background: repeating-linear-gradient(
+      90deg,
+      var(--muted),
+      var(--muted) 4px,
+      transparent 4px,
+      transparent 7px
+    );
+  }
+  .stack.overview {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+  }
+  .node {
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    text-align: center;
+  }
+  .node ul {
+    margin: 0.5rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.82rem;
+    color: var(--muted);
+    text-align: left;
+  }
+  .node ul li + li {
+    margin-top: 0.25rem;
+  }
+  .node.browser,
+  .node.queue {
+    font-weight: 600;
+  }
+  .arrow.command {
+    align-self: center;
+    width: 2px;
+    height: 1.25rem;
+    background: var(--accent);
+    position: relative;
+  }
+  .arrow.command::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -4px;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--accent);
+  }
+  .observe-band {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border: 1px dashed var(--muted);
+    background: var(--paper);
+  }
+  .observe-label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+  .observe-path {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem 0.5rem;
+    font-size: 0.82rem;
+  }
+  .arrow.observe.inline {
+    width: 1.5rem;
+    height: 0;
+    border-top: 2px dashed var(--muted);
+    position: relative;
+  }
+  .arrow.observe.inline::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: -4px;
+    border: 4px solid transparent;
+    border-left-color: var(--muted);
+  }
+  .deploy-grid {
+    display: grid;
+    gap: 1rem;
+  }
+  @media (min-width: 720px) {
+    .deploy-grid {
+      grid-template-columns: 1fr 1.2fr;
+    }
+  }
+  .deploy-panel {
+    padding: 1rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .deploy-panel h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+  }
+  .deploy-panel p {
+    margin: 0 0 0.75rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .pod {
+    padding: 0.5rem 0.65rem;
+    margin-top: 0.35rem;
+    border: 1px solid var(--line);
+    font-size: 0.82rem;
+    text-align: center;
+  }
+  .pod.single {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.75rem;
+  }
+  .pod.single .role {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .deploy-col {
+    margin-top: 0.75rem;
+  }
+  .deploy-col strong {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.88rem;
+  }
+  .scale-note {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .lifecycle {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: lifecycle;
+    display: grid;
+    gap: 0.5rem;
+  }
+  .lifecycle li {
+    counter-increment: lifecycle;
+    margin: 0;
+    padding: 0.65rem 0.75rem 0.65rem 2.5rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    position: relative;
+    font-size: 0.88rem;
+  }
+  .lifecycle li::before {
+    content: counter(lifecycle);
+    position: absolute;
+    left: 0.75rem;
+    top: 0.65rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  @media (prefers-color-scheme: dark) {
+    .agent-backend-map {
+      --paper: #202720;
+      --paper-deep: #171d19;
+      --ink: #edf1e9;
+      --muted: #b8c3b6;
+      --line: #465347;
+      --accent: #a0ceac;
+    }
+  }
+</style>

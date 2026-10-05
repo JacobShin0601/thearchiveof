@@ -22,7 +22,7 @@ comments: true
 language: "ko"
 translationKey: "why-agent-systems-need-async"
 series: "Agent Engineering"
-seriesOrder: 2
+seriesOrder: 3
 seriesPart: "execution"
 freshness: evergreen
 lastReviewed: 2026-10-05
@@ -48,7 +48,7 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
   Agent 작업 부하는 대개 계산보다 <strong>LLM, 데이터베이스, 검색 API, Redis 같은 외부 시스템의 응답을 기다리는 시간</strong>이 길다. Async는 한 run 안의 독립적인 대기를 겹쳐 지연 시간을 줄이고, 한 run이 기다리는 동안 다른 run을 진행해 backend의 처리량을 높인다. CPU를 더 많이 쓰는 기술이 아니라, I/O 때문에 비어 있던 실행 시간을 다른 작업에 돌려주는 동시성 모델이다.
 </AnswerBlock>
 
-이전 글 [에이전트 패턴 설계](/ai/agents/agent-pattern-design/)에서는 Agent를 도구 사용, 병렬 오케스트레이션, Planner/Executor, HITL, 재시도, Reflection 같은 제한된 제어 흐름의 조합으로 보았다. 그중 병렬 패턴을 Python으로 쓰면 이런 코드가 나온다.
+이전 글 [Agent Backend 한 장 지도](/ai/agents/agent-backend-architecture-map/)에서 API·queue·worker·PostgreSQL·Redis·SSE의 역할을 한 번에 봤다. 그 전제 위에서, worker 안에서 Agent가 LLM·DB·검색 API를 기다리는 **실행 모델**이 async가 되는 이유를 다룬다. [에이전트 패턴 설계](/ai/agents/agent-pattern-design/)에서 정리한 병렬 패턴을 Python으로 쓰면 이런 코드가 나온다.
 
 ```python
 research, data = await asyncio.gather(
@@ -141,7 +141,7 @@ Run C                                           └─ Redis ─ 대기 ─ 재�
 
 Async는 외부 API 하나를 더 빨리 응답하게 만들지 않는다. 대신 그 응답을 기다리는 동안 다른 일을 진행하게 한다. 따라서 async가 개선하는 것은 CPU 성능이 아니라 **실행 자원의 이용률과 I/O 중심 backend의 처리량**이다.
 
-물론 event loop가 여러 run을 진행할 수 있다는 사실이 그 run을 지속 가능하게 소유한다는 뜻은 아니다. API process가 재시작되어도 살아남아야 하는 장시간 작업은 queue와 worker라는 별도의 수명 주기 경계가 필요하다. 그 문제는 4편에서 다룬다.
+물론 event loop가 여러 run을 진행할 수 있다는 사실이 그 run을 지속 가능하게 소유한다는 뜻은 아니다. API process가 재시작되어도 살아남아야 하는 장시간 작업은 queue와 worker라는 별도의 수명 주기 경계가 필요하다. 그 문제는 5편 [Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/)에서 다룬다.
 
 ## Blocking과 non-blocking은 무엇이 다른가
 
@@ -195,7 +195,7 @@ async def collect_context(query: str):
     return docs, web
 ```
 
-Coroutine 객체만 만들고 await하지 않으면 작업은 완료되지 않는다. Task를 만들어 놓고 잊어버리는 방식도 안전하지 않다. 누가 결과와 오류를 회수하는지 불분명해지고, API process가 종료되면 작업도 함께 사라질 수 있다. 장시간 Agent run의 수명 주기를 누가 소유해야 하는지는 4편에서 worker와 함께 다시 다룬다.
+Coroutine 객체만 만들고 await하지 않으면 작업은 완료되지 않는다. Task를 만들어 놓고 잊어버리는 방식도 안전하지 않다. 누가 결과와 오류를 회수하는지 불분명해지고, API process가 종료되면 작업도 함께 사라질 수 있다. 장시간 Agent run의 수명 주기를 누가 소유해야 하는지는 5편에서 worker와 함께 다시 다룬다.
 
 ## `await`는 thread를 잠재우는 명령이 아니다
 

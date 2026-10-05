@@ -22,7 +22,7 @@ comments: true
 language: "en"
 translationKey: "why-agent-systems-need-async"
 series: "Agent Engineering"
-seriesOrder: 2
+seriesOrder: 3
 seriesPart: "execution"
 localization:
   locale: "en-US"
@@ -51,7 +51,7 @@ import AnswerBlock from '../../../../components/AnswerBlock.astro';
   Most agent workloads spend more time <strong>waiting on external systems—LLMs, databases, search APIs, and Redis—than computing</strong>. Async overlaps independent waits within a run to reduce latency, and lets a backend advance other runs while one is waiting to increase throughput. It does not make the CPU work harder. It is a concurrency model that puts execution time left idle by I/O to use elsewhere.
 </AnswerBlock>
 
-The previous article, [Agent Pattern Design](/en/ai/agents/agent-pattern-design/), treated an agent as a composition of bounded control flows: tool use, parallel orchestration, planner/executor, HITL, retry, and reflection. Express the parallel pattern in Python and you get code like this:
+The previous article, [Agent Backend Architecture at a Glance](/en/ai/agents/agent-backend-architecture-map/), mapped API, queue, worker, PostgreSQL, Redis, and SSE in one picture. On that foundation, this piece explains why the **execution model** inside the worker is async. [Agent Pattern Design](/en/ai/agents/agent-pattern-design/) already showed bounded control flows; express the parallel pattern in Python and you get code like this:
 
 ```python
 research, data = await asyncio.gather(
@@ -144,7 +144,7 @@ Keeping the two effects separate makes the role of async clearer.
 
 Async does not make an external API respond faster. It lets the backend do other work while waiting for that response. What async improves, then, is not CPU performance but **execution-resource utilization and the throughput of an I/O-heavy backend**.
 
-Of course, an event loop's ability to advance multiple runs does not mean it owns those runs durably. Long-running work that must survive an API-process restart needs a separate lifecycle boundary: a queue and worker. Article 4 addresses that problem.
+Of course, an event loop's ability to advance multiple runs does not mean it owns those runs durably. Long-running work that must survive an API-process restart needs a separate lifecycle boundary: a queue and worker. Article 5, [A Worker Is Not a Thread](/en/ai/agents/worker-is-not-thread/), addresses that problem.
 
 ## Blocking and non-blocking are different execution behaviors
 
@@ -198,7 +198,7 @@ async def collect_context(query: str):
     return docs, web
 ```
 
-If you create a coroutine object and never await it, the work does not complete. Creating a task and forgetting it is not safe either. It becomes unclear who retrieves its result and error, and the work can disappear with the API process. Article 4 returns to the question of who owns the lifecycle of a long-running agent run when it introduces workers.
+If you create a coroutine object and never await it, the work does not complete. Creating a task and forgetting it is not safe either. It becomes unclear who retrieves its result and error, and the work can disappear with the API process. Article 5 returns to the question of who owns the lifecycle of a long-running agent run when it introduces workers.
 
 ## `await` does not put a thread to sleep
 

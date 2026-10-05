@@ -22,7 +22,7 @@ comments: true
 language: "en"
 translationKey: "state-is-not-event"
 series: "Agent Engineering"
-seriesOrder: 6
+seriesOrder: 7
 seriesPart: "state"
 localization:
   locale: "en-US"
@@ -128,7 +128,7 @@ A useful starting rule is:
 
 ## Put a Redis Hash and Stream next to each other
 
-Following the key naming from Article 5, one run gets two keys:
+Following the key naming from Article 6, one run gets two keys:
 
 ```text
 agent:run:{run_id}:state    Redis Hash
@@ -306,7 +306,7 @@ async def publish_transition(
     return result
 ```
 
-This script gives state and event local consistency inside Redis. It is not a distributed transaction that includes the PostgreSQL run record. As in Article 5, commit the terminal result to PostgreSQL first, then update the Redis projection and terminal event. If the Redis update fails, the system must be able to reconcile from durable state.
+This script gives state and event local consistency inside Redis. It is not a distributed transaction that includes the PostgreSQL run record. As in Article 6, commit the terminal result to PostgreSQL first, then update the Redis projection and terminal event. If the Redis update fails, the system must be able to reconcile from durable state.
 
 ## Why state needs `last_event_id`
 
@@ -445,7 +445,7 @@ def encode_sse(event_id: str, fields: dict[str, str]) -> str:
 
 The HTML Standard defines an SSE event `id` and the last event ID a user agent uses when reconnecting. ([Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html))
 
-This article does not build the complete SSE endpoint. Async generators, `StreamingResponse`, heartbeat comments, proxy buffering, and disconnect cancellation belong to Article 7. The point here is that SSE is a **transport for cursor-aware Redis Stream events**.
+This article does not build the complete SSE endpoint. Async generators, `StreamingResponse`, heartbeat comments, proxy buffering, and disconnect cancellation belong to Article 8. The point here is that SSE is a **transport for cursor-aware Redis Stream events**.
 
 ## Reconnect means replay, and replay permits duplicates
 
@@ -517,7 +517,7 @@ The simplest starting point is to **refetch the snapshot and reconnect from its 
 
 ## Define what happens when the snapshot is gone
 
-As in Article 5, the Redis Hash may have a TTL. If both keys for an old completed run have expired, the durable PostgreSQL record is the fallback.
+As in Article 6, the Redis Hash may have a TTL. If both keys for an old completed run have expired, the durable PostgreSQL record is the fallback.
 
 ```text
 Redis state exists
