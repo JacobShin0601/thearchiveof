@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import topicRegistry from '../data/topics.json' with { type: 'json' };
+import { isAppliedTrackDetailSeries, SERIES_APPLIED_TRACK_DETAIL } from './series-sections.ts';
 
 type Language = 'ko' | 'en';
 
@@ -156,7 +157,14 @@ function buildInventory(): SitemapInventory {
         subsectionPaths.add(languagePath(post.language, `/${sectionSlug}/${subsectionSlug}/`));
       }
     }
-    if (post.series) seriesPaths.add(languagePath(post.language, `/series/${slugify(post.series)}/`));
+    if (post.series) {
+      if (isAppliedTrackDetailSeries(post.series)) {
+        const route = SERIES_APPLIED_TRACK_DETAIL[post.series];
+        seriesPaths.add(languagePath(post.language, `/series/${route.parentSlug}/${route.trackSlug}/`));
+      } else {
+        seriesPaths.add(languagePath(post.language, `/series/${slugify(post.series)}/`));
+      }
+    }
 
     for (const topic of post.topics) {
       const key = `${post.language}:${topic}`;
@@ -182,7 +190,7 @@ function buildInventory(): SitemapInventory {
 }
 
 function isSeriesDetail(pathname: string) {
-  return /^\/(?:en\/)?series\/[^/]+\/$/.test(pathname);
+  return /^\/(?:en\/)?series\/[^/]+(?:\/[^/]+)?\/$/.test(pathname);
 }
 
 function isTopicHub(pathname: string) {

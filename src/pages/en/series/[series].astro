@@ -10,13 +10,16 @@ import {
   AGENT_ENGINEERING_APPLIED_TRACKS,
   AGENT_ENGINEERING_SERIES,
   INTERNAL_LLM_SERVING_SERIES,
+  isAppliedTrackDetailSeries,
   seriesUsesParts,
 } from '../../../lib/series-sections';
 
 export const getStaticPaths = (async () => {
   const posts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en');
   const names = new Set(posts.flatMap((post) => post.data.series ? [post.data.series] : []));
-  return [...names].map((name) => ({ params: { series: slugify(name) }, props: { name } }));
+  return [...names]
+    .filter((name) => !isAppliedTrackDetailSeries(name))
+    .map((name) => ({ params: { series: slugify(name) }, props: { name } }));
 }) satisfies GetStaticPaths;
 
 const { name } = Astro.props as { name: string };

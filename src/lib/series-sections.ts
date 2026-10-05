@@ -10,10 +10,18 @@ export type LocalizedCopy = { ko: string; en: string };
 
 export const SERIES_APPLIED_TRACK_DETAIL: Record<
   string,
-  { parentSeries: string; trackTitle: LocalizedCopy; sectionDek: LocalizedCopy }
+  {
+    parentSeries: string;
+    parentSlug: string;
+    trackSlug: string;
+    trackTitle: LocalizedCopy;
+    sectionDek: LocalizedCopy;
+  }
 > = {
   [INTERNAL_LLM_SERVING_SERIES]: {
     parentSeries: AGENT_ENGINEERING_SERIES,
+    parentSlug: 'agent-engineering',
+    trackSlug: 'vllm-serving',
     trackTitle: { ko: 'Inference Serving · vLLM', en: 'Inference Serving · vLLM' },
     sectionDek: {
       ko: '내부 GPU에서 vLLM으로 서빙하는 이유, 튜닝, 성능 진단까지 이어지는 선택형 실전 경로',
@@ -165,4 +173,18 @@ export function trackProgressLabel(options: {
 
   const aria = `${parentSeries} series, Inference Serving track, article ${seriesOrder} of ${totalInTrack}`;
   return { visible, aria };
+}
+
+export function appliedTrackPath(detailSeriesName: string, language: 'ko' | 'en' = 'ko'): string {
+  const meta = SERIES_APPLIED_TRACK_DETAIL[detailSeriesName];
+  const prefix = language === 'en' ? '/en' : '';
+  if (!meta) return `${prefix}/series/${detailSeriesName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}/`;
+  return `${prefix}/series/${meta.parentSlug}/${meta.trackSlug}/`;
+}
+
+export function resolveAppliedTrackDetailSeries(parentSlug: string, trackSlug: string): string | undefined {
+  for (const [detailSeriesName, meta] of Object.entries(SERIES_APPLIED_TRACK_DETAIL)) {
+    if (meta.parentSlug === parentSlug && meta.trackSlug === trackSlug) return detailSeriesName;
+  }
+  return undefined;
 }

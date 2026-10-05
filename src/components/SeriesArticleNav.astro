@@ -3,6 +3,7 @@ import type { CollectionEntry } from 'astro:content';
 import { postPath, seriesPath } from '../consts';
 import {
   appliedTrackDetailMeta,
+  appliedTrackPath,
   isAppliedTrackDetailSeries,
   partMeta,
   seriesUsesParts,
@@ -38,8 +39,8 @@ const appliedTrackParent = isAppliedTrack ? appliedTrackDetailMeta(seriesName!).
         Series ·{' '}
         <a href={seriesPath(appliedTrackParent, language)}>{appliedTrackParent}</a>
         {' / '}
-        <a href={seriesPath(seriesName!, language)}>
-          {isKo ? 'Inference Serving' : 'Inference Serving'}
+        <a href={appliedTrackPath(seriesName!, language)}>
+          {isKo ? 'Inference Serving · vLLM' : 'Inference Serving · vLLM'}
         </a>
       </>
     ) : (
@@ -67,7 +68,7 @@ const appliedTrackParent = isAppliedTrack ? appliedTrackDetailMeta(seriesName!).
   </div>
   {isLastInSeries && seriesName && (
     <p class="series-nav-overview">
-      <a href={seriesPath(seriesName, language)}>
+      <a href={isAppliedTrack ? appliedTrackPath(seriesName, language) : seriesPath(seriesName, language)}>
         {isKo ? '시리즈 전체 보기' : 'View full series'}
       </a>
     </p>
