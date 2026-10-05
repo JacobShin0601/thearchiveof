@@ -1,11 +1,25 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { catalogTopLevelSeriesNames, seriesPath, sortSeriesNames } from '../../consts';
+import {
+  catalogTopLevelSeriesNames,
+  seriesDisplayTitle,
+  seriesHomeBlurb,
+  seriesPath,
+  sortSeriesNames,
+} from '../../consts';
 import { isVisiblePost } from '../../environment';
+import {
+  AGENT_ENGINEERING_SERIES,
+  INTERNAL_LLM_SERVING_SERIES,
+  appliedTrackDetailMeta,
+  appliedTrackPath,
+} from '../../lib/series-sections';
 
 const posts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko');
 const series = sortSeriesNames(catalogTopLevelSeriesNames(new Set(posts.flatMap((post) => post.data.series ? [post.data.series] : []))));
+const trackMeta = appliedTrackDetailMeta(INTERNAL_LLM_SERVING_SERIES);
+const trackCount = posts.filter((post) => post.data.series === INTERNAL_LLM_SERVING_SERIES).length;
 ---
 
 <BaseLayout title="Series" description="Ordered learning paths through the core ideas in The Archive." language="ko" alternateLanguageUrl="/en/series/">
@@ -18,13 +32,80 @@ const series = sortSeriesNames(catalogTopLevelSeriesNames(new Set(posts.flatMap(
     <div class="series-list">
       {series.map((name, index) => {
         const count = posts.filter((post) => post.data.series === name).length;
-        return <a href={seriesPath(name)}>
-          <span>{String(index + 1).padStart(2, '0')}</span>
-          <h2>{name}</h2>
-          <p>{`${count} published article${count === 1 ? '' : 's'}`}</p>
-          <span aria-hidden="true">↗</span>
-        </a>;
+        const title = seriesDisplayTitle(name, 'ko');
+        const blurb = seriesHomeBlurb(name, 'ko');
+        return (
+          <div class="series-list-group">
+            <a href={seriesPath(name)} class="series-list-main">
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <div>
+                <h2>{title}</h2>
+                <p>{blurb ?? `${count}편`}</p>
+              </div>
+              <span aria-hidden="true">↗</span>
+            </a>
+            {name === AGENT_ENGINEERING_SERIES && trackCount > 0 && (
+              <a href={appliedTrackPath(INTERNAL_LLM_SERVING_SERIES, 'ko')} class="series-list-subtrack">
+                <span class="eyebrow">Applied Track · {trackCount}편</span>
+                <strong>{trackMeta.trackTitle.ko}</strong>
+                <p>{trackMeta.sectionDek.ko}</p>
+              </a>
+            )}
+          </div>
+        );
       })}
     </div>
   </section>
 </BaseLayout>
+
+<style>
+  .series-list-group {
+    display: grid;
+    gap: 0.65rem;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0.65rem;
+  }
+  .series-list-main {
+    display: grid;
+    grid-template-columns: 48px 1fr auto;
+    gap: 22px;
+    align-items: center;
+    padding: 32px 0 16px;
+    text-decoration: none;
+    color: inherit;
+  }
+  .series-list-main h2 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: clamp(28px, 4vw, 46px);
+    font-weight: 400;
+  }
+  .series-list-main p {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+    max-width: 720px;
+  }
+  .series-list-main > span:first-child {
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .series-list-subtrack {
+    margin-left: 2.5rem;
+    padding: 0.85rem 1rem;
+    border: 1px dashed var(--line);
+    background: var(--paper-deep);
+    text-decoration: none;
+    color: inherit;
+    display: grid;
+    gap: 0.35rem;
+  }
+  .series-list-subtrack strong {
+    font-size: 1rem;
+  }
+  .series-list-subtrack p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--muted);
+  }
+</style>

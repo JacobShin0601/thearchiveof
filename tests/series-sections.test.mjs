@@ -11,7 +11,14 @@ import {
   trackProgressLabel,
   appliedTrackPath,
 } from '../src/lib/series-sections.ts';
-import { catalogTopLevelSeriesNames, isCatalogTopLevelSeries } from '../src/lib/series-catalog.ts';
+import {
+  AI_VALUE_CHAIN_SERIES,
+  catalogTopLevelSeriesNames,
+  isCatalogTopLevelSeries,
+  seriesDisplayTitle,
+  seriesMode,
+  seriesSlug,
+} from '../src/lib/series-catalog.ts';
 
 test('Agent Engineering uses five learning stages', () => {
   assert.equal(seriesUsesParts(AGENT_ENGINEERING_SERIES), true);
@@ -63,6 +70,13 @@ test('applied track progress label references parent series', () => {
   });
   assert.equal(visible, 'Agent Engineering / Inference Serving · 1 of 3');
   assert.match(aria, /article 1 of 3/);
+});
+
+test('AI Value Chain uses research mode and stable slug', () => {
+  assert.equal(seriesSlug(AI_VALUE_CHAIN_SERIES), 'ai-value-chain');
+  assert.equal(seriesMode(AI_VALUE_CHAIN_SERIES), 'research-series');
+  assert.equal(seriesDisplayTitle(AI_VALUE_CHAIN_SERIES, 'ko'), 'AI 밸류체인: 기술과 투자');
+  assert.equal(seriesDisplayTitle(AI_VALUE_CHAIN_SERIES, 'en'), 'Investing Across the AI Stack');
 });
 
 test('progress label includes stage and article index', () => {

@@ -1,6 +1,6 @@
 ---
 import type { CollectionEntry } from 'astro:content';
-import { postPath, seriesPath } from '../consts';
+import { postPath, seriesDisplayTitle, seriesPath } from '../consts';
 import {
   appliedTrackDetailMeta,
   appliedTrackPath,
@@ -45,7 +45,7 @@ const appliedTrackParent = isAppliedTrack ? appliedTrackDetailMeta(seriesName!).
       </>
     ) : (
       <>
-        Series · <a href={seriesPath(seriesName!, language)}>{seriesName}</a>
+        Series · <a href={seriesPath(seriesName!, language)}>{seriesDisplayTitle(seriesName!, language)}</a>
       </>
     )}
   </p>

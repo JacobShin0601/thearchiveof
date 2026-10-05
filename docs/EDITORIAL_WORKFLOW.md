@@ -34,6 +34,21 @@ Keep site work and article work on separate branches so a draft does not block d
 
 Do not add a new article, series metadata, or topic-registry entries on a design or fix branch. Do not mix a site redesign into an article branch.
 
+## AI Value Chain (`AI Value Chain` / Investing Across the AI Stack)
+
+Research-series articles use optional `seriesQuestion` and `seriesAxis` frontmatter. `seriesOrder` is editorial reading order, not a curriculum prerequisite.
+
+When drafting or reviewing a piece in this series, keep the investment lens explicit:
+
+- **Investment question** — one sentence the article tries to resolve.
+- **Value chain** — where customer spend and capital move across compute, models, platforms, data, and applications.
+- **Economics** — separate total value created, customer payment, vendor revenue, cost to serve, and durable margin or cash flow.
+- **Moat** — which of performance, data rights, workflow, distribution, switching costs, trust, capital scale, or field learning actually defends returns.
+- **Valuation** — multiples and scenarios only from verifiable public sources; do not state private revenue or valuation as fact.
+- **Catalysts and risks** — what would confirm or falsify the thesis (observable falsifiers, not vibes).
+
+Agent Engineering teaches how to build agent systems; Enterprise AX covers organizational redesign; this series asks **who captures economic value across the AI stack**.
+
 ## 1. Intake
 
 Start from `docs/ARTICLE_BRIEF_TEMPLATE.md`. The author provides at least:

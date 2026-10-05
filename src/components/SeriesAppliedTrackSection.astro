@@ -16,6 +16,8 @@ interface Props {
 const { detailSeriesName, trackPosts, language } = Astro.props;
 const meta = appliedTrackDetailMeta(detailSeriesName);
 const isKo = language === 'ko';
+const trackHref = appliedTrackPath(detailSeriesName, language);
+const countLabel = isKo ? `${trackPosts.length}편` : `${trackPosts.length} article${trackPosts.length === 1 ? '' : 's'}`;
 ---
 
 <section class="series-section-block series-applied-track" aria-labelledby="series-applied-track">
@@ -24,6 +26,15 @@ const isKo = language === 'ko';
     <h2 id="series-applied-track">{meta.trackTitle[language]}</h2>
     <p class="series-section-dek">{meta.sectionDek[language]}</p>
   </header>
+  <a class="applied-track-card" href={trackHref}>
+    <p class="applied-track-eyebrow">{isKo ? `Applied Track · ${countLabel}` : `Applied Track · ${countLabel.toUpperCase()}`}</p>
+    <p class="applied-track-title">{meta.trackTitle[language]}</p>
+    <p class="applied-track-dek">
+      {isKo
+        ? '내부 GPU에서 모델을 선택하고, 튜닝하고, 병목을 진단하는 실전 과정'
+        : 'Choose, tune, and troubleshoot models served on internal GPUs.'}
+    </p>
+  </a>
   {trackPosts.length > 0 ? (
     <div class="post-grid series-section-grid">
       {trackPosts.map((post) => (
@@ -35,18 +46,37 @@ const isKo = language === 'ko';
       {isKo ? '이 트랙의 글이 준비 중입니다.' : 'Articles for this track are being prepared.'}
     </p>
   )}
-  <p class="series-track-path">
-    {isKo ? (
-      <>
-        세 편의 읽기 순서는{' '}
-        <a href={appliedTrackPath(detailSeriesName, language)}>Inference Serving · vLLM 학습 경로</a>
-        에서 볼 수 있습니다.
-      </>
-    ) : (
-      <>
-        Reading order for all three articles is on the{' '}
-        <a href={appliedTrackPath(detailSeriesName, language)}>Inference Serving · vLLM learning path</a>.
-      </>
-    )}
-  </p>
 </section>
+
+<style>
+  .applied-track-card {
+    display: grid;
+    gap: 0.35rem;
+    margin-bottom: 1.25rem;
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--line);
+    background: var(--paper-deep);
+    text-decoration: none;
+    color: inherit;
+  }
+  .applied-track-card:hover {
+    border-color: var(--accent);
+  }
+  .applied-track-eyebrow {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .applied-track-title {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.05rem;
+  }
+  .applied-track-dek {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+</style>
