@@ -175,8 +175,8 @@ The queue’s job is not to **run work faster**, but to **separate the API reque
 
 Steps with side effects must ask “is this the first processing of this message?” via run rows, attempts, or idempotency keys. [Can an Agent Tool Execute Exactly Once?](/en/ai/agents/agent-tool-idempotency-approval-retry/) continues that thread.
 
-<details class="tmi">
-<summary>TMI — Why can a queue lead to duplicate execution?</summary>
+<details class="deep-dive">
+<summary>Deep dive — Why can a queue lead to duplicate execution?</summary>
 
 Brokers usually offer **at-least-once delivery**:
 
@@ -210,8 +210,8 @@ PostgreSQL holds **recoverable truth**. Redis holds **fast-changing** progress a
 
 Retrieval storage (embeddings, RAG indexes) is a **separate concern**; this article covers execution architecture only.
 
-<details class="tmi">
-<summary>TMI — What if the DB commit succeeds but queue publish fails?</summary>
+<details class="deep-dive">
+<summary>Deep dive — What if the DB commit succeeds but queue publish fails?</summary>
 
 Separate `run_store.create` and `job_queue.publish` calls leave gaps:
 
@@ -231,8 +231,8 @@ COMMIT;
 Before returning `202`, the system must leave **execution intent you can rediscover later**.
 </details>
 
-<details class="tmi">
-<summary>TMI — How do you update Redis progress and event streams atomically?</summary>
+<details class="deep-dive">
+<summary>Deep dive — How do you update Redis progress and event streams atomically?</summary>
 
 At map level, Redis is for runtime coordination. In implementation, teams often combine a Hash (current snapshot), a bounded Stream (recent events), and **Lua scripts** for atomic updates. TTL, stream limits, and consumer offsets connect in [Agent SSE Streaming](/en/ai/agents/agent-sse-streaming/) and [State Is Not an Event](/en/ai/agents/state-is-not-event/).
 </details>
@@ -252,8 +252,8 @@ Worker → State / Event Store → SSE endpoint → Browser
 
 The observation path sends `id`, `event`, and `data` per the [WHATWG SSE](https://html.spec.whatwg.org/multipage/server-sent-events.html) format. When a generator sees disconnect, it stops HTTP chunks only. **A broken stream is not a run rollback**.
 
-<details class="tmi">
-<summary>TMI — After SSE reconnects, how are events recovered?</summary>
+<details class="deep-dive">
+<summary>Deep dive — After SSE reconnects, how are events recovered?</summary>
 
 Clients reconnect with `Last-Event-ID`; servers resume from an event-store cursor. Redis Streams, sequence numbers, replay windows, and transport vs domain idempotency are developed in [Agent SSE Streaming](/en/ai/agents/agent-sse-streaming/).
 </details>
@@ -262,8 +262,8 @@ Clients reconnect with `Last-Event-ID`; servers resume from an event-store curso
 
 Queues and leases alone do not prove an old worker is gone. Design for **multiple workers touching the same run**.
 
-<details class="tmi">
-<summary>TMI — Worker A was presumed dead; B took over—then A wakes up late?</summary>
+<details class="deep-dive">
+<summary>Deep dive — Worker A was presumed dead; B took over—then A wakes up late?</summary>
 
 ```text
 Worker A → fencing token 41

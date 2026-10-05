@@ -172,8 +172,8 @@ Queue의 역할은 작업을 **빨리 실행**하는 것이 아니라, **API req
 
 부수 효과가 있는 단계(Tool 호출, 티켓 생성 등)는 “이 메시지를 처음 처리하는가?”를 run row·attempt·idempotency key로 판단해야 한다. [Agent Tool Idempotency](/ai/agents/agent-tool-idempotency-approval-retry/)에서 이어서 다룬다.
 
-<details class="tmi">
-<summary>TMI — Queue가 있으면 duplicate execution이 생길 수 있을까?</summary>
+<details class="deep-dive">
+<summary>Deep dive — Queue가 있으면 duplicate execution이 생길 수 있을까?</summary>
 
 일반적인 broker는 **at-least-once delivery**를 제공한다.
 
@@ -207,8 +207,8 @@ PostgreSQL은 복구 가능한 **기준 상태**를 저장한다. Redis는 UI pr
 
 Retrieval storage(embedding, RAG index)는 **별도 concern**이며 이 글에서는 execution architecture만 다룬다.
 
-<details class="tmi">
-<summary>TMI — DB에 저장한 뒤 Queue publish가 실패하면 어떻게 될까?</summary>
+<details class="deep-dive">
+<summary>Deep dive — DB에 저장한 뒤 Queue publish가 실패하면 어떻게 될까?</summary>
 
 `run_store.create`와 `job_queue.publish`를 별도 호출하면 gap이 생긴다.
 
@@ -228,8 +228,8 @@ COMMIT;
 `202`를 반환하기 전에 “나중에 다시 발견 가능한 실행 의도”가 남아야 한다.
 </details>
 
-<details class="tmi">
-<summary>TMI — Redis에서 progress와 event stream을 어떻게 원자적으로 갱신할까?</summary>
+<details class="deep-dive">
+<summary>Deep dive — Redis에서 progress와 event stream을 어떻게 원자적으로 갱신할까?</summary>
 
 본문에서는 Redis를 runtime coordination에 쓴다고만 두고, 구현에서는 Hash(현재 snapshot), Stream(제한된 event 기록), **Lua script**로 한 번에 갱신하는 패턴이 흔하다. TTL·Stream maxlen·consumer offset은 [Agent SSE streaming](/ai/agents/agent-sse-streaming/)과 [State는 Event가 아니다](/ai/agents/state-is-not-event/)에서 연결한다.
 </details>
@@ -249,8 +249,8 @@ Worker → State / Event Store → SSE endpoint → Browser
 
 관측 경로는 [WHATWG SSE](https://html.spec.whatwg.org/multipage/server-sent-events.html) 형식으로 event id·type·data를 보낸다. Generator가 disconnect를 감지하면 HTTP chunk 전송만 멈춘다. **스트리밍 연결 실패 ≠ run 롤백**이다.
 
-<details class="tmi">
-<summary>TMI — SSE 연결이 끊겼다가 다시 붙으면 event는 어떻게 복구할까?</summary>
+<details class="deep-dive">
+<summary>Deep dive — SSE 연결이 끊겼다가 다시 붙으면 event는 어떻게 복구할까?</summary>
 
 클라이언트는 `Last-Event-ID`로 재연결하고, 서버는 event store cursor부터 이어 읽는다. Redis Stream·sequence number·replay 구간 설계, transport vs domain idempotency(같은 event_id를 UI가 두 번 받아도 무해하게)는 [Agent SSE streaming](/ai/agents/agent-sse-streaming/)에서 다룬다.
 </details>
@@ -259,8 +259,8 @@ Worker → State / Event Store → SSE endpoint → Browser
 
 Queue와 lease만으로는 “이전 worker가 정말 죽었다”를 완벽히 증명하기 어렵다. **여러 Worker가 같은 run을 동시에 처리할 가능성**에 대비해야 한다.
 
-<details class="tmi">
-<summary>TMI — Worker A가 죽은 줄 알고 Worker B가 이어받았는데, A가 늦게 다시 살아나면?</summary>
+<details class="deep-dive">
+<summary>Deep dive — Worker A가 죽은 줄 알고 Worker B가 이어받았는데, A가 늦게 다시 살아나면?</summary>
 
 ```text
 Worker A → fencing token 41
