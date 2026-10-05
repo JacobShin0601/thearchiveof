@@ -1,7 +1,7 @@
 ---
 title: "Agent Backend 한 장 지도: API, Queue, Worker, State, SSE는 어떻게 연결되는가"
-subtitle: "Agent 실행을 HTTP 요청 밖으로 옮기고 상태와 이벤트를 다시 사용자에게 전달하는 전체 구조"
-description: "Agent backend에서 API, queue, worker, PostgreSQL, Redis, SSE가 어떻게 연결되는지 202 접수, outbox, fencing, 스트리밍 멱등성까지 한 장 지도로 정리합니다."
+subtitle: "실행 architecture의 책임 경계 — mental model, failure mode, 선택적 deep dive"
+description: "Agent backend에서 API, queue, worker, PostgreSQL, Redis, SSE가 각각 어떤 책임을 갖는지 한 장 지도로 정리합니다. 구현 세부는 후속 글로 넘깁니다."
 publishedDate: 2026-09-18
 section: "AI & AX"
 subsection: "Agents"
@@ -40,9 +40,6 @@ references:
   - title: "PostgreSQL JSON Types"
     url: "https://www.postgresql.org/docs/current/datatype-json.html"
     publisher: "PostgreSQL Documentation"
-  - title: "pgvector"
-    url: "https://github.com/pgvector/pgvector"
-    publisher: "pgvector"
   - title: "Redis Streams"
     url: "https://redis.io/docs/latest/develop/data-types/streams/"
     publisher: "Redis Documentation"
@@ -54,45 +51,64 @@ references:
 import AnswerBlock from '../../../components/AnswerBlock.astro';
 import AgentBackendArchitectureMap from '../../../components/AgentBackendArchitectureMap.astro';
 
-<AnswerBlock question="Agent backend는 API, queue, worker, state, SSE를 어떻게 연결해야 하는가?">
-  장시간 Agent run은 HTTP 요청 하나가 끝까지 소유하지 않는다. <strong>API는 검증과 접수 후 202와 run_id를 반환하고, queue는 실행 의도를 process 밖에 남기며, worker는 현재 시도의 수명 주기를 책임지고, PostgreSQL은 영속적 run·결과·checkpoint를, Redis는 실시간 snapshot과 event stream을, SSE는 관측 흐름만 브라우저로 전달한다.</strong> 명령(실선)과 관측(점선)을 분리해야 disconnect, 재시도, 중복 실행, stale progress를 각각 다룰 수 있다.
+<AnswerBlock question="Production Agent Backend를 어떻게 나누어 생각해야 하는가?">
+  <strong>API는 Agent를 실행하는 곳이 아니라, Agent 실행을 접수하는 곳이다.</strong> Queue는 실행 의도를 process 밖에 남기고, Worker가 run을 소유하며, PostgreSQL은 durable state, Redis는 runtime coordination과 짧은 관측 데이터, SSE는 사용자에게 진행만 전달한다.
 </AnswerBlock>
 
-이전 글 [에이전트 패턴 설계](/ai/agents/agent-pattern-design/)에서는 Tool Use, Parallel, Planner, HITL, Retry, Reflection 같은 **제어 흐름 패턴**을 정리했다. 패턴은 "한 run 안에서 무엇을 할까"를 설명한다.
+이전 글 [에이전트 패턴 설계](/ai/agents/agent-pattern-design/)에서는 Tool Use, Parallel, Planner, HITL, Retry, Reflection 같은 **제어 흐름 패턴**을 정리했다. 패턴은 “한 run 안에서 무엇을 할까”를 설명한다.
 
-운영 환경에서는 곧바로 다른 질문이 따라온다.
+이 글의 목적은 다르다. **Production Agent Backend를 어떻게 구현하는가**가 아니라, **어떤 경계와 책임으로 나누어 생각해야 하는가**를 설명한다.
 
-- 30초·3분짜리 run을 HTTP handler가 계속 붙잡아도 되는가?
-- 사용자가 탭을 닫으면 Agent 실행도 멈춰야 하는가?
-- 진행률과 checkpoint는 어디에 두고, 브라우저에는 무엇을 스트리밍하는가?
-- API Pod가 재시작되면 in-flight run은 어떻게 다시 발견하는가?
+## 1. Agent가 길게 실행되기 시작하면 생기는 문제
 
-이 글은 그 질문들에 대한 **한 장 지도**다. 세부 구현은 이후 글에서 Python 코드로 깊게 다루지만, 먼저 구성 요소와 책임 경계를 공통 그림으로 맞춰 두려는 목적이다.
+처음에는 FastAPI handler 안에서 Agent를 직접 실행해도 별 문제가 없다.
 
-## 1. 패턴 다음에는 backend 지도가 필요하다
+하지만 실행 시간이 30초가 아니라 3분이 되기 시작하면 이야기가 달라진다. 사용자가 브라우저를 닫을 수 있고, Pod가 재시작될 수 있으며, 같은 요청이 두 번 들어올 수도 있다. 이 순간부터 Agent backend는 단순한 LLM application이 아니라 작은 **distributed system**이 된다.
 
-데모에서는 종종 다음 한 줄로 Agent run이 시작된다.
+운영 환경에서는 곧바로 이런 질문이 따라온다.
 
-```python
-asyncio.create_task(run_agent(request))
-return {"status": "started"}
+- run을 HTTP handler가 끝까지 붙잡아도 되는가?
+- 사용자가 탭을 닫으면 실행도 멈춰야 하는가?
+- 진행률과 checkpoint는 어디에 두고, 브라우저에는 무엇을 보여주는가?
+- API Pod가 재시작되면 in-flight run은 어떻게 다시 찾는가?
+
+아래 mental model이 이 질문들에 대한 출발점이다.
+
+```text
+API        = 요청 접수
+Queue      = 실행 의도 보존
+Worker     = 실제 실행
+PostgreSQL = durable state / source of truth
+Redis      = runtime state / coordination / short-lived events
+SSE        = 사용자에게 실행 상태 전달
 ```
 
-패턴 관점에서는 Tool loop가 돌아가고 있다. Backend 관점에서는 **누가 run_id를 발급했고, 실패 시 어디를 조회해야 하며, 배포 중에도 실행이 살아 있는가**가 비어 있다.
+그리고 본문에서 이어서 답하려는 질문은 다음과 같다.
 
-Agent Engineering 시리즈에서는 패턴 다음에 backend **전체 배치도**를 먼저 맞춘다. 이 글이 그 지도이고, 이후 글은 각 레이어의 도구 선택과 코드다.
+```text
+왜 queue가 필요한가?
+왜 duplicate execution이 생기는가?
+왜 DB와 queue 사이가 위험한가?
+왜 SSE reconnect를 고려해야 하는가?
+```
 
-| 레이어 | 이 글에서 잡는 질문 | 이후 글에서 다룰 것 |
+| 레이어 | 이 글에서 잡는 질문 | 후속 글 |
 | --- | --- | --- |
-| 동시성 | async/thread/process가 worker와 다른 축임 | [Async, Thread, Process](/ai/agents/async-thread-process-agent-backends/) |
+| 동시성 | async/thread/process vs worker 역할 | [Async, Thread, Process](/ai/agents/async-thread-process-agent-backends/) |
 | 접수·실행 | 202, queue, worker 책임 | [Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/) |
-| 상태 | PostgreSQL vs Redis 역할 | [Agent State는 어디에](/ai/agents/where-agent-state-lives/), [State는 Event가 아니다](/ai/agents/state-is-not-event/) |
-| 전달 | SSE와 replay | [Agent SSE streaming](/ai/agents/agent-sse-streaming/) |
-| 프레임워크 | LangGraph는 런타임일 뿐 | [LangGraph runtime ≠ architecture](/ai/agents/langgraph-runtime-not-architecture/) |
+| 상태 | PostgreSQL vs Redis | [Agent State는 어디에](/ai/agents/where-agent-state-lives/), [State는 Event가 아니다](/ai/agents/state-is-not-event/) |
+| 전달 | SSE와 관측 경로 | [Agent SSE streaming](/ai/agents/agent-sse-streaming/) |
+| 부수 효과 | 중복 실행 대비 | [Agent Tool Idempotency](/ai/agents/agent-tool-idempotency-approval-retry/) |
 
-## 2. 한 장 지도: 명령 흐름과 관측 흐름
+## 2. 전체 Architecture Map
 
-아래 그림에서 **실선**은 사용자가 실행을 **명령**하는 경로다. **점선**은 브라우저가 진행을 **관측**하는 경로다. 둘을 같은 HTTP 연결에 억지로 합치지 않는 것이 출발점이다.
+**실선**은 사용자가 실행을 **명령**하는 경로다. **점선**은 브라우저가 진행을 **관측**하는 경로다.
+
+```text
+Browser → API → Queue → Worker
+              ↓
+         PostgreSQL · Redis → SSE → Browser
+```
 
 <AgentBackendArchitectureMap kind="overview" language="ko" />
 
@@ -101,42 +117,30 @@ Agent Engineering 시리즈에서는 패턴 다음에 backend **전체 배치도
 관측:  Browser <──SSE── API <──read──── Redis / PostgreSQL <──write── Worker
 ```
 
-Worker는 LLM·도구·checkpoint 로직을 실행한다. API는 대개 run 생성, queue 게시, 상태 조회, SSE 중계에 집중한다. 이 분리 덕분에 API replica 수와 worker replica 수를 **서로 다른 자원 특성**에 맞게 조정할 수 있다.
+Worker는 LLM·도구·checkpoint 로직을 실행한다. API는 run 접수, queue 게시, 상태 조회, SSE 중계에 집중한다. 이 분리 덕분에 API replica 수와 worker replica 수를 **서로 다른 자원**에 맞게 조정할 수 있다.
 
-### 그림에서 꼭 봐야 할 네 가지 경계
+### 명령 경로와 관측 경로
 
-상자가 많아서 복잡해 보이지만, 실제로 확인할 계약은 네 가지다.
-
-| 경계 | 넘겨주는 것 | 넘기지 않는 것 | 실패했을 때 |
-| --- | --- | --- | --- |
-| Browser → API | 사용자 의도, idempotency key | 실행 수명 | 같은 요청의 중복 접수를 식별한다 |
-| API → Queue | `run_id`, 실행에 필요한 최소 payload | 사용자 HTTP 연결 | outbox relay가 게시를 재시도한다 |
-| Queue → Worker | claim, lease, `attempt_id` | exactly-once 보장 | lease 만료 뒤 다른 worker가 회수한다 |
-| Worker → 저장소 | version이 붙은 snapshot·event·result | process 메모리 | durable state에서 재개·조정한다 |
-
-여기서 **PostgreSQL과 Redis는 같은 “state 저장소”가 아니다.** PostgreSQL은 재시작 뒤에도 설명해야 하는 run의 기준 정보다. Redis는 실행 중 조정과 화면 전달을 빠르게 만드는 제한된 투영 계층이다. SSE도 저장소가 아니라 이미 기록된 snapshot과 event를 옮기는 전달 계층이다.
-
-또한 Worker가 외부 LLM이나 도구를 호출하는 선은 내부 상태 전이와 다르다. Timeout과 재시도뿐 아니라 결제·티켓 생성 같은 부수 효과의 idempotency까지 별도 계약으로 설계해야 한다.
-
-## 3. Pod, Process, Worker, Thread — 같은 축이 아니다
-
-Kubernetes, Python runtime, Agent backend 용어가 한 문장에 섞이면 설계가 흔들린다.
-
-| 용어 | 무엇을 가리키는가 | Agent backend에서의 예 |
+| 경로 | 흐름 | 기억할 점 |
 | --- | --- | --- |
-| **Pod** | 스케줄링·재시작 단위 ([Pod Lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/)) | API Deployment의 Pod 하나, Worker Deployment의 Pod 하나 |
-| **Process** | OS가 격리하는 실행 중인 프로그램 | Pod 안의 Uvicorn worker process |
-| **Worker (역할)** | queue에서 job을 가져와 run 수명 주기를 책임지는 **서비스 역할** | `agent-worker` Deployment |
-| **Thread / async task** | 한 process 안에서 동시에 진행하는 **실행 도구** | blocking SDK 호출을 thread pool로 위임 |
+| **Command** | Browser → API → Queue → Worker | HTTP handler는 run 수명을 소유하지 않는다 |
+| **Observation** | Worker → State/Event store → SSE → Browser | 연결이 끊겨도 run은 계속될 수 있다 |
 
-Pod가 재시작되면 그 안의 process와 asyncio task도 함께 사라진다. **Worker 역할**은 Pod가 죽어도 queue와 PostgreSQL에 남은 실행 의도·run 기록을 통해 다른 Pod가 이어받을 수 있게 설계한다. 반대로 "thread pool worker"는 CPU 병렬용 도구 이름일 뿐, queue consumer Worker와 동일하지 않다.
+## 3. API는 실행하지 않고 접수한다
 
-## 4. API는 실행을 소유하지 않는다 — `202 Accepted`
+데모에서는 종종 다음 한 줄로 run이 시작된다.
 
-장시간 run을 시작하는 API의 계약은 보통 다음과 같다.
+```python
+asyncio.create_task(run_agent(request))
+return {"status": "started"}
+```
+
+패턴 관점에서는 loop가 돌아간다. Backend 관점에서는 **run_id, 실패 후 조회 위치, 배포 중 생존**이 비어 있다.
+
+장시간 run을 시작하는 API 계약은 보통 다음과 같다.
 
 1. 요청 검증·권한 확인
-2. PostgreSQL에 run row 생성 (`queued` 또는 `submitting`)
+2. PostgreSQL에 run row 생성
 3. queue에 실행 메시지 게시
 4. **`202 Accepted`** 와 `run_id` 반환
 
@@ -151,159 +155,208 @@ async def create_run(request: RunRequest, user: User = Depends(current_user)):
     return {"run_id": run_id, "status": "queued"}
 ```
 
-`202`는 "요청을 접수했고 처리는 비동기로 진행된다"는 HTTP 의미다. **아직 완료되지 않았다**는 뜻이지, "브라우저 연결이 끊겨도 실행이 보장된다"는 뜻은 아니다. 후자는 queue, worker, 영속 state 설계가 보장한다.
+> 이 코드는 **책임 분리**를 설명하기 위한 최소 예시다. 실제 운영 환경에서는 DB write와 queue publish 사이의 dual-write 문제를 해결해야 한다.
 
-FastAPI [Background Tasks](https://fastapi.tiangolo.com/tutorial/background-tasks/)는 짧은 후처리에는 유용하지만, 공식 문서도 무거운 작업은 queue 같은 더 큰 도구를 검토하라고 구분한다. Agent run은 대개 후자에 가깝다.
+`202`는 “요청을 접수했고 처리는 비동기로 진행된다”는 HTTP 의미다. 브라우저 연결과 실행 수명은 별개다. 후자는 queue, worker, durable state가 담당한다.
 
-## 5. HTTP disconnect와 worker
+FastAPI [Background Tasks](https://fastapi.tiangolo.com/tutorial/background-tasks/)는 짧은 후처리에는 유용하지만, Agent run은 대개 queue 쪽에 가깝다.
 
-사용자가 탭을 닫거나 SSE 연결이 끊기면 **관측 경로**만 사라진다. 명령 경로에서 이미 접수된 run은 계속 진행하는 것이 일반적이다.
+## 4. Queue는 실행 lifecycle을 분리한다
 
-```text
-POST /runs  ──> 202 + run_id     (끝 — handler 반환)
-GET /runs/{id}/events (SSE)      (끊김 — generator 종료, worker는 계속)
-```
+Queue의 역할은 작업을 **빨리 실행**하는 것이 아니라, **API request lifecycle**과 **Agent execution lifecycle**을 분리하는 것이다.
 
-SSE endpoint에서 `request.is_disconnected()`를 보고 worker에게 취소 신호를 보낼 **수는** 있다. 다만 그것은 제품 정책이다. 기본 전제는 **실행 수명 ≠ HTTP 연결 수명**이다. 그래서 progress와 checkpoint는 Redis·PostgreSQL에 두고, 브라우저는 나중에 `Last-Event-ID`로 이어 받는다.
+- API는 job을 submit한다.
+- Worker는 job을 소비한다.
+- Worker가 죽으면 job이 **재전달**될 수 있다.
+- 따라서 **duplicate execution**은 정상적인 failure mode다.
 
-Worker 내부의 asyncio task는 API process의 HTTP handler와 생명주기가 다르다. disconnect로 API의 streaming task를 취소해도 queue consumer loop는 별도 process·Pod에서 돌아간다.
+부수 효과가 있는 단계(Tool 호출, 티켓 생성 등)는 “이 메시지를 처음 처리하는가?”를 run row·attempt·idempotency key로 판단해야 한다. [Agent Tool Idempotency](/ai/agents/agent-tool-idempotency-approval-retry/)에서 이어서 다룬다.
 
-## 6. Queue는 exactly-once가 아니다
+<details class="tmi">
+<summary>TMI — Queue가 있으면 duplicate execution이 생길 수 있을까?</summary>
 
-Queue는 "한 번만 실행"을 기본 제공하지 않는다. 일반적인 패턴은 **at-least-once delivery**다.
+일반적인 broker는 **at-least-once delivery**를 제공한다.
 
 - consumer가 ack 전에 죽으면 메시지가 다시 보인다
-- visibility timeout·lease 만료 후 다른 worker가 같은 job을 claim할 수 있다
+- lease·visibility timeout 만료 후 다른 worker가 같은 job을 claim할 수 있다
 - 네트워크 재시도로 publish가 두 번 일어날 수 있다
 
-Agent run은 LLM 호출·외부 API·티켓 생성처럼 **부수 효과**가 있을 수 있다. 따라서 worker는 "이 메시지를 처음 처리하는가?"를 run row의 `attempt_id`, lease, 또는 idempotency key로 판단해야 한다. exactly-once illusion을 queue에 기대하지 말고, **멱등한 단계 설계 + 중복 감지**로 다룬다. Queue의 at-least-once와 idempotent side effect 설계는 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)에서 자세히 다룬다.
+exactly-once illusion을 queue에 기대하지 말고, **멱등한 단계 + 중복 감지**로 다룬다. ack timing, idempotency key, lease expiration은 구현 글에서 코드로 연결한다.
+</details>
 
-| 보장 | 의미 | Agent backend에서의 대응 |
-| --- | --- | --- |
-| At-most-once | 유실 가능, 중복 없음 | 드물게 선택 — 중요 run에는 부적합 |
-| At-least-once | 중복 가능, 유실 적음 | queue + worker의 기본 |
-| Effectively-once | 관측상 한 번 | idempotent side effect + dedup |
+## 5. Worker가 Agent 실행을 소유한다
 
-## 7. Transactional outbox — 접수 기록과 queue 게시
+**Worker(역할)** 는 queue에서 job을 가져와 **현재 attempt**의 run 수명 주기를 책임진다. LLM 호출, Tool loop, checkpoint 기록, 최종 status commit이 여기서 일어난다.
 
-앞선 API 예시는 `run_store.create`와 `job_queue.publish`가 별도 호출이다. DB commit 직후 process가 죽으면 **run row만 있고 queue 메시지는 없는** 상태가 생긴다. 반대 순서도 비슷한 고아 상태를 만든다.
+Worker가 외부 LLM·업무 DB를 호출하는 선은 내부 state 전이와 다르다. timeout·재시도와 함께 **부수 효과 idempotency**가 별도 계약이다.
 
-운영 환경에서는 **transactional outbox** 패턴이 흔한 답이다.
+사용자가 탭을 닫거나 SSE가 끊기면 **관측 경로**만 사라진다. 이미 접수된 run은 계속 진행하는 것이 일반적이다. 실행 취소는 제품 정책이며, 기본 전제는 **run lifetime ≠ HTTP connection lifetime**이다.
+
+## 6. State는 어디에 저장할까?
+
+한 저장소에 모든 state를 넣지 않는다.
+
+| Component | Main responsibility |
+| --- | --- |
+| **PostgreSQL** | durable run state, checkpoint, result, audit |
+| **Redis** | runtime state, coordination, short-lived event history |
+| **Queue** | execution intent / delivery |
+| **Object storage** | large outputs and artifacts (필요 시) |
+
+PostgreSQL은 복구 가능한 **기준 상태**를 저장한다. Redis는 UI progress나 worker coordination처럼 **빠르게 변하는 상태**를 담당한다.
+
+Retrieval storage(embedding, RAG index)는 **별도 concern**이며 이 글에서는 execution architecture만 다룬다.
+
+<details class="tmi">
+<summary>TMI — DB에 저장한 뒤 Queue publish가 실패하면 어떻게 될까?</summary>
+
+`run_store.create`와 `job_queue.publish`를 별도 호출하면 gap이 생긴다.
+
+- DB commit 직후 process가 죽으면 **run row만 있고 queue 메시지는 없음**
+- 반대로 queue에는 publish됐는데 DB transaction이 실패할 수도 있음
+
+즉 DB와 queue를 별도로 쓰는 순간 **consistency 문제**가 생긴다. Production에서는 **transactional outbox** 같은 패턴으로 해결할 수 있다.
 
 ```text
 BEGIN;
   INSERT INTO agent_runs (...);
   INSERT INTO outbox (topic, payload) VALUES ('run.execute', ...);
 COMMIT;
-──> 별도 relay process가 outbox를 읽어 queue에 publish
+──> publisher worker가 outbox를 읽어 queue에 publish, processed_at 기록
 ```
 
-PostgreSQL transaction 안에서 run과 outbox row를 함께 commit하면, API process가 죽어도 relay가 나중에 게시를 이어간다. 또는 queue를 authoritative log로 두고 consumer idempotency에 더 의존하는 설계도 가능하다. 공통점은 **`202`를 반환하기 전에 "나중에 다시 발견 가능한 실행 의도"**가 남아야 한다는 것이다.
+`202`를 반환하기 전에 “나중에 다시 발견 가능한 실행 의도”가 남아야 한다.
+</details>
 
-## 8. PostgreSQL과 Redis — 무엇을 어디에
+<details class="tmi">
+<summary>TMI — Redis에서 progress와 event stream을 어떻게 원자적으로 갱신할까?</summary>
 
-한 저장소에 모든 state를 넣지 않는다.
+본문에서는 Redis를 runtime coordination에 쓴다고만 두고, 구현에서는 Hash(현재 snapshot), Stream(제한된 event 기록), **Lua script**로 한 번에 갱신하는 패턴이 흔하다. TTL·Stream maxlen·consumer offset은 [Agent SSE streaming](/ai/agents/agent-sse-streaming/)과 [State는 Event가 아니다](/ai/agents/state-is-not-event/)에서 연결한다.
+</details>
 
-| 저장소 | 적합한 데이터 | 이유 |
-| --- | --- | --- |
-| **PostgreSQL** | run metadata, 최종 status, JSON/JSONB input·result, checkpoint snapshot, 감사 | ACID, 조회·보고, 장기 보존 ([JSON types](https://www.postgresql.org/docs/current/datatype-json.html)) |
-| **PostgreSQL + pgvector** | embedding, RAG 컨텍스트 | Agent 도구가 검색하는 지식 — run lifecycle과 같은 DB에 두기 쉬움 ([pgvector](https://github.com/pgvector/pgvector)) |
-| **Redis Hash** | 현재 progress, heartbeat, `last_event_id` | 빈번한 갱신, TTL, UI snapshot |
-| **Redis Stream** | 제한된 event 전달 기록, SSE replay cursor ([Streams](https://redis.io/docs/latest/develop/data-types/streams/)) | 짧은 재연결 구간을 위한 관측 경로 |
+> **한 문장 recap:** API는 실행을 접수하고, Queue는 이를 Worker에게 전달하며, Worker의 결과는 durable state에 기록되고 SSE는 그 상태를 사용자에게 보여준다.
 
-Worker는 checkpoint를 PostgreSQL에 쓰고, UI용 transition은 Lua script로 Hash와 Stream을 함께 갱신하는 식으로 **역할을 분리**한다. PostgreSQL이 "이 run은 최종적으로 성공했는가"의 기준이 되고, Redis는 "지금 화면에 무엇을 보여줄까"에 가깝다. Stream 길이와 보존 시간을 제한하고, 장기 event 이력·감사는 PostgreSQL 또는 별도 로그 시스템으로 보낸다.
+## 7. 실행과 관측을 분리한다 — SSE
 
-## 9. `updated_at`만으로는 동시성을 막을 수 없다
+SSE는 Agent **실행과 독립**적이다.
 
-두 worker가 같은 run을 동시에 갱신하면 **늦게 도착한 stale progress**가 최신 state를 덮을 수 있다. `updated_at` 비교만으로는 "이 쓰기가 현재 attempt에서 온 것인가"를 보장하지 못한다.
-
-더 안전한 패턴:
-
-- monotonic **version** 또는 sequence
-- queue **lease**와 함께 쓰는 **fencing token** — lease가 넘어간 이전 worker의 쓰기 거부
-- 단일 writer — 한 run의 hot path 갱신을 한 worker attempt만 담당
-
-```python
-async def update_progress(run_id: str, attempt_id: str, version: int, progress: int) -> bool:
-    return await run_store.update_if_match(
-        run_id,
-        attempt_id=attempt_id,
-        expected_version=version,
-        progress=progress,
-    )
-```
-
-Redis Hash에 `updated_at`만 두는 UI snapshot도 같은 원칙을 따라야 한다. attempt가 바뀌었는데 이전 worker의 heartbeat가 늦게 도착하면 progress bar가 되돌아갈 수 있다. [Agent State는 어디에](/ai/agents/where-agent-state-lives/)에서 version·fencing을 더 깊게 다룬다.
-
-## 10. SSE, replay, idempotency
-
-관측 경로는 [WHATWG SSE](https://html.spec.whatwg.org/multipage/server-sent-events.html) 형식으로 event id·type·data를 보낸다. 클라이언트는 `Last-Event-ID`로 재연결하고, 서버는 Redis Stream cursor부터 `XREAD`로 이어 읽는다.
-
-SSE event idempotency는 두 층에서 생각한다.
-
-1. **Transport** — 같은 Stream entry를 reconnect 후 두 번 내려보내도 UI handler가 중복을 무해하게 처리 (`event_id` dedup)
-2. **Domain** — worker가 같은 transition을 두 번 publish해도 snapshot이 한 번만 바뀌게 (atomic Lua, version check)
+- 브라우저 연결이 끊겨도 Worker 실행은 계속되어야 한다.
+- 사용자가 다시 접속하면 **현재 snapshot** 또는 **최근 event**를 다시 받아야 한다.
 
 ```text
-id: 1696400000000-0
-event: progress
-data: {"progress": 65, "step": "dcf"}
+Worker → State / Event Store → SSE endpoint → Browser
 ```
 
-Generator가 disconnect를 감지하면 HTTP chunk 전송만 멈춘다. Stream에 이미 append된 event는 그대로 남고, 다음 SSE 연결이 replay한다. **스트리밍 연결 실패 ≠ run 롤백**이다.
+관측 경로는 [WHATWG SSE](https://html.spec.whatwg.org/multipage/server-sent-events.html) 형식으로 event id·type·data를 보낸다. Generator가 disconnect를 감지하면 HTTP chunk 전송만 멈춘다. **스트리밍 연결 실패 ≠ run 롤백**이다.
 
-## 11. 개발과 운영: Deployment를 나누는 이유
+<details class="tmi">
+<summary>TMI — SSE 연결이 끊겼다가 다시 붙으면 event는 어떻게 복구할까?</summary>
+
+클라이언트는 `Last-Event-ID`로 재연결하고, 서버는 event store cursor부터 이어 읽는다. Redis Stream·sequence number·replay 구간 설계, transport vs domain idempotency(같은 event_id를 UI가 두 번 받아도 무해하게)는 [Agent SSE streaming](/ai/agents/agent-sse-streaming/)에서 다룬다.
+</details>
+
+## 8. 같은 run을 두 Worker가 실행하면?
+
+Queue와 lease만으로는 “이전 worker가 정말 죽었다”를 완벽히 증명하기 어렵다. **여러 Worker가 같은 run을 동시에 처리할 가능성**에 대비해야 한다.
+
+<details class="tmi">
+<summary>TMI — Worker A가 죽은 줄 알고 Worker B가 이어받았는데, A가 늦게 다시 살아나면?</summary>
+
+```text
+Worker A → fencing token 41
+Worker B → fencing token 42
+
+Storage accepts only token >= current token
+
+A write rejected · B write accepted
+```
+
+**Fencing token**과 monotonic **version**, queue **lease**를 함께 쓰면 stale writer의 progress가 최신 state를 덮는 일을 줄일 수 있다. `updated_at`만으로는 “이 쓰기가 현재 attempt 것인가”를 보장하지 못한다. [Agent State는 어디에](/ai/agents/where-agent-state-lives/)에서 더 깊게 다룬다.
+</details>
+
+## 9. Pod, Process, Worker, Thread
+
+Kubernetes, Python runtime, Agent backend 용어가 한 문장에 섞이면 설계가 흔들린다. **Worker와 Pod는 같은 개념이 아니다.**
+
+| 용어 | 무엇인가 |
+| --- | --- |
+| **Pod** | Kubernetes scheduling / deployment unit |
+| **Process** | OS execution unit |
+| **Worker** | job execution unit (queue consumer **역할**) |
+| **Thread / async task** | process 안의 concurrency primitive |
+
+Pod가 재시작되면 그 안의 process와 asyncio task도 사라진다. Worker **역할**은 queue와 PostgreSQL에 남은 실행 의도·run 기록으로 다른 Pod가 이어받게 설계한다. “thread pool worker”는 CPU 병렬용 도구 이름일 뿐, queue consumer Worker와 같지 않다.
+
+## 10. async, thread, process — Worker 안에서
+
+| 도구 | 언제 쓰는가 |
+| --- | --- |
+| **async** | 많은 I/O wait를 한 process에서 겹칠 때 |
+| **thread** | blocking SDK 호출을 격리할 때 |
+| **process / separate worker** | CPU-heavy 또는 격리된 execution |
+
+Python GIL·executor 구현 세부는 [에이전트는 왜 Async가 필요한가](/ai/agents/why-agent-systems-need-async/)와 [Async, Thread, Process](/ai/agents/async-thread-process-agent-backends/)에서 코드로 이어진다.
+
+## 11. API와 Worker를 따로 배포해야 하는 이유
 
 로컬에서는 API와 worker가 한 process·한 Pod에 있어도 학습에는 충분하다. 운영에서는 [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)를 나눈다.
 
 <AgentBackendArchitectureMap kind="deployment" language="ko" />
 
-| 환경 | 형태 | 장점 |
+| | API | Worker |
 | --- | --- | --- |
-| Dev | 단일 process 또는 단일 Pod | 디버깅 단순 |
-| Prod | `agent-api` Deployment + `agent-worker` Deployment | 독립 스케일, rolling update 시 역할 분리 |
+| **Scale 기준** | HTTP request volume | execution workload, queue depth |
+| **Pod** | `agent-api` | `agent-worker` |
+| **공유** | Queue · PostgreSQL · Redis | |
 
-API Deployment는 짧은 HTTP latency에 맞게 replica를 늘리고, Worker Deployment는 GPU·메모리·동시 run 수에 맞게 조정한다. Pod anti-affinity, graceful shutdown (`SIGTERM` 후 in-flight claim 완료 또는 lease 반납)은 [Pod Lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/) 문서와 맞춰 설계한다.
+하나의 Pod에 모두 넣으면 **독립 scaling**이 어렵다. API replica는 짧은 latency, worker replica는 GPU·메모리·동시 run 수에 맞춘다.
 
-## 12. 하나의 run이 지나가는 순서
+## 12. Graceful shutdown
 
-Lifecycle 그림은 명령·관측이 시간순으로 어떻게 엇갈리는지 보여준다.
+Pod termination은 “process kill” 문제가 아니라 **in-flight run ownership** 문제다.
+
+1. 새 job 수신 중단
+2. 현재 실행 중 job 정리
+3. checkpoint 저장
+4. ack / requeue 결정
+5. 종료
+
+[SIGTERM](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/) 이후 lease 반납·ack 순서는 [Pod Lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/)과 맞춘다. Worker는 중요한 결과를 PostgreSQL에 commit하기 **전에** queue 메시지를 ack하지 않는다.
+
+## 13. Architecture recap
+
+```text
+API        → 접수 (202 + run_id)
+Queue      → 실행 lifecycle 분리, 재전달 가능
+Worker     → run attempt 소유, Tool loop 실행
+PostgreSQL → durable truth
+Redis      → runtime / coordination / 짧은 관측
+SSE        → 관측만, 실행 소유 아님
+```
+
+실패도 같은 축으로 본다.
+
+| Failure mode | 기억할 점 |
+| --- | --- |
+| Duplicate execution | queue 재전달은 정상; 멱등 설계 필요 |
+| Dual write (DB ↔ queue) | 접수 기록과 publish를 한 transaction으로 묶거나 outbox |
+| Stale progress | attempt/version/fencing으로 late write 거부 |
+| SSE disconnect | run은 계속; reconnect로 snapshot·event 복구 |
+
+패턴 Design에서 정한 Tool loop·HITL·Retry는 **Worker process 안**에서 돈다. 이 지도는 그 loop가 **어떤 인프라 위에서 수명 주기를 갖는지**를 고정한다.
 
 <AgentBackendArchitectureMap kind="lifecycle" language="ko" />
 
-```text
-1. POST /runs
-2. PostgreSQL run row (submitting → queued)
-3. outbox / queue publish
-4. 202 + run_id
-5. worker claim → running
-6. checkpoint / progress / stream events
-7. completed 또는 failed (PostgreSQL commit)
-8. GET /runs/{id}, SSE replay로 조회
-```
+## 14. 다음 글: 실제 구현
 
-### 정상 경로만큼 실패 경로가 중요하다
+이 글에서는 **architecture boundary**만 정의했다. 후속 글에서는 다음을 코드와 함께 구현한다.
 
-그림의 각 단계는 다음 실패를 복구할 수 있어야 한다.
+- FastAPI submit endpoint
+- Queue publisher (또는 outbox relay)
+- Worker process
+- PostgreSQL run state
+- Redis progress state
+- SSE streaming endpoint
+- retry / idempotency
 
-| 실패 지점 | 남아 있어야 할 정보 | 다음 행동 |
-| --- | --- | --- |
-| run 생성 뒤 API 종료 | `agent_runs` + outbox row | relay가 queue 게시 |
-| Worker claim 뒤 종료 | queue lease + `attempt_id` | 만료 뒤 새 attempt가 회수 |
-| Tool 완료 뒤 checkpoint 실패 | 미완료 run 상태 | queue ack 금지, idempotent retry |
-| Redis eviction·TTL 만료 | PostgreSQL snapshot·결과 | snapshot 재조회 후 stream cursor 재설정 |
-| SSE 연결 종료 | Stream의 제한된 최근 event 또는 PostgreSQL snapshot | 재연결·replay 또는 resync |
-
-종료 순서도 계약이다. Worker는 중요한 결과를 PostgreSQL에 commit하기 전에 queue 메시지를 ack하지 않는다. 반대로 진행 event 하나를 Redis에 쓰지 못했다고 완료된 업무 결과까지 되돌리지는 않는다. 이때는 PostgreSQL의 기준 상태에서 Redis projection을 다시 맞춘다.
-
-패턴 설계에서 정한 Tool loop·HITL·Retry는 5–6단계 **worker process 안**에서 돈다. Backend 지도는 그 loop가 **어떤 인프라 위에서 수명 주기를 가지는지**를 고정한다.
-
----
-
-이제 전체 지도에서 한 단계 안으로 들어갈 차례다.
-
-Agent Worker는 LLM, 데이터베이스, 검색 API와 여러 도구의 응답을 기다리며 실행된다. 이 대기 시간을 그대로 쌓지 않고 여러 작업을 안전하게 진행하려면 먼저 비동기 실행 모델을 이해해야 한다.
-
-다음 글 [에이전트는 왜 Async가 필요한가](/ai/agents/why-agent-systems-need-async/)에서는 Worker 내부에서 I/O 대기를 겹쳐 처리하는 원리부터 살펴본다. 이후에는 실행 도구, Queue와 Worker의 책임, PostgreSQL과 Redis의 상태 경계, SSE 전달과 런타임의 위치를 차례로 구체화한다.
-
-전체 학습 경로는 [Agent Engineering 시리즈](/series/agent-engineering/)에서 확인할 수 있다.
+바로 이어서 [에이전트는 왜 Async가 필요한가](/ai/agents/why-agent-systems-need-async/)에서 Worker 내부 I/O 대기를 겹치는 execution model부터 본다. 전체 경로는 [Agent Engineering 시리즈](/series/agent-engineering/)에서 확인할 수 있다.
