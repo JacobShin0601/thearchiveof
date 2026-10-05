@@ -1,7 +1,7 @@
 ---
 title: 'From Retrieval Engineering to Task Engineering'
 subtitle: 'What changes when retrieval becomes part of an end-to-end task?'
-description: 'AI engineering is moving from optimizing retrieval pipelines to specifying, constraining, and evaluating complete research tasks.'
+description: 'AI engineering is moving from optimizing retrieval pipelines to specifying, constraining, and evaluating end-to-end enterprise tasks.'
 publishedDate: 2026-10-05
 section: 'AI & AX'
 subsection: 'AX'
@@ -40,33 +40,9 @@ references:
   - title: 'Create a Hybrid Query in Azure AI Search'
     url: 'https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query'
     publisher: 'Microsoft Learn'
-  - title: 'Building Effective AI Agents'
-    url: 'https://www.anthropic.com/engineering/building-effective-agents'
-    publisher: 'Anthropic'
-  - title: 'A Practical Guide to Building Agents'
-    url: 'https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf'
-    publisher: 'OpenAI'
-  - title: 'Evaluate Agent Workflows'
-    url: 'https://developers.openai.com/api/docs/guides/agent-evals'
-    publisher: 'OpenAI'
-  - title: 'Demystifying Evals for AI Agents'
-    url: 'https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents'
-    publisher: 'Anthropic'
-  - title: 'Tools Specification'
-    url: 'https://modelcontextprotocol.io/specification/2025-06-18/server/tools'
-    publisher: 'Model Context Protocol'
-  - title: 'Backtesting & Simulation'
-    url: 'https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/backtesting-and-simulation'
-    publisher: 'CFA Institute'
   - title: 'EDGAR Timestamps'
     url: 'https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps'
     publisher: 'U.S. SEC'
-  - title: 'How Balyasny Asset Management Built an AI Research Engine'
-    url: 'https://openai.com/index/balyasny-asset-management/'
-    publisher: 'OpenAI'
-  - title: 'Morgan Stanley Uses AI Evals to Shape the Future of Financial Services'
-    url: 'https://openai.com/index/morgan-stanley/'
-    publisher: 'OpenAI'
 ---
 
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
@@ -113,31 +89,9 @@ Task Engineering needs all of that quality. The difference is that retrieval is 
 
 <TaskEngineeringDiagrams kind="task-loop" language="en" caption="Retrieval and tool execution sit inside a larger task loop and repeat when verification exposes missing evidence." />
 
-## Returning documents is not completing work
+## Search quality and work completion are different layers
 
-A retrieval response often follows a short path:
-
-```text
-Question → Search → Top five documents → Summary → Stop
-```
-
-The system may still return an outdated document, expose content outside the user's permission scope, avoid applying the policy to the user's facts, or leave the next action to the user.
-
-A task-completion system has a longer contract:
-
-```text
-Confirm goal
-→ Validate required inputs
-→ Retrieve evidence
-→ Normalize data
-→ Apply rules
-→ Execute a tool or wait for approval
-→ Verify the result
-→ Store the result with evidence
-→ Report completion, deferral, or missing input
-```
-
-The same pattern can apply to customer support, HR, procurement, compliance review, and research. It is a conceptual boundary model, not an implementation that should make real organizational or professional decisions on its own.
+At the system level, the opening travel-expense example has a simple distinction. Retrieval Engineering can stop after returning sufficiently relevant documents and citations. Task Engineering ends only after applying those documents to the user's circumstances, coordinating required tools and approvals, and storing a verifiable result or explicit deferral.
 
 | Dimension | Retrieval Engineering | Task Engineering |
 | --- | --- | --- |
@@ -148,6 +102,14 @@ The same pattern can apply to customer support, HR, procurement, compliance revi
 | Metrics | Recall@k, nDCG, MRR, citation accuracy | task completion, correctness, intervention rate, cost, latency |
 | State | Search request and results | steps, checkpoints, approvals, tool results, retries |
 | Stop condition | Return sufficiently relevant documents | Verifiable result or explicit deferral |
+
+The same structure repeats across domains:
+
+- **Customer-support refund**: retrieve the refund policy, then check purchase time and product condition, apply exceptions, and either issue the refund or hand off.
+- **Procurement approval**: retrieve the contract and purchasing policy, then verify amount, budget, and authority before creating an approval request or returning missing inputs.
+- **Research verification**: retrieve relevant material, then check numbers, as-of dates, and conflicting evidence before recording a supported conclusion or deferral.
+
+These examples illustrate system boundaries. They are not implementations that should make real organizational or professional decisions on their own.
 
 ## Task Contract: define completion before execution
 
