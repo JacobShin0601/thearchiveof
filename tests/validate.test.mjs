@@ -29,10 +29,12 @@ describe('reactions and events', () => {
     assert.equal(isReaction('dislike'), false);
   });
 
-  it('allows the V1 event list', () => {
-    assert.equal(isEventName('reaction_click'), true);
+  it('allows only public client events', () => {
     assert.equal(isEventName('code_run'), true);
     assert.equal(isEventName('language_switch'), true);
+    assert.equal(isEventName('reaction_click'), false);
+    assert.equal(isEventName('reaction_added'), false);
+    assert.equal(isEventName('reaction_removed'), false);
     assert.equal(isEventName('page_view'), false);
   });
 });

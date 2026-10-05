@@ -1,4 +1,4 @@
-const EVENTS = new Set(['reaction_click', 'code_run', 'language_switch']);
+const EVENTS = new Set(['code_run', 'language_switch']);
 
 export function track(event: string, detail: {
   articleSlug?: string;
