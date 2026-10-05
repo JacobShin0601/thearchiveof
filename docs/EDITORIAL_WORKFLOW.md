@@ -97,6 +97,7 @@ tags:
   - framework
   - publishing
 draft: true
+comments: true
 translationKey: "example-article"
 socialImage: "/og/example-article.png"
 ```
@@ -128,6 +129,8 @@ After approval:
 3. run the production build locally if you want a last check (`npm test` and `npm run build`);
 4. open a pull request from the article branch into `main` so unrelated `develop` drafts do not ship;
 5. confirm CI is green and the Cloudflare Production deployment finished.
+
+All published articles use GitHub Discussions through giscus. Keep `comments: true` in both paired files when releasing to `main`; only an explicit editorial decision may disable comments for a production article.
 
 Never publish only one half of an approved pair accidentally. If an English edition is intentionally deferred, publish the Korean article without a `translationKey` until the English file is ready; the language button will then lead to the English homepage.
 

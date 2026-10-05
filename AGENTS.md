@@ -24,6 +24,7 @@ Cloudflare deploys automatically. `develop` is Preview (`*.pages.dev`, drafts on
 - Crawlers must not Like, comment, or emit events by themselves.
 - Korean is the source edition. English is an adaptation, not a literal translation. Share `translationKey` on paired files. Optional `socialImage` is `/og/<translationKey>.png` and is shared by both editions; otherwise use `/og.png`.
 - Useful counts are shared by `translationKey`. giscus threads stay per URL.
+- Every published article has GitHub Discussions comments enabled: keep `comments: true` in both Korean and English frontmatter. Do not disable comments for a production article unless the user explicitly asks.
 - Keep article prose readable without JavaScript. Explorers and Useful are enhancements. Put the claim in `AnswerBlock` / HTML, not only in a widget.
 - Do not add extra analytics beacons or a CSP that would break giscus or Web Analytics.
 - Do not store raw IP or fingerprints. Functions trust only build-generated article keys.

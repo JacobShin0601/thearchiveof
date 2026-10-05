@@ -148,6 +148,7 @@ const articleKey = post.data.translationKey
     <AdSlot position="article-end" />
 
     <UsefulReaction articleKey={articleKey} language={post.data.language} />
+    <Comments enabled={post.data.comments} language={post.data.language} />
 
     {relatedPosts.length > 0 && (
       <section class="related-articles" aria-labelledby="related-heading">
@@ -167,6 +168,5 @@ const articleKey = post.data.translationKey
         language: post.data.language,
       }}
     />
-    <Comments enabled={post.data.comments} language={post.data.language} />
   </article>
 </BaseLayout>
