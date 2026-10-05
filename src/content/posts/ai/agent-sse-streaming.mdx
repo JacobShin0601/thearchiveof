@@ -25,7 +25,7 @@ series: "Agent Engineering"
 seriesOrder: 7
 seriesPart: "delivery"
 freshness: evergreen
-lastReviewed: 2026-10-04
+lastReviewed: 2026-10-05
 nextReviewDate: 2027-10-04
 references:
   - title: "Python Glossary: Iterator and Asynchronous Generator"
@@ -89,6 +89,15 @@ Async generator가 있다고 자동으로 네트워크 stream이 되는 것은 �
 | 최종 결과 | 완성된 보고서 | 한 번의 영속적 결과 |
 
 이 글의 중심은 **진행 event streaming**이다. Redis Stream에 남아 재연결 후 replay할 수 있고, event type이 UI의 시간순 목록을 만든다. Token streaming은 훨씬 높은 빈도와 다른 buffering 정책이 필요하며 21편에서 별도로 다룬다.
+
+### Redis에 남기는 event 양과 보존
+
+Redis Stream은 **전달 계층**이다. Worker가 발행하고 API가 cursor부터 읽어 SSE로 보낸다. 운영 원칙은 간단하다.
+
+- Stream entry에는 UI·재연결에 필요한 **작은 payload**만 넣는다. prompt 전문, 대형 tool output, 감사에 필요한 전체 기록은 넣지 않는다.
+- `XTRIM`, `MAXLEN`, `MINID` 등으로 **보존 기간과 길이에 상한**을 둔다. “모든 event를 Redis에 영구 보관”은 메모리 비용과 eviction 위험을 키운다.
+- **장기 event 이력·감사·재현**은 PostgreSQL table, 별도 log pipeline, 객체 저장소로 분리한다. Redis는 reconnect와 짧은 replay를 돕고, system of record가 아니다.
+- Hash snapshot과 마찬가지로, Stream이 비어 있거나 trim되었어도 **run 존재·권한·최종 결과**는 PostgreSQL을 기준으로 한다.
 
 ## Iterator는 protocol이고 generator는 구현 방법이다
 

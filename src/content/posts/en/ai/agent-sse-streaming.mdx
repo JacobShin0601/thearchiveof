@@ -28,7 +28,7 @@ localization:
   locale: "en-US"
   strategy: "localized-adaptation"
 freshness: evergreen
-lastReviewed: 2026-10-04
+lastReviewed: 2026-10-05
 nextReviewDate: 2027-10-04
 references:
   - title: "Python Glossary: Iterator and Asynchronous Generator"
@@ -92,6 +92,15 @@ An async generator does not automatically create a network stream. SSE is not an
 | Final result | Completed report | One durable result |
 
 This article focuses on **progress event streaming**. These events remain in a Redis Stream for replay after reconnect, and their types form the UI timeline. Token streaming needs much higher throughput and different buffering, so Article 21 treats it separately.
+
+### How much to keep in Redis
+
+A Redis Stream is a **delivery layer**. Workers publish; the API reads from a cursor and frames SSE. Operational rules:
+
+- Keep **small payloads** in stream entries—what the UI and reconnect need—not full prompts, large tool outputs, or complete audit records.
+- Cap retention with `XTRIM`, `MAXLEN`, `MINID`, or equivalent. “Keep every event in Redis forever” raises memory cost and eviction risk.
+- Separate **long event history, audit, and reproduction** into PostgreSQL tables, a log pipeline, or object storage. Redis assists reconnect and short replay; it is not the system of record.
+- As with Hash snapshots, if the stream is empty or trimmed, **run existence, authorization, and final results** still come from PostgreSQL.
 
 ## An iterator is a protocol; a generator is an implementation
 
