@@ -49,6 +49,17 @@ Comments are keyed by URL pathname, so Korean and English editions have separate
 3. Install the [giscus app](https://giscus.app) on that repository.
 4. Copy `repo`, `repoId`, `category`, and `categoryId` into `src/site.config.ts` and set `giscus.enabled` to `true`.
 
+### Article page footer order
+
+All Korean and English articles share one template: `src/pages/[section]/[subsection]/[...slug].astro`. After the prose body, references, and optional series navigation, the footer blocks always appear in this order:
+
+1. Useful reaction (“Was this useful?”)
+2. GitHub Discussions (giscus), when `comments: true`
+3. Related articles (when the scorer finds matches)
+4. Newsletter CTA (RSS link until a newsletter provider is enabled)
+
+Do not reorder these blocks per article; change the template only.
+
 ## Useful reactions
 
 Korean and English editions of the same article share one count through `translationKey`.
