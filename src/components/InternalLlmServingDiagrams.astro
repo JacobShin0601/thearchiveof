@@ -1,0 +1,189 @@
+---
+interface Props {
+  kind: 'dataPath' | 'batching' | 'adoption';
+  language?: 'ko' | 'en';
+}
+
+const { kind, language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+
+const captions = {
+  dataPath: ko
+    ? '그림 1. 외부 API와 내부 vLLM — 프롬프트·컨텍스트가 지나는 경로'
+    : 'Figure 1. External API vs internal vLLM — where prompts and context travel',
+  batching: ko
+    ? '그림 2. vLLM — 여러 요청을 scheduler가 묶어 GPU에서 처리하고 각 클라이언트로 스트리밍'
+    : 'Figure 2. vLLM — scheduler batches requests on the GPU and streams to each client',
+  adoption: ko
+    ? '그림 3. 내부 vLLM 도입 — 네 가지 조건을 함께 봐야 한다'
+    : 'Figure 3. Adopting internal vLLM — four conditions read together',
+};
+
+const dataPathRows = ko
+  ? [
+      ['내부 앱 · Agent', '프롬프트 · 검색 결과 · PII', '인터넷 · 벤더 리전', '상용 LLM API'],
+      ['내부 앱 · Agent', '동일 데이터', '사내 VPC · 게이트웨이', 'vLLM · GPU · 모델 저장소'],
+    ]
+  : [
+      ['Internal app · agent', 'Prompt · retrieval · PII', 'Internet · vendor region', 'Commercial LLM API'],
+      ['Internal app · agent', 'Same data', 'Corporate VPC · gateway', 'vLLM · GPU · model store'],
+    ];
+
+const batchingSteps = ko
+  ? [
+      '요청 A · B · C 도착',
+      'Scheduler: prefill · decode 배치',
+      'GPU: 가중치 + KV cache',
+      '각 클라이언트로 token streaming',
+    ]
+  : [
+      'Requests A · B · C arrive',
+      'Scheduler: prefill · decode batches',
+      'GPU: weights + KV cache',
+      'Token streaming to each client',
+    ];
+
+const adoptionItems = ko
+  ? [
+      ['보안 · 규정', '데이터가 조직 경계를 넘어도 되는가?'],
+      ['트래픽 · SLO', '동시 요청과 지연 목표를 GPU로 감당할 수 있는가?'],
+      ['운영 역량', 'GPU, Kubernetes, 모델 승인, 패치를 누가 맡는가?'],
+      ['비용 · 예측 가능성', '고정 GPU + 운영비가 API 대비 설명 가능한가?'],
+    ]
+  : [
+      ['Security · policy', 'May data leave the organization boundary?'],
+      ['Traffic · SLO', 'Can GPUs meet concurrency and latency targets?'],
+      ['Operations', 'Who owns GPU, Kubernetes, model approval, and patches?'],
+      ['Cost · predictability', 'Fixed GPU + ops explainable vs API spend?'],
+    ];
+---
+
+<figure class="internal-llm-figure" aria-labelledby={`internal-llm-${kind}-${language}`}>
+  <figcaption id={`internal-llm-${kind}-${language}`}>{captions[kind]}</figcaption>
+  {kind === 'dataPath' && (
+    <div class="compare">
+      {dataPathRows.map((row, index) => (
+        <div class="row" data-variant={index === 0 ? 'external' : 'internal'}>
+          {row.map((cell) => <span>{cell}</span>)}
+        </div>
+      ))}
+    </div>
+  )}
+  {kind === 'batching' && <ol class="flow">{batchingSteps.map((step) => <li>{step}</li>)}</ol>}
+  {kind === 'adoption' && (
+    <ul class="criteria">
+      {adoptionItems.map(([title, detail]) => (
+        <li><strong>{title}</strong><span>{detail}</span></li>
+      ))}
+    </ul>
+  )}
+</figure>
+
+<style>
+  .internal-llm-figure {
+    margin: 2rem 0;
+    padding: 1.25rem;
+    border: 1px solid var(--line);
+    background: var(--paper-deep);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+  .internal-llm-figure figcaption {
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+  .compare {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .compare .row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+  .compare .row span {
+    padding: 0.65rem 0.5rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    font-size: 0.82rem;
+    text-align: center;
+  }
+  .compare .row[data-variant='external'] span:last-child {
+    border-color: var(--accent);
+  }
+  .compare .row[data-variant='internal'] span:last-child {
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .flow li {
+    position: relative;
+    margin: 0;
+    padding: 0.85rem 0.5rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    text-align: center;
+    font-size: 0.85rem;
+  }
+  .flow li:not(:last-child)::after {
+    content: '→';
+    position: absolute;
+    right: -0.85rem;
+    top: 35%;
+    color: var(--accent);
+  }
+  .criteria {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.65rem;
+  }
+  .criteria li {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.75rem 1rem;
+    border-left: 3px solid var(--accent);
+    background: var(--paper);
+  }
+  .criteria strong {
+    font-size: 0.88rem;
+  }
+  .criteria span {
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  @media (max-width: 640px) {
+    .compare .row {
+      grid-template-columns: 1fr;
+    }
+    .flow {
+      grid-template-columns: 1fr;
+    }
+    .flow li:not(:last-child)::after {
+      content: '↓';
+      right: 50%;
+      top: auto;
+      bottom: -1.1rem;
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    .internal-llm-figure {
+      --paper: #202720;
+      --paper-deep: #171d19;
+      --ink: #edf1e9;
+      --muted: #b8c3b6;
+      --line: #465347;
+      --accent: #a0ceac;
+    }
+  }
+</style>

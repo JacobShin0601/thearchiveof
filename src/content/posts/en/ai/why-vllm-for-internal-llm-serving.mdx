@@ -1,0 +1,192 @@
+---
+title: "Why Serve Open-Source LLMs with vLLM on Internal GPUs?"
+subtitle: "Deciding internal open-model serving for security, data control, cost, and performance"
+description: "When internal GPU serving and vLLM make sense: compare external APIs, adoption trade-offs, batching and prefix caching in plain terms, and a pre-flight checklist."
+publishedDate: 2026-09-19
+section: 'AI & AX'
+subsection: 'AI Engineering'
+contentType: foundation
+topics: [enterprise-ai, ai-agents, evaluation]
+primaryTopic: enterprise-ai
+tags: [vllm, llm-serving, on-premises, gpu, enterprise-ai]
+author: 'Jacob Shin'
+language: en
+translationKey: why-vllm-for-internal-llm-serving
+series: 'Internal LLM Serving'
+seriesOrder: 1
+localization:
+  locale: en-US
+  strategy: localized-adaptation
+draft: true
+featured: false
+comments: true
+freshness: periodic
+lastReviewed: 2026-10-05
+nextReviewDate: 2026-12-05
+references:
+  - title: 'vLLM — Getting Started'
+    url: https://docs.vllm.ai/en/stable/getting_started/quickstart.html
+    publisher: vLLM
+  - title: 'vLLM — Optimization and Tuning'
+    url: https://docs.vllm.ai/en/stable/configuration/optimization/
+    publisher: vLLM
+  - title: 'vLLM — Production Metrics'
+    url: https://docs.vllm.ai/en/stable/usage/metrics/
+    publisher: vLLM
+  - title: 'vLLM — Automatic Prefix Caching'
+    url: https://docs.vllm.ai/en/stable/features/automatic_prefix_caching/
+    publisher: vLLM
+  - title: 'Kubernetes — Schedule GPUs'
+    url: https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
+    publisher: Kubernetes
+  - title: 'NVIDIA — DCGM Exporter counters'
+    url: https://github.com/NVIDIA/dcgm-exporter/blob/main/etc/default-counters.csv
+    publisher: NVIDIA
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import InternalLlmServingDiagrams from '../../../../components/InternalLlmServingDiagrams.astro';
+
+<AnswerBlock question="Why serve open-source LLMs on internal GPUs at all?">
+  Security, regulation, and data governance sometimes require that <strong>prompts, retrieval results, and customer data must not leave the organization to an external LLM API</strong>. Serving a vetted open-source model on internal GPUs keeps the data path inside your boundary and lets you control model choice, versions, and capacity. vLLM is often chosen as the <strong>inference engine that packs many concurrent requests onto GPUs efficiently</strong>, but it also brings GPU operations, model approval, observability, and patch ownership.
+</AnswerBlock>
+
+> Documentation reviewed on October 5, 2026. This article follows concepts from the official vLLM `stable` docs. CLI flags, metric names, and default behavior must be confirmed from the **pinned image version, official docs, `serve --help`, startup logs, and HELP/TYPE on `/metrics`**. Traffic, cost, and latency figures below are **illustrative only**, not measurements from any particular organization.
+
+This is not an install script or a tuning-parameter cheat sheet. It is an overview for engineers **deciding whether internal LLM serving is necessary** and **whether vLLM is a reasonable choice**—more adoption review than day-two operations. Scheduler settings and bottleneck diagnosis continue in the follow-on articles in this series.
+
+## 1. Start with the answer: why internal serving
+
+Many teams ask “which model first?” Before that, clarify **where data is allowed to travel**.
+
+- Agents place internal documents, tickets, and customer profiles into LLM prompts.
+- RAG pipelines attach retrieved chunks and metadata.
+- Policy, contracts, or national rules may forbid sending raw content outside approved regions or vendors.
+
+When those constraints bind, “issue an API key” is not enough. Internal serving trades **GPU and MLOps burden** for **data-path control**, **approved models and versions**, **more predictable capacity economics**, and **direct control over latency and concurrency**.
+
+<InternalLlmServingDiagrams kind="dataPath" language="en" />
+
+## 2. Decide first: when an external API is still better
+
+Internal GPU serving is not universal. A **commercial API or managed endpoint** may still win when:
+
+| Situation | Why external or managed fits |
+| --- | --- |
+| Data is public, aggregated, or already anonymized | Vendor carries operations, scale, and model refresh |
+| Traffic is spiky and unpredictable | Hard to justify always-on GPUs |
+| Latest closed models, multimodal, or agent features are core | Self-hosted open weights may lag |
+| The team has little GPU, Kubernetes, or inference-engine experience | Learning curve and incident cost dominate |
+| The goal is a one-month PoC | Internal serving needs security and observability to mature |
+
+Fair comparison: external APIs buy **standardized operations and speed**; internal vLLM buys **data sovereignty and control**. Neither “always internal for security” nor “always API for cost” is sufficient—read **data classification, SLOs, traffic shape, and ops capacity** together.
+
+## 3. Four pressures toward internal GPUs
+
+### Security and policy
+
+Audit, legal, and customer contracts ask **where logs live and whether raw content crosses a boundary**, not only whether the model is accurate. Internal serving can keep traffic inside a VPC through gateway, vLLM, and GPU. **Internal does not mean automatic safety.** API keys alone are not a full boundary; network policy, TLS, per-user quotas, and `/metrics` exposure need design.
+
+### Data path
+
+The same agent sending a prompt to an external API exports context to a vendor network. Internal vLLM keeps **weights and KV cache on GPUs and storage you control**. “Not used for training” is a vendor promise; “does not leave our network” is an architectural control.
+
+### Cost and predictability
+
+APIs are mostly **variable spend** tied to usage. Internal GPUs are **fixed cost**—hardware, power, people, maintenance. Illustrative structure only: if roughly two million dollars per month in stable API spend could be served on two A100-class GPUs within SLO—**with evidence from your workload**—finance may model an internal scenario. At two hundred thousand dollars per month, always-on GPUs are harder to justify. **Real numbers differ by organization; only the structure is claimed here.**
+
+### Performance and control
+
+Internal serving does not guarantee “faster.” It does allow **pinned models**, **batching policy**, **concurrency caps**, and **prefix design** aligned to service SLOs. Agent workloads with many short calls may fit **your scheduler policy** better than vendor rate limits—still a hypothesis to benchmark.
+
+<InternalLlmServingDiagrams kind="adoption" language="en" />
+
+## 4. What vLLM does and does not do
+
+**vLLM does (summary):**
+
+- Accept **inference requests** via OpenAI-compatible HTTP and similar surfaces.
+- **Batch prefill and decode** for many sequences on GPU using continuous batching and PagedAttention-style KV management.
+- Provide KV cache, (where enabled) prefix caching, and streaming responses.
+- Expose **server-side metrics** such as Prometheus `/metrics`. [Production Metrics](https://docs.vllm.ai/en/stable/usage/metrics/)
+
+**vLLM does not:**
+
+- Replace **data classification, IAM, or audit policy**.
+- Own **legal/security approval**, license compliance, or **weight supply-chain validation**.
+- Complete **Kubernetes, GPU drivers, node patching, DCGM, Prometheus, and alerting** for you.
+- Provide **agent orchestration, RAG quality, or evaluation harnesses**—those are application layers.
+
+Adopting vLLM adds an **inference engine**, not a full **enterprise AI platform**.
+
+## 5. Alternatives and where vLLM sits
+
+| Approach | Fits when | Limits |
+| --- | --- | --- |
+| Commercial LLM API | Data may leave the org, fast start, latest models | Less control of path, unit cost, rate limits |
+| Cloud managed open-model endpoint | Some path control via VPC/peering | Still tied to cloud contract, region, pricing |
+| Transformers + FastAPI (simple server) | PoC, low concurrency, one model | You implement concurrency, KV memory, batching |
+| **vLLM** | **Many concurrent** on-prem GPU inferences, streaming, ops metrics | Requires GPU/K8s/tuning and observability skills |
+
+“One FastAPI route calling `model.generate()`” suffices for a **demo**. When agents, RAG, and chat attach concurrently, **KV exhaustion**, **tail latency**, and **GPU idle** appear together. vLLM addresses that through **scheduling and memory management**. [Optimization and Tuning](https://docs.vllm.ai/en/stable/configuration/optimization/)
+
+### PagedAttention, continuous batching, prefix caching — what users feel
+
+Skip implementation detail; focus on **experience and GPU efficiency**.
+
+- **PagedAttention / KV memory management:** splits GPU memory so **more requests can stay active** with long contexts and many chats. Users see **queues and streams continue** rather than sudden hard failure for everyone.
+- **Continuous batching:** new requests join ongoing decode batches on later iterations. Users see **higher throughput** when many agents call at once because the GPU spends less time idle.
+- **Automatic prefix caching:** reuses KV for the **same token prefix**. Shared system prompts, RAG instructions, or fixed few-shot examples can **reduce time to first token**, TTFT. It is not semantic similarity cache or finished-answer cache. Per-request timestamps in the prefix break reuse. [Automatic Prefix Caching](https://docs.vllm.ai/en/stable/features/automatic_prefix_caching/)
+
+<InternalLlmServingDiagrams kind="batching" language="en" />
+
+## 6. Architecture: app → gateway → vLLM → GPU
+
+A common production path:
+
+```text
+Internal agents · RAG · chat
+        ↓  (auth · quota · audit)
+   API gateway / ingress
+        ↓
+ Kubernetes Service
+        ↓
+ vLLM Pod (API + scheduler)
+        ↓
+ GPU + model weights (PVC · object store)
+        ↓
+ Prometheus · DCGM · logs (observability)
+```
+
+The gateway handles **identity, rate limits, and minimal path exposure** in front of vLLM. The Pod handles **inference scheduling**. GPU nodes sit under **drivers and device plugins**. [Kubernetes GPU scheduling](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/) GPU utilization alone is insufficient—pair vLLM metrics (**KV cache usage, waiting requests, TTFT, TPOT**) with **DCGM** counters. [DCGM Exporter counters](https://github.com/NVIDIA/dcgm-exporter/blob/main/etc/default-counters.csv)
+
+## 7. Pre-adoption checklist
+
+| Area | Questions |
+| --- | --- |
+| Data | Which classifications may use internal GPUs only? Do logs or traces retain raw text? |
+| Model | Approved weights, licenses, version-pin policy? |
+| GPU | Required VRAM, node count, failure degrade story? |
+| Network | Gateway TLS, NetworkPolicy, internal-only `/metrics`? |
+| SLO | TTFT, streaming interval, E2E, error targets defined? |
+| Operations | On-call, rollback, image pin, CVE cadence, model swap runbook? |
+| Cost | Documented GPU+people vs API scenarios? |
+
+If any row is still “unknown,” **full rollout** is premature; use the validation ladder below.
+
+## 8. From small proof to operations
+
+1. **Single GPU, single model, low concurrency** — validate features, streaming, and tool use (if needed) on a **pinned version**. [Getting Started](https://docs.vllm.ai/en/stable/getting_started/quickstart.html)
+2. **Representative workload replay** — reproduce prompt-length and concurrency distributions from agents/RAG with **synthetic traces** when real exports are unavailable. Record SLO baselines.
+3. **Wire observability** — scrape `/metrics`, GPU DCGM, dashboards for TTFT, queue, KV cache, preemption (if exposed).
+4. **Gateway and quota** — connect one internal app; finalize auth, rate limits, audit fields.
+5. **Scale decision** — replicas, model duplication, queue admission, or more GPUs. Tuning continues in [What is vLLM tuning?](/en/ai/ai-engineering/vllm-tuning-limited-gpus/).
+
+## 9. Next: tuning and metrics
+
+The next steps in **Internal LLM Serving** move from **why internal and why vLLM** to **how to run reliably**.
+
+- [What is vLLM tuning?](/en/ai/ai-engineering/vllm-tuning-limited-gpus/) — scheduler, prefill and decode, KV cache, key controls, and an SLO-driven tuning loop on limited GPUs.
+- [Why Is vLLM Slow?](/en/ai/ai-engineering/vllm-troubleshooting-metrics/) — operational diagnosis reading TTFT, TPOT, queue, prefill, KV cache, and preemption together.
+
+When the adoption answer is closer to “yes,” aligning the **data-path diagram and checklist with stakeholders** often precedes the first `kubectl apply`—especially in regulated environments.
