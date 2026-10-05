@@ -1,7 +1,7 @@
 ---
 title: "State Is Not an Event: Designing Real-Time Agent UIs"
-subtitle: "Safely connect Redis Hash snapshots and Redis Stream events over SSE"
-description: "Separate an agent's current state from its change history, then implement Redis Hashes, Redis Streams, event IDs, replay, and SSE reconnects."
+subtitle: "Restore the screen from a snapshot, then keep its timeline complete with cursors"
+description: "Lay out current state and an event timeline in an agent run screen, then implement bootstrap, SSE cursor replay, and snapshot resync for safe reconnects."
 publishedDate: 2026-09-27
 section: "AI & AX"
 subsection: "Agents"
@@ -55,6 +55,7 @@ references:
 ---
 
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import StateEventUiDiagrams from '../../../../components/StateEventUiDiagrams.astro';
 
 <AnswerBlock question="Does a real-time agent UI need state or events?">
   It needs both. <strong>State is the current snapshot that restores the screen immediately; events are the ordered record of what happened on the way there.</strong> A Redis Hash fits overwriteable current state, while a Redis Stream fits append-only event history. SSE transports both to the browser. It replaces neither the events nor their storage.
@@ -62,37 +63,40 @@ import AnswerBlock from '../../../../components/AnswerBlock.astro';
 
 The previous article, [**Where Does Agent State Live?**](/en/ai/agents/where-agent-state-lives/), placed the durable run record and restart-authoritative snapshots in PostgreSQL, a **UI and ops hot projection** in a Redis Hash, and the resumable graph snapshot in a checkpoint. Hash fields do not replace PostgreSQL rows.
 
-Suppose the current Redis Hash projection looks like this:
+Suppose a user opens an agent run screen. The browser must answer three questions:
 
-```json
-{
-  "status": "running",
-  "current_step": "valuation",
-  "progress": 65
-}
-```
+- What is the system doing now, and how far has it progressed?
+- Which user-meaningful changes led here?
+- If the connection returns after a break, where should updates resume?
 
-That is enough to render the top of the UI.
+A **snapshot**, an **event timeline**, and a **delivery cursor** answer those questions.
 
 ```text
-Current status: Analyzing, 65%
-Current step: Valuation
+Snapshot
+  Current status: Applying rules, 65%
+  Current work: Reviewing rule 3 of 4
+
+Timeline
+  ✓ Documents collected
+  ✓ Inputs normalized
+  → Applying rules
+  ! Approval required
+
+Cursor
+  last_event_id = 1760000000123-0
 ```
 
-But it does not explain why progress is at 65%. To show whether the system loaded financial data, selected peers, or started a DCF, we need a record of change.
-
-```text
-✓ financial_data_loaded
-✓ peer_selection_completed
-✓ multiples_completed
-→ dcf_started
-```
+<StateEventUiDiagrams
+  kind="browser"
+  language="en"
+  caption="On a run screen, the snapshot restores current status and work while events form a user-legible timeline. Continuous progress does not pollute that timeline."
+/>
 
 Continuously overwriting Hash fields preserves only the latest values. Keeping only events creates the opposite problem: every screen load must replay the entire history to calculate current progress. Storing both is not accidental duplication. It is an intentional projection across **current state**, **event history**, and **delivery stream**.
 
 **A Redis Stream is a delivery stream, not a long-term audit ledger.** It fits real-time fan-out, reconnect cursors, and a bounded replay window. Do not treat it as the sole store for events that legal, security, or compliance must read years later. Stream trim, TTL, and memory pressure are operational policy. History needed for audit, reproduction, or dispute response belongs in a **durable tier**—PostgreSQL tables, append-only log pipelines, or object storage. Trimming the stream must not erase run results and checkpoints that remain in PostgreSQL.
 
-## State and events answer different questions
+## The browser reads a snapshot and a timeline together
 
 | Dimension | State | Event |
 | --- | --- | --- |
@@ -100,7 +104,7 @@ Continuously overwriting Hash fields preserves only the latest values. Keeping o
 | Write pattern | Overwrite the same field | Append a new entry |
 | Read pattern | Read the latest snapshot once | Read a range after a cursor |
 | Typical structure | Redis Hash | Redis Stream |
-| Example | `progress=65` | `dcf_started` |
+| Example | `progress=65` | `rules_applied` |
 | Retention | May use a short TTL | Retain for the replay window |
 | UI role | Restore the screen immediately | Timeline and incremental updates |
 
@@ -109,12 +113,12 @@ The essential difference is time.
 ```text
 State
 time ──────────────────────────────────────────────>
-                   { progress: 65, step: valuation }
+                   { progress: 65, step: apply_rules }
                    one point: now
 
 Events
 time ──────────────────────────────────────────────>
-     data_loaded ─ peer_selected ─ dcf_started ─ ...
+     documents_collected ─ inputs_normalized ─ rules_applied ─ ...
                    order of change
 ```
 
@@ -126,7 +130,13 @@ A useful starting rule is:
 - Record user-legible phase transitions and important domain facts as events.
 - Do not create an event per token. Treat token streaming as a separate, high-volume channel.
 
-## Put a Redis Hash and Stream next to each other
+<StateEventUiDiagrams
+  kind="data-contract"
+  language="en"
+  caption="Each browser region reads a different contract. Bootstrap returns the snapshot and recent events together; SSE appends only changes after the cursor."
+/>
+
+## Store the snapshot and timeline in different representations
 
 Following the key naming from Article 6, one run gets two keys:
 
@@ -142,7 +152,7 @@ The state Hash is small and current.
 ```text
 HSET agent:run:{7d5}:state
   status          running
-  current_step    valuation
+  current_step    apply_rules
   progress        65
   last_event_id   1760000000123-0
   updated_at      2026-10-04T05:10:00Z
@@ -151,14 +161,14 @@ HSET agent:run:{7d5}:state
 The event Stream is an append-only timeline.
 
 ```text
-1760000000010-0  financial_data_loaded
-1760000000060-0  peer_selection_completed
-1760000000123-0  dcf_started
+1760000000010-0  documents_collected
+1760000000060-0  inputs_normalized
+1760000000123-0  rules_started
 ```
 
 A Redis Stream entry contains an ID and field-value pairs. With `*`, `XADD` asks Redis to generate a monotonically increasing ID. It commonly looks like `<millisecondsTime>-<sequenceNumber>`, but applications should treat it as an **opaque cursor**, not derive business time from it. ([XADD](https://redis.io/docs/latest/commands/xadd/))
 
-## Fix the event schema first
+### Fix the event schema first
 
 Redis Streams do not enforce a schema, so the application needs a stable envelope.
 
@@ -172,6 +182,7 @@ class RunEvent:
     type: str
     run_id: str
     attempt_id: str
+    fencing_token: int
     payload: dict[str, Any] = field(default_factory=dict)
     schema_version: int = 1
     occurred_at: str = field(
@@ -183,14 +194,14 @@ Use stable, machine-readable names for event types, not UI sentences.
 
 ```text
 Good
-financial_data_loaded
-peer_selection_completed
+documents_collected
+rules_applied
 approval_required
 run_succeeded
 
 Avoid
-All financial data has been loaded!
-The analysis is almost done
+All documents have been loaded!
+The review is almost done
 ```
 
 The client derives display copy and localization from the event type and payload. Copy can then change without breaking the historical event schema.
@@ -202,7 +213,7 @@ Keep `occurred_at` distinct from the Stream ID:
 - Do not assume that clocks across producers agree perfectly.
 - Within one stream, prefer Stream ID order for the UI.
 
-## Append events with `XADD`
+### Build bounded event history with `XADD`
 
 Plain async redis-py code can begin like this:
 
@@ -224,6 +235,7 @@ async def append_run_event(
         fields={
             "type": event.type,
             "attempt_id": event.attempt_id,
+            "fencing_token": event.fencing_token,
             "schema_version": event.schema_version,
             "occurred_at": event.occurred_at,
             "payload_json": json.dumps(event.payload),
@@ -234,20 +246,22 @@ async def append_run_event(
     return event_id
 ```
 
+This standalone `XADD` helper is a minimal illustration for an event that does not change the snapshot. Do not call it directly from competing worker attempts without atomically validating the current fencing token. Real transitions that change both snapshot and timeline use the fenced `publish_transition` below.
+
 This also requests approximate trimming, equivalent to `MAXLEN ~ 1000`. Exact trimming keeps the threshold precisely but can require more work. Approximate trimming removes entries efficiently in units of Redis's internal structure, so the actual length may temporarily exceed the threshold. ([XTRIM](https://redis.io/docs/latest/commands/xtrim/))
 
 If retention must be time-based rather than count-based, consider a `MINID` strategy. Either way, permanent retention of every event should not be the default. A Redis Stream is an operational log for the UI replay window. Put long-term audit records in PostgreSQL or object storage.
 
-## State updates and event appends can race
+## One transition changes the snapshot and timeline atomically
 
 Two separate commands leave room for an intermediate failure.
 
 ```python
 await redis.hset(state_key, mapping={"progress": 65})
-await redis.xadd(events_key, {"type": "dcf_started"})
+await redis.xadd(events_key, {"type": "rules_started"})
 ```
 
-If the worker dies after the first command, state says 65% but has no corresponding event. If the event is written first and the state update fails, the timeline says the DCF started while the snapshot remains on the previous step.
+If the worker dies after the first command, state says 65% but has no corresponding event. If the event is written first and the state update fails, the timeline says rule application started while the snapshot remains on the previous step.
 
 Not every state update needs an event. When one domain transition changes both snapshot and timeline, however, they should share an atomic operation.
 
@@ -255,26 +269,36 @@ A Lua script is convenient because the generated Stream ID must also become `las
 
 ```python
 PUBLISH_TRANSITION = """
+local current_fence = tonumber(redis.call('HGET', KEYS[1], 'fencing_token'))
+local proposed_fence = tonumber(ARGV[4])
+
+if current_fence and proposed_fence < current_fence then
+    return redis.error_reply('stale fencing token')
+end
+
 local event_id = redis.call(
     'XADD', KEYS[2], 'MAXLEN', '~', ARGV[1], '*',
     'type', ARGV[2],
     'attempt_id', ARGV[3],
-    'schema_version', ARGV[4],
-    'occurred_at', ARGV[5],
-    'payload_json', ARGV[6]
+    'fencing_token', ARGV[4],
+    'schema_version', ARGV[5],
+    'occurred_at', ARGV[6],
+    'payload_json', ARGV[7]
 )
 
 redis.call(
     'HSET', KEYS[1],
-    'status', ARGV[7],
-    'current_step', ARGV[8],
-    'progress', ARGV[9],
+    'attempt_id', ARGV[3],
+    'fencing_token', ARGV[4],
+    'status', ARGV[8],
+    'current_step', ARGV[9],
+    'progress', ARGV[10],
     'last_event_id', event_id,
-    'updated_at', ARGV[5]
+    'updated_at', ARGV[6]
 )
 
-redis.call('EXPIRE', KEYS[1], ARGV[10])
-redis.call('EXPIRE', KEYS[2], ARGV[10])
+redis.call('EXPIRE', KEYS[1], ARGV[11])
+redis.call('EXPIRE', KEYS[2], ARGV[11])
 return event_id
 """
 
@@ -295,6 +319,7 @@ async def publish_transition(
         MAX_EVENTS_PER_RUN,
         event.type,
         event.attempt_id,
+        event.fencing_token,
         event.schema_version,
         event.occurred_at,
         json.dumps(event.payload),
@@ -306,9 +331,9 @@ async def publish_transition(
     return result
 ```
 
-This script gives state and event local consistency inside Redis. It is not a distributed transaction that includes the PostgreSQL run record. As in Article 6, commit the terminal result to PostgreSQL first, then update the Redis projection and terminal event. If the Redis update fails, the system must be able to reconcile from durable state.
+The script rejects a stale worker token before changing the event and snapshot together. If updates within one attempt can also race, add the `version` comparison from the previous article. This atomicity provides **local Redis consistency**, not a distributed transaction with the PostgreSQL run record. Commit a terminal result to PostgreSQL first, then reconcile the Redis projection and terminal event. A failed Redis update must remain repairable from durable state.
 
-## Why state needs `last_event_id`
+### `last_event_id` is the snapshot boundary
 
 A naive real-time connection has this race:
 
@@ -336,7 +361,7 @@ If state and events update atomically and state includes `last_event_id`, connec
 
 An event published after the snapshot has an ID greater than its cursor, so `XREAD` sees it. Events before the snapshot are already reflected in state; use `XRANGE` when the timeline also needs them.
 
-## Initial load: read the snapshot and recent history
+## Bootstrap returns the whole screen-restoration contract
 
 When the UI first opens, return current state and a small number of recent events.
 
@@ -345,14 +370,17 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class RunBootstrap:
-    state: dict[str, str]
+    durable_status: str
+    state: dict[str, str] | None
     events: list[tuple[str, dict[str, str]]]
-    cursor: str
+    cursor: str | None
+    replay_complete: bool
 
 async def load_run_bootstrap(
     redis: Redis,
     *,
     run_id: str,
+    durable_status: str,
     history_limit: int = 50,
 ) -> RunBootstrap:
     state_key = f"agent:run:{{{run_id}}}:state"
@@ -360,7 +388,13 @@ async def load_run_bootstrap(
 
     state = await redis.hgetall(state_key)
     if not state:
-        raise KeyError(f"hot state not found: {run_id}")
+        return RunBootstrap(
+            durable_status=durable_status,
+            state=None,
+            events=[],
+            cursor=None,
+            replay_complete=False,
+        )
 
     cursor = state.get("last_event_id", "0-0")
 
@@ -374,15 +408,17 @@ async def load_run_bootstrap(
     recent = list(reversed(recent_desc))
 
     return RunBootstrap(
+        durable_status=durable_status,
         state=state,
         events=recent,
         cursor=cursor,
+        replay_complete=True,
     )
 ```
 
-Authorization must happen before this function. The API should verify in PostgreSQL that the authenticated tenant may read `run_id`, then access Redis. Event payloads can expose prompts, tool arguments, PII, or credentials; publish only the minimum fields the UI needs.
+`RunBootstrap` is an API-to-browser contract, not a raw Redis response. Authorization and `durable_status` lookup happen first in PostgreSQL. With `replay_complete=false`, the client must not present the timeline as complete; it uses a durable terminal result or a degraded active view. Event payloads should contain only the minimum UI fields, not prompts, tool arguments, PII, or credentials.
 
-## Read events after the cursor with `XREAD`
+### Read events after the cursor with `XREAD`
 
 After bootstrap, read new entries from the last cursor.
 
@@ -412,14 +448,14 @@ The ID passed to `XREAD` is an exclusive cursor: passing `176...-0` returns entr
 
 `COUNT` matters too. After a long disconnect, process the backlog in bounded batches. Advance the next cursor only to the last event actually delivered.
 
-## Pass the Redis Stream ID as the SSE `id`
+### Pass the Redis Stream ID as the SSE `id`
 
 SSE uses a text format with blank lines between messages. Reusing the Redis Stream ID as the SSE `id` joins the storage cursor to the browser reconnect cursor.
 
 ```text
 id: 1760000000123-0
-event: dcf_started
-data: {"run_id":"7d5...","scenario":"base"}
+event: rules_started
+data: {"run_id":"7d5...","rules_total":4}
 
 ```
 
@@ -447,7 +483,7 @@ The HTML Standard defines an SSE event `id` and the last event ID a user agent u
 
 This article does not build the complete SSE endpoint. Async generators, `StreamingResponse`, heartbeat comments, proxy buffering, and disconnect cancellation belong to Article 8. The point here is that SSE is a **transport for cursor-aware Redis Stream events**.
 
-## Reconnect means replay, and replay permits duplicates
+### Reconnect means replay, and replay permits duplicates
 
 Networks do not disconnect neatly at message boundaries.
 
@@ -477,7 +513,7 @@ The browser need not keep every ID forever. Timeline items can use event IDs as 
 
 State updates should also be idempotent. An absolute progress value such as `65` remains correct when replayed. A delta such as `progress += 5` can incorrectly turn into 70.
 
-## If the cursor predates retention, return to the snapshot
+### If the cursor predates retention, return to the snapshot
 
 After trimming, an old client's cursor may no longer exist. Redis can still read retained entries with greater IDs, but it cannot reconstruct deleted events.
 
@@ -515,7 +551,7 @@ The protocol can then:
 
 The simplest starting point is to **refetch the snapshot and reconnect from its latest cursor**. If older timeline segments are mandatory, increase Redis retention or add a durable event archive.
 
-## Define what happens when the snapshot is gone
+### Define what happens when the snapshot is gone
 
 As in Article 6, the Redis Hash may have a TTL. If both keys for an old completed run have expired, the durable PostgreSQL record is the fallback.
 
@@ -534,7 +570,9 @@ Redis state missing, PostgreSQL run is active
 
 A Redis miss must not immediately become `404 run not found`. PostgreSQL determines run existence and authorization.
 
-## Why Pub/Sub alone makes reconnect difficult
+## Choose fan-out alternatives by UI consumption semantics
+
+### Why Pub/Sub alone makes reconnect difficult
 
 Redis Pub/Sub is simple for live fan-out, but messages published while a subscriber is disconnected cannot be read later. Redis documents Pub/Sub as at-most-once delivery: a message lost to a network disconnect is not redelivered. ([Redis Pub/Sub](https://redis.io/docs/latest/develop/pubsub/))
 
@@ -550,7 +588,7 @@ XREAD(last_id) ──> replay the disconnect gap
 
 Streams are therefore a natural fit for agent UIs that require reconnect and replay. A hybrid may use Pub/Sub as a wake-up signal while reading payloads from a Stream, but it need not be the starting design. `XREAD BLOCK` can wake waiting readers and deliver new entries by itself.
 
-## Consumer groups are not the default for SSE fan-out
+### Consumer groups are not the default for SSE fan-out
 
 Redis Stream consumer groups are useful when messages should be **distributed** among consumers and the system must track acknowledgements and pending ownership. They fit worker queues.
 
@@ -558,13 +596,13 @@ Two browsers viewing the same run, however, must both receive every event.
 
 ```text
 SSE viewer A ─┐
-              ├─ both must receive dcf_started
+              ├─ both must receive rules_started
 SSE viewer B ─┘
 ```
 
 Put both viewers in one consumer group and the event may go to only one of them. Start each SSE viewer as an independent `XREAD` reader with its own cursor. A worker queue and UI event feed can both use Redis Streams without sharing a consumption pattern.
 
-## One Stream per run?
+### One Stream per run?
 
 The examples use one Stream key per run:
 
@@ -578,8 +616,8 @@ A shared Stream is also possible:
 
 ```text
 agent:events
-  run_id=7d5 type=dcf_started
-  run_id=91a type=research_completed
+  run_id=7d5 type=rules_started
+  run_id=91a type=documents_collected
 ```
 
 But `XREAD` cannot filter arbitrary fields. An SSE connection for one run would read unrelated events and filter them in application code. Tenant or partitioned streams are possible, but complicate ordering, hot partitions, and retention.
@@ -591,43 +629,46 @@ At an initial scale, per-run Streams give a simpler mental model and security bo
 Putting the pieces together, a worker can publish a domain transition when a node finishes.
 
 ```python
-async def execute_valuation_step(
+async def execute_rule_review_step(
     *,
     redis: Redis,
     run_id: str,
     attempt_id: str,
+    fencing_token: int,
     state: dict,
 ) -> dict:
     await publish_transition(
         redis,
         event=RunEvent(
-            type="dcf_started",
+            type="rules_started",
             run_id=run_id,
             attempt_id=attempt_id,
-            payload={"scenario": "base"},
+            fencing_token=fencing_token,
+            payload={"rules_total": 4},
         ),
         status="running",
-        current_step="valuation",
+        current_step="apply_rules",
         progress=65,
         ttl_seconds=24 * 60 * 60,
     )
 
-    valuation = await calculate_dcf(state)
-    next_state = {**state, "valuation": valuation}
+    decision = await apply_policy_rules(state)
+    next_state = {**state, "rule_decision": decision}
 
     await publish_transition(
         redis,
         event=RunEvent(
-            type="dcf_completed",
+            type="rules_applied",
             run_id=run_id,
             attempt_id=attempt_id,
+            fencing_token=fencing_token,
             payload={
-                "scenario": "base",
-                "currency": valuation.currency,
+                "rules_checked": decision.rules_checked,
+                "requires_approval": decision.requires_approval,
             },
         ),
         status="running",
-        current_step="report",
+        current_step="approval",
         progress=80,
         ttl_seconds=24 * 60 * 60,
     )
@@ -635,9 +676,9 @@ async def execute_valuation_step(
     return next_state
 ```
 
-The event does not copy the full valuation. Keep only the small metadata needed to render the timeline; keep the result itself in a checkpoint or PostgreSQL record. Small Stream entries make replay and memory use easier to control.
+The event does not copy the full rule decision. Keep only the small metadata needed to render the timeline; keep the result itself in a checkpoint or PostgreSQL record. Small Stream entries make replay and memory use easier to control.
 
-## Separate progress events from domain events
+### Separate progress events from domain events
 
 Not every progress change belongs on the timeline.
 
@@ -652,7 +693,18 @@ Not every progress change belongs on the timeline.
 
 Progress is a continuous projection; an event is a meaningful transition. Without this distinction, LLM tokens, internal debug logs, and user-facing events end up in one stream. Data with different traffic and retention profiles should not share a channel: doing so makes slow clients and memory pressure harder to manage.
 
-Token streaming in particular is different from progress streaming. Tokens are high-volume partial output; `dcf_completed` is a low-volume control signal. Article 21 treats the distinction separately.
+Token streaming in particular is different from progress streaming. Tokens are high-volume partial output; `rules_applied` is a low-volume control signal. The follow-up streaming article treats that distinction separately.
+
+Separate what appears in the browser from what remains internal:
+
+| Channel | Include | Screen placement |
+| --- | --- | --- |
+| Timeline event | Phase completion, approval, user intervention, recovery/failure, terminal completion | Activity timeline |
+| State only | Continuous progress, heartbeat, internal current-attempt state | Status card or hidden |
+| Separate token channel | Partial generated output | Result panel |
+| Debug / audit | Detailed traces, raw tool arguments, long-term records | Operations and audit systems |
+
+An event type is not display copy. The client maps `rules_applied` and its small payload to localized text such as “Rule review completed.” Storing an English sentence in the Stream turns copy edits and multilingual UI into event-schema changes.
 
 ## You do not need full event sourcing
 
@@ -671,7 +723,7 @@ Deleting the Redis Stream still leaves the PostgreSQL result and checkpoint, and
 
 Consider full event sourcing when audit, temporal queries, or deterministic rebuilds impose stronger requirements. A real-time progress UI alone is not a reason to convert the entire system to event-sourced architecture.
 
-## The complete read flow for a real-time UI
+## The browser returns through replay or resync
 
 The browser finally opens a run screen like this:
 
@@ -702,12 +754,19 @@ The pattern has three important properties:
 2. The cursor prevents events after the snapshot from being missed.
 3. A reconnect beyond Stream retention recovers through snapshot resync.
 
+<StateEventUiDiagrams
+  kind="reconnect"
+  language="en"
+  caption="Normal delivery and reconnect use the same cursor contract. If replay history has expired, expose the gap and resynchronize from bootstrap."
+/>
+
 ## Implementation checklist
 
 - Are the current snapshot and append-only events stored under different keys?
 - Does state hold a consistent `last_event_id`?
 - Are snapshot and event updates atomic when one transition changes both?
 - Does the event envelope include type, schema version, timestamp, and attempt identity?
+- Is the fencing token validated before writing the snapshot and event?
 - Is the Redis Stream ID treated as an opaque cursor?
 - Does reconnect replay entries after the last event ID?
 - Can the client safely process duplicate events?
@@ -716,6 +775,7 @@ The pattern has three important properties:
 - Does a Redis miss fall back to durable PostgreSQL state?
 - Are credentials and sensitive data removed from event payloads?
 - Are UI viewers kept out of an inappropriate consumer group?
+- Are progress, timeline, token, and debug/audit channels separated by screen purpose and retention?
 
 We now know where state and events live and which cursor connects them. Next, side-effecting tools—such as transfers—must converge on one user intent under queue redelivery and timeouts.
 
