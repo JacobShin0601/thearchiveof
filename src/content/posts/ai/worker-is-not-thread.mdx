@@ -22,7 +22,7 @@ comments: true
 language: "ko"
 translationKey: "worker-is-not-thread"
 series: "Agent Engineering"
-seriesOrder: 4
+seriesOrder: 5
 seriesPart: "execution"
 freshness: evergreen
 lastReviewed: 2026-10-04
@@ -46,6 +46,7 @@ references:
 ---
 
 import AnswerBlock from '../../../components/AnswerBlock.astro';
+import AgentBackendArchitectureMap from '../../../components/AgentBackendArchitectureMap.astro';
 
 <AnswerBlock question="Agent backend에서 worker란 무엇인가?">
   Worker는 thread나 process 같은 동시성 기본 요소가 아니라 <strong>작업 부하의 실행 수명 주기를 맡는 역할</strong>이다. API가 요청을 검증하고 실행을 접수한다면, worker는 queue에서 작업을 가져와 상태를 갱신하고, 완료·실패·재시도 가능한 결과가 남을 때까지 현재 시도를 책임진다. Worker process 내부에서는 다시 async, thread, process를 조합할 수 있다.
@@ -116,6 +117,16 @@ def start_local_task(coroutine) -> None:
 ```
 
 이 코드는 task 참조 관리 문제를 해결할 뿐이다. API process가 종료되면 집합과 task가 모두 사라진다.
+
+## API와 worker를 분리한다는 것은 무엇인가
+
+“API와 worker를 분리한다”는 말에는 **논리적 책임**과 **배포 수명 주기** 두 층이 있다. 개발 환경에서는 API와 worker를 한 process나 한 Pod에 둘 수 있다. 그래도 HTTP 접수와 장시간 run 실행은 코드 경계로 나눌 수 있다.
+
+운영 환경에서는 보통 API Deployment와 Worker Deployment를 **서로 다른 Pod 집합**으로 둔다. API는 요청량·연결 수 기준으로, worker는 queue 길이·작업 시간·CPU·GPU·외부 API 부하 기준으로 확장한다. API Pod가 재시작되어도 queue와 PostgreSQL에 남은 run은 worker가 계속 처리하거나 다른 worker가 회수할 수 있어야 한다.
+
+<AgentBackendArchitectureMap kind="deployment" language="ko" />
+
+별도 Pod는 목적이 아니라 결과다. 서로 다른 책임·자원·확장·실패 수명을 독립적으로 관리하려다 보니 Deployment가 갈라진다. 전체 지도는 [Agent Backend 한 장 지도](/ai/agents/agent-backend-architecture-map/) 2편을 참고한다.
 
 ## Process 내부의 백그라운드 task가 항상 나쁜 것은 아니다
 

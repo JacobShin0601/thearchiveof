@@ -22,7 +22,7 @@ comments: true
 language: "en"
 translationKey: "where-agent-state-lives"
 series: "Agent Engineering"
-seriesOrder: 5
+seriesOrder: 6
 seriesPart: "state"
 localization:
   locale: "en-US"
@@ -563,7 +563,7 @@ Do not let a convenient Hash become another giant document. Avoid:
 - tool-execution history required for audit;
 - the only checkpoint needed for resume.
 
-A Redis Hash fits a **small, current projection**. Redis JSON may help with large nested state and partial queries, but does not change the data model's meaning. Event history needs append semantics; snapshots need snapshot semantics. Article 6 separates Hash state from Redis Stream events.
+A Redis Hash fits a **small, current projection**. Redis JSON may help with large nested state and partial queries, but does not change the data model's meaning. Event history needs append semantics; snapshots need snapshot semantics. Article 7 separates Hash state from Redis Stream events.
 
 `HGETALL` returns data proportional to the number of fields: O(N), as the Redis documentation classifies it. It is fine for a small state object; use `HMGET` for selected fields as a hash grows.
 
@@ -907,7 +907,7 @@ Current progress projection          Application-managed Redis state
 Process-local temporary state        Runtime memory
 ```
 
-Passing a `thread_id` and attaching a checkpointer does not solve run records, authorization, UI progress, and event history. Framework graph state and application business state overlap, but they are not the same. Article 8 develops that distinction.
+Passing a `thread_id` and attaching a checkpointer does not solve run records, authorization, UI progress, and event history. Framework graph state and application business state overlap, but they are not the same. Article 9 develops that distinction.
 
 ## Let failure requirements decide where state lives
 
