@@ -37,9 +37,9 @@ references:
   - title: 'Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods'
     url: 'https://research.google/pubs/reciprocal-rank-fusion-outperforms-condorcet-and-individual-rank-learning-methods/'
     publisher: 'SIGIR'
-  - title: 'Create a Hybrid Query in Azure AI Search'
-    url: 'https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query'
-    publisher: 'Microsoft Learn'
+  - title: 'Reciprocal rank fusion'
+    url: 'https://docs.opensearch.org/latest/vector-search/ai-search/hybrid-search/rrf/'
+    publisher: 'OpenSearch Documentation'
   - title: 'EDGAR Timestamps'
     url: 'https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps'
     publisher: 'U.S. SEC'
@@ -81,7 +81,7 @@ Finding the policy is necessary, but good search results do not automatically pe
 
 The original [RAG paper](https://arxiv.org/abs/2005.11401) supplemented a model's parametric memory with external non-parametric memory. Production implementations turned chunking, embeddings, lexical and semantic retrieval, metadata filters, query rewriting, rank fusion, reranking, and context allocation into an engineering discipline.
 
-Enterprise documents show why those details remain important. An employee ID, ticket number, SKU, or contract clause may require exact lexical matching. “Does this customer qualify for a refund exception?” depends on meaning spread across several passages. Hybrid systems therefore run keyword and vector searches in parallel and fuse their rankings. [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query), for example, supports this pattern with Reciprocal Rank Fusion.
+Enterprise documents show why those details remain important. An employee ID, ticket number, SKU, or contract clause may require exact lexical matching. “Does this customer qualify for a refund exception?” depends on meaning spread across several passages. Hybrid systems therefore run keyword and vector searches in parallel and fuse their rankings with RRF. Search engines built for vector retrieval, such as [OpenSearch](https://docs.opensearch.org/latest/vector-search/ai-search/hybrid-search/), combine lexical and semantic clauses in a `hybrid` query and merge ranks in a search pipeline with reciprocal rank fusion.
 
 A reranker only reorders the candidate set; it does not search the full corpus again. If the relevant 10-K footnote never enters that set, a better reranker cannot recover it. Production RAG was never merely a chatbot attached to a vector database. It was a multi-stage information-retrieval system.
 
@@ -259,5 +259,3 @@ A refund task that applies today's policy retroactively to an old order can prod
 Retrieval Engineering expands what an agent can know. Task Engineering uses that knowledge to manage goals and constraints, coordinate tools and state, and produce a verifiable result or an explicit deferral.
 
 The shift is therefore not “leave search behind and move to tasks.” It is to keep measuring retrieval quality while adding an execution contract, state, policy, verification, and handoff above it. Nor is an elaborate graph the goal. The important design decision is which judgments the model may explore and which boundaries the system must own.
-
-Continue with [Agent Pattern Design](/en/ai/agents/agent-pattern-design/) for the control patterns that compose a task, then [Agent Backend Architecture Map](/en/ai/agents/agent-backend-architecture-map/) for the API, queue, worker, state, and SSE layers that sustain execution.
