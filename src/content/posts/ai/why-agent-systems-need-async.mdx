@@ -25,7 +25,7 @@ series: "Agent Engineering"
 seriesOrder: 2
 seriesPart: "execution"
 freshness: evergreen
-lastReviewed: 2026-10-04
+lastReviewed: 2026-10-05
 nextReviewDate: 2027-10-04
 references:
   - title: "asyncio — Asynchronous I/O"
@@ -37,6 +37,9 @@ references:
   - title: "Developing with asyncio"
     url: "https://docs.python.org/3/library/asyncio-dev.html"
     publisher: "Python Documentation"
+  - title: "Async Support"
+    url: "https://www.python-httpx.org/async/"
+    publisher: "HTTPX"
 ---
 
 import AnswerBlock from '../../../components/AnswerBlock.astro';
@@ -214,6 +217,41 @@ async def blocking_wait():
 ```
 
 함수 앞에 `async def`를 붙였다고 내부의 blocking 코드가 non-blocking으로 변하지 않는다. 이 차이는 Agent에서 특히 위험하다. LLM SDK는 async인데 추적 정보 내보내기, 데이터베이스 드라이버, 파일 작업 중 하나가 동기식이라면 그 호출 동안 같은 event loop의 다른 run도 지연될 수 있다.
+
+## 외부 HTTP API에서 blocking과 awaitable I/O를 본다
+
+Agent run은 CRM, 검색, 결제 게이트웨이처럼 **HTTP API**를 자주 호출한다. 동기식 `requests` 클라이언트의 `get()`은 소켓 응답을 기다리는 동안 **현재 thread—event loop thread—를 붙잡는다**. coroutine 안에 있어도 `await` 지점이 없으면 실행권을 양보하지 않는다.
+
+```python
+import requests
+
+async def fetch_quote_bad(symbol: str) -> dict:
+    # DNS, TLS, 응답 body를 읽는 동안 다른 coroutine은 진행하지 못한다.
+    response = requests.get(
+        f"https://api.example.com/quotes/{symbol}",
+        timeout=10,
+    )
+    response.raise_for_status()
+    return response.json()
+```
+
+같은 process에서 Run B가 Redis를 읽으려 해도 Run A가 `requests.get()` 안에 머무는 동안 event loop는 Run B를 깨울 기회를 얻지 못한다.
+
+`httpx.AsyncClient`와 `await client.get()`은 네트워크 대기를 awaitable로 만든다. 응답이 준비될 때까지 coroutine은 실행권을 돌려주고, event loop는 그동안 다른 task를 진행한다. ([HTTPX async 문서](https://www.python-httpx.org/async/))
+
+```python
+import httpx
+
+async def fetch_quote(symbol: str, client: httpx.AsyncClient) -> dict:
+    response = await client.get(
+        f"https://api.example.com/quotes/{symbol}",
+        timeout=10.0,
+    )
+    response.raise_for_status()
+    return response.json()
+```
+
+이 글에서는 **원리와 최소 예시**까지만 다룬다. Connection pool 재사용, 여러 호출을 `asyncio.gather()`로 겹치기, 동시 요청 상한, timeout과 재시도 정책은 다음 글 [Async, Thread, Process](/ai/agents/async-thread-process-agent-backends/)에서 HTTPX를 중심으로 정리한다.
 
 ## Concurrency와 parallelism은 같은 말이 아니다
 
