@@ -1,7 +1,7 @@
 import { hashActor, viewerFrom } from '../../../lib/identity.js';
 import { isAllowedOrigin, json, methodNotAllowed, readJson } from '../../../lib/http.js';
 import { isAllowedArticleKey } from '../../../lib/keys.js';
-import { isArticleKey, isReaction, isViewerId } from '../../../lib/validate.js';
+import { isArticleKey, isReaction, isViewerId, LANGUAGES } from '../../../lib/validate.js';
 
 async function countUseful(db, slug) {
   const row = await db.prepare(
@@ -49,8 +49,12 @@ export async function onRequest(context) {
 
   const reaction = body.value.reaction;
   const viewerId = viewerFrom(request, body.value);
+  const language = body.value.language;
   if (!isReaction(reaction)) return json({ ok: false, error: 'invalid_reaction' }, 400);
   if (!isViewerId(viewerId)) return json({ ok: false, error: 'invalid_viewer' }, 400);
+  if (language != null && !LANGUAGES.has(language)) {
+    return json({ ok: false, error: 'invalid_language' }, 400);
+  }
 
   const actorHash = await hashActor(env.INTERACTION_SECRET, slug, viewerId);
   const existing = await viewerRow(env.DB, slug, actorHash);
@@ -61,18 +65,24 @@ export async function onRequest(context) {
     return json({ ok: false, error: 'rate_limited' }, 429);
   }
 
-  if (existing) {
-    await env.DB.prepare('DELETE FROM article_reactions WHERE id = ?').bind(existing.id).run();
-  } else {
-    await env.DB.prepare(
+  const action = existing ? 'removed' : 'added';
+  const mutation = existing
+    ? env.DB.prepare('DELETE FROM article_reactions WHERE id = ?').bind(existing.id)
+    : env.DB.prepare(
       `INSERT INTO article_reactions (article_slug, reaction_type, actor_type, actor_hash)
        VALUES (?, 'useful', 'human', ?)`,
-    ).bind(slug, actorHash).run();
-  }
+    ).bind(slug, actorHash);
+  const outcomeEvent = env.DB.prepare(
+    `INSERT INTO interaction_events (event_name, article_slug, language, actor_type, component)
+     VALUES (?, ?, ?, 'human', 'useful-reaction')`,
+  ).bind(`reaction_${action}`, slug, language ?? null);
+
+  await env.DB.batch([mutation, outcomeEvent]);
 
   return json({
     ok: true,
     count: await countUseful(env.DB, slug),
     viewerReacted: !existing,
+    action,
   });
 }

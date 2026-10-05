@@ -29,7 +29,13 @@ const isKo = language === 'ko';
 </section>
 
 <script>
-  import { track, viewerId } from '../scripts/track';
+  import { viewerId } from '../scripts/track';
+
+  type ReactionResponse = {
+    count?: number;
+    viewerReacted?: boolean;
+    action?: 'added' | 'removed';
+  };
 
   async function load(root: HTMLElement) {
     const key = root.dataset.articleKey ?? '';
@@ -40,9 +46,11 @@ const isKo = language === 'ko';
     if (!button || !count || !status) return;
 
     const failed = language === 'ko' ? '반응을 저장하지 못했습니다.' : 'Could not save reaction.';
+    const saved = language === 'ko' ? '반응을 저장했습니다.' : 'Reaction saved.';
+    const removed = language === 'ko' ? '반응을 취소했습니다.' : 'Reaction removed.';
     const id = viewerId();
 
-    const apply = (data: { count?: number; viewerReacted?: boolean }) => {
+    const apply = (data: ReactionResponse) => {
       const reacted = Boolean(data.viewerReacted);
       count.textContent = String(data.count ?? 0);
       button.setAttribute('aria-pressed', String(reacted));
@@ -50,14 +58,14 @@ const isKo = language === 'ko';
       button.setAttribute('aria-label', `Useful, ${data.count ?? 0}`);
     };
 
-    const request = async (method: 'GET' | 'POST') => {
+    const request = async (method: 'GET' | 'POST'): Promise<ReactionResponse> => {
       const response = await fetch(`/api/articles/${encodeURIComponent(key)}/reactions${method === 'GET' ? `?viewer=${encodeURIComponent(id)}` : ''}`, {
         method,
         headers: {
           'X-Viewer-Id': id,
           ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
         },
-        body: method === 'POST' ? JSON.stringify({ reaction: 'useful', viewerId: id }) : undefined,
+        body: method === 'POST' ? JSON.stringify({ reaction: 'useful', viewerId: id, language }) : undefined,
       });
       if (!response.ok) throw new Error('request failed');
       return response.json();
@@ -77,7 +85,8 @@ const isKo = language === 'ko';
       try {
         const next = await request('POST');
         apply(next);
-        track('reaction_click', { articleSlug: key, language, component: 'useful-reaction' });
+        const action = next.action ?? (next.viewerReacted ? 'added' : 'removed');
+        status.textContent = action === 'added' ? saved : removed;
       } catch {
         status.textContent = failed;
       } finally {
