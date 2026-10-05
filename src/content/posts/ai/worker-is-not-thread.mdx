@@ -400,4 +400,4 @@ Worker를 도입하면 Agent run의 owner는 명확해진다. 하지만 다음 �
 - Worker가 죽은 뒤 새 worker는 어디에서 이어가는가?
 - 최종 결과와 임시 작업 상태를 같은 저장소에 넣어도 되는가?
 
-메모리 내 Python 객체만으로는 process 경계를 넘을 수 없다. 다음 글 **Agent 상태는 어디에 저장되는가**에서는 Agent 상태를 PostgreSQL, Redis, 체크포인트로 나누고, 지속 상태와 자주 변하는 운영 상태의 역할을 구분한다.
+메모리 내 Python 객체만으로는 process 경계를 넘을 수 없다. 다음 글 **Agent State는 어디에 있어야 하는가**에서는 Agent state를 PostgreSQL, Redis, checkpoint로 나누고, 영속 기록과 자주 변하는 hot projection의 역할을 구분한다.
