@@ -69,9 +69,16 @@ if user_approved:
     )
 ```
 
-In production you need answers to: what did the user approve? Did arguments change after approval? Double-clicks? Queue redelivery? Transfer succeeded but the worker died before reading the response? Which failures may retry?
+In production the questions multiply:
 
-This article uses a **transfer as a teaching example**. The code illustrates design ideas; it is not a real bank ledger, compliance program, or fraud stack.
+- What exactly did the user approve?
+- Did the LLM change the amount after approval?
+- What if the user double-clicks approve?
+- What if the queue redelivers the same job?
+- What if the transfer succeeded but the worker died before reading the response?
+- Which failures may retry, and which must stop?
+
+This article walks through those boundaries using a **transfer as a teaching example**. The code is conceptual; it does not replace a real ledger, regulatory compliance, or fraud monitoring.
 
 ## 1. Three meanings of “exactly once”
 
@@ -83,11 +90,15 @@ This article uses a **transfer as a teaching example**. The code illustrates des
 
 A worker timeout does not prove the provider did nothing—the transfer may have succeeded while the response was lost. Two HTTP calls with the same idempotency key can still yield one transfer if the provider dedupes.
 
-Goal: **every retry for the same user intent converges on one business result**, not “one physical line of code.”
+The goal is not to run one line of code physically once:
 
-See also [Making retries safe with idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/).
+> Make every retry for the same user intent converge on one business outcome.
+
+[Making retries safe with idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/) stresses linking client request IDs to **intent**, not just duplicate bytes.
 
 ## 2. Authentication, authorization, and approval
+
+Logging in does not approve a specific transfer.
 
 | Step | Question |
 | --- | --- |
@@ -95,21 +106,105 @@ See also [Making retries safe with idempotent APIs](https://aws.amazon.com/build
 | Authorization | May they use the transfer tool? |
 | Approval | May this recipient receive this amount **now**? |
 
-Show tool name, recipient, amount, currency, fees, actor, and expiry. [OWASP’s transaction authorization guidance](https://cheatsheetseries.owasp.org/cheatsheets/Transaction_Authorization_Cheat_Sheet.html) applies the same idea to sensitive actions.
+Approval must not be a vague “continue?” prompt. Show tool name, recipient, amount, currency, fees, purpose, actor, and expiry.
+
+```text
+Transfer approval
+
+From: Operations •••• 1024
+To: ABC Supplier •••• 7781
+Amount: USD 3,000,000
+Fee: USD 5.00
+Memo: INV-2026-0918
+Expires: in 10 minutes
+
+[Decline] [Approve]
+```
+
+[OWASP’s transaction authorization guidance](https://cheatsheetseries.owasp.org/cheatsheets/Transaction_Authorization_Cheat_Sheet.html) requires users to confirm critical transaction data and forces server-side state transitions—never reuse approval after arguments change.
 
 ## 3. Do not execute the LLM proposal directly
 
-Validate on the server, persist an action intent, then ask for approval. Approve by `action_id` only—never re-post tool JSON from the browser for execution.
+The model may emit:
+
+```json
+{
+  "tool": "transfer_money",
+  "arguments": {
+    "recipient_account": "supplier-7781",
+    "amount": 3000000,
+    "currency": "USD",
+    "memo": "INV-2026-0918"
+  }
+}
+```
+
+That is not yet an execution command. Validate against schema and policy, persist an action intent, then collect approval.
+
+```text
+LLM tool proposal
+→ schema validation
+→ limits and authorization
+→ persist action intent
+→ user approval
+→ execute
+```
+
+Do not send tool JSON to the browser and execute whatever the browser returns. Approval must reference a server-stored `action_id` only.
 
 ```http
 POST /tool-actions/action_123/approve
 ```
 
+If the approve endpoint re-accepts recipient and amount from the client, what the user saw may differ from what runs.
+
 ## 4. Fingerprint vs idempotency key
 
-**Action fingerprint** — hash of tool name, schema version, canonical arguments, tenant, and actor; fixed at approval.
+Do not conflate them.
 
-**Idempotency key** — identifies one user intent across retries, e.g. `tool-action:action_123`. Do not use `recipient + amount` as a global key; a second legitimate transfer would be blocked. Reject reuse of the same key with different arguments ([Stripe idempotent requests](https://docs.stripe.com/api/idempotent_requests)).
+### Action fingerprint
+
+Fixes what the user approved:
+
+```text
+SHA-256(
+  tool_name
+  + tool_schema_version
+  + canonical_arguments
+  + tenant_id
+  + actor_id
+)
+```
+
+Example canonical arguments:
+
+```json
+{
+  "amount_minor": 300000000,
+  "currency": "USD",
+  "memo": "INV-2026-0918",
+  "recipient_account": "supplier-7781"
+}
+```
+
+If the fingerprint at execution differs from approval, do not run—create a new action and re-approve.
+
+### Idempotency key
+
+Identifies one user intent across retries:
+
+```text
+action_id = action_123
+idempotency_key = tool-action:action_123
+```
+
+Sending the same amount to the same recipient next month may be valid; a global hash of `recipient + amount` would block that. Rules:
+
+- Retries for one action reuse the same key.
+- A new user intent gets a new action ID and key.
+- Same key with different arguments is an error.
+
+[Stripe idempotent requests](https://docs.stripe.com/api/idempotent_requests) return the first result on key reuse and compare arguments on mismatch—verify TTL and error retention per provider.
 
 ## 5. PostgreSQL as source of truth
 
@@ -120,77 +215,327 @@ CREATE TABLE tool_actions (
     run_id UUID NOT NULL,
     tool_name TEXT NOT NULL,
     tool_version TEXT NOT NULL,
+
     arguments JSONB NOT NULL,
     action_fingerprint TEXT NOT NULL,
     idempotency_key TEXT NOT NULL,
+
     status TEXT NOT NULL CHECK (
         status IN (
-            'proposed', 'awaiting_approval', 'approved', 'executing',
-            'succeeded', 'failed_retryable', 'failed_terminal',
-            'outcome_unknown', 'cancelled', 'expired'
+            'proposed',
+            'awaiting_approval',
+            'approved',
+            'executing',
+            'succeeded',
+            'failed_retryable',
+            'failed_terminal',
+            'outcome_unknown',
+            'cancelled',
+            'expired'
         )
     ),
+
     approved_fingerprint TEXT,
     approved_by UUID,
     approved_at TIMESTAMPTZ,
     approval_expires_at TIMESTAMPTZ,
+
     execution_attempt_id UUID,
     provider_reference TEXT,
     result JSONB,
     error JSONB,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
     UNIQUE (tenant_id, idempotency_key)
 );
 ```
 
-Use Redis for short locks and UI progress—not as the only dedupe for money movement.
+[PostgreSQL unique constraints](https://www.postgresql.org/docs/current/ddl-constraints.html) block two rows with the same tenant and idempotency key.
+
+Redis may hold short execution locks, approval notifications, UI progress, and recent events—but must not be the only dedupe for a transfer if keys can expire or be evicted.
 
 ## 6. Bind approval to stored actions
 
 <ToolExecutionSafetyDiagram kind="approval-flow" language="en" />
 
-Re-read the stored row, check expiry, recompute fingerprint, and reject if arguments drifted after review.
+The server reads the stored row at approval time:
+
+```python
+async def approve_action(
+    action_id: str,
+    user: User,
+) -> ApprovedAction:
+    action = await action_store.get_for_update(action_id)
+
+    authorize_tool(user, action.tool_name)
+    authorize_transaction(user, action.arguments)
+
+    if action.status != "awaiting_approval":
+        raise InvalidActionState(action.status)
+
+    if action.approval_expires_at <= now():
+        await action_store.mark_expired(action_id)
+        raise ApprovalExpired()
+
+    fingerprint = fingerprint_action(
+        tool_name=action.tool_name,
+        tool_version=action.tool_version,
+        arguments=action.arguments,
+        tenant_id=str(action.tenant_id),
+        actor_id=str(user.id),
+    )
+
+    if fingerprint != action.action_fingerprint:
+        raise ActionChangedAfterReview()
+
+    return await action_store.mark_approved(
+        action_id=action_id,
+        approved_by=user.id,
+        approved_fingerprint=fingerprint,
+    )
+```
+
+Do not trust `approved=true` from the browser alone. To change amount or recipient after review, cancel or supersede the old action and start a new approval—not an in-place edit. That preserves auditability between “what the user saw” and “what ran.”
 
 ## 7. One worker claims execution
 
-Conditional `UPDATE ... WHERE status = 'approved' AND approved_fingerprint = action_fingerprint` so only one worker proceeds.
+Queues may redeliver; two workers may race. Claim with a conditional update:
+
+```sql
+UPDATE tool_actions
+SET
+    status = 'executing',
+    execution_attempt_id = $2,
+    updated_at = NOW()
+WHERE action_id = $1
+  AND status = 'approved'
+  AND approved_fingerprint = action_fingerprint
+  AND approval_expires_at > NOW()
+RETURNING *;
+```
+
+Only one worker gets the row; others see `executing` or `succeeded` and must not open a new external call. That still does not close the window after a successful provider call but before local persistence—the provider must understand the same idempotency key.
 
 ## 8. Same key at the provider
 
-Pass the same `idempotency_key` on every retry. If the provider lacks idempotency or lookup APIs, the gap between “call succeeded” and “row saved” cannot be closed by app code alone.
+```python
+async def execute_transfer(
+    action: ToolAction,
+    client: TransferClient,
+) -> TransferResult:
+    assert action.status == "executing"
+    assert action.approved_fingerprint == action.action_fingerprint
+
+    return await client.transfer(
+        recipient_account=action.arguments["recipient_account"],
+        amount_minor=action.arguments["amount_minor"],
+        currency=action.arguments["currency"],
+        memo=action.arguments["memo"],
+        idempotency_key=action.idempotency_key,
+    )
+```
+
+Every retry for the same action uses the same header:
+
+```text
+First call:
+Idempotency-Key: tool-action:action_123
+
+Retry:
+Idempotency-Key: tool-action:action_123
+```
+
+Verify provider contract: key TTL, mismatch rejection, whether validation errors are stored, 5xx binding, in-flight concurrency, and lookup APIs. Without idempotency or lookup, the gap between “call may have succeeded” and “row saved” cannot be closed in application code alone.
+
+```python
+async def finalize_success(
+    action: ToolAction,
+    result: TransferResult,
+) -> None:
+    await action_store.mark_succeeded(
+        action_id=action.action_id,
+        provider_reference=result.reference,
+        result=result.payload,
+    )
+
+async def insert_tool_action(row: NewToolAction) -> ToolAction:
+    try:
+        return await action_store.insert(row)
+    except UniqueIdempotencyKey:
+        existing = await action_store.get_by_idempotency_key(
+            row.tenant_id,
+            row.idempotency_key,
+        )
+        if existing.action_fingerprint != row.action_fingerprint:
+            raise IdempotencyKeyArgumentMismatch()
+        return existing
+```
 
 ## 9. Timeout may mean outcome unknown
 
 <ToolExecutionSafetyDiagram kind="failure-window" language="en" />
 
-Mark `outcome_unknown`, reconcile by key or provider reference—do not mint a new transfer.
+The dangerous gap is between external side effect and local persistence.
+
+```text
+Worker ── transfer request ──> Provider
+                                  │
+                                  ├─ transfer succeeds
+                                  └─ response sent
+                                       X network loss
+
+Worker observes: timeout
+What happened: transfer succeeded
+```
+
+Marking `failed` and retrying with a new key can double-pay. Use `outcome_unknown` instead.
+
+```python
+try:
+    result = await execute_transfer(action, client)
+except NetworkTimeout as error:
+    await action_store.mark_outcome_unknown(
+        action_id=action.action_id,
+        error=serialize_error(error),
+    )
+    await reconciliation_queue.publish({
+        "action_id": str(action.action_id),
+    })
+    return
+```
+
+```python
+async def reconcile_transfer(action: ToolAction) -> None:
+    remote = await transfer_client.find_by_idempotency_key(
+        action.idempotency_key
+    )
+
+    if remote.status == "succeeded":
+        await action_store.mark_succeeded(
+            action.action_id,
+            provider_reference=remote.reference,
+            result=remote.payload,
+        )
+    elif remote.status == "not_found":
+        await retry_same_action(action)
+    else:
+        await action_store.keep_outcome_unknown(action.action_id)
+```
+
+Confirm what `not_found` means in the provider contract. Without lookup or idempotency, prefer manual reconciliation or conservative halt over blind retry.
 
 ## 10. Classify retries by certainty, not only error type
 
-Schema and permission failures usually should not blind-retry. Connection failures before bytes are sent may retry with the same key. Response timeouts need `outcome_unknown` and lookup first. Provider 5xx behavior depends on the vendor contract.
+| Situation | What you know | Default response |
+| --- | --- | --- |
+| Schema validation failure | Failed before external call | Fix and new attempt |
+| Permission or approval failure | Must not run | No retry |
+| Rate limit | May or may not have started | Same key with backoff |
+| Connection failure | Request likely not sent | Retry with same key |
+| Response timeout | Outcome unknown | `outcome_unknown`, lookup first |
+| Provider 5xx | Product-specific | Same key + contract |
+| Success but DB write failed | External effect may exist | Recover with same key |
+| Business rule violation | Retry will not help | Terminal failure |
+| Approval expired | No longer authorized | New approval |
+
+Before backoff and jitter, ask: **is repeating this request safe?** Do not apply generic network retry policies to non-idempotent side effects.
 
 ## 11. Ack the queue after persisting results
 
-Order: claim action → call provider → write terminal status in PostgreSQL → ack. If the worker dies after a successful write but before ack, redelivery must read `succeeded` and ack without calling the provider again.
+```text
+claim action
+→ external API
+→ persist terminal status in PostgreSQL
+→ queue ack
+```
+
+Ack-first loses results on storage failure. Persist-first with death before ack redelivers the message—the handler must read `succeeded` or route `outcome_unknown` to reconciliation.
+
+```python
+async def handle_tool_message(message: ToolMessage) -> None:
+    action = await action_store.get(message.action_id)
+
+    if action.status == "succeeded":
+        await message.ack()
+        return
+
+    if action.status == "outcome_unknown":
+        await reconciliation_queue.publish({"action_id": str(action.action_id)})
+        await message.ack()
+        return
+
+    claimed = await action_store.claim_if_approved(
+        action_id=message.action_id,
+        attempt_id=new_attempt_id(),
+    )
+
+    if claimed is None:
+        await message.ack()
+        return
+
+    await execute_claimed_action(claimed)
+```
+
+Production also needs lease expiry, fencing tokens, retry budgets, and crash recovery policy.
 
 ## 12. Align checkpoints with tool side effects
 
-Resuming from a checkpoint can re-enter a side-effecting tool node. Checkpoints continue graph execution; they do not dedupe external transfers. Tool handlers should load the durable action by ID ([LangGraph persistence](https://docs.langchain.com/oss/python/langgraph/persistence)).
+```text
+checkpoint A
+→ transfer tool node
+→ checkpoint B
+```
+
+If the worker dies after a successful transfer but before checkpoint B, resume from A may re-enter the tool node. Checkpoints stitch runtime execution; they do not dedupe money movement. Load by durable `action_id`:
+
+```python
+async def transfer_tool(state: AgentState) -> ToolResult:
+    action = await action_store.get(state.transfer_action_id)
+
+    if action.status == "succeeded":
+        return ToolResult.from_stored(action.result)
+
+    if action.status == "outcome_unknown":
+        raise ToolExecutionPendingReconciliation(action.action_id)
+
+    if action.status != "approved":
+        raise ToolNotApproved(action.action_id)
+
+    return await execute_existing_action(action)
+```
+
+Avoid using thread ID or checkpoint ID as the idempotency key ([LangGraph persistence](https://docs.langchain.com/oss/python/langgraph/persistence)).
 
 ## 13. Compensation is not rollback
 
-A completed transfer cannot be rolled back like a SQL transaction. A reversal is a new action with its own approval and idempotency key.
+Completed transfers are not SQL `ROLLBACK`. A reversal is a new financial action with its own approval and key. Automatic “call the opposite tool on failure” can create larger side effects. Email and tickets behave similarly—deleting a row does not unsend a message.
 
 ## 14. Test failure windows deliberately
 
-Double approval clicks, duplicate queue delivery, argument changes after approval, worker death before and after provider success, timeouts with successful transfers, expired approvals, key reuse with different args, lost Redis locks, and checkpoint replays of tool nodes.
+Happy paths hide idempotency bugs. Exercise double approval, duplicate queue delivery, post-approval argument changes, worker death before and after provider success, timeouts with successful transfers, expired approvals, key reuse with different args, lost Redis locks, and checkpoint replays.
+
+Success means:
+
+```text
+One external business effect?
+Approved args match executed args?
+Unknown outcome stops instead of duplicating?
+Retries converge on the same action result?
+```
 
 ## 15. What matters more than “exactly once”
 
-1. Bind approval to exact tool arguments.
-2. One durable action ID per user intent.
-3. Same idempotency key on every retry for that action.
-4. When outcome is unknown, do not create a new side effect.
+Distributed systems rarely move exactly once at every layer—users double-click, browsers hang, queues redeliver, workers restart from checkpoints, responses vanish, and provider keys expire.
+
+Good boundaries do not hide that. Persist one action per intent, bind approval to exact args, reuse one idempotency key per action on retries, and treat unknown outcomes separately.
+
+1. **Bind approval to exact tool arguments.**
+2. **One durable action ID per user intent.**
+3. **Same idempotency key on every retry for that action.**
+4. **When outcome is unknown, do not create a new side effect.**
 
 Next: [**Let the Agent Speak While It Works**](/en/ai/agents/agent-sse-streaming/) streams approval, execution, and reconciliation over SSE. See the [Agent Engineering series](/en/series/agent-engineering/).
+
+This draft follows [OWASP transaction authorization](https://cheatsheetseries.owasp.org/cheatsheets/Transaction_Authorization_Cheat_Sheet.html), [AWS Builders’ Library on idempotent retries](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/), [Stripe idempotent requests](https://docs.stripe.com/api/idempotent_requests), and [PostgreSQL constraints](https://www.postgresql.org/docs/current/ddl-constraints.html) for approval, intent, and deduplication—not as legal or banking advice.

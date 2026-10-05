@@ -322,9 +322,11 @@ async def approve_action(
 새 fingerprint → 새 승인
 ```
 
+이렇게 해야 감사 로그에서 “사용자가 본 것”과 “실제로 실행한 것”을 연결할 수 있다.
+
 ## 7. 한 Worker만 실행권을 가져간다
 
-Queue는 같은 메시지를 다시 전달할 수 있다. 실행 전에 PostgreSQL의 조건부 갱신으로 한 Worker만 action을 확보한다.
+Queue는 같은 메시지를 다시 전달할 수 있고, 일시적으로 두 Worker가 같은 run을 처리하려 할 수도 있다. 실행 전에 PostgreSQL의 조건부 갱신으로 한 Worker만 action을 확보한다.
 
 ```sql
 UPDATE tool_actions
@@ -339,7 +341,11 @@ WHERE action_id = $1
 RETURNING *;
 ```
 
-한 Worker만 row를 반환받는다. Worker가 `executing`으로 바꾼 뒤 외부 API 호출에 성공하고, 로컬 결과를 저장하기 전에 죽을 수 있기 때문에 외부 서비스도 같은 idempotency key를 이해해야 한다.
+한 Worker만 row를 반환받는다. 다른 Worker는 이미 `executing` 또는 `succeeded`인 action을 보고 새 외부 호출을 만들지 않는다.
+
+하지만 이 조건부 갱신만으로 모든 중복을 막을 수 있는 것은 아니다. Worker가 `executing`으로 바꾼 뒤 외부 API 호출에 성공하고, 로컬 결과를 저장하기 전에 죽을 수 있기 때문이다.
+
+이 장애 구간을 닫으려면 외부 서비스도 같은 idempotency key를 이해해야 한다.
 
 ## 8. 외부 API에도 같은 키를 보낸다
 
@@ -360,11 +366,64 @@ async def execute_transfer(
     )
 ```
 
-Provider 계약에서는 키 보존 기간, 다른 인자와의 충돌 처리, 오류 응답 저장, in-flight 중복, 거래 조회 API 지원 여부를 확인해야 한다. idempotency key나 조회 API가 없으면 호출 성공과 로컬 저장 사이의 장애 구간을 일반 애플리케이션 코드만으로 완전히 닫기 어렵다.
+같은 action의 재시도에는 반드시 같은 키를 사용한다.
+
+```text
+첫 호출:
+Idempotency-Key: tool-action:action_123
+
+재시도:
+Idempotency-Key: tool-action:action_123
+```
+
+Provider가 이 계약을 지원한다면 두 번째 요청은 새 송금을 만들지 않고 최초 실행의 결과를 반환하거나 기존 실행 상태를 조회할 수 있다.
+
+중요한 것은 “idempotency”라는 필드 이름의 존재가 아니다. 다음 계약을 확인해야 한다.
+
+- 키를 얼마나 오래 보관하는가?
+- 같은 키에 다른 인자를 보내면 거부하는가?
+- 요청이 실행되기 전 validation 실패도 저장하는가?
+- 서버 오류 결과도 같은 키에 묶이는가?
+- 처리 중인 요청과 동시에 같은 키가 들어오면 어떻게 되는가?
+- 거래 상태를 별도 API로 조회할 수 있는가?
+
+Provider가 idempotency key나 거래 조회 API를 지원하지 않으면, 호출 성공과 로컬 저장 사이의 장애 구간을 일반적인 애플리케이션 코드만으로 완전히 닫을 수 없다는 한계를 명시한다.
+
+호출이 성공하면 provider reference와 결과 payload를 action row에 남긴다.
+
+```python
+async def finalize_success(
+    action: ToolAction,
+    result: TransferResult,
+) -> None:
+    await action_store.mark_succeeded(
+        action_id=action.action_id,
+        provider_reference=result.reference,
+        result=result.payload,
+    )
+```
+
+`UNIQUE (tenant_id, idempotency_key)`에 걸리면 기존 row를 반환하되, 저장된 인자 fingerprint가 다르면 재사용을 거부한다.
+
+```python
+async def insert_tool_action(row: NewToolAction) -> ToolAction:
+    try:
+        return await action_store.insert(row)
+    except UniqueIdempotencyKey:
+        existing = await action_store.get_by_idempotency_key(
+            row.tenant_id,
+            row.idempotency_key,
+        )
+        if existing.action_fingerprint != row.action_fingerprint:
+            raise IdempotencyKeyArgumentMismatch()
+        return existing
+```
 
 ## 9. Timeout은 실패가 아니라 결과 불명일 수 있다
 
 <ToolExecutionSafetyDiagram kind="failure-window" language="ko" />
+
+가장 위험한 시점은 외부 부수 효과와 로컬 결과 저장 사이이다.
 
 ```text
 Worker ── 송금 요청 ──> Provider
@@ -377,7 +436,9 @@ Worker가 관측한 것: timeout
 실제로 일어난 것: 송금 성공
 ```
 
-`outcome_unknown`에서는 새 송금을 바로 만들지 않는다. 같은 idempotency key로 결과를 재조회하거나 provider reference로 거래 상태를 확인한다.
+이때 action을 바로 `failed`로 표시하고 새 idempotency key로 재시도하면 중복 송금이 발생할 수 있다.
+
+대신 `outcome_unknown` 상태로 전환한다.
 
 ```python
 try:
@@ -387,26 +448,64 @@ except NetworkTimeout as error:
         action_id=action.action_id,
         error=serialize_error(error),
     )
-    await reconciliation_queue.publish({"action_id": str(action.action_id)})
+    await reconciliation_queue.publish({
+        "action_id": str(action.action_id),
+    })
     return
 ```
 
-## 10. 재시도 여부는 결과 확실성으로 정한다
+Reconciliation worker는 같은 idempotency key나 provider reference로 상태를 확인한다.
 
-| 상황 | 기본 대응 |
-| --- | --- |
-| Schema·권한·승인 실패 | 재시도하지 않거나 새 승인 |
-| 연결 생성 실패 | 같은 키로 재시도 |
-| 응답 대기 timeout | `outcome_unknown`, 조회 우선 |
-| Provider 5xx | provider 계약과 같은 키 |
-| 성공 후 로컬 DB 저장 실패 | 같은 키로 결과 복구 |
-| 승인 만료 | 새 승인 |
+```python
+async def reconcile_transfer(action: ToolAction) -> None:
+    remote = await transfer_client.find_by_idempotency_key(
+        action.idempotency_key
+    )
+
+    if remote.status == "succeeded":
+        await action_store.mark_succeeded(
+            action.action_id,
+            provider_reference=remote.reference,
+            result=remote.payload,
+        )
+    elif remote.status == "not_found":
+        await retry_same_action(action)
+    else:
+        await action_store.keep_outcome_unknown(action.action_id)
+```
+
+`not_found`가 정말 “실행되지 않음”을 뜻하는지는 provider 계약으로 확인해야 한다. 조회 기능도 idempotency contract도 없다면 자동으로 안전한 재시도를 보장하기 어렵다. 그 경우 수동 reconciliation이나 더 보수적인 중단 정책이 필요하다.
+
+## 10. 재시도 여부는 오류 종류가 아니라 결과 확실성으로 정한다
+
+| 상황 | 알고 있는 사실 | 기본 대응 |
+| --- | --- | --- |
+| Schema 검증 실패 | 외부 호출 전 실패 | 수정 후 새 시도 가능 |
+| 권한 또는 승인 실패 | 실행하면 안 됨 | 재시도하지 않음 |
+| Rate limit | 실행 전 거부인지 계약 확인 필요 | 같은 키로 backoff |
+| 연결 생성 실패 | 요청이 전송되지 않았다는 확신이 있음 | 같은 키로 재시도 |
+| 응답 대기 timeout | 실행 여부를 모름 | `outcome_unknown`, 조회 우선 |
+| Provider 5xx | 실행 여부가 제품별로 다름 | 같은 키와 provider 계약 사용 |
+| 성공 후 로컬 DB 저장 실패 | 외부 효과는 발생했을 수 있음 | 같은 키로 결과 복구 |
+| 업무 규칙 위반 | 재시도해도 성공하지 않음 | terminal failure |
+| 승인 만료 | 더 이상 실행 권한 없음 | 새 승인 필요 |
+
+재시도 횟수, backoff와 jitter도 필요하지만 그 전에 “같은 요청을 반복해도 안전한가?”를 확인해야 한다. 멱등하지 않은 부수 효과를 일반적인 네트워크 재시도 정책에 그대로 넣으면 안 된다.
 
 ## 11. Queue Ack는 결과 저장 뒤에 한다
 
+정상 순서는 다음과 같다.
+
 ```text
-action 실행권 확보 → 외부 API → PostgreSQL에 최종 상태 → Queue ack
+action 실행권 확보
+→ 외부 API 호출
+→ PostgreSQL에 succeeded 또는 최종 상태 저장
+→ Queue ack
 ```
+
+먼저 ack한 뒤 결과 저장에 실패하면 Queue에는 완료로 보이지만 로컬 시스템에는 결과가 없다.
+
+반대로 결과를 저장한 뒤 ack 전에 Worker가 죽으면 메시지가 다시 전달될 수 있다. 재전달된 Worker는 action 상태를 확인한다.
 
 ```python
 async def handle_tool_message(message: ToolMessage) -> None:
@@ -433,9 +532,21 @@ async def handle_tool_message(message: ToolMessage) -> None:
     await execute_claimed_action(claimed)
 ```
 
+실제 구현에서는 lease 만료, fencing token, retry budget과 Worker crash recovery 정책을 추가해야 한다.
+
 ## 12. Checkpoint와 Tool 실행 경계를 맞춘다
 
-Runtime이 Tool node 직전에서 checkpoint를 저장했다가 재개하면 Tool node가 다시 실행될 수 있다. Checkpoint만으로 부수 효과 중복을 막을 수 없다.
+Agent runtime이 Tool node 직전에서 checkpoint를 저장했다고 하자.
+
+```text
+checkpoint A
+→ 송금 Tool 실행
+→ checkpoint B
+```
+
+송금은 성공했지만 checkpoint B 저장 전에 Worker가 죽으면, runtime은 checkpoint A에서 재개해 Tool node를 다시 실행할 수 있다.
+
+따라서 checkpoint만으로 부수 효과 중복을 막을 수 없다. Tool node가 재실행되더라도 같은 `action_id`를 사용해 기존 결과를 조회해야 한다.
 
 ```python
 async def transfer_tool(state: AgentState) -> ToolResult:
@@ -453,32 +564,73 @@ async def transfer_tool(state: AgentState) -> ToolResult:
     return await execute_existing_action(action)
 ```
 
-Runtime thread ID나 checkpoint ID를 idempotency key로 그대로 쓰지 않는다.
+Runtime의 thread ID나 checkpoint ID를 idempotency key로 그대로 사용하지 않는 편이 좋다. 같은 checkpoint 안에서 서로 다른 Tool action이 있을 수 있고, 사용자가 같은 업무를 새 의도로 다시 실행할 수도 있기 때문이다.
 
 ## 13. 보상 작업은 Rollback이 아니다
 
-이미 완료된 송금은 DB transaction처럼 되돌릴 수 없다. 반대 거래는 새 action, 새 승인, 새 idempotency key가 필요하다.
+이미 외부 계좌로 송금이 완료됐다면 데이터베이스 transaction처럼 `ROLLBACK`할 수 없다.
+
+반대 방향의 송금을 만들 수 있더라도 그것은 새로운 금융 거래다.
+
+```text
+원래 송금
+→ 취소 요청
+→ 새로운 승인
+→ 반환 또는 반대 거래
+```
+
+보상 작업에는 자체 action ID, 승인, idempotency key와 감사 기록이 필요하다. “실패하면 자동으로 반대 Tool을 호출한다”는 방식은 더 큰 부수 효과를 만들 수 있다.
+
+이메일 발송과 티켓 생성도 비슷하다. 이미 보낸 이메일을 데이터베이스에서 삭제할 수 없고, 이미 외부 고객이 본 메시지를 되돌릴 수 없다. 보상 가능성과 되돌릴 수 있음을 같은 의미로 사용해서는 안 된다.
 
 ## 14. 반드시 테스트해야 할 실패 지점
 
-1. 승인 버튼 연속 두 번
-2. 같은 Queue 메시지를 두 Worker가 동시 처리
-3. 승인 후 수취인·금액 변경 시도
-4. 외부 호출 직전 Worker 종료
-5. Provider 성공 후 로컬 저장 전 Worker 종료
-6. timeout이지만 실제 성공
-7. 만료된 승인
-8. 같은 idempotency key에 다른 인자
-9. Redis lock·진행 상태 유실
-10. checkpoint에서 Tool node 재실행
+Happy path만 테스트하면 멱등성 문제를 발견하기 어렵다.
 
-성공 조건은 “함수 한 번 호출”이 아니라 **외부 업무 효과 하나**, **승인과 실행 일치**, **불명확할 때 안전 정지**, **재시도 수렴**이다.
+최소한 다음 상황을 인위적으로 만들어야 한다.
+
+1. 사용자가 승인 버튼을 연속으로 두 번 누른다.
+2. 같은 Queue 메시지를 두 Worker가 거의 동시에 받는다.
+3. 승인 후 수취인이나 금액 변경을 시도한다.
+4. Worker가 외부 호출 직전에 종료된다.
+5. Provider 성공 직후 로컬 결과 저장 전에 종료된다.
+6. Provider 응답이 timeout되지만 실제 거래는 성공한다.
+7. 승인 만료 뒤 늦은 메시지가 도착한다.
+8. 같은 idempotency key에 다른 인자를 보낸다.
+9. Redis의 lock과 진행 상태가 모두 사라진다.
+10. Runtime이 이전 checkpoint에서 Tool node를 다시 실행한다.
+
+테스트의 성공 조건은 “Tool 함수가 한 번 호출됐다”가 아니다.
+
+```text
+외부 업무 효과가 하나인가?
+승인한 내용과 실행한 내용이 같은가?
+결과를 모르면 자동 중복 실행 대신 안전하게 멈추는가?
+재시도 후에도 같은 action 결과로 수렴하는가?
+```
 
 ## 15. 정확히 한 번보다 중요한 것
+
+분산 시스템에서 모든 계층이 동시에 정확히 한 번만 움직인다고 가정하는 것은 위험하다.
+
+- 사용자는 버튼을 다시 누른다.
+- 브라우저는 응답을 받지 못한다.
+- Queue는 메시지를 다시 전달한다.
+- Worker는 checkpoint에서 다시 시작한다.
+- 네트워크는 성공 응답을 잃는다.
+- 외부 서비스의 idempotency key는 언젠가 만료된다.
+
+좋은 Tool 실행 경계는 이 중복을 숨기지 않는다. 하나의 사용자 의도를 영속적인 action으로 만들고, 정확한 인자에 승인을 묶고, 모든 재시도에 같은 idempotency key를 사용하며, 결과를 모르는 상태를 별도로 관리한다.
+
+핵심 원칙은 네 가지다.
 
 1. **승인은 정확한 Tool 인자에 묶는다.**
 2. **하나의 사용자 의도에는 하나의 영속적인 action ID를 사용한다.**
 3. **재시도에는 항상 같은 idempotency key를 사용한다.**
 4. **실행 결과를 모르면 새 부수 효과를 만들지 않는다.**
 
-다음 글 [Agent가 일하면서 말하게 하기](/ai/agents/agent-sse-streaming/)에서는 승인 대기, 실행 진행과 reconciliation 상태를 SSE로 전달하는 방법을 살펴본다. 전체 흐름은 [Agent Engineering 시리즈](/series/agent-engineering/)에서 확인할 수 있다.
+이 네 가지가 지켜질 때 Agent가 다시 생각하고, Worker가 다시 실행되고, Queue가 메시지를 다시 전달하더라도 사용자는 같은 송금을 두 번 만들지 않는 시스템에 가까워질 수 있다.
+
+다음 글 [Agent가 일하면서 말하게 하기](/ai/agents/agent-sse-streaming/)에서는 승인 대기, 실행 진행과 reconciliation 상태를 SSE로 사용자에게 전달하는 방법을 살펴본다. 전체 흐름은 [Agent Engineering 시리즈](/series/agent-engineering/)에서 확인할 수 있다.
+
+초안의 승인 원칙은 사용자가 수취인·금액 같은 중요 데이터를 직접 확인하고 서버에서 거래 상태 전이를 강제하라는 [OWASP 지침](https://cheatsheetseries.owasp.org/cheatsheets/Transaction_Authorization_Cheat_Sheet.html), 재시도에서 같은 의도를 구별하라는 [AWS Builders’ Library](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/), 동일 키 재사용 시 최초 결과와 인자 일치를 다루는 [Stripe 공식 문서](https://docs.stripe.com/api/idempotent_requests), 그리고 중복을 데이터베이스 수준에서 막는 [PostgreSQL 제약조건](https://www.postgresql.org/docs/current/ddl-constraints.html)을 기준으로 잡았습니다.
