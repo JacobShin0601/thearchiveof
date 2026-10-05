@@ -34,10 +34,10 @@ export const SERIES_PART_META: Record<
 > = {
   design: {
     index: 1,
-    title: { ko: '설계와 제어 흐름', en: 'Design and control flow' },
+    title: { ko: '설계와 전체 구조', en: 'Design and overall structure' },
     description: {
-      ko: '에이전트 패턴과 제어 흐름의 기본 설계',
-      en: 'Agent patterns and the shape of control flow',
+      ko: '에이전트의 제어 패턴과 이를 실행할 backend의 전체 책임 경계를 먼저 그립니다.',
+      en: 'Agent control patterns and the backend’s overall boundaries of responsibility before execution details.',
     },
   },
   execution: {
@@ -117,15 +117,14 @@ export function progressLabel(options: {
   const partNum = partIndexInSeries(seriesName, partId);
   const partTotal = partCountForSeries(seriesName);
   const title = part.title[language];
-  const seriesUpper = seriesName.toUpperCase();
 
   if (language === 'ko') {
-    const visible = `${seriesUpper} · ${partNum}/${partTotal} ${title} · 시리즈 ${seriesOrder}/${totalInSeries}`;
+    const visible = `${partTotal}개 학습 단계 중 ${partNum}번째 · ${title} · 전체 ${totalInSeries}편 중 ${seriesOrder}번째 글`;
     const aria = `${seriesName} 시리즈, ${partTotal}개 학습 단계 중 ${partNum}번째 ${title}, 전체 ${totalInSeries}편 중 ${seriesOrder}번째 글`;
     return { visible, aria };
   }
 
-  const visible = `${seriesUpper} · ${partNum}/${partTotal} ${title} · Series ${seriesOrder}/${totalInSeries}`;
+  const visible = `Stage ${partNum} of ${partTotal} · ${title} · Article ${seriesOrder} of ${totalInSeries}`;
   const aria = `${seriesName} series, stage ${partNum} of ${partTotal}: ${title}, article ${seriesOrder} of ${totalInSeries}`;
   return { visible, aria };
 }

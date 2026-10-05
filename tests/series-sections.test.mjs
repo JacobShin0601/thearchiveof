@@ -65,7 +65,7 @@ test('progress label includes stage and article index', () => {
     totalInSeries: 9,
     language: 'ko',
   });
-  assert.match(visible, /2\/4/);
-  assert.match(visible, /시리즈 3\/9/);
+  assert.match(visible, /4개 학습 단계 중 2번째/);
+  assert.match(visible, /전체 9편 중 3번째 글/);
   assert.match(aria, /3번째/);
 });
