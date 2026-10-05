@@ -1,0 +1,257 @@
+---
+title: 'Retrieval Engineering에서 Task Engineering으로'
+subtitle: 'RAG가 Agent가 될 때, AI 엔지니어링의 중심은 어떻게 이동하는가'
+description: '필요한 정보를 찾는 검색 시스템에서 검증 가능한 업무 결과를 완성하는 시스템으로, AI 엔지니어링의 확장을 살펴본다.'
+publishedDate: 2026-10-05
+section: 'AI & AX'
+subsection: 'AX'
+contentType: research
+topics: [ai-agents, rag, evaluation, enterprise-ai]
+primaryTopic: ai-agents
+tags: [rag, agent-engineering, task-engineering, workflow, evaluation]
+author: 'Jacob Shin'
+language: ko
+translationKey: from-retrieval-engineering-to-task-engineering
+draft: false
+featured: false
+comments: true
+pillar: false
+freshness: periodic
+lastReviewed: 2026-10-05
+nextReviewDate: 2026-12-28
+dataThrough: 2026-10-05
+methodology: 'RAG 원 논문, 정보검색 연구와 AI 기업의 공식 엔지니어링 문서를 비교하고 규정 검토, 고객지원, 인사, 조달과 리서치에 공통으로 적용할 수 있는 task 설계 모델을 제안했다.'
+series: 'Enterprise AX'
+seriesOrder: 5
+references:
+  - title: 'Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks'
+    url: 'https://arxiv.org/abs/2005.11401'
+    publisher: 'NeurIPS'
+  - title: 'RAGAS: Automated Evaluation of Retrieval Augmented Generation'
+    url: 'https://aclanthology.org/2024.eacl-demo.16/'
+    publisher: 'EACL'
+  - title: 'Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods'
+    url: 'https://research.google/pubs/reciprocal-rank-fusion-outperforms-condorcet-and-individual-rank-learning-methods/'
+    publisher: 'SIGIR'
+  - title: 'Reciprocal rank fusion'
+    url: 'https://docs.opensearch.org/latest/vector-search/ai-search/hybrid-search/rrf/'
+    publisher: 'OpenSearch Documentation'
+  - title: 'EDGAR Timestamps'
+    url: 'https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps'
+    publisher: 'U.S. SEC'
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import TaskEngineeringDiagrams from '../../../components/TaskEngineeringDiagrams.astro';
+
+<AnswerBlock question="RAG가 Agent가 되면 AI 엔지니어링에서 무엇이 달라지는가?">
+  Retrieval Engineering은 필요한 맥락을 찾는 능력을 최적화한다. Task Engineering은 그 맥락을 사용해 <strong>사용자의 업무 결과를 안전하고 검증 가능하게 끝까지 완성하는 시스템</strong>을 설계한다. Task Engineering은 retrieval을 대체하지 않는다. Retrieval은 task loop가 필요할 때마다 호출하는 핵심 capability다.
+</AnswerBlock>
+
+같은 사용자가 사내 출장 규정에 관해 두 가지 요청을 한다고 해보자.
+
+> “출장비 규정을 찾아줘.”
+
+이 요청의 성공 기준은 비교적 분명하다. 관련 문서를 찾고, 최신 규정을 높은 순위에 올리고, 근거 문단을 인용하면 된다. Retrieval Engineering이 직접 최적화하는 문제다.
+
+이번에는 요청이 달라진다.
+
+> “이번 출장의 숙박비가 규정에 맞는지 판단하고, 초과 금액과 근거 조항을 정리해 승인자에게 보낼 초안을 만들어줘.”
+
+이 요청은 검색만으로 끝나지 않는다. 시스템은 다음 일을 이어서 수행해야 한다.
+
+1. 사용자, 출장 일정과 적용 조직을 확인한다.
+2. 최신 규정과 해당 조직에 적용되는 조항을 찾는다.
+3. 영수증의 금액·세금·통화를 정규화한다.
+4. 실제 금액을 한도와 비교한다.
+5. 지역, 직급, 사전 승인과 같은 예외 조건을 확인한다.
+6. 판단 근거와 남은 불확실성을 기록한다.
+7. 승인자에게 보낼 초안을 만든다.
+8. 자동 판단 범위를 넘으면 사람의 확인을 기다린다.
+
+좋은 문서를 찾는 일은 이 흐름의 필수 단계다. 그러나 검색 결과가 좋다고 금액 비교, 예외 판단, 승인과 결과 저장까지 자동으로 끝나지는 않는다. 반대로 task loop가 잘 설계돼도 적용할 규정을 찾지 못하면 실패한다.
+
+<TaskEngineeringDiagrams kind="shift" caption="Retrieval은 Task Engineering의 반대편이 아니다. Task가 결과를 완성하기 위해 반복해서 사용하는 capability다." />
+
+## Retrieval은 Task 안에서 계속 호출된다
+
+RAG의 출발점은 모델의 parameter에만 의존하지 않고 외부의 non-parametric memory를 검색해 생성 과정에 공급하는 것이었다. 2020년 [RAG 논문](https://arxiv.org/abs/2005.11401)은 지식 업데이트와 provenance를 다룰 수 있는 구조를 보여주었다. 이를 실제 서비스로 옮기면서 chunking, embedding, lexical·semantic search, metadata filter, query rewriting, rank fusion, reranking과 context allocation이 하나의 엔지니어링 분야가 됐다.
+
+기업 문서는 이 복잡성을 잘 보여준다. 사번, 티켓 번호, SKU, 계약 조항처럼 정확한 문자열이 중요한 질의에는 lexical search가 강하다. “이 고객이 환불 예외 조건에 해당하는가?”처럼 여러 문장의 의미와 맥락을 연결해야 하는 질의에는 dense retrieval이 유리하다. 실무에서는 두 검색을 병렬로 실행하고 RRF로 결과를 합치는 hybrid search를 자주 사용한다. [OpenSearch](https://docs.opensearch.org/latest/vector-search/ai-search/hybrid-search/)처럼 벡터 검색을 지원하는 검색 엔진은 lexical clause와 semantic clause를 `hybrid` query로 묶고 search pipeline에서 RRF로 순위를 합친다.
+
+그 뒤의 reranker는 전체 corpus를 다시 찾지 않는다. 1차 검색이 올린 후보만 재정렬한다. 최초 검색에서 빠진 10-K의 핵심 주석은 좋은 reranker도 되살릴 수 없다. Production RAG가 “vector DB를 붙인 chatbot”이 아니라 여러 단계의 정보검색 시스템인 이유다.
+
+Task Engineering에서도 이 품질은 그대로 필요하다. 차이는 retrieval이 한 번의 선형 단계로만 끝나지 않는다는 데 있다. Agent는 규정을 찾은 뒤 영수증의 지역을 확인하고, 예외 조항이 필요하다는 사실을 발견해 다시 검색할 수 있다. 검증에서 근거가 부족하면 query를 바꿔 retrieval에 재진입한다.
+
+<TaskEngineeringDiagrams kind="task-loop" caption="상위 업무 루프 안에서 retrieval과 tool 실행은 검증 결과에 따라 반복된다." />
+
+## 검색 품질과 업무 완료는 다른 층위다
+
+도입의 출장비 예시를 시스템 관점에서 보면 차이는 더 간단하다. Retrieval Engineering의 종료점은 충분히 관련된 문서와 인용을 반환하는 것이다. Task Engineering은 그 문서를 사용자의 조건에 적용하고, 필요한 도구와 승인을 거쳐, 검증 가능한 결과를 저장하거나 명시적으로 보류할 때 끝난다.
+
+| 관점 | Retrieval Engineering | Task Engineering |
+| --- | --- | --- |
+| 기본 단위 | 검색 쿼리와 문서 조각 | 목표와 실행 가능한 작업 |
+| 핵심 질문 | 필요한 정보를 찾았는가? | 사용자의 결과를 완성했는가? |
+| 주요 구성 | chunk, embedding, index, reranker | state, plan, tool, policy, verifier |
+| 실패 예시 | 관련 문서를 못 찾음 | 문서를 찾았지만 잘못 판단하거나 다음 행동을 못 함 |
+| 평가 지표 | Recall@k, nDCG, MRR, citation accuracy | task completion, correctness, intervention rate, cost, latency |
+| 상태 | 검색 요청과 결과 | 단계, checkpoint, 승인, tool 결과, 재시도 |
+| 종료 기준 | 충분히 관련된 문서를 반환 | 검증 가능한 결과 또는 명시적 보류 |
+
+같은 구조는 도메인이 달라도 반복된다.
+
+- **고객지원 환불**: 환불 정책을 찾은 뒤 주문 시점과 상품 상태를 확인하고, 예외를 적용해 환불 실행 또는 담당자 이관까지 결정한다.
+- **조달 승인**: 계약과 구매 규정을 찾은 뒤 금액·예산·승인 권한을 검증하고, 승인 요청을 만들거나 부족한 입력을 되돌려 보낸다.
+- **리서치 검증**: 관련 자료를 찾은 뒤 수치·기준 시점·반대 근거를 확인하고, 근거가 충분한 결론 또는 보류 상태를 기록한다.
+
+이 예시들은 시스템 경계를 설명하기 위한 개념 모델이다. 실제 회사 규정이나 전문적인 판단을 대신하는 자동화 구현이 아니다.
+
+## Task Contract: 실행 전에 완료의 의미를 정한다
+
+Task를 단순한 prompt로 취급하면 모델은 목표와 종료 조건을 매번 추측해야 한다. Task Contract는 시스템이 완료해야 할 것과 넘지 말아야 할 경계를 명시한다.
+
+```text
+Task Contract =
+  Goal
+  + Inputs
+  + Constraints
+  + Allowed Tools
+  + State
+  + Evidence Requirements
+  + Verification
+  + Stop Condition
+  + Human Handoff
+```
+
+- **Goal**: 무엇을 완료해야 하는가.
+- **Inputs**: 사용자 요청과 시스템이 읽을 데이터는 무엇인가.
+- **Constraints**: 권한, 예산, 시간, 규정과 개인정보 경계는 무엇인가.
+- **Allowed Tools**: 읽기 전용 도구와 부수 효과가 있는 도구를 어떻게 구분하는가.
+- **State**: 현재 단계, 완료된 단계와 재개에 필요한 정보는 무엇인가.
+- **Evidence Requirements**: 어떤 판단에 어떤 근거와 provenance를 남겨야 하는가.
+- **Verification**: 계산, 규칙 적용과 최종 결과를 어떻게 독립적으로 확인하는가.
+- **Stop Condition**: 언제 충분히 완료됐거나 더 진행할 수 없다고 판단하는가.
+- **Human Handoff**: 어떤 위험·불확실성·승인 조건에서 담당자에게 넘기는가.
+
+개념적으로는 다음과 같은 실행기가 이 계약을 소비한다.
+
+```python
+async def run_task(task: TaskContract) -> TaskResult:
+    state = await load_state(task.id)
+
+    context = await retrieve(
+        query=task.goal,
+        filters=task.constraints.data_scope,
+    )
+
+    plan = plan_steps(
+        goal=task.goal,
+        context=context,
+        allowed_tools=task.allowed_tools,
+    )
+
+    for step in plan:
+        validate_step(step, task.constraints)
+
+        if step.requires_approval:
+            await pause_for_human_approval(
+                task_id=task.id,
+                action=step.action,
+            )
+
+        result = await execute_step(step)
+        await save_state(task.id, result)
+
+        verified = await verify_step(
+            step,
+            result,
+            task.evidence_requirements,
+        )
+        if not verified:
+            return await escalate_or_retry(task, step)
+
+    return await finalize_with_evidence(task.id)
+```
+
+이 코드는 책임의 위치를 보여주는 의사코드일 뿐이다. 실제 운영에서는 timeout, retry budget, idempotency, 권한 재검증, checkpoint, cancellation과 관측 가능성이 더 필요하다.
+
+<TaskEngineeringDiagrams kind="architecture" caption="Task Orchestrator는 retrieval을 포함한 capability를 조정하지만, 권한·상태·승인·검증·근거 저장은 명시적인 시스템 경계로 남긴다." />
+
+## Retrieval failure와 Task failure는 다르다
+
+검색 실패는 필요한 맥락을 확보하지 못한 경우다.
+
+- 필요한 문서를 찾지 못한다.
+- 오래된 문서나 적용 대상이 다른 문서를 반환한다.
+- 권한 범위 밖의 문서를 섞는다.
+- chunk가 너무 작거나 커서 판단에 필요한 맥락이 사라진다.
+- 출처와 인용 위치가 불명확하다.
+
+Task 실패는 맥락을 확보하고도 결과를 완성하지 못한 경우다.
+
+- 목표나 성공 조건을 잘못 해석한다.
+- 작업 분해가 잘못돼 필요한 단계를 건너뛴다.
+- 도구 권한과 입력 schema를 검증하지 않는다.
+- checkpoint가 없어 중단된 실행을 재개하지 못한다.
+- 계산이나 도구 실행 결과를 검증하지 않는다.
+- 부수 효과가 있는 도구를 중복 호출한다.
+- 언제 멈추고 사람에게 넘길지 결정하지 못한다.
+
+두 분류를 나누지 않으면 팀은 task 실패를 retrieval tuning으로 고치려 한다. 검색 품질은 좋아지지만 완료율은 그대로인 상태가 생긴다.
+
+## 검색 점수와 업무 결과를 따로 측정한다
+
+| Retrieval 지표 | Task 지표 |
+| --- | --- |
+| Recall@k | end-to-end task completion rate |
+| MRR 또는 nDCG | independently verified correctness |
+| citation correctness | human intervention rate |
+| freshness | retry rate와 tool failure rate |
+| permission leakage rate | side-effect error rate |
+| evidence coverage | cost per completed task, p95 completion time |
+
+예를 들어 규정 retrieval의 Recall@k가 72%에서 92%로 올랐다고 하자. 시스템이 여전히 영수증 통화를 환산하지 않고, 예외 조항을 적용하지 않으며, 승인 초안을 저장하지 못한다면 task completion은 변하지 않는다. Retrieval score는 시스템이 **알아야 할 것**을 측정하지만, 완료율은 그것으로 **해야 할 일을 했는지**를 측정한다.
+
+[RAGAS](https://aclanthology.org/2024.eacl-demo.16/)가 retrieval, context와 generation을 분리해 진단하도록 도왔듯, Agent 평가는 tool call, state transition, verification, handoff와 outcome을 나눠 봐야 한다. 최종 점수 하나만으로는 어느 계층을 고쳐야 하는지 알 수 없다.
+
+## LLM과 결정론적 코드의 경계
+
+LLM은 자연어 목표를 작업 후보로 바꾸고, 관련 맥락에서 계획을 제안하며, 모호한 요청에 필요한 추가 질문을 찾고, 검증된 결과를 사람이 읽기 좋은 형태로 작성하는 데 강하다.
+
+하지만 다음 책임은 결정론적 코드와 명시적인 정책이 소유해야 한다.
+
+- 권한과 데이터 범위
+- Tool schema와 인자 검증
+- 금액·수량·날짜 계산
+- 허용된 상태 전이와 checkpoint
+- 승인 필요 여부
+- 재시도, 중복 방지와 idempotency
+- 종료 조건, 시간과 비용 예산
+- 감사 기록과 evidence 저장
+
+어떤 문서를 다음에 읽을지처럼 모든 분기를 미리 열거하기 어려운 구간은 모델이 탐색할 수 있다. 돈을 보내거나 권한을 바꾸는 행동, 공식 금액 계산과 승인 조건은 코드가 소유해야 한다. 좋은 Task-based Agent는 자유로운 Agent가 아니라 **자유의 경계가 명확한 Agent**다.
+
+## 도메인이 달라도 시간과 근거는 계약의 일부다
+
+Task가 사용하는 정보에는 대부분 시간과 적용 범위가 있다. 인사 규정은 법인과 직급에 따라 달라지고, 고객지원 정책은 상품과 구매 시점에 따라 바뀌며, 조달 계약은 개정본과 승인 권한이 중요하다. 리서치 데이터에는 라이선스, 단위, 통화와 수정 이력이 붙는다. 따라서 “이 요청을 처리하라”는 목표만으로는 부족하다. 기준 시점, 적용 조직, 필수 근거, 허용 데이터와 예외 조건까지 Task Contract에 들어가야 한다.
+
+예를 들어 환불을 판단하는 task가 오늘의 정책을 과거 주문에 소급 적용하거나, 채용 심사 task가 마감 후 수정된 자료를 당시 제출본처럼 사용하면 결과는 그럴듯해도 잘못됐다. 리서치에서도 판단 시점 이후에 공개된 수치를 사용하면 같은 문제가 발생한다. 하나의 `date` 필드만으로는 이런 point-in-time truth를 지킬 수 없다.
+
+| 필드 | 의미 |
+|---|---|
+| `event_time` | 경제적 사건 또는 실적 기간이 발생한 시점 |
+| `published_at` | 발행자가 정보를 발표한 시점 |
+| `available_at` | Agent의 데이터 소스에서 실제 조회 가능해진 시점 |
+| `ingested_at` | 내부 시스템이 정보를 수집한 시점 |
+| `revision_at` | 정정, 재작성 또는 vendor 수정이 반영된 시점 |
+
+[SEC EDGAR](https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps)만 보더라도 보고기간, filing date, acceptance time과 사후 변경일은 다르다. 같은 원칙은 정책의 시행일, 계약 개정일, 티켓 생성 시점과 데이터 수집 시점에도 적용된다. Point-in-time correctness와 evidence completeness는 특정 도메인만의 부가 metadata가 아니라 결과 계약의 일부다.
+
+<TaskEngineeringDiagrams kind="research-loop" caption="근거 기반 task는 한 번의 검색이 아니라 증거를 모으고 가능한 설명을 검증하며 부족한 문맥을 다시 찾는 반복 과정이다." />
+
+## 검색이 아는 것을 늘리고, Task가 결과를 완성한다
+
+Retrieval Engineering은 Agent가 아는 것을 늘리는 계층이다. Task Engineering은 그 지식을 사용해 목표와 제약을 관리하고, 도구와 상태를 조정하며, 검증 가능한 결과를 만들거나 명시적으로 보류하는 시스템 설계다.
+
+따라서 이동의 방향은 “검색을 버리고 task로 간다”가 아니다. 검색 품질을 계속 측정하면서 그 위에 실행 계약, 상태, 정책, verification과 handoff를 추가하는 것이다. 복잡한 graph 자체가 목표도 아니다. 중요한 것은 어떤 판단을 모델에 맡기고 어떤 경계를 시스템이 소유할지 명확히 하는 일이다.

@@ -1,0 +1,261 @@
+---
+title: 'From Retrieval Engineering to Task Engineering'
+subtitle: 'What changes when retrieval becomes part of an end-to-end task?'
+description: 'AI engineering is moving from optimizing retrieval pipelines to specifying, constraining, and evaluating end-to-end enterprise tasks.'
+publishedDate: 2026-10-05
+section: 'AI & AX'
+subsection: 'AX'
+contentType: research
+topics: [ai-agents, rag, evaluation, enterprise-ai]
+primaryTopic: ai-agents
+tags: [rag, agent-engineering, task-engineering, workflow, evaluation]
+author: 'Jacob Shin'
+language: en
+translationKey: from-retrieval-engineering-to-task-engineering
+localization:
+  locale: en-US
+  defaultContext: 'Enterprise tasks that combine policy retrieval, structured data, tools, verification, and human approval.'
+  strategy: localized-adaptation
+draft: false
+featured: false
+comments: true
+pillar: false
+freshness: periodic
+lastReviewed: 2026-10-05
+nextReviewDate: 2026-12-28
+dataThrough: 2026-10-05
+methodology: 'Compared the original RAG literature, information-retrieval research, and official engineering guidance, then proposed a task-design model that applies across policy review, support, HR, procurement, and research.'
+series: 'Enterprise AX'
+seriesOrder: 5
+references:
+  - title: 'Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks'
+    url: 'https://arxiv.org/abs/2005.11401'
+    publisher: 'NeurIPS'
+  - title: 'RAGAS: Automated Evaluation of Retrieval Augmented Generation'
+    url: 'https://aclanthology.org/2024.eacl-demo.16/'
+    publisher: 'EACL'
+  - title: 'Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods'
+    url: 'https://research.google/pubs/reciprocal-rank-fusion-outperforms-condorcet-and-individual-rank-learning-methods/'
+    publisher: 'SIGIR'
+  - title: 'Reciprocal rank fusion'
+    url: 'https://docs.opensearch.org/latest/vector-search/ai-search/hybrid-search/rrf/'
+    publisher: 'OpenSearch Documentation'
+  - title: 'EDGAR Timestamps'
+    url: 'https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps'
+    publisher: 'U.S. SEC'
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import TaskEngineeringDiagrams from '../../../../components/TaskEngineeringDiagrams.astro';
+
+<AnswerBlock question="What changes when RAG becomes an agent?">
+  Retrieval Engineering optimizes the system's ability to find the context it needs. Task Engineering designs a system that uses that context to <strong>complete a user's work safely and verifiably</strong>. Task Engineering does not replace retrieval. Retrieval is a core capability that the task loop can invoke whenever it needs more evidence.
+</AnswerBlock>
+
+Consider two requests from the same employee. The first is retrieval-centered:
+
+> “Find the travel-expense policy.”
+
+Success means finding the applicable document, ranking the current policy highly, and showing the supporting passage. Retrieval Engineering directly optimizes that problem.
+
+Now change the request:
+
+> “Determine whether the hotel charge for this trip complies with policy. Calculate any excess, cite the applicable clause, and draft a note for the approver.”
+
+The system must now:
+
+1. identify the traveler, itinerary, and applicable organization;
+2. retrieve the current policy and the right organizational scope;
+3. normalize the receipt amount, taxes, and currency;
+4. compare the actual charge with the limit;
+5. check exceptions such as location, grade, or prior approval;
+6. record evidence and unresolved uncertainty;
+7. produce the approver-facing draft; and
+8. wait for a person when the decision exceeds the automated boundary.
+
+Finding the policy is necessary, but good search results do not automatically perform the comparison, evaluate exceptions, request approval, and save the result. The inverse is also true: a well-designed task loop fails if it cannot retrieve the evidence it needs.
+
+<TaskEngineeringDiagrams kind="shift" language="en" caption="Retrieval is not the opposite of Task Engineering. It is a capability the task can invoke repeatedly to complete an outcome." />
+
+## Retrieval remains inside the task
+
+The original [RAG paper](https://arxiv.org/abs/2005.11401) supplemented a model's parametric memory with external non-parametric memory. Production implementations turned chunking, embeddings, lexical and semantic retrieval, metadata filters, query rewriting, rank fusion, reranking, and context allocation into an engineering discipline.
+
+Enterprise documents show why those details remain important. An employee ID, ticket number, SKU, or contract clause may require exact lexical matching. “Does this customer qualify for a refund exception?” depends on meaning spread across several passages. Hybrid systems therefore run keyword and vector searches in parallel and fuse their rankings with RRF. Search engines built for vector retrieval, such as [OpenSearch](https://docs.opensearch.org/latest/vector-search/ai-search/hybrid-search/), combine lexical and semantic clauses in a `hybrid` query and merge ranks in a search pipeline with reciprocal rank fusion.
+
+A reranker only reorders the candidate set; it does not search the full corpus again. If the relevant 10-K footnote never enters that set, a better reranker cannot recover it. Production RAG was never merely a chatbot attached to a vector database. It was a multi-stage information-retrieval system.
+
+Task Engineering needs all of that quality. The difference is that retrieval is no longer assumed to be a single pass. After reading the policy, the agent may discover that it needs a regional exception. Verification may expose missing evidence and send the system back to retrieval with a revised query.
+
+<TaskEngineeringDiagrams kind="task-loop" language="en" caption="Retrieval and tool execution sit inside a larger task loop and repeat when verification exposes missing evidence." />
+
+## Search quality and work completion are different layers
+
+At the system level, the opening travel-expense example has a simple distinction. Retrieval Engineering can stop after returning sufficiently relevant documents and citations. Task Engineering ends only after applying those documents to the user's circumstances, coordinating required tools and approvals, and storing a verifiable result or explicit deferral.
+
+| Dimension | Retrieval Engineering | Task Engineering |
+| --- | --- | --- |
+| Basic unit | Query and document chunk | Goal and executable task |
+| Core question | Did we find the required information? | Did we complete the user's outcome? |
+| Main components | chunk, embedding, index, reranker | state, plan, tool, policy, verifier |
+| Example failure | Relevant document was not found | Document was found, but the system misjudged it or took no next action |
+| Metrics | Recall@k, nDCG, MRR, citation accuracy | task completion, correctness, intervention rate, cost, latency |
+| State | Search request and results | steps, checkpoints, approvals, tool results, retries |
+| Stop condition | Return sufficiently relevant documents | Verifiable result or explicit deferral |
+
+The same structure repeats across domains:
+
+- **Customer-support refund**: retrieve the refund policy, then check purchase time and product condition, apply exceptions, and either issue the refund or hand off.
+- **Procurement approval**: retrieve the contract and purchasing policy, then verify amount, budget, and authority before creating an approval request or returning missing inputs.
+- **Research verification**: retrieve relevant material, then check numbers, as-of dates, and conflicting evidence before recording a supported conclusion or deferral.
+
+These examples illustrate system boundaries. They are not implementations that should make real organizational or professional decisions on their own.
+
+## Task Contract: define completion before execution
+
+If a task is merely a prompt, the model must infer its objective and stop condition on every run. A Task Contract specifies what the system must complete and which boundaries it cannot cross.
+
+```text
+Task Contract =
+  Goal
+  + Inputs
+  + Constraints
+  + Allowed Tools
+  + State
+  + Evidence Requirements
+  + Verification
+  + Stop Condition
+  + Human Handoff
+```
+
+- **Goal**: What must be completed?
+- **Inputs**: Which user inputs and system data may be read?
+- **Constraints**: What permission, budget, time, policy, and privacy boundaries apply?
+- **Allowed Tools**: Which tools are read-only and which have side effects?
+- **State**: Which step is active, which steps finished, and what is required to resume?
+- **Evidence Requirements**: Which claims require evidence and provenance?
+- **Verification**: How will calculations, rule application, and the final result be checked?
+- **Stop Condition**: When is the task complete, blocked, or no longer worth continuing?
+- **Human Handoff**: Which risks, ambiguities, and approvals require a person?
+
+A conceptual runner might consume the contract as follows:
+
+```python
+async def run_task(task: TaskContract) -> TaskResult:
+    state = await load_state(task.id)
+
+    context = await retrieve(
+        query=task.goal,
+        filters=task.constraints.data_scope,
+    )
+
+    plan = plan_steps(
+        goal=task.goal,
+        context=context,
+        allowed_tools=task.allowed_tools,
+    )
+
+    for step in plan:
+        validate_step(step, task.constraints)
+
+        if step.requires_approval:
+            await pause_for_human_approval(
+                task_id=task.id,
+                action=step.action,
+            )
+
+        result = await execute_step(step)
+        await save_state(task.id, result)
+
+        verified = await verify_step(
+            step,
+            result,
+            task.evidence_requirements,
+        )
+        if not verified:
+            return await escalate_or_retry(task, step)
+
+    return await finalize_with_evidence(task.id)
+```
+
+This is pseudocode for locating responsibilities, not a production implementation. A real system also needs timeouts, retry budgets, idempotency, permission revalidation, checkpoints, cancellation, and observability.
+
+<TaskEngineeringDiagrams kind="architecture" language="en" caption="The Task Orchestrator coordinates retrieval and other capabilities while permissions, state, approval, verification, and evidence remain explicit system boundaries." />
+
+## Retrieval failure and task failure are different
+
+Retrieval failures prevent the system from obtaining the context it needs:
+
+- required documents are not found;
+- outdated or inapplicable documents are returned;
+- content outside the permission boundary is mixed into results;
+- chunks are too small or large to preserve decision context; or
+- sources and citation locations are unclear.
+
+Task failures occur even when the context is available:
+
+- the goal or success condition is misinterpreted;
+- decomposition omits a required step;
+- tool permissions or inputs are not validated;
+- missing checkpoints make the run impossible to resume;
+- calculations and tool results are not verified;
+- a side-effecting tool is invoked twice; or
+- the system cannot decide when to stop and hand off.
+
+Without this distinction, a team may try to fix a task failure by tuning retrieval. Search quality rises while end-to-end completion remains flat.
+
+## Measure retrieval quality and work outcomes separately
+
+| Retrieval metrics | Task metrics |
+| --- | --- |
+| Recall@k | end-to-end task completion rate |
+| MRR or nDCG | independently verified correctness |
+| citation correctness | human intervention rate |
+| freshness | retry rate and tool failure rate |
+| permission leakage rate | side-effect error rate |
+| evidence coverage | cost per completed task and p95 completion time |
+
+Suppose policy retrieval Recall@k improves from 72% to 92%. If the system still fails to convert the receipt currency, apply exception rules, or save the approver draft, task completion will not move. Retrieval scores measure whether the system found what it needs to **know**. Completion measures whether it did what it needed to **do**.
+
+[RAGAS](https://aclanthology.org/2024.eacl-demo.16/) made retrieval, context, and generation quality separately diagnosable. Agent evaluation should likewise distinguish tool calls, state transitions, verification, handoffs, and outcomes. One final score cannot tell a team which layer to repair.
+
+## The boundary between the LLM and deterministic code
+
+LLMs are useful for translating natural-language goals into candidate steps, proposing plans from relevant context, identifying clarifying questions, and turning verified results into readable prose.
+
+Deterministic code and explicit policy should own:
+
+- permissions and data scope;
+- tool schemas and argument validation;
+- amount, quantity, and date calculations;
+- allowed state transitions and checkpoints;
+- approval requirements;
+- retries, deduplication, and idempotency;
+- stop conditions, time limits, and cost budgets; and
+- audit records and evidence storage.
+
+The model can explore questions such as which document to read next. Code should retain ownership of moving money, changing permissions, official calculations, and approval gates. A good task-based agent is not unconstrained. Its freedom has explicit boundaries.
+
+## Time and evidence are contractual across domains
+
+Most information used by a task has a time and scope. HR policies vary by legal entity and employee level. Support policies change by product and purchase date. Procurement contracts depend on revisions and approval authority. Research data carries licensing, units, currencies, and revision history. “Handle this request” is therefore not a complete contract. It needs an as-of date, applicable organization, required evidence, permitted data, and exception rules.
+
+A refund task that applies today's policy retroactively to an old order can produce a plausible but wrong result. The same failure occurs when a hiring task treats a post-deadline revision as the submitted record, or when research uses data published after the decision date. One `date` field is not enough:
+
+| Field | Meaning |
+|---|---|
+| `event_time` | When the economic event or reporting period occurred |
+| `published_at` | When the issuer released the information |
+| `available_at` | When the agent's data source actually exposed it |
+| `ingested_at` | When the internal system captured it |
+| `revision_at` | When a correction, restatement, or vendor revision was incorporated |
+
+[SEC EDGAR](https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps) itself distinguishes reporting periods, filing dates, acceptance times, and later changes. The same principle applies to policy effective dates, contract revisions, ticket creation times, and data ingestion times. Point-in-time correctness and evidence completeness are parts of the outcome contract across domains, not optional metadata for one specialist use case.
+
+<TaskEngineeringDiagrams kind="research-loop" language="en" caption="An evidence-based task repeatedly gathers evidence, tests possible explanations, and retrieves more context when verification exposes a gap." />
+
+## Retrieval expands knowledge; Task Engineering completes outcomes
+
+Retrieval Engineering expands what an agent can know. Task Engineering uses that knowledge to manage goals and constraints, coordinate tools and state, and produce a verifiable result or an explicit deferral.
+
+The shift is therefore not “leave search behind and move to tasks.” It is to keep measuring retrieval quality while adding an execution contract, state, policy, verification, and handoff above it. Nor is an elaborate graph the goal. The important design decision is which judgments the model may explore and which boundaries the system must own.
