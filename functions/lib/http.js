@@ -1,4 +1,4 @@
-const SITE = 'https://thearchiveof.com';
+export const SITE_ORIGIN = 'https://thearchiveof.com';
 
 export function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -25,7 +25,7 @@ export function isAllowedOrigin(request) {
   }
   const host = new URL(request.url).host;
   return parsed.host === host
-    || origin === SITE
+    || origin === SITE_ORIGIN
     || parsed.host.endsWith('.pages.dev');
 }
 

@@ -40,7 +40,8 @@ const hasKoreanTopic = koPosts.some((post) => post.data.topics.includes(topic));
   title={definition?.name ?? topic}
   description={definition?.description ?? `Articles connected through ${topic}.`}
   language="en"
-  alternateLanguageUrl={hasKoreanTopic ? topicPath(topic) : '/topics/'}
+  alternateLanguageUrl={hasKoreanTopic ? topicPath(topic) : undefined}
+  languageSwitchUrl={hasKoreanTopic ? topicPath(topic) : '/topics/'}
   indexable={indexable}
 >
   <section class="listing-page shell topic-hub">
