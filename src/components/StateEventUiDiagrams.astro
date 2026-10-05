@@ -1,0 +1,142 @@
+---
+interface Props {
+  kind: 'browser' | 'data-contract' | 'reconnect';
+  language?: 'ko' | 'en';
+  caption: string;
+}
+
+const { kind, language = 'ko', caption } = Astro.props;
+const ko = language === 'ko';
+
+const timeline = ko
+  ? [
+      ['09:41', '문서 수집 완료', '12개 문서 · 최신본 확인'],
+      ['09:42', '입력 정규화 완료', '금액·날짜·조직 범위'],
+      ['09:43', '규칙 적용 중', '4개 중 3개 검토'],
+      ['대기', '승인 필요', '예외 적용은 담당자 확인 필요'],
+    ]
+  : [
+      ['09:41', 'Documents collected', '12 documents · current versions checked'],
+      ['09:42', 'Inputs normalized', 'amounts · dates · organizational scope'],
+      ['09:43', 'Applying rules', '3 of 4 rules checked'],
+      ['Waiting', 'Approval required', 'A reviewer must confirm the exception'],
+    ];
+
+const contracts = ko
+  ? [
+      ['Status header', 'snapshot', 'status · progress · current_step'],
+      ['Current work', 'snapshot', 'active item · approval state'],
+      ['Timeline', 'recent events', '단계 전환 · 승인 · 복구 · 완료'],
+      ['Live updates', 'cursor + SSE', 'last_event_id 이후 event'],
+    ]
+  : [
+      ['Status header', 'snapshot', 'status · progress · current_step'],
+      ['Current work', 'snapshot', 'active item · approval state'],
+      ['Timeline', 'recent events', 'phase changes · approval · recovery · completion'],
+      ['Live updates', 'cursor + SSE', 'events after last_event_id'],
+    ];
+---
+
+<figure class="state-event-ui" aria-label={caption}>
+  {kind === 'browser' && (
+    <div class="browser-frame">
+      <header class="browser-bar" aria-hidden="true">
+        <i></i><i></i><i></i>
+        <span>app.example.com/runs/7d5</span>
+      </header>
+      <div class="run-header">
+        <div>
+          <span class="eyebrow">{ko ? '문서 검토 run' : 'Document review run'}</span>
+          <strong>{ko ? '출장비 예외 검토' : 'Travel-expense exception review'}</strong>
+        </div>
+        <span class="connection"><b aria-hidden="true">●</b>{ko ? '실시간 연결됨' : 'Live connection'}</span>
+      </div>
+      <div class="status-card">
+        <div>
+          <span>{ko ? '현재 상태' : 'Current status'}</span>
+          <strong>{ko ? '규칙 적용 중' : 'Applying rules'}</strong>
+        </div>
+        <div class="progress-copy"><b>65%</b><small>{ko ? '방금 갱신' : 'updated just now'}</small></div>
+        <div class="progress-track" aria-label={ko ? '진행률 65퍼센트' : 'Progress 65 percent'}><i></i></div>
+        <p>{ko ? '61% → 62% 같은 연속 변화는 이 카드만 갱신하며 timeline 항목을 만들지 않는다.' : 'Continuous changes such as 61% → 62% update this card without creating timeline entries.'}</p>
+      </div>
+      <div class="run-grid">
+        <section class="current-work">
+          <span class="eyebrow">{ko ? '현재 작업 · Snapshot' : 'Current work · Snapshot'}</span>
+          <h3>{ko ? '예외 규칙 4개 중 3개 검토' : 'Reviewing rule 3 of 4'}</h3>
+          <dl>
+            <div><dt>{ko ? '적용 조직' : 'Scope'}</dt><dd>APAC / Korea</dd></div>
+            <div><dt>{ko ? '기준 시점' : 'As of'}</dt><dd>2026-10-05</dd></div>
+            <div><dt>{ko ? '다음 행동' : 'Next action'}</dt><dd>{ko ? '담당자 승인 대기' : 'Wait for reviewer approval'}</dd></div>
+          </dl>
+          <aside><b>{ko ? '승인 필요' : 'Approval required'}</b><span>{ko ? '예외 조항을 적용하기 전에 사람의 확인이 필요합니다.' : 'A person must confirm the exception before it is applied.'}</span></aside>
+        </section>
+        <section class="timeline">
+          <span class="eyebrow">{ko ? '활동 · Event timeline' : 'Activity · Event timeline'}</span>
+          <ol>
+            {timeline.map(([time, title, detail], index) => (
+              <li class:list={{ pending: index === timeline.length - 1 }}>
+                <time>{time}</time>
+                <div><strong>{title}</strong><small>{detail}</small></div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
+      <div class="reconnect-banner">
+        <b>{ko ? '재연결 상태도 화면 계약이다' : 'Reconnect state is part of the UI contract'}</b>
+        <span>{ko ? '연결 복구 중 → cursor replay → 이력 만료 시 snapshot 재동기화' : 'Reconnecting → cursor replay → snapshot resync when history expired'}</span>
+      </div>
+    </div>
+  )}
+
+  {kind === 'data-contract' && (
+    <div class="contract">
+      <header>
+        <span>{ko ? '브라우저 영역' : 'Browser region'}</span>
+        <span>{ko ? '읽는 계약' : 'Reads'}</span>
+        <span>{ko ? '표시하는 정보' : 'Renders'}</span>
+      </header>
+      <ul>
+        {contracts.map(([region, source, data]) => (
+          <li><strong>{region}</strong><b>{source}</b><span>{data}</span></li>
+        ))}
+      </ul>
+      <p>{ko ? 'Snapshot은 화면을 복원하고, event는 timeline을 이어가며, cursor는 둘 사이의 경계를 고정한다.' : 'The snapshot restores the screen, events extend the timeline, and the cursor fixes the boundary between them.'}</p>
+    </div>
+  )}
+
+  {kind === 'reconnect' && (
+    <div class="reconnect">
+      <ol>
+        <li><b>1</b><strong>Bootstrap</strong><span>{ko ? 'snapshot + recent events + cursor' : 'snapshot + recent events + cursor'}</span></li>
+        <li><b>2</b><strong>Live SSE</strong><span>{ko ? 'cursor 이후 event upsert' : 'upsert events after cursor'}</span></li>
+        <li><b>3</b><strong>{ko ? '연결 끊김' : 'Disconnect'}</strong><span>{ko ? '마지막 적용 ID 보존' : 'retain last applied ID'}</span></li>
+      </ol>
+      <div class="decision">
+        <strong>{ko ? 'Cursor가 replay 범위 안에 있는가?' : 'Is the cursor within the replay window?'}</strong>
+        <div><b>{ko ? '예' : 'Yes'}</b><span>{ko ? '중복을 허용하며 이후 event replay' : 'Replay later events; tolerate duplicates'}</span></div>
+        <div><b>{ko ? '아니오' : 'No'}</b><span><code>resync_required</code> → {ko ? 'bootstrap 재호출' : 'call bootstrap again'}</span></div>
+      </div>
+      <p>{ko ? 'Redis miss는 404가 아니다. PostgreSQL durable record로 종료 결과 또는 degraded active response를 결정한다.' : 'A Redis miss is not a 404. The durable PostgreSQL record determines a terminal result or a degraded active response.'}</p>
+    </div>
+  )}
+
+  <figcaption>{caption}</figcaption>
+</figure>
+
+<style>
+  .state-event-ui{margin:2.4rem 0;padding:1.2rem;border:1px solid var(--line);border-radius:.9rem;background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.9rem;line-height:1.5}
+  .state-event-ui figcaption{margin-top:1rem;color:var(--muted);font-size:.84rem;line-height:1.55}.eyebrow{color:var(--muted);font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+  .browser-frame{overflow:hidden;border:1px solid var(--line);border-radius:.75rem;background:var(--paper)}
+  .browser-bar{display:flex;gap:.35rem;align-items:center;padding:.55rem .7rem;border-bottom:1px solid var(--line);background:var(--paper-deep)}.browser-bar i{width:.5rem;height:.5rem;border:1px solid var(--muted);border-radius:50%}.browser-bar span{min-width:0;margin-left:.4rem;padding:.15rem .5rem;border:1px solid var(--line);border-radius:.35rem;color:var(--muted);font-size:.65rem;overflow-wrap:anywhere}
+  .run-header{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:1rem}.run-header>div{display:grid;gap:.2rem}.run-header strong{font-size:1.05rem}.connection{display:flex;gap:.35rem;align-items:center;padding:.3rem .55rem;border:1px solid var(--line);border-radius:2rem;font-size:.68rem}.connection b{color:var(--accent)}
+  .status-card{display:grid;grid-template-columns:1fr auto;gap:.55rem;margin:0 1rem 1rem;padding:.8rem;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:.55rem;background:var(--paper-deep)}.status-card>div:first-child{display:grid;gap:.1rem}.status-card span,.status-card small{color:var(--muted);font-size:.7rem}.progress-copy{display:grid;text-align:right}.progress-copy b{font-size:1.15rem}.progress-track{grid-column:1/-1;height:.45rem;overflow:hidden;border:1px solid var(--line);border-radius:1rem;background:var(--paper)}.progress-track i{display:block;width:65%;height:100%;background:var(--accent)}.status-card p{grid-column:1/-1;margin:0;color:var(--muted);font-size:.68rem}
+  .run-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(15rem,.9fr);gap:.75rem;padding:0 1rem 1rem}.run-grid section{padding:.8rem;border:1px solid var(--line);border-radius:.55rem}.current-work h3{margin:.45rem 0 .7rem;font-size:.88rem}.current-work dl{display:grid;gap:.35rem;margin:0}.current-work dl div{display:grid;grid-template-columns:5.5rem 1fr;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--line);font-size:.7rem}.current-work dt{color:var(--muted)}.current-work dd{margin:0}.current-work aside{display:grid;gap:.2rem;margin-top:.7rem;padding:.6rem;border:1px dashed var(--accent);border-radius:.45rem}.current-work aside b{font-size:.72rem}.current-work aside span{color:var(--muted);font-size:.68rem}
+  .timeline ol{display:grid;gap:.1rem;margin:.55rem 0 0;padding:0;list-style:none}.timeline li{display:grid;grid-template-columns:2.7rem 1fr;gap:.5rem;padding:.45rem 0;border-bottom:1px solid var(--line)}.timeline time{color:var(--muted);font-size:.65rem}.timeline li div{display:grid;gap:.1rem}.timeline strong{font-size:.72rem}.timeline small{color:var(--muted);font-size:.65rem}.timeline li.pending{border:1px dashed var(--accent);border-radius:.4rem;padding:.45rem}.reconnect-banner{display:grid;gap:.15rem;padding:.7rem 1rem;border-top:1px solid var(--line);background:var(--paper-deep)}.reconnect-banner b{font-size:.72rem}.reconnect-banner span{color:var(--muted);font-size:.68rem}
+  .contract{display:grid;gap:.45rem}.contract header,.contract li{display:grid;grid-template-columns:minmax(7rem,.7fr) minmax(6rem,.55fr) minmax(0,1.4fr);gap:.6rem;align-items:center}.contract header{padding:0 .7rem;color:var(--muted);font-size:.68rem;font-weight:800}.contract ul{display:grid;gap:.35rem;margin:0;padding:0;list-style:none}.contract li{padding:.65rem .7rem;border:1px solid var(--line);border-radius:.5rem;background:var(--paper)}.contract li strong{font-size:.76rem}.contract li b{color:var(--accent);font-size:.7rem}.contract li span{color:var(--muted);font-size:.7rem}.contract p,.reconnect>p{margin:0;padding:.65rem;border-left:3px solid var(--accent);background:var(--paper);font-size:.74rem}
+  .reconnect{display:grid;gap:.8rem}.reconnect ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin:0;padding:0;list-style:none}.reconnect li{display:grid;grid-template-columns:auto 1fr;gap:.3rem .45rem;padding:.7rem;border:1px solid var(--line);border-radius:.55rem;background:var(--paper)}.reconnect li b{grid-row:1/3;color:var(--accent);font-size:.7rem}.reconnect li strong{font-size:.76rem}.reconnect li span{color:var(--muted);font-size:.68rem}.decision{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;padding:.8rem;border:1px dashed var(--accent);border-radius:.6rem}.decision>strong{grid-column:1/-1;text-align:center;font-size:.8rem}.decision div{display:grid;gap:.2rem;padding:.55rem;background:var(--paper);border-radius:.4rem}.decision div b{font-size:.72rem}.decision div span{color:var(--muted);font-size:.68rem}
+  @media(max-width:700px){.run-grid{grid-template-columns:1fr}.contract header{display:none}.contract li{grid-template-columns:1fr}.reconnect ol{grid-template-columns:1fr}.decision{grid-template-columns:1fr}.decision>strong{grid-column:auto}}
+  @media(max-width:460px){.state-event-ui{padding:.8rem}.run-header{align-items:flex-start}.connection{max-width:7rem}.status-card{grid-template-columns:1fr}.progress-copy{text-align:left}.progress-track,.status-card p{grid-column:auto}.current-work dl div{grid-template-columns:1fr}.decision div{min-width:0}}
+  @media(prefers-color-scheme:dark){.state-event-ui{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
+</style>
