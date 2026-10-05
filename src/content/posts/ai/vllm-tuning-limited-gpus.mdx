@@ -12,6 +12,8 @@ tags: [vllm, kubernetes, gpu, llm-serving, performance-engineering]
 author: 'Jacob Shin'
 language: ko
 translationKey: vllm-tuning-limited-gpus
+series: 'Internal LLM Serving'
+seriesOrder: 2
 draft: false
 featured: false
 comments: true
@@ -43,6 +45,8 @@ import VllmAssistantPrompt from '../../../components/VllmAssistantPrompt.astro';
 <AnswerBlock question="vLLM을 왜 튜닝해야 할까?">
   LLM 서빙에서 GPU를 할당했다고 끝나는 것은 아닙니다. 같은 모델과 같은 GPU를 사용하더라도 동시에 몇 개의 요청을 처리할지, 한 반복 단계에서 몇 개의 토큰을 처리할지, KV cache에 메모리를 얼마나 배분할지에 따라 처리량과 지연 시간이 크게 달라집니다. 결국 vLLM 튜닝은 GPU 사용률을 최대화하는 일이 아니라, 주어진 GPU 안에서 우리 서비스가 요구하는 TTFT, TPOT, throughput과 안정성 사이의 균형점을 찾는 일에 가깝습니다.
 </AnswerBlock>
+
+이 글은 **Internal LLM Serving** 시리즈의 두 번째 편이다. 내부 GPU 서빙이 필요한 이유와 vLLM 도입 조건은 [첫 편](/ai/ai-engineering/why-vllm-for-internal-llm-serving/)에서 다룬다.
 
 ## 1. 모델을 올린 다음에 시작되는 문제
 
