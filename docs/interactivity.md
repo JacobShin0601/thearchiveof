@@ -86,6 +86,37 @@ The browser stores an anonymous UUID in `localStorage`. The Function hashes `HMA
 
 V1 `actor_type` is `human`. `agent` exists in the schema for a later authenticated API and is not exposed in the UI.
 
+### State and outcome history
+
+`article_reactions` is current state: one row means that anonymous viewer currently has Useful turned on. Clicking again removes the row, so the public count is the number of active unique-browser reactions, not a lifetime click total.
+
+`interaction_events` is history. A successful toggle writes exactly one server-owned outcome:
+
+- `reaction_added`
+- `reaction_removed`
+
+The reaction mutation and its outcome event run in one D1 batch. The public `/api/events` endpoint cannot submit these event names. Older `reaction_click` rows, if present, predate outcome tracking and do not identify whether the click added or removed a reaction.
+
+Current active counts:
+
+```sql
+SELECT article_slug, COUNT(*) AS active_useful
+FROM article_reactions
+WHERE reaction_type = 'useful' AND actor_type = 'human'
+GROUP BY article_slug
+ORDER BY active_useful DESC, article_slug;
+```
+
+Added and removed outcomes:
+
+```sql
+SELECT event_name, article_slug, language, COUNT(*) AS outcomes
+FROM interaction_events
+WHERE event_name IN ('reaction_added', 'reaction_removed')
+GROUP BY event_name, article_slug, language
+ORDER BY article_slug, event_name, language;
+```
+
 ### Abuse controls
 
 - Allowed article keys generated at build time
@@ -93,6 +124,7 @@ V1 `actor_type` is `human`. `agent` exists in the schema for a later authenticat
 - JSON body ≤ 2 KB
 - Origin must match the request host, `thearchiveof.com`, or `*.pages.dev`
 - Toggle is one row per `(article_slug, actor_hash, reaction_type)`
+- Successful toggles record `reaction_added` or `reaction_removed` on the server
 - Repeat posts within one second are rejected
 
 Turnstile is not used on every click.
@@ -103,7 +135,7 @@ Turnstile is not used on every click.
 POST /api/events
 ```
 
-Allowed events: `reaction_click`, `code_run`, `language_switch`.
+Allowed browser events: `code_run`, `language_switch`. Reaction outcomes are written only by the reaction Function.
 
 Allowed fields: `event`, `articleSlug`, `language`, `component`.
 

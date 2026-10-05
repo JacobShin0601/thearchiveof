@@ -1,9 +1,9 @@
 export const ARTICLE_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const VIEWER_ID = /^[A-Za-z0-9_-]{8,128}$/;
 export const REACTIONS = new Set(['useful']);
-export const EVENTS = new Set(['reaction_click', 'code_run', 'language_switch']);
+export const EVENTS = new Set(['code_run', 'language_switch']);
 export const LANGUAGES = new Set(['ko', 'en']);
-export const COMPONENTS = new Set(['useful-reaction', 'language-switch', 'pareto-explorer-v1']);
+export const COMPONENTS = new Set(['language-switch', 'pareto-explorer-v1']);
 export const MAX_BODY_BYTES = 2048;
 
 export function isArticleKey(value) {
