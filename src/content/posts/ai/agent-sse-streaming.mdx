@@ -22,7 +22,7 @@ comments: true
 language: "ko"
 translationKey: "agent-sse-streaming"
 series: "Agent Engineering"
-seriesOrder: 8
+seriesOrder: 9
 seriesPart: "delivery"
 freshness: evergreen
 lastReviewed: 2026-10-05
@@ -66,7 +66,7 @@ Agent에게 기업 분석을 요청하고 40초 동안 로딩 표시만 본다�
 ! 비용 1,000달러 초과 action 승인 필요
 ```
 
-이전 글 [State는 Event가 아니다](/ai/agents/state-is-not-event/)에서는 Redis Hash에 현재 snapshot을, Redis Stream에 추가 전용 event를 저장하고 Stream ID를 cursor로 사용하는 방법을 만들었다. 이제 남은 문제는 그 event를 HTTP 연결을 통해 브라우저에 계속 전달하는 것이다.
+이전 글 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)에서는 승인 대기, 실행, `outcome_unknown` 같은 Tool action 상태를 안전하게 다루는 방법을 정리했다. [State는 Event가 아니다](/ai/agents/state-is-not-event/)에서 만든 Redis snapshot·Stream cursor 위에, 이제 그 event와 action 진행 상태를 HTTP 연결로 브라우저에 전달하는 문제가 남는다.
 
 여기서 세 개념이 자주 섞인다.
 

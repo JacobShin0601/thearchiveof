@@ -3,7 +3,7 @@ import type { CollectionEntry } from 'astro:content';
 export const AGENT_ENGINEERING_SERIES = 'Agent Engineering';
 export const INTERNAL_LLM_SERVING_SERIES = 'Internal LLM Serving';
 
-export const SERIES_PART_IDS = ['design', 'execution', 'state', 'delivery'] as const;
+export const SERIES_PART_IDS = ['design', 'execution', 'state', 'safety', 'delivery'] as const;
 export type SeriesPartId = (typeof SERIES_PART_IDS)[number];
 
 export type LocalizedCopy = { ko: string; en: string };
@@ -33,7 +33,7 @@ export const SERIES_APPLIED_TRACK_DETAIL: Record<
 export const AGENT_ENGINEERING_APPLIED_TRACKS = [INTERNAL_LLM_SERVING_SERIES] as const;
 
 export const SERIES_PART_ORDER: Record<string, readonly SeriesPartId[]> = {
-  [AGENT_ENGINEERING_SERIES]: ['design', 'execution', 'state', 'delivery'],
+  [AGENT_ENGINEERING_SERIES]: ['design', 'execution', 'state', 'safety', 'delivery'],
 };
 
 export const SERIES_PART_META: Record<
@@ -64,8 +64,16 @@ export const SERIES_PART_META: Record<
       en: 'Where state lives and how it differs from events',
     },
   },
-  delivery: {
+  safety: {
     index: 4,
+    title: { ko: '안전한 실행과 복구', en: 'Safe Execution and Recovery' },
+    description: {
+      ko: '승인, 멱등성, 재시도와 부수 효과의 경계',
+      en: 'Approval, idempotency, retries, and side-effect boundaries',
+    },
+  },
+  delivery: {
+    index: 5,
     title: { ko: '전달과 런타임 경계', en: 'Delivery and runtime boundaries' },
     description: {
       ko: '스트리밍과 runtime 경계를 넘는 전달 계층',

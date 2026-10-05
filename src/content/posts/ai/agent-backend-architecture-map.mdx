@@ -176,7 +176,7 @@ Queue는 "한 번만 실행"을 기본 제공하지 않는다. 일반적인 패�
 - visibility timeout·lease 만료 후 다른 worker가 같은 job을 claim할 수 있다
 - 네트워크 재시도로 publish가 두 번 일어날 수 있다
 
-Agent run은 LLM 호출·외부 API·티켓 생성처럼 **부수 효과**가 있을 수 있다. 따라서 worker는 "이 메시지를 처음 처리하는가?"를 run row의 `attempt_id`, lease, 또는 idempotency key로 판단해야 한다. exactly-once illusion을 queue에 기대하지 말고, **멱등한 단계 설계 + 중복 감지**로 다룬다.
+Agent run은 LLM 호출·외부 API·티켓 생성처럼 **부수 효과**가 있을 수 있다. 따라서 worker는 "이 메시지를 처음 처리하는가?"를 run row의 `attempt_id`, lease, 또는 idempotency key로 판단해야 한다. exactly-once illusion을 queue에 기대하지 말고, **멱등한 단계 설계 + 중복 감지**로 다룬다. Queue의 at-least-once와 idempotent side effect 설계는 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)에서 자세히 다룬다.
 
 | 보장 | 의미 | Agent backend에서의 대응 |
 | --- | --- | --- |

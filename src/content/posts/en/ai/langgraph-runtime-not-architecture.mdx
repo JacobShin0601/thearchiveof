@@ -23,7 +23,7 @@ comments: true
 language: "en"
 translationKey: "langgraph-runtime-not-architecture"
 series: "Agent Engineering"
-seriesOrder: 9
+seriesOrder: 10
 seriesPart: "delivery"
 localization:
   locale: "en-US"
@@ -418,7 +418,7 @@ async def execute_run(run, graph, redis, repository) -> None:
         raise
 ```
 
-This is conceptual code. Production also needs fencing tokens, leases, cancellation, deadlines, retry classification, and idempotency. The important part is the data flow.
+This is conceptual code. Production also needs fencing tokens, leases, cancellation, deadlines, retry classification, and idempotency. To keep tool side effects from repeating after resume, align with durable actions and keys in [Can an Agent Tool Execute Exactly Once?](/en/ai/agents/agent-tool-idempotency-approval-retry/). The important part is the data flow.
 
 ```text
 LangGraph update    → filtered Redis snapshot
@@ -455,6 +455,8 @@ A checkpoint answers questions like these.
 - At what state did this graph stop?
 - From which node can execution resume?
 - What was the runtime state before and after a HITL interrupt?
+
+A **side-effecting tool node**—such as a transfer—may run again when execution resumes from a checkpoint before that node. Checkpoints stitch graph execution; they do not dedupe external effects. Approval, fingerprints, and idempotency keys are covered in [Can an Agent Tool Execute Exactly Once?](/en/ai/agents/agent-tool-idempotency-approval-retry/).
 
 The following questions require separate design.
 
