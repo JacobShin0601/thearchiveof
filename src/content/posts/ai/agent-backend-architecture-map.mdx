@@ -23,7 +23,7 @@ language: "ko"
 translationKey: "agent-backend-architecture-map"
 series: "Agent Engineering"
 seriesOrder: 2
-seriesPart: "execution"
+seriesPart: "design"
 freshness: evergreen
 lastReviewed: 2026-10-05
 nextReviewDate: 2027-10-05
@@ -80,7 +80,7 @@ return {"status": "started"}
 
 패턴 관점에서는 Tool loop가 돌아가고 있다. Backend 관점에서는 **누가 run_id를 발급했고, 실패 시 어디를 조회해야 하며, 배포 중에도 실행이 살아 있는가**가 비어 있다.
 
-Agent Engineering 시리즈의 execution 파트는 이 공백을 메운다. 이 글은 그중 **전체 배치도**이고, 이후 글은 각 레이어의 도구 선택과 코드다.
+Agent Engineering 시리즈에서는 패턴 다음에 backend **전체 배치도**를 먼저 맞춘다. 이 글이 그 지도이고, 이후 글은 각 레이어의 도구 선택과 코드다.
 
 | 레이어 | 이 글에서 잡는 질문 | 이후 글에서 다룰 것 |
 | --- | --- | --- |
@@ -300,12 +300,10 @@ Lifecycle 그림은 명령·관측이 시간순으로 어떻게 엇갈리는지 
 
 ---
 
-이 지도 다음에는 각 화살표를 코드와 정책으로 채운다.
+이제 전체 지도에서 한 단계 안으로 들어갈 차례다.
 
-- [에이전트는 왜 Async가 필요한가](/ai/agents/why-agent-systems-need-async/) — worker 안에서 I/O 대기를 겹치는 실행 모델
-- [Async, Thread, Process](/ai/agents/async-thread-process-agent-backends/) — blocking SDK와 CPU-bound 작업의 도구 선택
-- [Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/) — queue claim, lease, ack
-- [Agent State는 어디에](/ai/agents/where-agent-state-lives/) — PostgreSQL·Redis·checkpoint 분리
-- [State는 Event가 아니다](/ai/agents/state-is-not-event/) — snapshot vs append-only stream
-- [Agent SSE streaming](/ai/agents/agent-sse-streaming/) — generator, heartbeat, backpressure
-- [LangGraph runtime ≠ architecture](/ai/agents/langgraph-runtime-not-architecture/) — 프레임워크가 이 지도를 대체하지 않는 이유
+Agent Worker는 LLM, 데이터베이스, 검색 API와 여러 도구의 응답을 기다리며 실행된다. 이 대기 시간을 그대로 쌓지 않고 여러 작업을 안전하게 진행하려면 먼저 비동기 실행 모델을 이해해야 한다.
+
+다음 글 [에이전트는 왜 Async가 필요한가](/ai/agents/why-agent-systems-need-async/)에서는 Worker 내부에서 I/O 대기를 겹쳐 처리하는 원리부터 살펴본다. 이후에는 실행 도구, Queue와 Worker의 책임, PostgreSQL과 Redis의 상태 경계, SSE 전달과 런타임의 위치를 차례로 구체화한다.
+
+전체 학습 경로는 [Agent Engineering 시리즈](/series/agent-engineering/)에서 확인할 수 있다.
