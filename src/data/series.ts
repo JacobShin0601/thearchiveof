@@ -36,6 +36,10 @@ export const SERIES = [
   {
     name: 'Optimization',
     mode: 'learning-path',
+    title: {
+      ko: '최적화',
+      en: 'Optimization',
+    },
     description: {
       ko: '목적함수와 제약, 상충하는 목표를 실제 의사결정 문제와 연결해 설명합니다.',
       en: 'Objectives, constraints, and trade-offs explained through practical decision problems.',
