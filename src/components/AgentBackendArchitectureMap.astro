@@ -33,9 +33,9 @@ const lifecycleSteps = ko
   ? [
       ['1', 'Browser → API', 'POST /runs', '인증·권한·입력 검증', 'command'],
       ['2', 'API → PostgreSQL', 'submitting', 'run_id와 복구 가능한 실행 의도 기록', 'durable'],
-      ['3', 'Outbox → Queue', 'queued', 'relay가 게시하고 queue가 API 밖에서 보관', 'command'],
+      ['3', 'API → Queue', 'queued', '실행 의도를 API process 밖에 보관', 'command'],
       ['4', 'API → Browser', '202 + run_id', '완료가 아니라 안전한 접수 결과', 'observe'],
-      ['5', 'Queue → Worker', 'claim → running', 'attempt_id·lease·fencing token 확보', 'command'],
+      ['5', 'Queue → Worker', 'claim → running', 'attempt_id·lease로 이번 시도 시작', 'command'],
       ['6', 'Worker → Stores', 'checkpoint · progress · event', 'PostgreSQL은 내구성, Redis는 짧은 관측 데이터', 'durable'],
       ['7', 'Worker → PostgreSQL', 'completed / failed', '최종 결과 commit 뒤 queue ack', 'durable'],
       ['8', 'API · SSE → Browser', 'snapshot + cursor', '조회·재연결·중복 event 무시', 'observe'],
@@ -43,9 +43,9 @@ const lifecycleSteps = ko
   : [
       ['1', 'Browser → API', 'POST /runs', 'Authenticate, authorize, and validate input', 'command'],
       ['2', 'API → PostgreSQL', 'submitting', 'Persist run_id and recoverable execution intent', 'durable'],
-      ['3', 'Outbox → Queue', 'queued', 'Relay publishes; queue holds work outside the API', 'command'],
+      ['3', 'API → Queue', 'queued', 'Execution intent lives outside the API process', 'command'],
       ['4', 'API → Browser', '202 + run_id', 'Safe acceptance, not completion', 'observe'],
-      ['5', 'Queue → Worker', 'claim → running', 'Acquire attempt_id, lease, and fencing token', 'command'],
+      ['5', 'Queue → Worker', 'claim → running', 'Start this attempt with attempt_id and lease', 'command'],
       ['6', 'Worker → Stores', 'checkpoint · progress · event', 'PostgreSQL is durable; Redis is short-lived observation data', 'durable'],
       ['7', 'Worker → PostgreSQL', 'completed / failed', 'Commit terminal result before queue ack', 'durable'],
       ['8', 'API · SSE → Browser', 'snapshot + cursor', 'Read, reconnect, and ignore duplicate events', 'observe'],
@@ -94,7 +94,7 @@ const lifecycleSteps = ko
             <span class="lifetime">{ko ? 'run attempt 수명' : 'Run-attempt lifetime'}</span>
           </div>
           <ul>
-            <li>{ko ? 'attempt_id · lease · fencing token으로 쓰기 권한 확인' : 'Authorize writes with attempt_id, lease, fencing token'}</li>
+            <li>{ko ? 'attempt_id · lease로 이번 실행 시도 소유' : 'Own this attempt with attempt_id and lease'}</li>
             <li>{ko ? 'Agent graph · LLM · Tool 실행' : 'Run agent graph, LLM calls, and tools'}</li>
             <li>{ko ? 'checkpoint·결과 저장 후 ack' : 'Persist checkpoint/result before ack'}</li>
           </ul>
