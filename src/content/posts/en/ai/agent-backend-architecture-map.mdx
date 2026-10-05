@@ -106,6 +106,21 @@ Observation: Browser <──SSE── API <──read──── Redis / Postgr
 
 The worker runs LLM calls, tools, and checkpoints. The API mostly creates runs, publishes to the queue, serves reads, and relays SSE. That split lets API and worker replica counts track **different resource profiles**.
 
+### Four boundaries to read in the diagram
+
+The map has many boxes, but only four handoff contracts matter:
+
+| Boundary | What crosses it | What does not | Failure response |
+| --- | --- | --- | --- |
+| Browser → API | User intent, idempotency key | Execution lifetime | Detect duplicate submissions |
+| API → Queue | `run_id`, minimal execution payload | User HTTP connection | Outbox relay retries publish |
+| Queue → Worker | Claim, lease, `attempt_id` | Exactly-once guarantee | Another worker reclaims after lease expiry |
+| Worker → Stores | Versioned snapshot, events, result | Process memory | Resume and reconcile from durable state |
+
+**PostgreSQL and Redis are not interchangeable “state stores.”** PostgreSQL is the record that must explain a run after restart. Redis is a bounded projection layer for active coordination and delivery. SSE is not a store at all; it transports snapshots and events that already exist elsewhere.
+
+The edge from a worker to an external LLM or tool is also different from an internal state transition. It needs timeouts and retries, plus an explicit idempotency contract for side effects such as creating a ticket or charging an account.
+
 ## 3. Pod, process, worker, thread — not the same axis
 
 When Kubernetes, Python, and agent vocabulary land in one sentence, designs wobble.
@@ -197,9 +212,9 @@ Do not put every kind of state in one store.
 | **PostgreSQL** | Run metadata, final status, JSON/JSONB input and results, checkpoint snapshots, audit | ACID, reporting, retention ([JSON types](https://www.postgresql.org/docs/current/datatype-json.html)) |
 | **PostgreSQL + pgvector** | Embeddings, RAG context | Tool retrieval colocated with lifecycle data ([pgvector](https://github.com/pgvector/pgvector)) |
 | **Redis Hash** | Current progress, heartbeat, `last_event_id` | Frequent updates, TTL, UI snapshot |
-| **Redis Stream** | Append-only events, SSE replay cursor ([Streams](https://redis.io/docs/latest/data-types/streams/)) | Time-ordered observation log |
+| **Redis Stream** | Bounded delivery events, SSE replay cursor ([Streams](https://redis.io/docs/latest/develop/data-types/streams/)) | Short reconnect window for observation |
 
-Workers commit checkpoints to PostgreSQL and use atomic Lua for Hash + Stream on UI transitions. PostgreSQL answers “did this run ultimately succeed?” Redis answers “what should the UI show right now?”
+Workers commit checkpoints to PostgreSQL and use atomic Lua for Hash + Stream on UI transitions. PostgreSQL answers “did this run ultimately succeed?” Redis answers “what should the UI show right now?” Bound Stream length and retention; send long-term event history and audit records to PostgreSQL or a separate log system.
 
 ## 9. `updated_at` alone does not fix concurrency
 
@@ -269,6 +284,20 @@ The lifecycle figure shows how command and observation interleave over time.
 7. completed or failed (PostgreSQL commit)
 8. GET /runs/{id}, SSE replay for observation
 ```
+
+### Failure paths matter as much as the happy path
+
+Each numbered step needs a recovery source:
+
+| Failure point | Information that must remain | Next action |
+| --- | --- | --- |
+| API exits after run creation | `agent_runs` + outbox row | Relay publishes to queue |
+| Worker exits after claim | Queue lease + `attempt_id` | A new attempt reclaims after expiry |
+| Tool finishes but checkpoint fails | Non-terminal run state | Do not ack; retry idempotently |
+| Redis eviction or TTL expiry | PostgreSQL snapshot and result | Reload snapshot and reset stream cursor |
+| SSE disconnects | Bounded recent Stream events or PostgreSQL snapshot | Reconnect and replay, or resync |
+
+Termination order is part of the contract. A worker does not ack a queue message before committing an important result to PostgreSQL. Conversely, a failed Redis progress write should not roll back a completed business result. Rebuild the Redis projection from PostgreSQL instead.
 
 Tool loops, HITL, and retry from pattern design run in steps 5–6 **inside the worker**. This map fixes **which infrastructure owns the lifecycle** around that loop.
 
