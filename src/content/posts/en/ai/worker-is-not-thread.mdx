@@ -22,7 +22,7 @@ comments: true
 language: "en"
 translationKey: "worker-is-not-thread"
 series: "Agent Engineering"
-seriesOrder: 4
+seriesOrder: 5
 seriesPart: "execution"
 localization:
   locale: "en-US"
@@ -49,6 +49,7 @@ references:
 ---
 
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AgentBackendArchitectureMap from '../../../../components/AgentBackendArchitectureMap.astro';
 
 <AnswerBlock question="What is a worker in an agent backend?">
   A worker is not a concurrency primitive such as a thread or process. It is <strong>the role that owns a workload's execution lifecycle</strong>. If the API validates and accepts a request, the worker takes work from a queue, updates its state, and owns the active attempt until it leaves behind a completed, failed, or retryable result. Inside the worker process, the implementation may still combine async, threads, and processes.
@@ -119,6 +120,16 @@ def start_local_task(coroutine) -> None:
 ```
 
 This fixes task-reference management. When the API process exits, both the set and its tasks still disappear.
+
+## What separating API and worker means
+
+Separating API and worker has two layers: **logical responsibility** and **deployment lifecycle**. In development you may run both in one process or one Pod, yet still split HTTP intake from long-running execution in code.
+
+In production you usually run separate **API and Worker Deployments** with different Pod sets. Scale the API on request rate and connections; scale workers on queue depth, job duration, CPU, GPU, and external API load. If an API Pod restarts, runs that remain in the queue and PostgreSQL should still be processed or reclaimed by workers.
+
+<AgentBackendArchitectureMap kind="deployment" language="en" />
+
+Separate Pods are an outcome, not the goal. Deployments split because responsibilities, resources, scaling, and failure lifetimes differ. See article 2, [Agent Backend Architecture at a Glance](/en/ai/agents/agent-backend-architecture-map/), for the full map.
 
 ## In-process background tasks are not always wrong
 

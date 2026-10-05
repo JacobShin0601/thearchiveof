@@ -22,7 +22,7 @@ comments: true
 language: "en"
 translationKey: "agent-sse-streaming"
 series: "Agent Engineering"
-seriesOrder: 7
+seriesOrder: 8
 seriesPart: "delivery"
 localization:
   locale: "en-US"
@@ -280,7 +280,7 @@ The WHATWG HTML Standard defines the event-stream format, `id`, reconnection tim
 
 ## Join the snapshot and live events in one generator
 
-Article 6 established that a Redis Hash stores a `last_event_id` consistent with its snapshot. On a first connection, send that snapshot and then read events after its cursor.
+Article 7 established that a Redis Hash stores a `last_event_id` consistent with its snapshot. On a first connection, send that snapshot and then read events after its cursor.
 
 ```python
 import asyncio
@@ -458,7 +458,7 @@ Sending a fresh snapshot when the request already has a cursor can create confus
 - Cursor present: validate it, then replay entries after it.
 - Cursor older than retention: emit `resync_required` or direct the client to refetch the snapshot.
 
-The endpoint can apply Article 6's `cursor_is_too_old()` check before streaming. Because a header is untrusted text, validate the Stream ID syntax too.
+The endpoint can apply Article 7's `cursor_is_too_old()` check before streaming. Because a header is untrusted text, validate the Stream ID syntax too.
 
 ```python
 import re

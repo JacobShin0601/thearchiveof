@@ -22,7 +22,7 @@ comments: true
 language: "ko"
 translationKey: "agent-sse-streaming"
 series: "Agent Engineering"
-seriesOrder: 7
+seriesOrder: 8
 seriesPart: "delivery"
 freshness: evergreen
 lastReviewed: 2026-10-05
@@ -277,7 +277,7 @@ WHATWG HTML Standard는 SSE event stream 형식, `id`, 재연결 시간과 `Last
 
 ## Snapshot과 실시간 event를 한 generator에서 연결한다
 
-6편에서 Redis Hash의 `last_event_id`가 snapshot과 일관되게 저장된다고 가정했다. 첫 연결에서는 snapshot을 먼저 보내고 그 cursor 이후 event를 읽는다.
+7편에서 Redis Hash의 `last_event_id`가 snapshot과 일관되게 저장된다고 가정했다. 첫 연결에서는 snapshot을 먼저 보내고 그 cursor 이후 event를 읽는다.
 
 ```python
 import asyncio
@@ -455,7 +455,7 @@ disconnect
 - Cursor 있음: cursor validity를 확인하고 그 이후부터 replay
 - Cursor가 trimming 범위보다 오래됨: `resync_required`를 보내거나 snapshot endpoint 재호출 유도
 
-6편에서 구현한 `cursor_is_too_old()` 검사를 endpoint 시작 전에 적용할 수 있다. Header가 임의 문자열일 수 있으므로 Stream ID 문법 검증도 필요하다.
+7편에서 구현한 `cursor_is_too_old()` 검사를 endpoint 시작 전에 적용할 수 있다. Header가 임의 문자열일 수 있으므로 Stream ID 문법 검증도 필요하다.
 
 ```python
 import re

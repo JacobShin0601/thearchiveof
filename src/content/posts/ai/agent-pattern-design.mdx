@@ -420,8 +420,8 @@ LLM은 유용한 정책 구성 요소다. 도구 후보나 계획을 제안하�
 
 현재 LangGraph 문서도 결정론적 단계와 LLM 주도 단계를 같은 그래프에 섞는 오케스트레이션 런타임으로 설명하며, 영속 실행·스트리밍·HITL를 주요 기능으로 든다. [개요](https://docs.langchain.com/oss/python/langgraph/overview)와 [중단 문서](https://docs.langchain.com/oss/python/langgraph/interrupts)는 일시 중지 지점, 영속 체크포인터, 동일 thread ID를 사용한 재개 같은 구체적 요구를 설명한다. 그것은 프레임워크를 선택할 좋은 이유가 될 수 있다. 다만 API가 패턴을 대신 설계해 주지는 않는다.
 
-## 다음: 이 pattern들은 기다리는 동안 무엇을 하나?
+## 다음: 패턴 뒤에는 backend 지도가 온다
 
-이제 우리는 Agent를 어떤 패턴으로 구성할지 안다. 다음 문제는 이 패턴들이 LLM, 데이터베이스, 검색 API를 기다리는 동안 backend가 어떻게 여러 작업을 효율적으로 진행시키는가다.
+이제 Agent를 어떤 패턴으로 구성할지 안다. 그다음은 그 패턴이 **어디에서**, **누가 소유하며**, **어떤 저장소와 연결로** 실행되는지다.
 
-다음 글 **에이전트 시스템에는 왜 Async가 필요한가**에서는 blocking과 non-blocking, coroutine, event loop, `await`, 그리고 병렬로 실행 가능한 작업이 왜 Agent backend의 기본 어휘가 되는지를 다룬다.
+다음 글 [**Agent Backend 한 장 지도**](/ai/agents/agent-backend-architecture-map/)에서는 API, queue, worker, PostgreSQL, Redis, SSE가 각각 어떤 책임과 실행 수명을 갖는지 전체 구조를 먼저 본다. 그다음 [**에이전트는 왜 Async가 필요한가**](/ai/agents/why-agent-systems-need-async/)에서 LLM·DB·검색 API를 기다리는 동안 backend가 어떻게 동시에 진행하는지 execution 모델부터 깊게 다룬다.
