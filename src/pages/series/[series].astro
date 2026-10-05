@@ -2,10 +2,16 @@
 import type { GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import SeriesAppliedTrackSection from '../../components/SeriesAppliedTrackSection.astro';
 import SeriesSectionList from '../../components/SeriesSectionList.astro';
 import { postPath, seriesDefinition, slugify } from '../../consts';
 import { isVisiblePost } from '../../environment';
-import { seriesUsesParts } from '../../lib/series-sections';
+import {
+  AGENT_ENGINEERING_APPLIED_TRACKS,
+  AGENT_ENGINEERING_SERIES,
+  INTERNAL_LLM_SERVING_SERIES,
+  seriesUsesParts,
+} from '../../lib/series-sections';
 
 export const getStaticPaths = (async () => {
   const posts = await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko');
@@ -18,6 +24,14 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
   .sort((a, b) => (a.data.seriesOrder ?? 999) - (b.data.seriesOrder ?? 999));
 const description = seriesDefinition(name)?.description.ko
   ?? '핵심 개념에서 구현과 근거로 이어지는 순서 있는 읽기 경로입니다.';
+const isAgentEngineering = name === AGENT_ENGINEERING_SERIES;
+const appliedTrackPosts = isAgentEngineering
+  ? (await getCollection('posts', ({ data }) =>
+      isVisiblePost(data)
+      && data.language === 'ko'
+      && data.series === INTERNAL_LLM_SERVING_SERIES))
+    .sort((a, b) => (a.data.seriesOrder ?? 999) - (b.data.seriesOrder ?? 999))
+  : [];
 ---
 
 <BaseLayout title={name} description={description} language="ko" alternateLanguageUrl={`/en/series/${slugify(name)}/`} indexable={posts.length > 0}>
@@ -29,7 +43,16 @@ const description = seriesDefinition(name)?.description.ko
     </header>
     {posts.length > 0 ? (
       seriesUsesParts(name) ? (
-        <SeriesSectionList seriesName={name} posts={posts} language="ko" />
+        <>
+          <SeriesSectionList seriesName={name} posts={posts} language="ko" />
+          {isAgentEngineering && AGENT_ENGINEERING_APPLIED_TRACKS.map((detailSeries) => (
+            <SeriesAppliedTrackSection
+              detailSeriesName={detailSeries}
+              trackPosts={appliedTrackPosts}
+              language="ko"
+            />
+          ))}
+        </>
       ) : (
         <ol class="series-articles">
           {posts.map((post, index) => (

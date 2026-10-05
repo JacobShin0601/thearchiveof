@@ -2,12 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   AGENT_ENGINEERING_SERIES,
+  INTERNAL_LLM_SERVING_SERIES,
   nextPartId,
   partIdsForSeries,
   postsInPart,
   progressLabel,
   seriesUsesParts,
+  trackProgressLabel,
 } from '../src/lib/series-sections.ts';
+import { catalogTopLevelSeriesNames, isCatalogTopLevelSeries } from '../src/lib/series-catalog.ts';
 
 test('Agent Engineering uses four learning stages', () => {
   assert.equal(seriesUsesParts(AGENT_ENGINEERING_SERIES), true);
@@ -32,6 +35,26 @@ test('postsInPart keeps seriesOrder', () => {
   ];
   const ordered = postsInPart(posts, 'execution');
   assert.deepEqual(ordered.map((post) => post.id), ['b', 'a']);
+});
+
+test('Internal LLM Serving is hidden from top-level series catalogs', () => {
+  assert.equal(isCatalogTopLevelSeries('Agent Engineering'), true);
+  assert.equal(isCatalogTopLevelSeries(INTERNAL_LLM_SERVING_SERIES), false);
+  assert.deepEqual(
+    catalogTopLevelSeriesNames(['Optimization', INTERNAL_LLM_SERVING_SERIES, 'Agent Engineering']),
+    ['Optimization', 'Agent Engineering'],
+  );
+});
+
+test('applied track progress label references parent series', () => {
+  const { visible, aria } = trackProgressLabel({
+    detailSeriesName: INTERNAL_LLM_SERVING_SERIES,
+    seriesOrder: 1,
+    totalInTrack: 3,
+    language: 'en',
+  });
+  assert.equal(visible, 'Agent Engineering / Inference Serving · 1 of 3');
+  assert.match(aria, /article 1 of 3/);
 });
 
 test('progress label includes stage and article index', () => {

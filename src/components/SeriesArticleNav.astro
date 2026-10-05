@@ -2,7 +2,8 @@
 import type { CollectionEntry } from 'astro:content';
 import { postPath, seriesPath } from '../consts';
 import {
-  nextStageBridgeLabel,
+  appliedTrackDetailMeta,
+  isAppliedTrackDetailSeries,
   partMeta,
   seriesUsesParts,
   type SeriesPartId,
@@ -26,11 +27,26 @@ const crossesStage =
   && nextPart
   && nextPart !== currentPart;
 const isLastInSeries = !nextInSeries;
+const isAppliedTrack = isAppliedTrackDetailSeries(seriesName);
+const appliedTrackParent = isAppliedTrack ? appliedTrackDetailMeta(seriesName!).parentSeries : undefined;
 ---
 
 <nav class="series-nav" aria-label={`${seriesName} series`}>
   <p class="eyebrow">
-    Series · <a href={seriesPath(seriesName!, language)}>{seriesName}</a>
+    {isAppliedTrack && appliedTrackParent ? (
+      <>
+        Series ·{' '}
+        <a href={seriesPath(appliedTrackParent, language)}>{appliedTrackParent}</a>
+        {' / '}
+        <a href={seriesPath(seriesName!, language)}>
+          {isKo ? 'Inference Serving' : 'Inference Serving'}
+        </a>
+      </>
+    ) : (
+      <>
+        Series · <a href={seriesPath(seriesName!, language)}>{seriesName}</a>
+      </>
+    )}
   </p>
   {crossesStage && nextPart && (
     <p class="series-nav-stage">
