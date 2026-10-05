@@ -268,7 +268,7 @@ async def handle_message(message: JobMessage) -> None:
 
 This conceptual example omits product-specific queue semantics. A retry may mean negative acknowledgement in one queue and visibility timeout or pending-entry reclaim in another. Article 10, **When Workers Die**, covers those differences.
 
-The crucial sequence is `execute → persist terminal state → acknowledge`. If acknowledgement comes first and result storage fails, the queue considers the job complete while the user cannot find its result. If storage succeeds and the worker dies just before acknowledgement, the same message may be delivered again. Worker architecture therefore **exposes at-least-once delivery and idempotency; it does not eliminate them**. A user experience that appears exactly-once requires run identity, attempt identity, and idempotent side effects.
+The crucial sequence is `execute → persist terminal state → acknowledge`. If acknowledgement comes first and result storage fails, the queue considers the job complete while the user cannot find its result. If storage succeeds and the worker dies just before acknowledgement, the same message may be delivered again. Worker architecture therefore **exposes at-least-once delivery and idempotency; it does not eliminate them**. Duplicate delivery between persist and ack, and idempotent side effects, are covered in [Can an Agent Tool Execute Exactly Once?](/en/ai/agents/agent-tool-idempotency-approval-retry/).
 
 ## One worker does not have to run only one job
 

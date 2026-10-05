@@ -13,19 +13,21 @@ import {
 } from '../src/lib/series-sections.ts';
 import { catalogTopLevelSeriesNames, isCatalogTopLevelSeries } from '../src/lib/series-catalog.ts';
 
-test('Agent Engineering uses four learning stages', () => {
+test('Agent Engineering uses five learning stages', () => {
   assert.equal(seriesUsesParts(AGENT_ENGINEERING_SERIES), true);
   assert.equal(seriesUsesParts('Enterprise AX'), false);
   assert.deepEqual(partIdsForSeries(AGENT_ENGINEERING_SERIES), [
     'design',
     'execution',
     'state',
+    'safety',
     'delivery',
   ]);
 });
 
 test('next stage bridge follows registry order', () => {
   assert.equal(nextPartId(AGENT_ENGINEERING_SERIES, 'design'), 'execution');
+  assert.equal(nextPartId(AGENT_ENGINEERING_SERIES, 'state'), 'safety');
   assert.equal(nextPartId(AGENT_ENGINEERING_SERIES, 'delivery'), undefined);
 });
 
@@ -68,10 +70,10 @@ test('progress label includes stage and article index', () => {
     seriesName: AGENT_ENGINEERING_SERIES,
     partId: 'execution',
     seriesOrder: 3,
-    totalInSeries: 9,
+    totalInSeries: 10,
     language: 'ko',
   });
-  assert.match(visible, /4개 학습 단계 중 2번째/);
-  assert.match(visible, /전체 9편 중 3번째 글/);
+  assert.match(visible, /5개 학습 단계 중 2번째/);
+  assert.match(visible, /전체 10편 중 3번째 글/);
   assert.match(aria, /3번째/);
 });

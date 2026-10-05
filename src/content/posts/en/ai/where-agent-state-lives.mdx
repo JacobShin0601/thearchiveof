@@ -861,7 +861,7 @@ Use a short Redis timeout. A temporarily unavailable hot projection should not s
 | PostgreSQL unavailable | reads and terminal commits fail | hot state may remain | cannot save | Do not mark successful |
 | State-schema change on deploy | retained | projection can be rebuilt | migration required | Use versioned loader |
 
-PostgreSQL unavailability is the crucial row. If a tool finishes but the final result cannot commit, the worker must not acknowledge the message as successful. Otherwise computation is complete but the system of record has no result. Side-effecting tools also need idempotency because a retry may repeat the action; Article 15 covers that separately.
+PostgreSQL unavailability is the crucial row. If a tool finishes but the final result cannot commit, the worker must not acknowledge the message as successful. Otherwise computation is complete but the system of record has no result. Side-effecting tools also need idempotency because a retry may repeat the action; see [Can an Agent Tool Execute Exactly Once?](/en/ai/agents/agent-tool-idempotency-approval-retry/).
 
 ## Common anti-patterns
 

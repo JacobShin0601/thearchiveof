@@ -1,0 +1,130 @@
+---
+export interface Props {
+  kind: 'approval-flow' | 'failure-window';
+  language?: 'ko' | 'en';
+}
+
+const { kind, language = 'ko' } = Astro.props;
+
+const copy = {
+  ko: {
+    'approval-flow': {
+      caption: 'Tool 실행 승인 흐름 (개념)',
+      steps: [
+        { icon: '◇', label: 'LLM Tool 제안' },
+        { icon: '→', label: '서버가 action intent 저장' },
+        { icon: '→', label: '사용자에게 정확한 인자 표시' },
+        { icon: '→', label: '승인 (action_id만 전송)' },
+        { icon: '→', label: 'fingerprint 재검증' },
+        { icon: '→', label: '실행권 확보 (조건부 UPDATE)' },
+        { icon: '→', label: '외부 API (동일 idempotency key)' },
+        { icon: '✓', label: '결과를 PostgreSQL에 저장' },
+      ],
+    },
+    'failure-window': {
+      caption: '응답 유실 구간 (timeout ≠ 실패)',
+      steps: [
+        { icon: '✓', label: '외부 송금 성공' },
+        { icon: '↓', label: '응답 패킷 유실' },
+        { icon: '⚠', label: 'Worker는 timeout만 관측' },
+        { icon: '↻', label: '재시도 전 같은 key로 조회·reconciliation' },
+      ],
+    },
+  },
+  en: {
+    'approval-flow': {
+      caption: 'Tool execution approval flow (conceptual)',
+      steps: [
+        { icon: '◇', label: 'LLM proposes a tool call' },
+        { icon: '→', label: 'Server stores action intent' },
+        { icon: '→', label: 'User sees exact arguments' },
+        { icon: '→', label: 'Approval (action_id only)' },
+        { icon: '→', label: 'Fingerprint re-check' },
+        { icon: '→', label: 'Claim execution (conditional UPDATE)' },
+        { icon: '→', label: 'External API (same idempotency key)' },
+        { icon: '✓', label: 'Persist result in PostgreSQL' },
+      ],
+    },
+    'failure-window': {
+      caption: 'Lost-response window (timeout ≠ failure)',
+      steps: [
+        { icon: '✓', label: 'External transfer succeeded' },
+        { icon: '↓', label: 'Response lost on the wire' },
+        { icon: '⚠', label: 'Worker observes timeout only' },
+        { icon: '↻', label: 'Look up by same key before retry' },
+      ],
+    },
+  },
+} as const;
+
+const diagram = copy[language][kind];
+const figureId = `tool-exec-safety-${kind}-${language}`;
+---
+
+<figure class="tool-exec-safety" aria-labelledby={figureId}>
+  <figcaption id={figureId}>{diagram.caption}</figcaption>
+  <ol class="flow" data-kind={kind}>
+    {diagram.steps.map((step) => (
+      <li class="step">
+        <span class="step-icon" aria-hidden="true">{step.icon}</span>
+        <span class="step-label">{step.label}</span>
+      </li>
+    ))}
+  </ol>
+</figure>
+
+<style>
+  .tool-exec-safety {
+    margin: 2rem 0;
+    padding: 1.25rem;
+    border: 1px solid var(--line);
+    background: var(--paper-deep);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+  .tool-exec-safety figcaption {
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+  .flow {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .step {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .step-icon {
+    flex-shrink: 0;
+    width: 1.5rem;
+    text-align: center;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .step-label {
+    flex: 1;
+  }
+  .flow[data-kind='failure-window'] .step:nth-child(3) {
+    border-style: dashed;
+  }
+  @media (min-width: 640px) {
+    .flow[data-kind='approval-flow'] {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.65rem;
+    }
+    .flow[data-kind='approval-flow'] .step-icon {
+      color: var(--accent);
+    }
+  }
+</style>

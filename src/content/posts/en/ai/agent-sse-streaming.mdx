@@ -22,7 +22,7 @@ comments: true
 language: "en"
 translationKey: "agent-sse-streaming"
 series: "Agent Engineering"
-seriesOrder: 8
+seriesOrder: 9
 seriesPart: "delivery"
 localization:
   locale: "en-US"
@@ -69,7 +69,7 @@ Connected
 ! Approval required for an action above $1,000
 ```
 
-The previous article, [**State Is Not an Event**](/en/ai/agents/state-is-not-event/), stored the current snapshot in a Redis Hash and append-only events in a Redis Stream, using Stream IDs as cursors. The remaining problem is to keep carrying those events to the browser over an HTTP connection.
+The previous article, [**Can an Agent Tool Execute Exactly Once?**](/en/ai/agents/agent-tool-idempotency-approval-retry/), defined safe tool action states—approval, execution, and `outcome_unknown`. Building on the Redis snapshot and Stream cursors from [**State Is Not an Event**](/en/ai/agents/state-is-not-event/), this article carries events and action progress to the browser over HTTP.
 
 Three concepts are often conflated:
 

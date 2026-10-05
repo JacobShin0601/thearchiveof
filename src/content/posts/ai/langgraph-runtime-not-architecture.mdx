@@ -23,7 +23,7 @@ comments: true
 language: "ko"
 translationKey: "langgraph-runtime-not-architecture"
 series: "Agent Engineering"
-seriesOrder: 9
+seriesOrder: 10
 seriesPart: "delivery"
 freshness: periodic
 lastReviewed: 2026-10-04
@@ -415,7 +415,7 @@ async def execute_run(run, graph, redis, repository) -> None:
         raise
 ```
 
-이 코드는 개념 예시다. 운영 환경에서는 fencing token, lease, 취소, 기한, 재시도 분류와 멱등성이 더 필요하다. 중요한 점은 데이터 흐름이다.
+이 코드는 개념 예시다. 운영 환경에서는 fencing token, lease, 취소, 기한, 재시도 분류와 멱등성이 더 필요하다. 재개 후 Tool node의 부수 효과가 반복되지 않게 하려면 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)의 action 저장·승인·idempotency key 패턴과 맞춰야 한다. 중요한 점은 데이터 흐름이다.
 
 ```text
 LangGraph update    → filtered Redis snapshot
@@ -452,6 +452,8 @@ Checkpoint가 답하는 질문은 이런 것이다.
 - 이 graph는 어느 state에서 멈췄는가?
 - 재개할 때 어느 node부터 이어갈 수 있는가?
 - HITL interrupt 전후의 runtime state는 무엇인가?
+
+송금처럼 **부수 효과가 있는 Tool node**는 checkpoint 직전에서 멈췄다가 재개하면 같은 node가 다시 실행될 수 있다. Checkpoint는 graph execution을 이어 주지만 외부 세계의 중복 실행을 막지는 않는다. Approval, action fingerprint, idempotency key는 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)에서 다룬다.
 
 반면 다음 질문은 별도 설계가 필요하다.
 

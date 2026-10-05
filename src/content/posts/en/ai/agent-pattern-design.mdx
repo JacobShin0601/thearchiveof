@@ -291,7 +291,7 @@ Authorization and approval also answer different questions.
 | Authorization | Is this user allowed to perform this tool/action? |
 | Approval | The user may be allowed—but should **this exact action** run now? |
 
-Approval cannot be reused if arguments change afterward. In production, bind a canonicalized tool-and-arguments hash to the approval record and compare it again at execution. That leads directly to sessions, durable pause/resume, and idempotency in later articles.
+Approval cannot be reused if arguments change afterward. In production, bind a canonicalized tool-and-arguments hash to the approval record and compare it again at execution. Where HITL meets retries, see [Can an Agent Tool Execute Exactly Once?](/en/ai/agents/agent-tool-idempotency-approval-retry/).
 
 ## Pattern 5 — Retry / Fallback: classify failure before recovering
 
@@ -319,7 +319,7 @@ async def call_with_retry(primary, fallback, max_attempts: int = 3):
 
 `max_attempts` includes the first call. Waiting must be bounded too. A real policy also considers jitter, server-provided `Retry-After`, an overall deadline, and cost. A fallback is not a device for hiding every error: if the primary rejected invalid input, a backup should not receive the same invalid input.
 
-Side effects make retry harder. A client-side timeout does not prove that the remote action failed; a ticket may have been created before the response was lost. Retrying without the same idempotency key can duplicate the action. This exactly-once illusion returns in the reliability section of the series.
+Side effects make retry harder. A client-side timeout does not prove that the remote action failed; a ticket may have been created before the response was lost. Retrying without the same idempotency key can duplicate the action. Approval, idempotency, and retries are covered in [Can an Agent Tool Execute Exactly Once?](/en/ai/agents/agent-tool-idempotency-approval-retry/).
 
 ## Pattern 6 — Evaluator / Refiner: reflection has a ceiling too
 

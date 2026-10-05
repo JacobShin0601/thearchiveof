@@ -717,6 +717,6 @@ The pattern has three important properties:
 - Are credentials and sensitive data removed from event payloads?
 - Are UI viewers kept out of an inappropriate consumer group?
 
-We now know where state and events live and which cursor connects them. The next problem is moving those events over a long-lived HTTP connection safely and with cancellation.
+We now know where state and events live and which cursor connects them. Next, side-effecting tools—such as transfers—must converge on one user intent under queue redelivery and timeouts.
 
-The next article, [**Let the Agent Speak While It Works: SSE, Generators, and Redis Streams**](/en/ai/agents/agent-sse-streaming/), implements iterators, async generators, an SSE endpoint, heartbeats, disconnect handling, proxy buffering, and backpressure in a Python server.
+The next article, [**Can an Agent Tool Execute Exactly Once?**](/en/ai/agents/agent-tool-idempotency-approval-retry/), covers approval, fingerprints, idempotency keys, and `outcome_unknown`. Then [**Let the Agent Speak While It Works**](/en/ai/agents/agent-sse-streaming/) streams approval, execution, and reconciliation over SSE.
