@@ -1,10 +1,20 @@
 ---
 import type { GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
+import AiValueChainMap from '../../../components/AiValueChainMap.astro';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SeriesAppliedTrackSection from '../../../components/SeriesAppliedTrackSection.astro';
+import SeriesResearchArticleList from '../../../components/SeriesResearchArticleList.astro';
 import SeriesSectionList from '../../../components/SeriesSectionList.astro';
-import { postPath, seriesDefinition, slugify } from '../../../consts';
+import {
+  AI_VALUE_CHAIN_SERIES,
+  postPath,
+  seriesDescription,
+  seriesDisplayTitle,
+  seriesEyebrowSuffix,
+  seriesMode,
+  seriesSlug,
+} from '../../../consts';
 import { isVisiblePost } from '../../../environment';
 import {
   AGENT_ENGINEERING_APPLIED_TRACKS,
@@ -19,15 +29,21 @@ export const getStaticPaths = (async () => {
   const names = new Set(posts.flatMap((post) => post.data.series ? [post.data.series] : []));
   return [...names]
     .filter((name) => !isAppliedTrackDetailSeries(name))
-    .map((name) => ({ params: { series: slugify(name) }, props: { name } }));
+    .map((name) => ({
+      params: { series: seriesSlug(name) },
+      props: { name },
+    }));
 }) satisfies GetStaticPaths;
 
 const { name } = Astro.props as { name: string };
 const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en' && data.series === name))
   .sort((a, b) => (a.data.seriesOrder ?? 999) - (b.data.seriesOrder ?? 999));
-const description = seriesDefinition(name)?.description.en
-  ?? 'An ordered path from core concepts to implementation and evidence.';
+const displayTitle = seriesDisplayTitle(name, 'en');
+const description = seriesDescription(name, 'en')
+  || 'An ordered path from core concepts to implementation and evidence.';
+const mode = seriesMode(name);
 const isAgentEngineering = name === AGENT_ENGINEERING_SERIES;
+const isAiValueChain = name === AI_VALUE_CHAIN_SERIES;
 const appliedTrackPosts = isAgentEngineering
   ? (await getCollection('posts', ({ data }) =>
       isVisiblePost(data)
@@ -35,17 +51,24 @@ const appliedTrackPosts = isAgentEngineering
       && data.series === INTERNAL_LLM_SERVING_SERIES))
     .sort((a, b) => (a.data.seriesOrder ?? 999) - (b.data.seriesOrder ?? 999))
   : [];
+const eyebrowSuffix = seriesEyebrowSuffix(name, 'en');
+const slug = seriesSlug(name);
 ---
 
-<BaseLayout title={name} description={description} language="en" alternateLanguageUrl={`/series/${slugify(name)}/`} indexable={posts.length > 0}>
+<BaseLayout title={displayTitle} description={description} language="en" alternateLanguageUrl={`/series/${slug}/`} indexable={posts.length > 0}>
   <section class="listing-page shell">
     <header>
-      <p class="eyebrow"><a href="/en/series/">Series</a> / Learning path</p>
-      <h1>{name}</h1>
+      <p class="eyebrow"><a href="/en/series/">Series</a> / {eyebrowSuffix}</p>
+      <h1>{displayTitle}</h1>
       <p>{description}</p>
     </header>
     {posts.length > 0 ? (
-      seriesUsesParts(name) ? (
+      mode === 'research-series' && isAiValueChain ? (
+        <>
+          <AiValueChainMap language="en" />
+          <SeriesResearchArticleList posts={posts} language="en" />
+        </>
+      ) : seriesUsesParts(name) ? (
         <>
           <SeriesSectionList seriesName={name} posts={posts} language="en" />
           {isAgentEngineering && AGENT_ENGINEERING_APPLIED_TRACKS.map((detailSeries) => (

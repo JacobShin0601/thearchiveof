@@ -27,6 +27,16 @@ const posts = defineCollection({
     series: z.string().optional(),
     seriesOrder: z.number().int().positive().optional(),
     seriesPart: z.enum(['design', 'execution', 'state', 'safety', 'delivery']).optional(),
+    seriesAxis: z
+      .enum([
+        'compute-infrastructure',
+        'models-inference',
+        'platforms-and-moats',
+        'applications',
+        'business-models',
+      ])
+      .optional(),
+    seriesQuestion: z.string().max(200).optional(),
     language: z.enum(['ko', 'en']).default('ko'),
     translationKey: slug.optional(),
     localization: z.object({

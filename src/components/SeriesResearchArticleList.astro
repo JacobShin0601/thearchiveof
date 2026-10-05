@@ -1,0 +1,97 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { postPath } from '../consts';
+import {
+  AI_VALUE_CHAIN_AXIS_META,
+  aiValueChainAxisLabel,
+  type AiValueChainAxisId,
+} from '../lib/ai-value-chain';
+
+interface Props {
+  posts: CollectionEntry<'posts'>[];
+  language: 'ko' | 'en';
+}
+
+const { posts, language } = Astro.props;
+const isKo = language === 'ko';
+
+const ordered = [...posts].sort(
+  (a, b) => (a.data.seriesOrder ?? 999) - (b.data.seriesOrder ?? 999),
+);
+
+function formatDate(date: Date) {
+  return date.toLocaleDateString(isKo ? 'ko-KR' : 'en-US', {
+    year: 'numeric',
+    month: isKo ? 'long' : 'long',
+    day: 'numeric',
+  });
+}
+---
+
+<ol class="series-research-list">
+  {ordered.map((post) => {
+    const axisId = post.data.seriesAxis as AiValueChainAxisId | undefined;
+    const axisLabel = axisId ? aiValueChainAxisLabel(axisId, language) : '';
+    const question = post.data.seriesQuestion;
+    return (
+      <li class="series-research-card">
+        {axisLabel && <p class="series-research-axis">{axisLabel}</p>}
+        <h2><a href={postPath(post)}>{post.data.title}</a></h2>
+        {question && (
+          <p class="series-research-question">
+            {isKo ? '핵심 질문' : 'Key question'}: {question}
+          </p>
+        )}
+        <p class="series-research-date">
+          <time datetime={post.data.publishedDate.toISOString()}>{formatDate(post.data.publishedDate)}</time>
+        </p>
+        {post.data.draft && (
+          <p class="series-research-draft">{isKo ? 'Preview 초안' : 'Preview draft'}</p>
+        )}
+      </li>
+    );
+  })}
+</ol>
+
+<style>
+  .series-research-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 1.25rem;
+  }
+  .series-research-card {
+    padding: 1.25rem 1.35rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .series-research-axis {
+    margin: 0 0 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .series-research-card h2 {
+    margin: 0 0 0.65rem;
+    font-size: 1.25rem;
+    line-height: 1.35;
+  }
+  .series-research-question {
+    margin: 0 0 0.65rem;
+    color: var(--ink);
+    font-size: 0.95rem;
+  }
+  .series-research-date {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .series-research-draft {
+    margin: 0.65rem 0 0;
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+</style>

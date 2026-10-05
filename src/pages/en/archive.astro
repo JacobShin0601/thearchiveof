@@ -1,7 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { CONTENT_TYPES, postPath, sectionPath, SECTIONS } from '../../consts';
+import { CONTENT_TYPES, postPath, sectionPath, SECTIONS, seriesDisplayTitle } from '../../consts';
 import { isVisiblePost } from '../../environment';
 
 const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en'))
@@ -52,7 +52,7 @@ const tags = [...new Set(posts.flatMap((post) => post.data.tags))].sort((a, b) =
         <span>Series</span>
         <select name="series">
           <option value="">All series</option>
-          {series.map((name) => <option value={name}>{name}</option>)}
+          {series.map((name) => <option value={name}>{seriesDisplayTitle(name, 'en')}</option>)}
         </select>
       </label>
       <label>
