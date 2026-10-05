@@ -28,7 +28,7 @@ localization:
   locale: "en-US"
   strategy: "localized-adaptation"
 freshness: evergreen
-lastReviewed: 2026-10-04
+lastReviewed: 2026-10-05
 nextReviewDate: 2027-10-04
 references:
   - title: "Redis Streams"
@@ -60,9 +60,9 @@ import AnswerBlock from '../../../../components/AnswerBlock.astro';
   It needs both. <strong>State is the current snapshot that restores the screen immediately; events are the ordered record of what happened on the way there.</strong> A Redis Hash fits overwriteable current state, while a Redis Stream fits append-only event history. SSE transports both to the browser. It replaces neither the events nor their storage.
 </AnswerBlock>
 
-The previous article, [**Where Does Agent State Live?**](/en/ai/agents/where-agent-state-lives/), placed the durable run record in PostgreSQL, hot state in a Redis Hash, and the resumable snapshot in a checkpoint.
+The previous article, [**Where Does Agent State Live?**](/en/ai/agents/where-agent-state-lives/), placed the durable run record and restart-authoritative snapshots in PostgreSQL, a **UI and ops hot projection** in a Redis Hash, and the resumable graph snapshot in a checkpoint. Hash fields do not replace PostgreSQL rows.
 
-Suppose the current Redis Hash looks like this:
+Suppose the current Redis Hash projection looks like this:
 
 ```json
 {
@@ -88,7 +88,9 @@ But it does not explain why progress is at 65%. To show whether the system loade
 → dcf_started
 ```
 
-Continuously overwriting Hash fields preserves only the latest values. Keeping only events creates the opposite problem: every screen load must replay the entire history to calculate current progress. Storing both is not accidental duplication. It is an intentional projection for two different access patterns.
+Continuously overwriting Hash fields preserves only the latest values. Keeping only events creates the opposite problem: every screen load must replay the entire history to calculate current progress. Storing both is not accidental duplication. It is an intentional projection across **current state**, **event history**, and **delivery stream**.
+
+**A Redis Stream is a delivery stream, not a long-term audit ledger.** It fits real-time fan-out, reconnect cursors, and a bounded replay window. Do not treat it as the sole store for events that legal, security, or compliance must read years later. Stream trim, TTL, and memory pressure are operational policy. History needed for audit, reproduction, or dispute response belongs in a **durable tier**—PostgreSQL tables, append-only log pipelines, or object storage. Trimming the stream must not erase run results and checkpoints that remain in PostgreSQL.
 
 ## State and events answer different questions
 

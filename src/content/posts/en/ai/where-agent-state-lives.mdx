@@ -28,12 +28,15 @@ localization:
   locale: "en-US"
   strategy: "localized-adaptation"
 freshness: evergreen
-lastReviewed: 2026-10-04
+lastReviewed: 2026-10-05
 nextReviewDate: 2027-10-04
 references:
   - title: "PostgreSQL JSON Types"
     url: "https://www.postgresql.org/docs/current/datatype-json.html"
     publisher: "PostgreSQL Documentation"
+  - title: "pgvector"
+    url: "https://github.com/pgvector/pgvector"
+    publisher: "pgvector"
   - title: "Redis Hashes"
     url: "https://redis.io/docs/latest/develop/data-types/hashes/"
     publisher: "Redis Documentation"
@@ -48,6 +51,9 @@ references:
     publisher: "Redis Documentation"
   - title: "Redis Persistence"
     url: "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/"
+    publisher: "Redis Documentation"
+  - title: "Key eviction"
+    url: "https://redis.io/docs/latest/reference/eviction/"
     publisher: "Redis Documentation"
   - title: "LangGraph Persistence"
     url: "https://docs.langchain.com/oss/python/langgraph/persistence"
@@ -107,6 +113,43 @@ A checkpoint is not a database product. It means **a resumable snapshot**. It ca
 A useful default boundary is:
 
 > Losing all of Redis must not prevent the system from explaining that a run exists or what its final result is. Losing all worker memory must still permit execution to resume after the latest checkpoint.
+
+## Storage choices in this environment
+
+What follows assumes a **relatively small user base and an early-to-mid-scale internal agent service**. Different traffic, policy, and ops capacity can justify a different stack. This is not a claim that PostgreSQL plus Redis is universally best.
+
+### Why PostgreSQL
+
+- We wanted to avoid the cost and complexity of operating a separate vector database from day one. Users, runs, and document metadata already fit a relational model, and traffic did not yet justify a dedicated search cluster.
+- **pgvector** inside PostgreSQL we already operate keeps embedding search inside the same data boundary, backups, authorization, and observability.
+- Values whose shape shifts slightly—current run snapshots, execution metadata, tool-result summaries—were practical in **JSONB**. ([PostgreSQL JSON Types](https://www.postgresql.org/docs/current/datatype-json.html))
+- Handling users, permissions, run metadata, JSON state, and vector search in **one operational system** was lighter for the team.
+
+Limits matter too. As data volume, search latency, index refresh patterns, filter complexity, or HA requirements grow, re-evaluate a dedicated vector store or search system. JSONB is not an unlimited state log: promote frequently queried fields to ordinary columns and separate **change history and events** from the **current snapshot**.
+
+### Why Redis, and how little to use
+
+Redis is **not a durable system of record**. It coordinates short-lived execution:
+
+- fast reads of in-flight run state, cancel signals, short-TTL locks and idempotency keys;
+- **recent events** or stream cursors that assist SSE delivery.
+
+Low latency and simple structures fit this layer. Redis is memory-centric, so storage is relatively expensive and **eviction** can remove keys before TTL under pressure. ([Key eviction](https://redis.io/docs/latest/reference/eviction/), [Redis Persistence](https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/))
+
+Do not pile every state value, log, and document into Redis. Keep only **small, expiring data required to coordinate execution now**. Long retention, audit, retry decisions, and important run outcomes belong in PostgreSQL or a separate log store. Treat Redis failure, eviction, and TTL expiry as normal paths, and document what must never exist **only** in Redis.
+
+### Responsibility split (for this service)
+
+| Data or responsibility | Primary store | Reason |
+| --- | --- | --- |
+| Users, permissions, business data | PostgreSQL | Relations, transactions, auditable durability |
+| Agent run current snapshot | PostgreSQL JSONB + checkpoint | Source for restart and query; Redis Hash is UI projection |
+| Embeddings and document metadata | PostgreSQL + pgvector | Integrated ops at current scale without a separate vector store |
+| In-flight cancel, lock, short idempotency key | Redis | Low latency, TTL-bound lifetime |
+| Latest events and cursor for SSE | Redis Stream or bounded Redis structures | Real-time fan-out and reconnect assist |
+| Long event history and audit | PostgreSQL or separate log store | Avoid Redis memory cost and expiry risk |
+
+The Redis Hash examples later are **hot projections** that do not replace PostgreSQL run rows. Snapshots and results that must survive restart are authoritative in PostgreSQL and checkpoints.
 
 ## What state does one run actually produce?
 
