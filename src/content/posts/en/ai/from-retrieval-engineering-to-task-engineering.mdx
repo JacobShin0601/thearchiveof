@@ -1,6 +1,6 @@
 ---
 title: 'From Retrieval Engineering to Task Engineering'
-subtitle: 'What changes when RAG becomes an investment research agent?'
+subtitle: 'What changes when retrieval becomes part of an end-to-end task?'
 description: 'AI engineering is moving from optimizing retrieval pipelines to specifying, constraining, and evaluating complete research tasks.'
 publishedDate: 2026-10-05
 section: 'AI & AX'
@@ -8,13 +8,13 @@ subsection: 'AX'
 contentType: research
 topics: [ai-agents, rag, evaluation, enterprise-ai]
 primaryTopic: ai-agents
-tags: [rag, agent-engineering, task-engineering, investment-research, evaluation]
+tags: [rag, agent-engineering, task-engineering, workflow, evaluation]
 author: 'Jacob Shin'
 language: en
 translationKey: from-retrieval-engineering-to-task-engineering
 localization:
   locale: en-US
-  defaultContext: 'Institutional investment research using SEC filings, earnings transcripts, market data, and consensus estimates.'
+  defaultContext: 'Enterprise tasks that combine policy retrieval, structured data, tools, verification, and human approval.'
   strategy: localized-adaptation
 draft: true
 featured: false
@@ -24,7 +24,7 @@ freshness: periodic
 lastReviewed: 2026-10-05
 nextReviewDate: 2026-12-28
 dataThrough: 2026-10-05
-methodology: 'Compared the original RAG literature, information-retrieval research, official engineering guidance, and published financial-services cases, then proposed an evaluation hierarchy for investment research agents.'
+methodology: 'Compared the original RAG literature, information-retrieval research, and official engineering guidance, then proposed a task-design model that applies across policy review, support, HR, procurement, and research.'
 series: 'Enterprise AX'
 seriesOrder: 5
 references:
@@ -105,7 +105,7 @@ Finding the policy is necessary, but good search results do not automatically pe
 
 The original [RAG paper](https://arxiv.org/abs/2005.11401) supplemented a model's parametric memory with external non-parametric memory. Production implementations turned chunking, embeddings, lexical and semantic retrieval, metadata filters, query rewriting, rank fusion, reranking, and context allocation into an engineering discipline.
 
-Financial documents show why those details remain important. A ticker, ISIN, accounting line item, or product name may require exact lexical matching. “How is the company investing to expand capacity?” depends more on semantic meaning. Hybrid systems therefore run keyword and vector searches in parallel and fuse their rankings. [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query), for example, supports this pattern with Reciprocal Rank Fusion.
+Enterprise documents show why those details remain important. An employee ID, ticket number, SKU, or contract clause may require exact lexical matching. “Does this customer qualify for a refund exception?” depends on meaning spread across several passages. Hybrid systems therefore run keyword and vector searches in parallel and fuse their rankings. [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/hybrid-search-how-to-query), for example, supports this pattern with Reciprocal Rank Fusion.
 
 A reranker only reorders the candidate set; it does not search the full corpus again. If the relevant 10-K footnote never enters that set, a better reranker cannot recover it. Production RAG was never merely a chatbot attached to a vector database. It was a multi-stage information-retrieval system.
 
@@ -137,7 +137,7 @@ Confirm goal
 → Report completion, deferral, or missing input
 ```
 
-The same pattern can apply to financial research, HR, customer support, and procurement. It is a conceptual boundary model, not an implementation that should make real corporate, financial, or employment decisions on its own.
+The same pattern can apply to customer support, HR, procurement, compliance review, and research. It is a conceptual boundary model, not an implementation that should make real organizational or professional decisions on its own.
 
 | Dimension | Retrieval Engineering | Task Engineering |
 | --- | --- | --- |
@@ -274,11 +274,11 @@ Deterministic code and explicit policy should own:
 
 The model can explore questions such as which document to read next. Code should retain ownership of moving money, changing permissions, official calculations, and approval gates. A good task-based agent is not unconstrained. Its freedom has explicit boundaries.
 
-## In financial research, time and evidence are contractual
+## Time and evidence are contractual across domains
 
-An investment research agent may move among SEC filings, earnings transcripts, market data, consensus estimates, internal research, SQL, and Python. Each source carries licensing, permissions, units, currencies, and revision history. “Decide whether the latest margin decline invalidates the thesis” is therefore not a complete contract. It needs an as-of date, competing hypotheses, required evidence, permitted data, and falsification conditions.
+Most information used by a task has a time and scope. HR policies vary by legal entity and employee level. Support policies change by product and purchase date. Procurement contracts depend on revisions and approval authority. Research data carries licensing, units, currencies, and revision history. “Handle this request” is therefore not a complete contract. It needs an as-of date, applicable organization, required evidence, permitted data, and exception rules.
 
-One `date` field is not enough:
+A refund task that applies today's policy retroactively to an old order can produce a plausible but wrong result. The same failure occurs when a hiring task treats a post-deadline revision as the submitted record, or when research uses data published after the decision date. One `date` field is not enough:
 
 | Field | Meaning |
 |---|---|
@@ -288,9 +288,9 @@ One `date` field is not enough:
 | `ingested_at` | When the internal system captured it |
 | `revision_at` | When a correction, restatement, or vendor revision was incorporated |
 
-[SEC EDGAR](https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps) itself distinguishes reporting periods, filing dates, acceptance times, and later changes. If a system reconstructing a January 2026 decision uses a statement released in February, the response may sound accurate while the task has failed. Point-in-time correctness and evidence completeness are parts of the outcome contract, not optional metadata.
+[SEC EDGAR](https://www.sec.gov/about/webmaster-frequently-asked-questions#edgar-timestamps) itself distinguishes reporting periods, filing dates, acceptance times, and later changes. The same principle applies to policy effective dates, contract revisions, ticket creation times, and data ingestion times. Point-in-time correctness and evidence completeness are parts of the outcome contract across domains, not optional metadata for one specialist use case.
 
-<TaskEngineeringDiagrams kind="research-loop" language="en" caption="An investment research task repeatedly gathers evidence, tests competing hypotheses, and retrieves more context when verification exposes a gap." />
+<TaskEngineeringDiagrams kind="research-loop" language="en" caption="An evidence-based task repeatedly gathers evidence, tests possible explanations, and retrieves more context when verification exposes a gap." />
 
 ## Retrieval expands knowledge; Task Engineering completes outcomes
 
