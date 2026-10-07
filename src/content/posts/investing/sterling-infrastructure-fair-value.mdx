@@ -1,0 +1,218 @@
+---
+title: "이제 팔고 나가야 할 주식? Sterling Infrastructure는 좋은 회사지만, 지금은 적정가다"
+subtitle: "사업 논리는 살아 있다. 2026년 10월 6일 종가는 기본 시나리오의 현재가치와 거의 같다."
+description: "데이터센터를 제때 지을 수 있는 능력이 Sterling의 경쟁력이다. 2026년 10월 종가 564달러는 2030년 기본 시나리오를 연 10%로 할인한 값과 거의 같다."
+publishedDate: 2026-10-07
+section: "Investing"
+subsection: "Markets"
+contentType: "research"
+topics: [portfolio, supply-chain]
+primaryTopic: portfolio
+tags: [valuation, data-centers, infrastructure, portfolio, research]
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "ko"
+translationKey: "sterling-infrastructure-fair-value"
+freshness: time-sensitive
+lastReviewed: 2026-10-07
+nextReviewDate: 2026-11-16
+dataThrough: 2026-10-06
+methodology: "회사 숫자는 2026년 8월 3일 실적 발표의 2026년 가이던스 중간값과 2026년 2분기 부문 실적이다. 주가는 2026년 10월 6일 Yahoo Finance 조정 종가다. 2030년 매출·이익·배수와 주소 가능 시장 범위는 저자 가정이며, 할인 기간은 2026년 10월 7일부터 2030년 12월 31일까지 1,546일이다. 3분기 실적은 이 글에 반영하지 않았다."
+references:
+  - title: "Sterling Q2 2026 earnings release"
+    url: "https://www.strlco.com/news/sterling-reports-record-second-quarter-results-and-raises-full-year-2026-guidance/"
+    publisher: "Sterling Infrastructure"
+  - title: "Q2 2026 earnings release, Exhibit 99.1"
+    url: "https://www.sec.gov/Archives/edgar/data/874238/000087423826000100/q22026earningsreleaseppp.htm"
+    publisher: "SEC"
+  - title: "Sterling 2025 annual report"
+    url: "https://www.strlco.com/wp-content/uploads/2026/05/a20251231annualreport-Flat2.pdf"
+    publisher: "Sterling Infrastructure"
+  - title: "FY 2025 results and initial 2026 guidance"
+    url: "https://www.strlco.com/news/sterling-reports-strong-fourth-quarter-and-full-year-2025-results-and-issues-full-year-2026-guidance/"
+    publisher: "Sterling Infrastructure"
+  - title: "STRL historical prices"
+    url: "https://finance.yahoo.com/quote/STRL/history/"
+    publisher: "Yahoo Finance"
+  - title: "The cost of compute: A $7 trillion race to scale data centers"
+    url: "https://www.mckinsey.com/industries/technology-media-and-telecommunications/our-insights/the-cost-of-compute-a-7-trillion-dollar-race-to-scale-data-centers"
+    publisher: "McKinsey"
+  - title: "AI power: Expanding data center capacity to meet growing demand"
+    url: "https://www.mckinsey.com/industries/technology-media-and-telecommunications/our-insights/ai-power-expanding-data-center-capacity-to-meet-growing-demand"
+    publisher: "McKinsey"
+  - title: "Scaling bigger, faster, cheaper data centers"
+    url: "https://www.mckinsey.com/industries/private-capital/our-insights/scaling-bigger-faster-cheaper-data-centers-with-smarter-designs"
+    publisher: "McKinsey"
+  - title: "The data center balance"
+    url: "https://www.mckinsey.com/industries/public-sector/our-insights/the-data-center-balance-how-us-states-can-navigate-the-opportunities-and-challenges"
+    publisher: "McKinsey"
+  - title: "Data centre construction cost index 2025"
+    url: "https://reports.turnerandtownsend.com/data-centre-construction-cost-index-2025/data-centre-cost-trends"
+    publisher: "Turner & Townsend"
+  - title: "North America Data Center Trends H1 2026"
+    url: "https://www.cbre.com/insights/books/north-america-data-center-trends-h1-2026"
+    publisher: "CBRE"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import SterlingFairValueDiagrams from '../../../components/SterlingFairValueDiagrams.astro';
+
+<AnswerBlock question="Sterling Infrastructure는 지금 팔아야 할 주식인가?">
+  회사가 나빠져서가 아니다. 2026년 10월 6일 종가 \$564는 내가 계산한 2030년 기본 시나리오의 현재가치 \$568과 거의 같다. 사업 논리는 살아 있다. 그 가격에는 안전마진이 거의 없다.
+</AnswerBlock>
+
+좋은 회사와 좋은 주식은 같은 말이 아니다. Sterling Infrastructure(NASDAQ: STRL)에 대해 나는 아직 전자를 높게 본다. 후자에 대해서는, 지금 가격이 앞으로의 데이터센터 성장까지 상당 부분 반영한 뒤에 서 있다고 본다.
+
+그래서 포지션을 정리하려 한다. 사업 논리가 깨져서가 아니다. 기대수익률 대비 안전마진이 얇아져서다. 가격이 다시 그 간격을 만들면 매수 후보로 돌려놓을 생각이다.
+
+이 구분은 글 전체의 뼈대다. **STRL의 사업 논리(business thesis)는 여전히 살아 있다. 내가 의문을 갖는 것은 가격 논리(valuation thesis)다.**
+
+## 좋은 제품보다 중요한 것이 있었던 때
+
+삼성물산 상사부문에 있을 때, 옆 조직이 삼성전자의 미국 텍사스 테일러 팹 건설 초기부터 배관과 케미칼 같은 자재를 공급하는 일을 가까이서 본 적이 있다. 그 경험이 반도체 공장을 다 이해하게 해주었다는 뜻은 아니다. 다만 큰 현장이 실제로 돌아가는 방식을 보면서 한 가지를 배웠다.
+
+좋은 제품과 기술도 중요했다. 그런데 고객이 공장을 짓는 동안 더 자주 막히는 질문은 따로 있었다. 빨리 올 수 있는가. 공정이 그 자재를 필요로 하는 주에 도착하는가. 필요한 수량만큼 있는가. 작은 부품 하나의 지연이 뒤 공정을 밀 수 있는 현장이었다. 공급자의 경쟁력에는 스펙 옆에 availability, timing, 그리고 그 물량을 실제로 처리할 수 있는 capacity가 붙어 있었다.
+
+이 관찰은 Sterling을 평가하는 증명이 아니다. 직관이다. 데이터센터가 필요하다는 사실보다 중요한 것은, 필요한 순간에 누가 실제로 지을 수 있느냐는 것이다.
+
+## Sterling의 해자는 기술이 아니라 ‘시간’에 가깝다
+
+Sterling은 넓은 기술적 해자를 가진 회사가 아니다. 독점적인 기술 특허가 있고, 네트워크 효과가 있고, 소프트웨어를 바꾸기 어렵고, 면허로 시장을 잠가 둔 회사로 읽으면 이 사업을 잘못 읽는다. 반도체 공장의 공정 장벽과도 다르다.
+
+이 회사가 가진 것은 다른 종류다. 대형 현장의 수행 이력, 중장비, 숙련 인력, 프로젝트 매니저, 전기 시공 능력, 고객 관계, 같은 캠퍼스의 다음 단계, 그리고 미국 남부·북동부·중부 대서양·로키 일대의 지리적 발자국이다. 2025년 9월 1일 인수한 CEC는 그 목록에 미션크리티컬 전기 시공을 더했다. 인수 가격은 약 \$5.62억이었고, 현금과 주식, 최대 \$8,000만의 어닝아웃으로 구성됐다. CEC는 E-Infrastructure 부문에 들어간다. [2025년 사업보고서](https://www.strlco.com/wp-content/uploads/2026/05/a20251231annualreport-Flat2.pdf)
+
+돈만 있다고 오늘 숙련 전기공 2,000명과 중장비, 데이터센터 부지 조성 경험, 프로젝트 조직을 만들 수는 없다. 수요가 공급보다 빨리 늘 때, 이미 그 능력을 가진 회사의 가치가 같이 오른다. Sterling의 해자는 기술이라기보다 시간에 가깝다.
+
+그 시간은 일부는 스스로 쌓았고 일부는 샀다. CEC는 전기 시공 능력을 인수해 시간을 줄인 거래이기도 하다. 경쟁자도 같은 방식의 인수를 시도할 수 있다. 다만 매물이 있고, 인력이 남고, 현장 품질이 인수 후에도 유지되는지는 자본 투입과 동시에 끝나지 않는다. 나는 이것을 영구적인 독점으로 보지 않는다. 수요가 급할 때 몇 년의 공급 부족을 견디는 능력으로 본다.
+
+2026년 2분기 숫자는 그 구도를 보여 준다. E-Infrastructure 매출은 전년 동기 대비 192% 늘어난 \$9.05억이었고, 분기 매출의 78%였다. 회사는 기존 부지 조성 사업의 매출이 111% 늘었다고 했다. CEC의 전기 시공 매출은 인수 전 전년 동기 대비 140% 늘었다고 했다. 미션크리티컬, 즉 데이터센터·제조·반도체가 E-Infrastructure 수주잔고의 92%였다. 같은 분기 Transportation 매출은 20% 줄었다. 회사는 인력을 마진이 더 높은 E-Infrastructure로 옮기고 있다고 설명했다. [2026년 2분기 실적](https://www.strlco.com/news/sterling-reports-record-second-quarter-results-and-raises-full-year-2026-guidance/)
+
+성장의 전부가 독점 기술 때문은 아니다. 데이터센터를 지으려는 수요가 늘었고, 그 속도에 맞춰 부지를 다지고 전기를 넣을 수 있는 공급은 부족하다. Sterling은 그 부족의 한쪽에 서 있다.
+
+<SterlingFairValueDiagrams variant="price" />
+
+2025년 1월 월말 종가는 \$142였다. 2025년 말에는 \$306, 2026년 5월 말에는 \$861까지 올라갔고, 6월 4일에는 장중 \$1,005.68, 종가 \$993.74를 기록했다. 10월 6일 종가는 \$563.69다. 고점 대비 약 44% 낮다. 이 구간에 회사가 망가진 흔적은 가이던스에서 보이지 않는다. 2026년 2월에 제시한 연간 매출 가이던스는 \$30.5–32.0억이었다. 8월 3일에는 \$40.0–41.5억으로 올려졌다. [2월 가이던스](https://www.strlco.com/news/sterling-reports-strong-fourth-quarter-and-full-year-2025-results-and-issues-full-year-2026-guidance/), [8월 가이던스](https://www.strlco.com/news/sterling-reports-record-second-quarter-results-and-raises-full-year-2026-guidance/), [가격](https://finance.yahoo.com/quote/STRL/history/)
+
+6월 4일 당일의 가이던스가 2월 수치 그대로였는지는 이 글에서 확정하지 않는다. 1분기 발표가 그 사이에 있다. 확인할 수 있는 사실은 더 단순하다. 연간 가이던스는 2월에서 8월 사이에 올라갔고, 주가는 6월 고점 이후 10월 종가까지 내려왔다.
+
+## 데이터센터가 너무 빨리 늘어나고 있다
+
+여기서부터 숫자를 섞으면 시장이 실제보다 커 보인다. 글로벌 데이터센터 투자 총액은 Sterling의 시장이 아니다. GPU, 서버, 스토리지, 네트워크 장비는 이 회사의 매출 풀이 아니다.
+
+McKinsey는 2025년 4월 글에서 2030년까지 데이터센터가 컴퓨팅 수요를 따라가려면 전 세계적으로 약 \$6.7조의 자본지출이 필요하다고 추정했다. 그중 AI용 데이터센터가 \$5.2조, 전통 IT용이 \$1.5조다. AI만 보면 가속 \$7.9조, 기준 \$5.2조, 제약 \$3.7조의 세 시나리오가 있다. 이 금액에는 하드웨어가 들어 있다. [The cost of compute](https://www.mckinsey.com/industries/technology-media-and-telecommunications/our-insights/the-cost-of-compute-a-7-trillion-dollar-race-to-scale-data-centers)
+
+다른 McKinsey 글은 2030년까지 글로벌 데이터센터 투자가 약 \$7조에 가깝고, 그중 \$4조 이상이 컴퓨팅 하드웨어이며, 지출의 40% 이상이 미국에 있을 것이라고 적는다. 미국 수요는 같은 기간 연 20–25% 늘 수 있다고도 했다. [The data center balance](https://www.mckinsey.com/industries/public-sector/our-insights/the-data-center-balance-how-us-states-can-navigate-the-opportunities-and-challenges)
+
+하드웨어를 뺀 인프라는 또 다른 글의 숫자다. 2025년 8월 McKinsey는 IT 하드웨어를 제외한 데이터센터 인프라 자본지출이 2030년까지 전 세계 \$1.7조를 넘을 것이라고 했다. 미국 전력 수요는 2024년 25GW에서 2030년 80GW를 넘는 수준으로, 약 5년 만에 세 배 이상이 될 수 있다고 했다. \$6.7조에서 \$4조를 빼 \$2.7조가 되고, 그것이 \$1.7조와 같다는 식으로 이 글들을 한 표로 합치면 안 된다. 정의가 다르다. [Scaling bigger, faster, cheaper](https://www.mckinsey.com/industries/private-capital/our-insights/scaling-bigger-faster-cheaper-data-centers-with-smarter-designs)
+
+<SterlingFairValueDiagrams variant="capacity" />
+
+2024년 10월 McKinsey는 데이터센터의 기계·전기 설비 조달과 설치에 대한 자본지출이 2030년까지 \$2,500억을 넘을 수 있다고 추정했다. 이것도 글로벌 숫자이고, 장비 제조사의 매출과 시공사의 매출이 섞여 있다. 미국만의 시공 시장은 아니다. 다만 \$6.7조짜리 TAM 안에 전기 시공사가 그대로 들어 있지 않다는 걸 보여주는 데는 유용하다. 같은 글은 알려진 계획이 제때 준공돼도 2030년 미국에 15GW가 넘는 공급 부족이 남을 수 있다고 했다. [AI power](https://www.mckinsey.com/industries/technology-media-and-telecommunications/our-insights/ai-power-expanding-data-center-capacity-to-meet-growing-demand)
+
+현장의 더 최근 스냅샷은 CBRE의 2026년 상반기 북미 자료다. 주요 8개 시장의 공급은 전년 대비 33.7% 늘어난 10,903MW였다. 건설 중인 용량은 상반기에 24.8% 늘어 7,481MW로 이전 정점을 넘었다. 그중 80% 이상이 이미 사전 임대됐다. CBRE는 전력 제약이 준공 시점을 늦추고 있다고 적었다. 수요가 약해서가 아니라, 전력을 연결하는 시간이 공사를 민다는 뜻에 가깝다. [CBRE H1 2026](https://www.cbre.com/insights/books/north-america-data-center-trends-h1-2026)
+
+Turner & Townsend의 2025–26 건설비 지수는 전통적인 공랭식 데이터센터의 와트당 비용이 5.5% 올랐다고 보고한다. 미국 프로젝트 기준으로, 같은 IT 용량의 액랭식 AI 시설은 공랭식보다 건설비가 보통 7–10% 높았다. 이 지수는 토지와 부지 조성을 제외한 건설비에 가깝다. Sterling의 부지 조성 매출은 그 지수 안에 다 들어 있지 않고, 전기 시공은 상당 부분 들어 있다. [Turner & Townsend](https://reports.turnerandtownsend.com/data-centre-construction-cost-index-2025/data-centre-cost-trends)
+
+## 그런데 STRL이 이 시장을 얼마나 먹을 수 있을까?
+
+주소 가능 시장을 정확히 한 자리로 아는 척하지 않겠다. 아래 범위는 저자 추정이다.
+
+McKinsey의 IT 제외 글로벌 인프라 \$1.7조에, 다른 글의 “미국 비중 40% 이상”을 그대로 곱하면 미국 물리적 인프라는 \$0.7조 안팎에서 \$0.85조 사이다. 이 곱은 한 표에서 읽은 사실이 아니다. 40%는 하드웨어를 포함한 총지출의 미국 비중에 대한 진술이다. 나는 그 비중을 인프라 풀에 비유적으로 적용했다.
+
+그 안에서 발전·송전, 토지, 건물 셸, 기계 냉방 가운데 Sterling이 하지 않는 부분을 뺀다. 사이트 개발과 미션크리티컬 전기 시공에 해당하는 몫을 그 미국 풀의 약 25–45%로 두면, 2030년까지의 누적 기회는 대략 **\$170–380B**이다. 정밀한 시장 규모가 아니라, 조 단위 총투자와 이 회사의 매출 사이에 얼마나 많은 층이 있는지를 보여 주는 범위다.
+
+<SterlingFairValueDiagrams variant="waterfall" />
+
+이 범위가 맞다면, 기본 시나리오의 2030년 E-Infrastructure 매출 약 \$64억은 시장을 독식하는 숫자가 아니다. 이미 \$30억대인 사업을 네 해 동안 연 20% 키운 결과다. 수주잔고도 그 방향을 가리킨다. 2026년 6월 30일 서명 수주잔고는 \$43.3억으로 전년 대비 116%, 유기적으로는 50% 늘었다. 미서명 수주를 포함한 합산 수주잔고는 \$56.2억, 유기적 증가율은 36%였다. 회사가 말하는 고확률 후속 단계는 \$14억을 넘고, 서명·미서명·후속 단계를 더한 가시성은 \$70억을 넘는다. E-Infrastructure 서명 수주잔고는 165% 늘었다. [2분기 실적](https://www.strlco.com/news/sterling-reports-record-second-quarter-results-and-raises-full-year-2026-guidance/)
+
+가시성이 곧 2030년 매출은 아니다. 수주잔고의 상당 부분은 6–36개월 안에 매출로 잡히는 일감이고, 후속 단계는 아직 계약이 아니다. 또 미션크리티컬 92%에는 데이터센터만이 아니라 제조와 반도체 팹이 들어 있다. 데이터센터 시장 점유율을 92%의 일로 읽으면 과장이 된다.
+
+2025년 E-Infrastructure 상위 고객 넷이 부문 매출의 27%였다. 전년 31%, 그 전년 40%보다는 낮아졌지만, 고객이 분산된 소프트웨어 회사는 아니다. [2025년 사업보고서](https://www.strlco.com/wp-content/uploads/2026/05/a20251231annualreport-Flat2.pdf)
+
+내가 기본 시나리오에 시장 점유율의 큰 상승을 넣지 않는 이유가 여기 있다. 시장이 커지는 것만으로도 이 회사는 자랄 수 있다. 점유율을 계속 빼앗는 플랫폼이 되는 이야기는 강세 시나리오 쪽에 둔다.
+
+## 2030년에는 얼마나 벌 수 있을까?
+
+복잡한 현금흐름할인은 쓰지 않았다. 2026년 가이던스 중간값에서 부문을 나눠 키우고, 2030년 이익률과 출구 배수를 곱한 뒤, 오늘로 할인한다.
+
+2026년 8월 3일 기준 연간 가이던스 중간값은 매출 **\$40.75억**, 조정 EBITDA **\$9.035억**, 조정 희석 EPS **\$20.00**이다. 범위는 매출 \$40.0–41.5억, 조정 EBITDA \$8.91–9.16억, 조정 EPS \$19.70–20.30이다. 조정 EBITDA 마진은 중간값 기준 약 22.2%다. 희석주식 수는 회사의 모델링 참고치인 약 3,110만 주다. [가이던스 조정표](https://www.sec.gov/Archives/edgar/data/874238/000087423826000100/q22026earningsreleaseppp.htm)
+
+회사는 부문별 연간 가이던스를 주지 않았다. 상반기 E-Infrastructure 매출 \$15.03억은 상반기 총매출 \$19.94억의 75.4%였다. **저자 가정으로 이 비중을 연간 중간값에 적용하면 E-Infrastructure \$30.7억, 나머지 사업 \$10.0억이다.** 나머지는 Transportation과 Building이다. 경영진이 Transportation 인력을 빼고 있으므로, 나머지 사업의 0% 성장도 아주 비관적인 가정은 아니다.
+
+성장은 2026년을 기준 연도로 2030년까지 네 해다. 다섯 해가 아니다.
+
+| 시나리오 | E-Infrastructure CAGR | 나머지 CAGR | 2030 EBITDA 마진 | 출구 P/E |
+| :-- | --: | --: | --: | --: |
+| Bear | 10% | 0% | 18.5% | 18× |
+| Base | 20% | 2% | 21.5% | 24× |
+| Bull | 25% | 3% | 23% | 28× |
+
+이 행은 회사 가이던스가 아니다. 저자 가정이다. 기본 시나리오의 21.5%는 2026년 조정 EBITDA 마진 22.2%보다 조금 낮다. 마진이 더 벌어지는 이야기에 기본 가치를 걸어 두지 않았다는 뜻이다. 약세의 18.5%는 마진이 정상화되는 경우다.
+
+조정 EPS로 가는 다리는 다음과 같다. 회사의 조정 순이익은 주식보상비용, 무형자산 상각, 인수 비용, 어닝아웃을 세후 가산한다. 그 정의에 맞추면 조정 세전이익은 대략 조정 EBITDA에서 유형자산 감가상각을 뺀 값이다. 2026년 유형자산 감가상각 중간값은 \$7,350만으로, 매출의 1.8%다. 2030년에도 이 비율을 유지한다고 가정했다. 이자손익은 0으로 뒀다. 2026년 중간값에는 순이자수익이 \$100–400만 있지만, 이익의 원천으로 두지 않았다. 세율은 25%다. 회사가 말하는 실효세율은 약 24.5%이고, 이 식을 2026년 중간값에 대입하면 조정 순이익이 가이던스 중간값 \$6.215억보다 약 0.5% 높다. 그 정도의 보정은 결론을 바꾸지 않아 25%를 유지했다. 주식 수는 3,110만 주로 고정했다. 자사주 매입이나 인수 희석은 넣지 않았다.
+
+Source: Company guidance; author estimates.
+
+| 시나리오 | 2030 매출 | 조정 EBITDA | 조정 EPS | 출구 P/E | 2030 주가 |
+| :-- | --: | --: | --: | --: | --: |
+| Bear | \$5.50B | \$1.02B | \$22.15 | 18× | \$399 |
+| Base | \$7.46B | \$1.60B | \$35.41 | 24× | \$850 |
+| Bull | \$8.63B | \$1.98B | \$44.10 | 28× | \$1,235 |
+
+기본 시나리오의 매출 \$74.6억은 E-Infrastructure \$63.7억과 나머지 \$10.9억을 더한 것이다. EPS에 출구 배수를 곱한 값이 2030년 주가다. \$35.41 × 24 = \$850이다.
+
+## 미래의 \$850은 오늘의 \$850이 아니다
+
+2030년 주가를 오늘 가격과 나란히 놓으면 주식이 싸 보인다. 그래서 할인한다. 요구수익률은 연 10%다. 기간은 이 글을 쓰는 2026년 10월 7일부터 2030년 12월 31일까지 1,546일, 4.23년이다. 할인 계수는 약 1.50배다.
+
+| 시나리오 | 2030 주가 | 현재가치 |
+| :-- | --: | --: |
+| Bear | \$399 | \$266 |
+| Base | \$850 | \$568 |
+| Bull | \$1,235 | \$825 |
+| 10월 6일 종가 |  | \$564 |
+
+<SterlingFairValueDiagrams variant="valuation" />
+
+기본 시나리오의 현재가치 \$568과 종가 \$563.69는 모델의 오차 안에 있다. 세율을 24.5%로 낮추면 기본 현재가치는 \$572 근처다. E-Infrastructure 연간 비중을 70%로 낮춰도 \$551이다. 어느 쪽으로 돌려도 “지금 가격이 기본 시나리오보다 훨씬 싸다” 또는 “훨씬 비싸다”로 넘어가지 않는다.
+
+따라서 내가 읽는 문장은 이것이다. **현재 가격은 기본 시나리오의 적정가에 가깝다.** 회사가 나빠진 것이 아니라, 앞으로 꽤 잘될 것이라는 사실이 가격에 이미 들어 있다. 가격에 들어간 기대와 그 다음 실적의 차이를 다루는 관점은 [효율적 시장을 베이즈로 본 글](/investing/markets/efficient-markets-bayesian-lens/)에서 따로 적었다.
+
+## 지금 가격이 요구하는 것은 무엇인가
+
+같은 계산을 뒤집으면 주가가 무엇을 요구하는지 보인다.
+
+\$563.69가 2030년 말까지 연 10%가 되려면 그때 주가는 약 **\$844**여야 한다. 출구 배수를 기본 시나리오와 같은 24배로 두면 필요한 조정 EPS는 약 **\$35.2**다. 2026년 가이던스 중간값 \$20.00에서 2030년 \$35.2까지는 네 해 동안 연 **15%** 성장이다.
+
+18배라면 필요한 EPS는 약 \$47이고, 연 24%에 가깝다. 28배라면 필요한 EPS는 약 \$30이고, 연 11%면 된다. 배수를 높게 유지하면 이익 성장에 대한 요구는 낮아지고, 배수가 보통의 산업재 수준으로 돌아오면 이익이 훨씬 더 빨리 늘어야 한다.
+
+현재 가격이 터무니없이 비싼 것은 아니다. 문제는 현재 가격이 이미 꽤 많은 성공을 요구한다는 것이다. 연 15%의 EPS 성장과 24배의 출구 배수가 동시에 맞을 때, 기대수익률은 내가 요구한 10% 근처다. 그 이상의 안전마진은 이 가격에 남아 있지 않다.
+
+## 올해 1,000달러 근처의 주가는 무엇을 가격에 반영했을까
+
+6월 4일 종가 \$994를 그날부터 2030년 말까지 연 10%로 불리려면 필요한 주가는 약 \$1,540이다. 기간은 1,671일, 4.58년이다. 24배라면 EPS 약 \$64이고, 2026년 \$20에서 연 34%다. 28배여도 EPS 약 \$55, 연 29%다.
+
+나는 그때 가격이 비이성적이었다고 단정하지 않는다. 내가 보기에는 데이터센터 수요만이 아니라, 상당한 점유율 상승과 높은 마진, 높은 종료 배수가 한 가격 안에 함께 들어 있었다. 그 조합이 불가능하다고 증명할 수는 없다. 다만 내가 기본으로 두는 경로보다 훨씬 많은 일이 동시에 맞아야 하는 가격이었다.
+
+이후 주가가 \$564까지 내려온 동안, 8월의 연간 가이던스는 2월보다 높아져 있었다. 내가 당시 밸류에이션의 상당 부분을 실적 개선 자체보다 AI 인프라 내러티브의 배수 확장에서 왔다고 판단한 이유가 여기에 있다. 사업이 무너진 것이 아니다. 멀티플이 줄었다.
+
+## 내가 STRL을 파는 이유
+
+사업을 부정해서 파는 것이 아니다. 기본 시나리오가 맞더라도 이 가격의 기대수익률은 대략 내가 요구하는 10%다. 약세 현재가치 \$266까지는 거리가 멀고, 강세 현재가치 \$825까지도 공짜가 아니다. 25% 성장과 23% 마진, 28배가 같이 필요하다.
+
+포지션의 크기를 결정할 때 나는 적정가에 전액을 두고 싶지 않다. 안전마진이 없는 좋은 회사는, 좋은 가격의 좋은 회사와 다르다. 데이터센터 투자 속도, 프로젝트 지연, AI 자본지출에 대한 심리 변화로 가격이 기본 가치보다 의미 있게 낮아지면 다시 볼 것이다. 그 가격을 오늘의 모델로 미리 못 박지는 않겠다. 모델의 가정이 그때도 같은지는 다시 계산해야 한다.
+
+## 내가 틀릴 수 있는 이유
+
+이 글의 가장 약한 가정은 Sterling이 그저 빠르게 자라는 시공사이고, 데이터센터 건설 시장 점유율은 크게 늘지 않는다는 것이다. 그 가정이 깨지면 기본 시나리오가 아니라 강세 시나리오가 현실에 가까워진다. 그때 \$564는 비싸 보이지 않을 수 있다.
+
+내가 보는 매도 논리를 깨는 강세 쪽 위험은 이렇다. 데이터센터 건설이 25%보다 빠르게, 더 오래 갈 수 있다. CEC를 통한 부지와 전기의 교차 판매가 내가 둔 것보다 클 수 있다. 추가 인수가 성장률을 이어 갈 수 있다. 시장이 2030년 이후에도 25–30배의 배수를 유지할 수 있다. 자사주 매입으로 주식 수가 줄면 같은 이익의 EPS는 더 높다.
+
+반대쪽도 열려 있다. 하이퍼스케일러 자본지출이 느려질 수 있다. 수요가 강해도 전력 연결과 인허가 때문에 실제 착공과 준공이 늦어질 수 있다. CBRE가 이미 적은 지연이다. 고객 집중, 숙련 인력의 임금, 경쟁자가 능력을 늘리는 속도, 마진의 정상화, CEC와 Stone Ridge의 통합도 남는다. 가이던스에는 Stone Ridge 인수가 포함돼 있다. 통합이 계획보다 나쁠 경우 2026년 중간값 자체가 높아 보일 수 있다.
+
+3분기 실적은 아직 이 글에 없다. 8월 가이던스가 다시 움직이면 2030년 출발점도 움직인다. 결론을 가격에 맞추기보다, 그때의 가이던스로 표를 다시 계산하는 쪽이 맞다.
+
+좋은 회사가 나쁜 회사가 되는 순간을 기다리는 것이 아니다. 좋은 회사가 다시 좋은 가격이 되는 순간을 기다리는 것이다.
+
+Disclosure: 이 글은 개인적인 투자 리서치와 투자 판단을 기록한 것이며 투자 권유가 아니다. 작성 시점에 저자는 STRL 포지션을 축소 또는 정리하고 있으며, 해당 포지션은 별도의 고지 없이 변경될 수 있다.
