@@ -1,0 +1,82 @@
+---
+title: "Sterling Infrastructure Valuation Lab: The Growth Implied by Today’s Price"
+subtitle: "Move E-Infrastructure growth and EBITDA margin, then reverse-solve the growth embedded in the market price."
+description: "Change Sterling Infrastructure growth, EBITDA margin, and exit multiple to calculate 2030 fair value and the growth implied by today’s price."
+publishedDate: 2026-10-07
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, supply-chain]
+primaryTopic: portfolio
+tags: [valuation, data-centers, infrastructure, scenario-analysis, research]
+author: "Jacob Shin"
+featured: false
+draft: false
+comments: true
+language: "en"
+translationKey: "sterling-infrastructure-valuation-lab"
+freshness: time-sensitive
+lastReviewed: 2026-10-07
+nextReviewDate: 2026-11-16
+dataThrough: 2026-10-06
+methodology: "The model starts from an author-estimated split of the midpoint of 2026 revenue guidance: $3.07 billion of E-Infrastructure and $1.005 billion of other revenue. It compounds each segment through 2030 and calculates adjusted EPS using the selected EBITDA margin, depreciation rate, tax rate, and share count. It applies an exit P/E and discounts the 2030 price at the selected required return. A bisection solver finds the E-Infrastructure CAGR that makes present value equal the current share price."
+references:
+  - title: "Sterling Q2 2026 earnings release"
+    url: "https://www.strlco.com/news/sterling-reports-record-second-quarter-results-and-raises-full-year-2026-guidance/"
+    publisher: "Sterling Infrastructure"
+  - title: "Q2 2026 earnings release, Exhibit 99.1"
+    url: "https://www.sec.gov/Archives/edgar/data/874238/000087423826000100/q22026earningsreleaseppp.htm"
+    publisher: "SEC"
+  - title: "Sterling 2025 annual report"
+    url: "https://www.strlco.com/wp-content/uploads/2026/05/a20251231annualreport-Flat2.pdf"
+    publisher: "Sterling Infrastructure"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import SterlingValuationLab from '../../../../components/interactive/SterlingValuationLab.astro';
+
+<AnswerBlock question="What growth does Sterling Infrastructure’s current price require?">
+  With the other Base assumptions held constant, the October 6, 2026 close of \$563.69 requires roughly **19.7% annual E-Infrastructure growth** through 2030. The useful question is whether Sterling can deliver that growth and a 21.5% EBITDA margin at the same time.
+</AnswerBlock>
+
+This page turns the [Sterling Infrastructure analysis](/en/investing/markets/sterling-infrastructure-fair-value/) into a two-way model. Enter growth to get fair value, or start from the market price and solve for the growth that price requires.
+
+The defaults reproduce the article’s Base case. E-Infrastructure grows 20% annually from the author-estimated 2026 starting point, the other businesses grow 2%, and adjusted EBITDA margin reaches 21.5% in 2030. A 24x exit P/E and 10% required return produce a present value of about \$568. These are author assumptions, not company guidance.
+
+## Read fair value and implied growth together
+
+<SterlingValuationLab language="en" />
+
+## Why reverse-solving matters
+
+The fact that the data-center market is growing does not prove the stock is cheap. A good business can offer a low expected return if the share price already discounts fast growth and strong margins.
+
+The forward model shows the value produced by selected assumptions. The reverse model changes the question: **To earn 10% annually from today’s price, what EPS must Sterling produce in 2030, and how fast must E-Infrastructure grow to produce it?**
+
+## Model mechanics
+
+The two revenue pools compound separately for four years from their estimated 2026 starting points.
+
+$$
+Revenue_{2030}=3.07(1+g_E)^4+1.005(1+g_O)^4
+$$
+
+The model applies the selected EBITDA margin, subtracts depreciation, and applies tax to calculate adjusted EPS. Net interest income is held at zero.
+
+$$
+Adjusted\ EPS=\frac{(Revenue\times EBITDA\ Margin-Depreciation)(1-Tax)}{Shares}
+$$
+
+A bisection solver finds the E-Infrastructure CAGR that makes present value equal the \$563.69 market price. That result is not the market’s single expectation. The same price can be explained by lower growth and a higher multiple, or higher growth and a lower multiple. The sensitivity table makes those trade-offs visible.
+
+## What this model does not answer
+
+- Future acquisitions and their dilution or debt financing
+- Different margins for site development and electrical work inside E-Infrastructure
+- Customer concentration, project delays, and power-interconnection timing
+- The exact timing of backlog conversion into revenue
+- The data-center construction cycle beyond 2030
+
+The point is to separate “it grows” from “it is cheap.” Start with the growth required by the current price, then judge whether that number is plausible given Sterling’s capacity and execution.
+
+Disclosure: This tool documents a personal investment-research process and is not investment advice. Fair value and implied growth are author estimates based on assumptions, and actual outcomes may differ materially.

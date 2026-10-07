@@ -1,4 +1,9 @@
 ---
+import {
+  STERLING_CURRENT_PRICE,
+  sterlingScenarios,
+} from '../data/sterling-valuation';
+
 interface Props {
   variant: 'price' | 'capacity' | 'valuation' | 'waterfall';
   language?: 'ko' | 'en';
@@ -24,12 +29,19 @@ const line = coords.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x.t
 const last = coords[coords.length - 1];
 
 const fairValues = [
-  { name: 'Bear', value: 266, current: false },
-  { name: 'Base', value: 568, current: false },
-  { name: en ? 'Price' : '현재 주가', value: 564, current: true },
-  { name: 'Bull', value: 825, current: false },
+  ...sterlingScenarios.slice(0, 2).map((scenario) => ({
+    name: scenario.name,
+    value: Math.round(scenario.presentValue),
+    current: false,
+  })),
+  { name: en ? 'Price' : '현재 주가', value: Math.round(STERLING_CURRENT_PRICE), current: true },
+  {
+    name: sterlingScenarios[2].name,
+    value: Math.round(sterlingScenarios[2].presentValue),
+    current: false,
+  },
 ];
-const fairMax = 825;
+const fairMax = Math.max(...fairValues.map((item) => item.value));
 ---
 
 <figure class="strl-figure" aria-labelledby={`strl-${variant}`}>
