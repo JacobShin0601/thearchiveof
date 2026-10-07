@@ -1,8 +1,10 @@
 ---
 interface Props {
   variant: 'price' | 'capacity' | 'valuation' | 'waterfall';
+  language?: 'ko' | 'en';
 }
-const { variant } = Astro.props;
+const { variant, language = 'ko' } = Astro.props;
+const en = language === 'en';
 
 const closes = [142, 127, 113, 149, 188, 231, 268, 279, 340, 378, 344, 306, 358, 428, 407, 516, 861, 839, 597, 470, 492, 564];
 const tick = ['25.1', '', '', '', '', '25.6', '', '', '', '', '', '25.12', '', '', '', '26.4', '', '26.6', '', '26.8', '', '26.10'];
@@ -22,10 +24,10 @@ const line = coords.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x.t
 const last = coords[coords.length - 1];
 
 const fairValues = [
-  { name: 'Bear', value: 266, note: '2030 → 오늘' },
-  { name: 'Base', value: 568, note: '2030 → 오늘' },
-  { name: '현재 주가', value: 564, note: '2026-10-06 종가' },
-  { name: 'Bull', value: 825, note: '2030 → 오늘' },
+  { name: 'Bear', value: 266, current: false },
+  { name: 'Base', value: 568, current: false },
+  { name: en ? 'Price' : '현재 주가', value: 564, current: true },
+  { name: 'Bull', value: 825, current: false },
 ];
 const fairMax = 825;
 ---
@@ -33,10 +35,10 @@ const fairMax = 825;
 <figure class="strl-figure" aria-labelledby={`strl-${variant}`}>
   {variant === 'price' && (
     <>
-      <h3 id="strl-price">주가는 크게 움직였고, 사업이 무너진 것은 아니다</h3>
-      <p class="kicker">사업이 무너진 것이 아니다. 멀티플이 줄었다.</p>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="2025년 1월부터 2026년 10월까지 Sterling Infrastructure 월말 종가">
-        <title>STRL 월말 종가, 2025년 1월–2026년 10월</title>
+      <h3 id="strl-price">{en ? 'The price moved. The business did not break.' : '주가는 크게 움직였고, 사업이 무너진 것은 아니다'}</h3>
+      <p class="kicker">{en ? 'The business did not collapse. The multiple did.' : '사업이 무너진 것이 아니다. 멀티플이 줄었다.'}</p>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={en ? 'Sterling Infrastructure month-end closes, January 2025 through October 2026' : '2025년 1월부터 2026년 10월까지 Sterling Infrastructure 월말 종가'}>
+        <title>{en ? 'STRL month-end close, January 2025–October 2026' : 'STRL 월말 종가, 2025년 1월–2026년 10월'}</title>
         {[0, 300, 600, 900].map((grid) => {
           const y = padT + (1 - grid / yMax) * (height - padT - padB);
           return <g><line x1={padL} x2={width - padR} y1={y} y2={y} class="grid" /><text x="0" y={y + 4} class="axis">{grid}</text></g>;
@@ -51,8 +53,8 @@ const fairMax = 825;
 
   {variant === 'capacity' && (
     <>
-      <h3 id="strl-capacity">미국 데이터센터 전력 수요, 2024와 2030</h3>
-      <p class="kicker">중간 연도는 이 자료에 없어 그리지 않았다.</p>
+      <h3 id="strl-capacity">{en ? 'US data-center power demand, 2024 and 2030' : '미국 데이터센터 전력 수요, 2024와 2030'}</h3>
+      <p class="kicker">{en ? 'No years in between. This source does not publish them.' : '중간 연도는 이 자료에 없어 그리지 않았다.'}</p>
       <div class="bars" style="--max: 80">
         <div class="bar-row">
           <span>2024</span>
@@ -70,11 +72,11 @@ const fairMax = 825;
 
   {variant === 'valuation' && (
     <>
-      <h3 id="strl-valuation">오늘 STRL은 얼마인가</h3>
-      <p class="kicker">2030년의 성장 시나리오를 오늘 가격으로 환산하면</p>
+      <h3 id="strl-valuation">{en ? 'What is STRL worth today?' : '오늘 STRL은 얼마인가'}</h3>
+      <p class="kicker">{en ? '2030 scenarios, brought back to today’s price' : '2030년의 성장 시나리오를 오늘 가격으로 환산하면'}</p>
       <div class="bars">
         {fairValues.map((item) => (
-          <div class={`bar-row ${item.name === '현재 주가' ? 'current' : ''}`}>
+          <div class={`bar-row ${item.current ? 'current' : ''}`}>
             <span>{item.name}</span>
             <div class="track"><i style={`width:${(item.value / fairMax) * 100}%`}></i></div>
             <b>${item.value}</b>
@@ -86,23 +88,31 @@ const fairMax = 825;
 
   {variant === 'waterfall' && (
     <>
-      <h3 id="strl-waterfall">데이터센터 지출에서 Sterling이 닿는 곳까지</h3>
-      <p class="kicker">위쪽은 공개 추정치, 마지막 칸만 저자 추정이다. 칸을 더하지 않는다.</p>
+      <h3 id="strl-waterfall">{en ? 'From data-center spending down to Sterling' : '데이터센터 지출에서 Sterling이 닿는 곳까지'}</h3>
+      <p class="kicker">{en ? 'The upper rows are published estimates. Only the last row is the author’s. Do not add them.' : '위쪽은 공개 추정치, 마지막 칸만 저자 추정이다. 칸을 더하지 않는다.'}</p>
       <div class="steps">
-        <div><small>01 · Fact</small><strong>약 $6.7T</strong><span>2030년까지 글로벌 데이터센터 투자. 서버·칩 포함.</span></div>
-        <div><small>02 · Fact · 제외</small><strong>$4T 초과</strong><span>컴퓨팅 하드웨어. Sterling의 매출이 아니다.</span></div>
-        <div><small>03 · Fact · 다른 연구</small><strong>$1.7T 초과</strong><span>IT 하드웨어를 뺀 글로벌 인프라 투자. 01에서 02를 뺀 값이 아니다.</span></div>
-        <div><small>04 · Fact</small><strong>25 → &gt;80 GW</strong><span>미국 전력 수요, 2024년에서 2030년. 지출액이 아니다.</span></div>
-        <div class="estimate"><small>05 · Author estimate</small><strong>$170–380B</strong><span>미국 사이트 개발과 미션크리티컬 전기 시공의 누적 기회. 예시 범위.</span></div>
+        <div><small>01 · Fact</small><strong>{en ? 'About $6.7T' : '약 $6.7T'}</strong><span>{en ? 'Global data-center capex through 2030, including servers and chips.' : '2030년까지 글로벌 데이터센터 투자. 서버·칩 포함.'}</span></div>
+        <div><small>{en ? '02 · Fact · excluded' : '02 · Fact · 제외'}</small><strong>{en ? 'More than $4T' : '$4T 초과'}</strong><span>{en ? 'Computing hardware. Not Sterling revenue.' : '컴퓨팅 하드웨어. Sterling의 매출이 아니다.'}</span></div>
+        <div><small>{en ? '03 · Fact · a different study' : '03 · Fact · 다른 연구'}</small><strong>{en ? 'More than $1.7T' : '$1.7T 초과'}</strong><span>{en ? 'Global infrastructure capex excluding IT hardware. Not row 01 minus row 02.' : 'IT 하드웨어를 뺀 글로벌 인프라 투자. 01에서 02를 뺀 값이 아니다.'}</span></div>
+        <div><small>04 · Fact</small><strong>25 → &gt;80 GW</strong><span>{en ? 'US power demand, 2024 to 2030. Not a dollar figure.' : '미국 전력 수요, 2024년에서 2030년. 지출액이 아니다.'}</span></div>
+        <div class="estimate"><small>05 · Author estimate</small><strong>$170–380B</strong><span>{en ? 'Cumulative US site development and mission-critical electrical work. An illustrative range.' : '미국 사이트 개발과 미션크리티컬 전기 시공의 누적 기회. 예시 범위.'}</span></div>
       </div>
     </>
   )}
 
   <figcaption>
-    {variant === 'price' && <>월말 조정 종가. 2026년 6월 4일 장중 고가 $1,005.68, 그날 종가 $993.74는 월말 선 위에 없다. 2025년 9월 1일 CEC 인수. 자료: Yahoo Finance 일별 조정 종가, 2026-10-06 기준. <a href="https://finance.yahoo.com/quote/STRL/history/">Yahoo Finance</a></>}
-    {variant === 'capacity' && <>McKinsey, 2025년 8월. 미국 데이터센터 전력 수요가 2024년 25GW에서 2030년 80GW 이상으로 늘어난다는 추정이다. 두 점 사이에 연도별 경로를 넣지 않았다. <a href="https://www.mckinsey.com/industries/private-capital/our-insights/scaling-bigger-faster-cheaper-data-centers-with-smarter-designs">McKinsey</a></>}
-    {variant === 'valuation' && <>요구수익률 연 10%, 2026-10-07부터 2030-12-31까지 1,546일. Bear $266, Base $568, 종가 $564, Bull $825. Source: Company guidance; author estimates.</>}
-    {variant === 'waterfall' && <>01은 2025년 4월 McKinsey, 02는 미국 비중을 다룬 McKinsey 글, 03·04는 2025년 8월 McKinsey. 05는 본문의 저자 가정이므로 Estimate / illustrative model이다.</>}
+    {variant === 'price' && (en
+      ? <>Month-end adjusted closes. The June 4, 2026 intraday high of $1,005.68 and that day’s close of $993.74 are not on the month-end line. CEC was acquired on September 1, 2025. Source: Yahoo Finance daily adjusted closes through October 6, 2026. <a href="https://finance.yahoo.com/quote/STRL/history/">Yahoo Finance</a></>
+      : <>월말 조정 종가. 2026년 6월 4일 장중 고가 $1,005.68, 그날 종가 $993.74는 월말 선 위에 없다. 2025년 9월 1일 CEC 인수. 자료: Yahoo Finance 일별 조정 종가, 2026-10-06 기준. <a href="https://finance.yahoo.com/quote/STRL/history/">Yahoo Finance</a></>)}
+    {variant === 'capacity' && (en
+      ? <>McKinsey, August 2025. US data-center power demand is estimated to rise from 25 GW in 2024 to more than 80 GW in 2030. No path is drawn between the two points. <a href="https://www.mckinsey.com/industries/private-capital/our-insights/scaling-bigger-faster-cheaper-data-centers-with-smarter-designs">McKinsey</a></>
+      : <>McKinsey, 2025년 8월. 미국 데이터센터 전력 수요가 2024년 25GW에서 2030년 80GW 이상으로 늘어난다는 추정이다. 두 점 사이에 연도별 경로를 넣지 않았다. <a href="https://www.mckinsey.com/industries/private-capital/our-insights/scaling-bigger-faster-cheaper-data-centers-with-smarter-designs">McKinsey</a></>)}
+    {variant === 'valuation' && (en
+      ? <>A 10% required return over 1,546 days, from October 7, 2026 to December 31, 2030. Bear $266, base $568, close $564, bull $825. Source: Company guidance; author estimates.</>
+      : <>요구수익률 연 10%, 2026-10-07부터 2030-12-31까지 1,546일. Bear $266, Base $568, 종가 $564, Bull $825. Source: Company guidance; author estimates.</>)}
+    {variant === 'waterfall' && (en
+      ? <>Row 01 is McKinsey, April 2025. Row 02 is the McKinsey note on the US share. Rows 03 and 04 are McKinsey, August 2025. Row 05 is an author assumption: estimate / illustrative model.</>
+      : <>01은 2025년 4월 McKinsey, 02는 미국 비중을 다룬 McKinsey 글, 03·04는 2025년 8월 McKinsey. 05는 본문의 저자 가정이므로 Estimate / illustrative model이다.</>)}
   </figcaption>
 </figure>
 
