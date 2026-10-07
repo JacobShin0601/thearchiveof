@@ -1,0 +1,239 @@
+---
+import {
+  HII_CURRENT_PRICE,
+  hiiBaseScenario,
+  hiiFcfCrossCheck,
+} from '../../data/hii-valuation';
+
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+const initialUpside = hiiBaseScenario.presentValue / HII_CURRENT_PRICE - 1;
+---
+
+<section
+  class="hii-lab"
+  data-hii-lab
+  data-language={language}
+  data-current-price={HII_CURRENT_PRICE}
+  aria-labelledby={`hii-lab-title-${language}`}
+>
+  <header class="lab-header">
+    <div>
+      <p class="kicker">THE ARCHIVE / VALUATION LAB</p>
+      <h3 id={`hii-lab-title-${language}`}>
+        {ko ? 'Huntington Ingalls Industries 가치평가 실험실' : 'Huntington Ingalls Industries Valuation Lab'}
+      </h3>
+      <p>{ko ? '성장률보다 마진을 먼저 움직여 보세요. 같은 수주잔고가 얼마나 다른 주당가치를 만드는지 계산합니다.' : 'Move margin before growth. See how the same backlog can produce very different per-share values.'}</p>
+    </div>
+    <span class="badge">{ko ? '결정론적 시나리오' : 'Deterministic scenario'}</span>
+  </header>
+
+  <div class="preset-row" role="group" aria-label={ko ? '시나리오 프리셋' : 'Scenario presets'}>
+    <span>{ko ? '빠른 시작' : 'Quick start'}</span>
+    <button type="button" data-preset="bear">Bear</button>
+    <button type="button" data-preset="base" class="active" aria-pressed="true">Base</button>
+    <button type="button" data-preset="bull">Bull</button>
+    <button type="button" data-reset>{ko ? '기본값 복원' : 'Reset'}</button>
+  </div>
+
+  <div class="headline-results" aria-live="polite">
+    <div class="primary"><span>{ko ? '오늘의 적정가치' : 'Present fair value'}</span><strong data-out="presentValue">${hiiBaseScenario.presentValue.toFixed(0)}</strong><small>{ko ? '2030년 가격을 현재로 할인' : '2030 price discounted to today'}</small></div>
+    <div><span>{ko ? '현재가 대비' : 'Versus current price'}</span><strong data-out="upside" class={initialUpside >= 0 ? 'positive' : 'negative'}>{initialUpside >= 0 ? '+' : ''}{(initialUpside * 100).toFixed(1)}%</strong><small>${HII_CURRENT_PRICE.toFixed(2)} · 2026-10-06</small></div>
+    <div><span>{ko ? '2030년 EPS' : '2030 EPS'}</span><strong data-out="eps">${hiiBaseScenario.eps.toFixed(2)}</strong><small data-out="futurePrice">2030 ${hiiBaseScenario.futurePrice.toFixed(0)}</small></div>
+    <div><span>{ko ? '20% 안전마진 가격' : '20% MOS price'}</span><strong data-out="mos">${(hiiBaseScenario.presentValue * .8).toFixed(0)}</strong><small>{ko ? '선택한 적정가치 기준' : 'From selected fair value'}</small></div>
+  </div>
+
+  <div class="workbench">
+    <section class="controls" aria-labelledby={`hii-controls-${language}`}>
+      <div class="section-heading"><span>01 / ASSUMPTIONS</span><h4 id={`hii-controls-${language}`}>{ko ? '가정을 직접 바꾸기' : 'Change the assumptions'}</h4></div>
+      <div class="control-grid">
+        <label><span>{ko ? '조선 매출 CAGR' : 'Shipbuilding revenue CAGR'} <output data-value="shipGrowth">6.0%</output></span><input name="shipGrowth" type="range" min="0" max="10" step="0.5" value="6" /></label>
+        <label class="emphasis"><span>{ko ? '조선 영업마진' : 'Shipbuilding operating margin'} <output data-value="shipMargin">7.5%</output></span><input name="shipMargin" type="range" min="5" max="10" step="0.25" value="7.5" /></label>
+        <label><span>{ko ? 'Mission 매출 CAGR' : 'Mission revenue CAGR'} <output data-value="missionGrowth">5.0%</output></span><input name="missionGrowth" type="range" min="0" max="10" step="0.5" value="5" /></label>
+        <label><span>{ko ? 'Mission 영업마진' : 'Mission operating margin'} <output data-value="missionMargin">6.5%</output></span><input name="missionMargin" type="range" min="3" max="10" step="0.25" value="6.5" /></label>
+        <label><span>{ko ? '2030 출구 P/E' : '2030 exit P/E'} <output data-value="exitPe">16.0×</output></span><input name="exitPe" type="range" min="10" max="22" step="0.5" value="16" /></label>
+        <label><span>{ko ? '요구수익률' : 'Required return'} <output data-value="requiredReturn">10.0%</output></span><input name="requiredReturn" type="range" min="6" max="14" step="0.5" value="10" /></label>
+      </div>
+
+      <details class="advanced">
+        <summary>{ko ? 'FCF·주식 수 고급 가정' : 'Advanced FCF and share assumptions'}</summary>
+        <div class="control-grid advanced-grid">
+          <label><span>{ko ? '희석주식 수' : 'Diluted shares'} <output data-value="shares">39.4M</output></span><input name="shares" type="range" min="36" max="42" step="0.1" value="39.4" /></label>
+          <label><span>{ko ? '비영업 퇴직급여 이익' : 'Non-operating retirement benefit'} <output data-value="retirement">$213M</output></span><input name="retirement" type="range" min="0" max="250" step="5" value="213" /></label>
+          <label><span>{ko ? '2030 FCF 마진' : '2030 FCF margin'} <output data-value="fcfMargin">6.0%</output></span><input name="fcfMargin" type="range" min="3" max="8" step="0.25" value="6" /></label>
+          <label><span>{ko ? '2030 P/FCF' : '2030 P/FCF'} <output data-value="fcfMultiple">17.0×</output></span><input name="fcfMultiple" type="range" min="10" max="24" step="0.5" value="17" /></label>
+        </div>
+      </details>
+    </section>
+
+    <section class="bridge" aria-labelledby={`hii-bridge-${language}`}>
+      <div class="section-heading"><span>02 / EARNINGS BRIDGE</span><h4 id={`hii-bridge-${language}`}>{ko ? '매출에서 주당이익까지' : 'From revenue to EPS'}</h4></div>
+      <dl>
+        <div><dt>{ko ? '조선 매출' : 'Shipbuilding revenue'}</dt><dd data-out="shipRevenue">${hiiBaseScenario.shipbuildingRevenue.toFixed(2)}B</dd></div>
+        <div><dt>{ko ? 'Mission 매출' : 'Mission revenue'}</dt><dd data-out="missionRevenue">${hiiBaseScenario.missionRevenue.toFixed(2)}B</dd></div>
+        <div><dt>{ko ? '부문 영업이익' : 'Segment operating income'}</dt><dd data-out="segmentIncome">${hiiBaseScenario.segmentOperatingIncome.toFixed(2)}B</dd></div>
+        <div><dt>{ko ? '세전이익' : 'Pretax income'}</dt><dd data-out="pretax">${hiiBaseScenario.pretaxIncome.toFixed(2)}B</dd></div>
+        <div class="total"><dt>{ko ? '순이익 / EPS' : 'Net income / EPS'}</dt><dd><span data-out="netIncome">${hiiBaseScenario.netIncome.toFixed(2)}B</span> / <span data-out="epsCopy">$${hiiBaseScenario.eps.toFixed(2)}</span></dd></div>
+      </dl>
+      <p>{ko ? '세율 17%, 비부문 항목 −$64M, 이자비용 −$105M은 고정했다.' : 'Tax rate 17%, non-segment items −$64M, and interest expense −$105M are held constant.'}</p>
+    </section>
+  </div>
+
+  <section class="heatmap-section" aria-labelledby={`hii-heatmap-${language}`}>
+    <div class="section-heading"><span>03 / MARGIN × GROWTH</span><h4 id={`hii-heatmap-${language}`}>{ko ? '조선 마진과 성장률이 만드는 현재가치' : 'Present value across shipbuilding margin and growth'}</h4></div>
+    <p class="section-note">{ko ? '다른 가정은 현재 슬라이더 값을 유지한다. 점은 선택값에 가장 가까운 셀이다.' : 'All other assumptions stay at their selected values. The dot marks the nearest cell.'}</p>
+    <div class="table-scroll">
+      <table class="heatmap">
+        <caption class="sr-only">{ko ? '조선 매출 성장률과 마진별 주당 현재가치' : 'Present value per share by shipbuilding growth and margin'}</caption>
+        <thead><tr><th scope="col">{ko ? 'CAGR \ 마진' : 'CAGR \ margin'}</th><th scope="col">6.0%</th><th scope="col">7.0%</th><th scope="col">7.5%</th><th scope="col">8.0%</th><th scope="col">9.0%</th></tr></thead>
+        <tbody data-heatmap></tbody>
+      </table>
+    </div>
+    <div class="legend"><span class="below">{ko ? '현재가보다 10% 이상 낮음' : '>10% below price'}</span><span class="near">{ko ? '현재가 ±10%' : 'Within ±10%'}</span><span class="above">{ko ? '현재가보다 10% 이상 높음' : '>10% above price'}</span></div>
+  </section>
+
+  <section class="cross-check" aria-labelledby={`hii-fcf-${language}`}>
+    <div class="section-heading"><span>04 / CROSS-CHECK</span><h4 id={`hii-fcf-${language}`}>{ko ? 'EPS와 FCF가 같은 방향을 가리키는가' : 'Do EPS and FCF point the same way?'}</h4></div>
+    <div class="value-bars" role="img" aria-label={ko ? '현재 주가, EPS 방식 적정가치, FCF 방식 적정가치 비교' : 'Comparison of current price, EPS fair value, and FCF fair value'}>
+      <div><span>{ko ? '현재가' : 'Current price'}</span><i><b data-bar="current"></b></i><strong>${HII_CURRENT_PRICE.toFixed(0)}</strong></div>
+      <div><span>{ko ? 'EPS 방식' : 'EPS method'}</span><i><b data-bar="eps"></b></i><strong data-out="epsPv">${hiiBaseScenario.presentValue.toFixed(0)}</strong></div>
+      <div><span>{ko ? 'FCF 방식' : 'FCF method'}</span><i><b data-bar="fcf"></b></i><strong data-out="fcfPv">${hiiFcfCrossCheck.presentValue.toFixed(0)}</strong></div>
+    </div>
+    <p data-out="fcfDetail">{ko ? `2030 FCF $${hiiFcfCrossCheck.fcf.toFixed(2)}B × 17.0배` : `2030 FCF $${hiiFcfCrossCheck.fcf.toFixed(2)}B × 17.0x`}</p>
+  </section>
+
+  <p class="model-note">{ko
+    ? '교육용 시나리오 계산기 · 확률 시뮬레이션이나 투자 권유가 아니다. 2026년 가이던스 중간값에서 출발하며, 현재가는 2026년 10월 6일 종가다. 사실값과 저자 가정을 구분해 사용한다.'
+    : 'Educational scenario calculator · This is not a probability simulation or investment advice. It starts from the midpoint of 2026 guidance; the current price is the October 6, 2026 close. Company facts and author assumptions are kept separate.'}</p>
+</section>
+
+<script>
+  import {
+    calculateHiiFcfCrossCheck,
+    calculateHiiValuation,
+    hiiModelInputs,
+  } from '../../data/hii-valuation';
+  import { track } from '../../scripts/track';
+
+  const presets = {
+    bear: { shipGrowth: 3, shipMargin: 6, missionGrowth: 3, missionMargin: 5, exitPe: 12.5, requiredReturn: 10 },
+    base: { shipGrowth: 6, shipMargin: 7.5, missionGrowth: 5, missionMargin: 6.5, exitPe: 16, requiredReturn: 10 },
+    bull: { shipGrowth: 8, shipMargin: 9, missionGrowth: 7, missionMargin: 8, exitPe: 18.5, requiredReturn: 10 },
+  } as const;
+
+  document.querySelectorAll<HTMLElement>('[data-hii-lab]').forEach((root) => {
+    const ko = root.dataset.language !== 'en';
+    const currentPrice = Number(root.dataset.currentPrice);
+    let tracked = false;
+    const input = (name: string) => root.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
+    const number = (name: string) => Number(input(name).value);
+    const write = (name: string, value: string) => {
+      const node = root.querySelector<HTMLElement>(`[data-out="${name}"]`);
+      if (node) node.textContent = value;
+    };
+    const money = (value: number, digits = 0) => `$${value.toFixed(digits)}`;
+    const percent = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value * 100).toFixed(1)}%`;
+    const rangeValues: Record<string, (value: number) => string> = {
+      shipGrowth: (value) => `${value.toFixed(1)}%`, shipMargin: (value) => `${value.toFixed(value % 1 ? 2 : 1)}%`,
+      missionGrowth: (value) => `${value.toFixed(1)}%`, missionMargin: (value) => `${value.toFixed(value % 1 ? 2 : 1)}%`,
+      exitPe: (value) => `${value.toFixed(1)}×`, requiredReturn: (value) => `${value.toFixed(1)}%`,
+      shares: (value) => `${value.toFixed(1)}M`, retirement: (value) => `$${value.toFixed(0)}M`,
+      fcfMargin: (value) => `${value.toFixed(value % 1 ? 2 : 1)}%`, fcfMultiple: (value) => `${value.toFixed(1)}×`,
+    };
+    const readAssumptions = () => ({
+      shipbuildingGrowth: number('shipGrowth') / 100,
+      shipbuildingMargin: number('shipMargin') / 100,
+      missionGrowth: number('missionGrowth') / 100,
+      missionMargin: number('missionMargin') / 100,
+      exitPe: number('exitPe'),
+      requiredReturn: number('requiredReturn') / 100,
+      dilutedShares: number('shares'),
+      nonOperatingRetirementBenefit: number('retirement') / 1000,
+    });
+
+    const renderHeatmap = (assumptions: ReturnType<typeof readAssumptions>) => {
+      const growths = [3, 4.5, 6, 7.5, 9];
+      const margins = [6, 7, 7.5, 8, 9];
+      const nearestGrowth = growths.reduce((best, value) => Math.abs(value - number('shipGrowth')) < Math.abs(best - number('shipGrowth')) ? value : best);
+      const nearestMargin = margins.reduce((best, value) => Math.abs(value - number('shipMargin')) < Math.abs(best - number('shipMargin')) ? value : best);
+      const tbody = root.querySelector<HTMLTableSectionElement>('[data-heatmap]')!;
+      tbody.replaceChildren(...growths.map((growth) => {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th'); th.scope = 'row'; th.textContent = `${growth.toFixed(growth % 1 ? 1 : 0)}%`; tr.append(th);
+        margins.forEach((margin) => {
+          const result = calculateHiiValuation({ ...assumptions, shipbuildingGrowth: growth / 100, shipbuildingMargin: margin / 100 });
+          const td = document.createElement('td');
+          td.textContent = money(result.presentValue);
+          const relation = result.presentValue > currentPrice * 1.1 ? 'above' : result.presentValue < currentPrice * .9 ? 'below' : 'near';
+          td.className = relation;
+          const selected = growth === nearestGrowth && margin === nearestMargin;
+          if (selected) { td.classList.add('selected'); td.setAttribute('aria-current', 'true'); }
+          td.setAttribute('aria-label', `${growth}% CAGR, ${margin}% margin: ${money(result.presentValue)}; ${relation}`);
+          tr.append(td);
+        });
+        return tr;
+      }));
+    };
+
+    const render = () => {
+      const assumptions = readAssumptions();
+      const result = calculateHiiValuation(assumptions);
+      const fcf = calculateHiiFcfCrossCheck({
+        totalRevenue: result.totalSegmentRevenue,
+        fcfMargin: number('fcfMargin') / 100,
+        multiple: number('fcfMultiple'),
+        dilutedShares: assumptions.dilutedShares,
+        requiredReturn: assumptions.requiredReturn,
+      });
+      root.querySelectorAll<HTMLInputElement>('input[type="range"]').forEach((node) => {
+        const formatter = rangeValues[node.name];
+        const output = root.querySelector<HTMLOutputElement>(`[data-value="${node.name}"]`);
+        if (formatter && output) output.value = formatter(Number(node.value));
+      });
+      const upside = result.presentValue / currentPrice - 1;
+      write('presentValue', money(result.presentValue)); write('upside', percent(upside));
+      write('eps', money(result.eps, 2)); write('epsCopy', money(result.eps, 2));
+      write('futurePrice', `2030 ${money(result.futurePrice)}`); write('mos', money(result.presentValue * .8));
+      write('shipRevenue', `${money(result.shipbuildingRevenue, 2)}B`); write('missionRevenue', `${money(result.missionRevenue, 2)}B`);
+      write('segmentIncome', `${money(result.segmentOperatingIncome, 2)}B`); write('pretax', `${money(result.pretaxIncome, 2)}B`); write('netIncome', `${money(result.netIncome, 2)}B`);
+      write('epsPv', money(result.presentValue)); write('fcfPv', money(fcf.presentValue));
+      write('fcfDetail', ko ? `2030 FCF ${money(fcf.fcf, 2)}B × ${number('fcfMultiple').toFixed(1)}배` : `2030 FCF ${money(fcf.fcf, 2)}B × ${number('fcfMultiple').toFixed(1)}x`);
+      const upsideNode = root.querySelector<HTMLElement>('[data-out="upside"]')!;
+      upsideNode.classList.toggle('positive', upside >= 0); upsideNode.classList.toggle('negative', upside < 0);
+      const max = Math.max(currentPrice, result.presentValue, fcf.presentValue) * 1.08;
+      const bar = (name: string, value: number) => { const node = root.querySelector<HTMLElement>(`[data-bar="${name}"]`)!; node.style.width = `${Math.max(2, value / max * 100)}%`; };
+      bar('current', currentPrice); bar('eps', result.presentValue); bar('fcf', fcf.presentValue);
+      renderHeatmap(assumptions);
+    };
+
+    const setPreset = (name: keyof typeof presets) => {
+      Object.entries(presets[name]).forEach(([key, value]) => { input(key).value = String(value); });
+      input('shares').value = String(hiiModelInputs.dilutedShares); input('retirement').value = String(hiiModelInputs.nonOperatingRetirementBenefit * 1000);
+      input('fcfMargin').value = '6'; input('fcfMultiple').value = '17';
+      root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => { const active = button.dataset.preset === name; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); });
+      render();
+    };
+    root.querySelectorAll<HTMLInputElement>('input[type="range"]').forEach((node) => node.addEventListener('input', () => {
+      root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => { button.classList.remove('active'); button.setAttribute('aria-pressed', 'false'); });
+      render();
+      if (!tracked) { track('code_run', { articleSlug: 'huntington-ingalls-industries-valuation-lab', language: ko ? 'ko' : 'en', component: 'hii-valuation-lab-v1' }); tracked = true; }
+    }));
+    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => button.addEventListener('click', () => setPreset(button.dataset.preset as keyof typeof presets)));
+    root.querySelector<HTMLButtonElement>('[data-reset]')!.addEventListener('click', () => setPreset('base'));
+    render();
+  });
+</script>
+
+<style>
+  .hii-lab{--ink:#173047;--muted:#66727c;--line:#d6dee4;--soft:#eef3f6;--accent:#315f7e;--positive:#336b52;--negative:#a24f48;margin:2rem 0;padding:clamp(1rem,3vw,2rem);border:1px solid var(--line);border-radius:22px;background:#f8fafb;color:#1f2b33;font-family:var(--sans);box-shadow:0 12px 35px rgba(31,58,78,.07)}
+  .lab-header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}.lab-header h3{margin:.2rem 0;font:700 clamp(1.5rem,3vw,2.2rem)/1.2 var(--serif)}.lab-header p:not(.kicker){max-width:660px;margin:.45rem 0 0;color:var(--muted)}.kicker,.section-heading span{margin:0;color:#496d85;font:700 .68rem/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em}.badge{white-space:nowrap;border:1px solid #c6d5df;border-radius:999px;background:#e8f0f5;padding:.35rem .65rem;color:#315d78;font-size:.75rem;font-weight:700}
+  .preset-row{display:flex;align-items:center;flex-wrap:wrap;gap:.35rem;margin:1.25rem 0}.preset-row>span{margin-right:.25rem;color:var(--muted);font-size:.74rem;font-weight:700}.preset-row button{min-height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:.42rem .7rem;color:var(--ink);font:700 .76rem/1 var(--sans);cursor:pointer}.preset-row button.active{border-color:var(--ink);background:var(--ink);color:#fff}.preset-row [data-reset]{margin-left:auto;background:transparent}
+  .headline-results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem;margin:1rem 0 1.5rem}.headline-results>div{display:flex;min-height:112px;flex-direction:column;justify-content:center;border:1px solid var(--line);border-radius:13px;background:#fff;padding:.85rem}.headline-results .primary{background:var(--ink);color:#fff}.headline-results span{color:var(--muted);font-size:.72rem;font-weight:700}.headline-results .primary span,.headline-results .primary small{color:#c8d5de}.headline-results strong{margin:.2rem 0;font:700 clamp(1.35rem,3vw,2rem)/1.1 var(--serif);font-variant-numeric:tabular-nums}.headline-results small{color:var(--muted);font-size:.68rem}.positive{color:var(--positive)}.negative{color:var(--negative)}
+  .workbench{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(250px,.85fr);gap:1rem}.controls,.bridge,.heatmap-section,.cross-check{border-top:1px solid var(--line);padding-top:1rem}.section-heading h4{margin:.2rem 0;font-size:1.05rem}.control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin-top:.8rem}.control-grid label{display:block;border:1px solid var(--line);border-radius:10px;background:#fff;padding:.72rem}.control-grid label.emphasis{border-color:#9eb7c7;background:#f2f7fa}.control-grid label span{display:flex;justify-content:space-between;gap:.5rem;color:var(--muted);font-size:.72rem;font-weight:700}.control-grid output{color:var(--ink);font-variant-numeric:tabular-nums}.control-grid input{width:100%;margin-top:.55rem;accent-color:var(--accent)}.advanced{margin-top:.65rem;border:1px solid var(--line);border-radius:10px;background:#fff}.advanced summary{padding:.75rem;cursor:pointer;color:var(--ink);font-size:.78rem;font-weight:700}.advanced-grid{margin:0;padding:0 .7rem .7rem}.advanced-grid label{background:var(--soft)}
+  .bridge dl{margin:.8rem 0 0}.bridge dl div{display:flex;justify-content:space-between;gap:.8rem;border-bottom:1px solid #e5e9ec;padding:.62rem 0}.bridge dt{color:var(--muted);font-size:.76rem}.bridge dd{margin:0;color:var(--ink);font-size:.82rem;font-weight:700;font-variant-numeric:tabular-nums}.bridge .total{border-bottom:0}.bridge p,.section-note,.cross-check>p{margin:.6rem 0 0;color:var(--muted);font-size:.7rem;line-height:1.5}
+  .heatmap-section,.cross-check{margin-top:1.5rem}.table-scroll{overflow-x:auto}.heatmap{width:100%;min-width:560px;margin-top:.8rem;border-collapse:separate;border-spacing:4px}.heatmap th{padding:.45rem;color:var(--muted);font-size:.7rem;text-align:center}.heatmap td{position:relative;border-radius:8px;padding:.72rem .45rem;text-align:center;font-size:.78rem;font-weight:700;font-variant-numeric:tabular-nums}.heatmap td.below{background:#f4e9e7;color:#803f3a}.heatmap td.near{background:#ebeef0;color:#46535c}.heatmap td.above{background:#e2eee8;color:#2d654c}.heatmap td.selected::after{position:absolute;top:5px;right:6px;width:6px;height:6px;border-radius:50%;background:currentColor;content:''}.legend{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:.5rem}.legend span{font-size:.66rem;color:var(--muted)}.legend span::before{display:inline-block;width:9px;height:9px;margin-right:.3rem;border-radius:2px;content:''}.legend .below::before{background:#e8c9c5}.legend .near::before{background:#d5dade}.legend .above::before{background:#bad8c9}
+  .value-bars{display:grid;gap:.7rem;margin-top:1rem}.value-bars>div{display:grid;grid-template-columns:100px 1fr 52px;align-items:center;gap:.65rem}.value-bars span{color:var(--muted);font-size:.74rem}.value-bars i{height:12px;border-radius:999px;background:#e6eaed;overflow:hidden}.value-bars b{display:block;height:100%;border-radius:inherit;background:#8f9da7;transition:width .2s ease}.value-bars [data-bar="eps"]{background:var(--accent)}.value-bars [data-bar="fcf"]{background:#4f7c66}.value-bars strong{text-align:right;font-size:.78rem;font-variant-numeric:tabular-nums}.model-note{margin:1.4rem 0 0;border-top:1px solid var(--line);padding-top:.9rem;color:var(--muted);font-size:.7rem;line-height:1.55}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media(max-width:760px){.headline-results{grid-template-columns:repeat(2,minmax(0,1fr))}.workbench{grid-template-columns:1fr}.lab-header{display:block}.badge{display:inline-block;margin-top:.75rem}.preset-row [data-reset]{margin-left:0}}
+  @media(max-width:520px){.hii-lab{border-radius:16px}.control-grid{grid-template-columns:1fr}.headline-results>div{min-height:96px}.value-bars>div{grid-template-columns:84px 1fr 45px}.preset-row>span{width:100%}.headline-results strong{font-size:1.4rem}}
+</style>

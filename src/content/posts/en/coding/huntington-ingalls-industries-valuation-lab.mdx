@@ -1,0 +1,82 @@
+---
+title: "Huntington Ingalls Industries Valuation Lab: Stress-Test the 7.5% Margin"
+subtitle: "Move shipbuilding margin, growth, and the exit multiple to recalculate HII’s 2030 present value."
+description: "Change Huntington Ingalls Industries' shipbuilding margin, growth, exit P/E, and required return to recalculate 2030 EPS and present fair value."
+publishedDate: 2026-10-07
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, supply-chain]
+primaryTopic: portfolio
+tags: [valuation, defense, shipbuilding, scenario-analysis, research]
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "huntington-ingalls-industries-valuation-lab"
+freshness: time-sensitive
+lastReviewed: 2026-10-07
+nextReviewDate: 2026-11-16
+dataThrough: 2026-10-06
+methodology: "The model starts from the midpoint of HII’s 2026 guidance, compounds Shipbuilding and Mission Technologies revenue through 2030, and applies the selected operating margins. It converts segment operating income to EPS after non-segment items, interest, non-operating retirement benefits, and tax; applies an exit P/E; then discounts from October 7, 2026 to December 31, 2030 at the selected required return. The FCF method is a separate cross-check using the selected FCF margin and P/FCF multiple."
+references:
+  - title: "HII Q2 2026 earnings release"
+    url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000045/hii2026q2earningsrelease.htm"
+    publisher: "SEC"
+  - title: "HII Q2 2026 Form 10-Q"
+    url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000047/hii-20260630.htm"
+    publisher: "SEC"
+  - title: "HII 2025 Form 10-K"
+    url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000006/hii-20251231.htm"
+    publisher: "SEC"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import HiiValuationLab from '../../../../components/interactive/HiiValuationLab.astro';
+
+<AnswerBlock question="Which input should move first in an HII valuation?">
+  **Shipbuilding margin before shipbuilding revenue.** Moving margin from 6% to 9% while holding growth constant materially changes present value. This calculator is designed to challenge the 7.5% normalization assumption, not treat it as an answer.
+</AnswerBlock>
+
+This page makes the model behind the [Huntington Ingalls Industries analysis](/en/investing/markets/huntington-ingalls-industries-valuation/) interactive. The original question was not simply whether the U.S. Navy would order more ships. It was how much profit and cash HII could extract from orders already in hand.
+
+The defaults reproduce the article’s Base case. Shipbuilding revenue grows 6% annually from the midpoint of 2026 guidance, Mission Technologies grows 5%, and Shipbuilding reaches a 7.5% operating margin in 2030. Those are author estimates, not company guidance.
+
+## Move the 7.5% instead of trusting it
+
+<HiiValuationLab language="en" />
+
+## How to read the tool
+
+Move Shipbuilding margin from 6% to 9% before changing anything else. Holding growth constant isolates what normalization does to EPS and fair value. Then change Shipbuilding growth to see the operating leverage if throughput improvements convert into revenue.
+
+The exit P/E moves the answer quickly but does not explain the economics. Check the earnings bridge before raising the multiple. If the EPS and FCF methods diverge sharply, revisit the retirement-benefit, capital-spending, and working-capital assumptions.
+
+## Model mechanics
+
+Shipbuilding and Mission Technologies revenue compound for four years from the 2026 starting point.
+
+$$
+Revenue_{2030}=Revenue_{2026}(1+g)^4
+$$
+
+The model applies segment margins, then adjusts for non-segment items, interest, non-operating retirement benefits, and tax. It multiplies 2030 EPS by the selected exit P/E and discounts the result to the publication date.
+
+$$
+PV=\frac{EPS_{2030}\times Exit\ P/E}{(1+r)^{4.233}}
+$$
+
+The sensitivity table holds Mission growth and margin, the multiple, required return, and share count at the currently selected values. It changes only Shipbuilding growth and margin. Each cell is therefore a mechanical scenario result, not a probability forecast.
+
+## What this model does not answer
+
+- When program-level EAC adjustments or schedule delays will occur
+- How contract type and incentive fees will affect realized margin
+- How rates and pension-asset returns will change non-operating retirement income
+- The annual path of capital spending and working capital
+- The valuation multiple the market will assign in 2030
+
+The point is not to produce one precise target price. It is to identify which assumption dominates the conclusion and re-test that assumption with each earnings release.
+
+Disclosure: This tool documents a personal investment-research process and is not investment advice. Fair values are author estimates based on assumptions, and actual outcomes may differ materially.

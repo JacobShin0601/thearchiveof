@@ -1,6 +1,8 @@
 export const ARTICLE_KEYS = [
+  "agent-backend-architecture-map",
   "agent-pattern-design",
   "agent-sse-streaming",
+  "agent-tool-idempotency-approval-retry",
   "ai-handoff-queue-lab",
   "async-thread-process-agent-backends",
   "ax-is-transformation",
@@ -10,6 +12,9 @@ export const ARTICLE_KEYS = [
   "exponential-distribution-ai-handoff",
   "fde-economics-wonderful-reflection",
   "fde-loop-hyperscalers-palantir",
+  "from-retrieval-engineering-to-task-engineering",
+  "huntington-ingalls-industries-valuation",
+  "huntington-ingalls-industries-valuation-lab",
   "langgraph-runtime-not-architecture",
   "multi-objective-optimization-battery-supply-chain",
   "pareto-optimization-dinner-with-friends",
@@ -18,6 +23,8 @@ export const ARTICLE_KEYS = [
   "queueing-theory-everyday-llm",
   "samsung-earnings-event-lab",
   "state-is-not-event",
+  "sterling-infrastructure-fair-value",
+  "sterling-infrastructure-valuation-lab",
   "vllm-troubleshooting-metrics",
   "vllm-tuning-limited-gpus",
   "we-built-the-agent-platform-too-early",
@@ -28,6 +35,7 @@ export const ARTICLE_KEYS = [
   "why-i-am-removing-langgraph-from-agent-building",
   "why-i-started-cfa-as-a-data-scientist",
   "why-this-archive-is-open",
+  "why-vllm-for-internal-llm-serving",
   "will-rogo-eat-financial-ai",
   "worker-is-not-thread"
 ];

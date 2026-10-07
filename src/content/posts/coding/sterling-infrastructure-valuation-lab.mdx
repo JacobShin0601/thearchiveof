@@ -1,0 +1,82 @@
+---
+title: "Sterling Infrastructure Valuation Lab: 현재 주가가 요구하는 성장률"
+subtitle: "E-Infrastructure 성장률과 EBITDA 마진을 움직이고, 시장가격에 내재된 성장률을 역산한다."
+description: "Sterling Infrastructure의 성장률, EBITDA 마진과 출구 배수를 바꾸며 2030년 적정가치와 현재 주가의 내재 성장률을 계산한다."
+publishedDate: 2026-10-07
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, supply-chain]
+primaryTopic: portfolio
+tags: [valuation, data-centers, infrastructure, scenario-analysis, research]
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "ko"
+translationKey: "sterling-infrastructure-valuation-lab"
+freshness: time-sensitive
+lastReviewed: 2026-10-07
+nextReviewDate: 2026-11-16
+dataThrough: 2026-10-06
+methodology: "2026년 매출 가이던스 중간값을 E-Infrastructure 30.7억 달러와 나머지 10.05억 달러로 나눈 저자 추정치에서 출발한다. 각 부문 매출을 2030년까지 복리 성장시키고 선택한 조정 EBITDA 마진, 감가상각률, 세율과 주식 수로 조정 EPS를 계산한다. 출구 P/E를 적용한 2030년 주가를 선택한 요구수익률로 할인한다. 내재 성장률은 현재 주가와 현재가치가 같아지는 E-Infrastructure CAGR을 이분법으로 역산한다."
+references:
+  - title: "Sterling Q2 2026 earnings release"
+    url: "https://www.strlco.com/news/sterling-reports-record-second-quarter-results-and-raises-full-year-2026-guidance/"
+    publisher: "Sterling Infrastructure"
+  - title: "Q2 2026 earnings release, Exhibit 99.1"
+    url: "https://www.sec.gov/Archives/edgar/data/874238/000087423826000100/q22026earningsreleaseppp.htm"
+    publisher: "SEC"
+  - title: "Sterling 2025 annual report"
+    url: "https://www.strlco.com/wp-content/uploads/2026/05/a20251231annualreport-Flat2.pdf"
+    publisher: "Sterling Infrastructure"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import SterlingValuationLab from '../../../components/interactive/SterlingValuationLab.astro';
+
+<AnswerBlock question="Sterling Infrastructure의 현재 주가는 어떤 성장을 요구할까?">
+  Base 가정을 유지하면 2026년 10월 6일 종가 \$563.69는 E-Infrastructure가 2030년까지 연 **약 19.7%** 성장해야 설명된다. 순방향 적정가치 계산보다 중요한 질문은, 이 내재 성장률과 21.5% EBITDA 마진을 회사가 동시에 달성할 수 있느냐다.
+</AnswerBlock>
+
+이 페이지는 [Sterling Infrastructure 분석](/investing/markets/sterling-infrastructure-fair-value/)의 모델을 양방향으로 움직인다. 성장률을 넣으면 적정가치가 나오고, 현재 주가를 넣으면 그 가격이 요구하는 성장률이 나온다.
+
+기본값은 원글의 Base case다. 2026년 가이던스 중간값에서 출발해 E-Infrastructure 매출은 연 20%, 나머지 사업은 연 2% 성장하고, 2030년 조정 EBITDA 마진은 21.5%라고 가정한다. 24배 출구 P/E와 연 10% 요구수익률을 적용하면 현재가치는 약 \$568이다. 모두 저자 가정이며 회사 가이던스가 아니다.
+
+## 적정가치와 내재 성장률을 함께 보기
+
+<SterlingValuationLab language="ko" />
+
+## 왜 역산이 필요한가
+
+“데이터센터 시장이 성장한다”는 사실만으로 주식이 싸다고 말할 수는 없다. 주가가 이미 높은 성장과 마진을 반영했다면 좋은 사업의 주식도 기대수익률이 낮을 수 있다.
+
+순방향 모형은 선택한 가정이 얼마의 가치를 만드는지 보여준다. 역산은 질문을 바꾼다. **현재 가격에서 연 10%를 벌려면 2030년의 EPS가 얼마여야 하고, 그 EPS를 만들려면 E-Infrastructure가 얼마나 빨리 자라야 하는가?**
+
+## 계산식
+
+두 부문의 매출은 2026년 추정 기준점에서 4년간 각각 성장한다.
+
+$$
+Revenue_{2030}=3.07(1+g_E)^4+1.005(1+g_O)^4
+$$
+
+선택한 EBITDA 마진에서 감가상각을 빼고 세율을 적용해 조정 EPS를 계산한다. 순이자손익은 0으로 고정한다.
+
+$$
+Adjusted\ EPS=\frac{(Revenue\times EBITDA\ Margin-Depreciation)(1-Tax)}{Shares}
+$$
+
+현재가치가 시장가격 563.69달러와 같아지는 E-Infrastructure CAGR을 이분법으로 찾는다. 이 값은 시장의 유일한 기대가 아니다. 같은 가격도 낮은 성장과 높은 배수, 높은 성장과 낮은 배수의 여러 조합으로 설명할 수 있다. 그래서 민감도 표를 함께 봐야 한다.
+
+## 이 모형이 답하지 않는 것
+
+- 신규 인수와 그에 따른 주식 희석·부채
+- E-Infrastructure 안에서 부지 조성과 전기 시공의 서로 다른 마진
+- 고객 집중, 프로젝트 지연과 전력 연결 일정
+- 수주잔고가 매출로 전환되는 정확한 시기
+- 2030년 이후 데이터센터 건설 사이클
+
+이 Lab의 목적은 “성장한다”와 “싸다”를 분리하는 것이다. 현재 주가가 요구하는 성장률을 먼저 보고, 그 숫자가 사업의 capacity와 execution을 감안해 현실적인지 판단한다.
+
+Disclosure: 이 도구는 개인적인 투자 리서치와 판단 과정을 기록한 것이며 투자 권유가 아니다. 적정가치와 내재 성장률은 여러 가정을 기반으로 한 저자의 추정치이며 실제 결과는 크게 달라질 수 있다.

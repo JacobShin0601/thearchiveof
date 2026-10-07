@@ -16,7 +16,8 @@
     "check:pages": "node scripts/check-pages-config.mjs",
     "check:functions": "wrangler pages functions build --outdir .wrangler/functions-check --compatibility-date 2026-09-01",
     "check:cloudflare": "node scripts/check-cloudflare.mjs",
-    "check:urls": "node --experimental-strip-types scripts/check-url-contract.mjs"
+    "check:urls": "node --experimental-strip-types scripts/check-url-contract.mjs",
+    "model:hii": "node --experimental-strip-types scripts/hii-valuation.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "latest",

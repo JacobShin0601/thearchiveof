@@ -1,0 +1,221 @@
+---
+import {
+  STERLING_CURRENT_PRICE,
+  sterlingBaseScenario,
+  sterlingImpliedBaseGrowth,
+} from '../../data/sterling-valuation';
+
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+const initialUpside = sterlingBaseScenario.presentValue / STERLING_CURRENT_PRICE - 1;
+---
+
+<section
+  class="sterling-lab"
+  data-sterling-lab
+  data-language={language}
+  data-current-price={STERLING_CURRENT_PRICE}
+  aria-labelledby={`sterling-lab-title-${language}`}
+>
+  <header class="lab-header">
+    <div>
+      <p class="kicker">THE ARCHIVE / VALUATION LAB</p>
+      <h3 id={`sterling-lab-title-${language}`}>{ko ? 'Sterling Infrastructure 가치평가 실험실' : 'Sterling Infrastructure Valuation Lab'}</h3>
+      <p>{ko ? '성장률을 입력해 적정가치를 계산하고, 다시 현재 주가에서 시장이 요구하는 성장률을 역산합니다.' : 'Enter growth to calculate fair value, then reverse the model to see what growth the current price requires.'}</p>
+    </div>
+    <span class="badge">{ko ? '순방향 + 역산' : 'Forward + reverse solve'}</span>
+  </header>
+
+  <div class="preset-row" role="group" aria-label={ko ? '시나리오 프리셋' : 'Scenario presets'}>
+    <span>{ko ? '빠른 시작' : 'Quick start'}</span>
+    <button type="button" data-preset="bear">Bear</button>
+    <button type="button" data-preset="base" class="active" aria-pressed="true">Base</button>
+    <button type="button" data-preset="bull">Bull</button>
+    <button type="button" data-reset>{ko ? '기본값 복원' : 'Reset'}</button>
+  </div>
+
+  <div class="headline-results" aria-live="polite">
+    <div class="primary"><span>{ko ? '오늘의 적정가치' : 'Present fair value'}</span><strong data-out="presentValue">${sterlingBaseScenario.presentValue.toFixed(0)}</strong><small>{ko ? '2030년 가격을 현재로 할인' : '2030 price discounted to today'}</small></div>
+    <div><span>{ko ? '현재가 대비' : 'Versus current price'}</span><strong data-out="upside" class={initialUpside >= 0 ? 'positive' : 'negative'}>{initialUpside >= 0 ? '+' : ''}{(initialUpside * 100).toFixed(1)}%</strong><small>${STERLING_CURRENT_PRICE.toFixed(2)} · 2026-10-06</small></div>
+    <div><span>{ko ? '2030년 조정 EPS' : '2030 adjusted EPS'}</span><strong data-out="eps">${sterlingBaseScenario.adjustedEps.toFixed(2)}</strong><small data-out="futurePrice">2030 ${sterlingBaseScenario.futurePrice.toFixed(0)}</small></div>
+    <div><span>{ko ? '20% 안전마진 가격' : '20% MOS price'}</span><strong data-out="mos">${(sterlingBaseScenario.presentValue * .8).toFixed(0)}</strong><small>{ko ? '선택한 적정가치 기준' : 'From selected fair value'}</small></div>
+  </div>
+
+  <section class="reverse-solve" aria-labelledby={`sterling-reverse-${language}`} aria-live="polite">
+    <div><span>MARKET-IMPLIED GROWTH</span><h4 id={`sterling-reverse-${language}`}>{ko ? '현재 주가가 요구하는 E-Infrastructure 성장률' : 'E-Infrastructure growth required by today’s price'}</h4></div>
+    <strong data-out="impliedGrowth">{(sterlingImpliedBaseGrowth * 100).toFixed(1)}%</strong>
+    <p data-out="impliedDetail">{ko ? `다른 Base 가정과 24배 출구 P/E를 유지할 때 연 ${(sterlingImpliedBaseGrowth * 100).toFixed(1)}%` : `${(sterlingImpliedBaseGrowth * 100).toFixed(1)}% annually with the other Base assumptions and a 24x exit P/E`}</p>
+  </section>
+
+  <div class="workbench">
+    <section class="controls" aria-labelledby={`sterling-controls-${language}`}>
+      <div class="section-heading"><span>01 / ASSUMPTIONS</span><h4 id={`sterling-controls-${language}`}>{ko ? '성장·마진·배수 바꾸기' : 'Change growth, margin, and multiple'}</h4></div>
+      <div class="control-grid">
+        <label class="emphasis"><span>{ko ? 'E-Infrastructure CAGR' : 'E-Infrastructure CAGR'} <output data-value="eGrowth">20.0%</output></span><input name="eGrowth" type="range" min="0" max="35" step="0.5" value="20" /></label>
+        <label><span>{ko ? '나머지 사업 CAGR' : 'Other-segment CAGR'} <output data-value="otherGrowth">2.0%</output></span><input name="otherGrowth" type="range" min="-5" max="10" step="0.5" value="2" /></label>
+        <label class="emphasis"><span>{ko ? '조정 EBITDA 마진' : 'Adjusted EBITDA margin'} <output data-value="margin">21.5%</output></span><input name="margin" type="range" min="16" max="25" step="0.25" value="21.5" /></label>
+        <label><span>{ko ? '2030 출구 P/E' : '2030 exit P/E'} <output data-value="exitPe">24.0×</output></span><input name="exitPe" type="range" min="14" max="32" step="0.5" value="24" /></label>
+        <label><span>{ko ? '요구수익률' : 'Required return'} <output data-value="requiredReturn">10.0%</output></span><input name="requiredReturn" type="range" min="6" max="14" step="0.5" value="10" /></label>
+      </div>
+      <details class="advanced">
+        <summary>{ko ? '감가상각·세율·주식 수 고급 가정' : 'Advanced depreciation, tax, and share assumptions'}</summary>
+        <div class="control-grid advanced-grid">
+          <label><span>{ko ? '감가상각 / 매출' : 'Depreciation / revenue'} <output data-value="depreciation">1.8%</output></span><input name="depreciation" type="range" min="1" max="3" step="0.1" value="1.8" /></label>
+          <label><span>{ko ? '세율' : 'Tax rate'} <output data-value="taxRate">25.0%</output></span><input name="taxRate" type="range" min="22" max="30" step="0.5" value="25" /></label>
+          <label><span>{ko ? '희석주식 수' : 'Diluted shares'} <output data-value="shares">31.1M</output></span><input name="shares" type="range" min="29" max="34" step="0.1" value="31.1" /></label>
+        </div>
+      </details>
+    </section>
+
+    <section class="bridge" aria-labelledby={`sterling-bridge-${language}`}>
+      <div class="section-heading"><span>02 / EARNINGS BRIDGE</span><h4 id={`sterling-bridge-${language}`}>{ko ? '매출에서 조정 EPS까지' : 'From revenue to adjusted EPS'}</h4></div>
+      <dl>
+        <div><dt>E-Infrastructure</dt><dd data-out="eRevenue">${sterlingBaseScenario.eInfrastructureRevenue.toFixed(2)}B</dd></div>
+        <div><dt>{ko ? '나머지 매출' : 'Other revenue'}</dt><dd data-out="otherRevenue">${sterlingBaseScenario.otherRevenue.toFixed(2)}B</dd></div>
+        <div><dt>{ko ? '총매출' : 'Total revenue'}</dt><dd data-out="totalRevenue">${sterlingBaseScenario.totalRevenue.toFixed(2)}B</dd></div>
+        <div><dt>{ko ? '조정 EBITDA' : 'Adjusted EBITDA'}</dt><dd data-out="ebitda">${sterlingBaseScenario.adjustedEbitda.toFixed(2)}B</dd></div>
+        <div><dt>{ko ? '감가상각' : 'Depreciation'}</dt><dd data-out="depreciationValue">−${sterlingBaseScenario.depreciation.toFixed(2)}B</dd></div>
+        <div class="total"><dt>{ko ? '조정 순이익 / EPS' : 'Adjusted net income / EPS'}</dt><dd><span data-out="netIncome">${sterlingBaseScenario.adjustedNetIncome.toFixed(2)}B</span> / <span data-out="epsCopy">$${sterlingBaseScenario.adjustedEps.toFixed(2)}</span></dd></div>
+      </dl>
+      <p>{ko ? '순이자손익은 0으로 고정한다.' : 'Net interest income is held at zero.'}</p>
+    </section>
+  </div>
+
+  <section class="heatmap-section" aria-labelledby={`sterling-heatmap-${language}`}>
+    <div class="section-heading"><span>03 / GROWTH × MARGIN</span><h4 id={`sterling-heatmap-${language}`}>{ko ? '성장률과 EBITDA 마진이 만드는 현재가치' : 'Present value across growth and EBITDA margin'}</h4></div>
+    <p class="section-note">{ko ? '다른 가정은 현재 슬라이더 값을 유지한다. 점은 선택값에 가장 가까운 셀이다.' : 'All other assumptions stay at their selected values. The dot marks the nearest cell.'}</p>
+    <div class="table-scroll">
+      <table class="heatmap">
+        <caption class="sr-only">{ko ? 'E-Infrastructure 성장률과 EBITDA 마진별 주당 현재가치' : 'Present value per share by E-Infrastructure growth and EBITDA margin'}</caption>
+        <thead><tr><th scope="col">{ko ? 'CAGR \ 마진' : 'CAGR \ margin'}</th><th scope="col">18.5%</th><th scope="col">20.0%</th><th scope="col">21.5%</th><th scope="col">23.0%</th><th scope="col">24.5%</th></tr></thead>
+        <tbody data-heatmap></tbody>
+      </table>
+    </div>
+    <div class="legend"><span class="below">{ko ? '현재가보다 10% 이상 낮음' : '>10% below price'}</span><span class="near">{ko ? '현재가 ±10%' : 'Within ±10%'}</span><span class="above">{ko ? '현재가보다 10% 이상 높음' : '>10% above price'}</span></div>
+  </section>
+
+  <section class="price-requirement" aria-labelledby={`sterling-requirement-${language}`}>
+    <div class="section-heading"><span>04 / PRICE REQUIREMENT</span><h4 id={`sterling-requirement-${language}`}>{ko ? '현재 가격이 요구하는 2030년 숫자' : 'What today’s price requires in 2030'}</h4></div>
+    <div class="requirement-grid">
+      <div><span>{ko ? '필요한 2030 주가' : 'Required 2030 price'}</span><strong data-out="requiredFuturePrice">$844</strong></div>
+      <div><span>{ko ? '필요한 조정 EPS' : 'Required adjusted EPS'}</span><strong data-out="requiredEps">$35.2</strong></div>
+      <div><span>{ko ? '선택한 출구 P/E' : 'Selected exit P/E'}</span><strong data-out="requiredPe">24.0×</strong></div>
+    </div>
+  </section>
+
+  <p class="model-note">{ko
+    ? '교육용 시나리오 계산기 · 확률 시뮬레이션이나 투자 권유가 아니다. 2026년 가이던스 중간값과 저자 추정 부문 매출에서 출발한다. 현재가는 2026년 10월 6일 종가다.'
+    : 'Educational scenario calculator · This is not a probability simulation or investment advice. It starts from the midpoint of 2026 guidance and an author-estimated segment split. The current price is the October 6, 2026 close.'}</p>
+</section>
+
+<script>
+  import {
+    calculateSterlingValuation,
+    solveSterlingEInfrastructureGrowth,
+    sterlingDiscountYears,
+    sterlingModelInputs,
+  } from '../../data/sterling-valuation';
+  import { track } from '../../scripts/track';
+
+  const presets = {
+    bear: { eGrowth: 10, otherGrowth: 0, margin: 18.5, exitPe: 18, requiredReturn: 10 },
+    base: { eGrowth: 20, otherGrowth: 2, margin: 21.5, exitPe: 24, requiredReturn: 10 },
+    bull: { eGrowth: 25, otherGrowth: 3, margin: 23, exitPe: 28, requiredReturn: 10 },
+  } as const;
+
+  document.querySelectorAll<HTMLElement>('[data-sterling-lab]').forEach((root) => {
+    const ko = root.dataset.language !== 'en';
+    const currentPrice = Number(root.dataset.currentPrice);
+    let tracked = false;
+    const input = (name: string) => root.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
+    const number = (name: string) => Number(input(name).value);
+    const write = (name: string, value: string) => { const node = root.querySelector<HTMLElement>(`[data-out="${name}"]`); if (node) node.textContent = value; };
+    const money = (value: number, digits = 0) => `$${value.toFixed(digits)}`;
+    const percent = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value * 100).toFixed(1)}%`;
+    const rangeValues: Record<string, (value: number) => string> = {
+      eGrowth: (value) => `${value.toFixed(1)}%`, otherGrowth: (value) => `${value.toFixed(1)}%`,
+      margin: (value) => `${value.toFixed(value % 1 ? 2 : 1)}%`, exitPe: (value) => `${value.toFixed(1)}×`,
+      requiredReturn: (value) => `${value.toFixed(1)}%`, depreciation: (value) => `${value.toFixed(1)}%`,
+      taxRate: (value) => `${value.toFixed(1)}%`, shares: (value) => `${value.toFixed(1)}M`,
+    };
+    const readAssumptions = () => ({
+      eInfrastructureGrowth: number('eGrowth') / 100,
+      otherGrowth: number('otherGrowth') / 100,
+      ebitdaMargin: number('margin') / 100,
+      exitPe: number('exitPe'),
+      requiredReturn: number('requiredReturn') / 100,
+      depreciationRate: number('depreciation') / 100,
+      taxRate: number('taxRate') / 100,
+      dilutedShares: number('shares'),
+    });
+
+    const renderHeatmap = (assumptions: ReturnType<typeof readAssumptions>) => {
+      const growths = [10, 15, 20, 25, 30];
+      const margins = [18.5, 20, 21.5, 23, 24.5];
+      const nearestGrowth = growths.reduce((best, value) => Math.abs(value - number('eGrowth')) < Math.abs(best - number('eGrowth')) ? value : best);
+      const nearestMargin = margins.reduce((best, value) => Math.abs(value - number('margin')) < Math.abs(best - number('margin')) ? value : best);
+      const tbody = root.querySelector<HTMLTableSectionElement>('[data-heatmap]')!;
+      tbody.replaceChildren(...growths.map((growth) => {
+        const tr = document.createElement('tr'); const th = document.createElement('th'); th.scope = 'row'; th.textContent = `${growth}%`; tr.append(th);
+        margins.forEach((margin) => {
+          const result = calculateSterlingValuation({ ...assumptions, eInfrastructureGrowth: growth / 100, ebitdaMargin: margin / 100 });
+          const td = document.createElement('td'); td.textContent = money(result.presentValue);
+          const relation = result.presentValue > currentPrice * 1.1 ? 'above' : result.presentValue < currentPrice * .9 ? 'below' : 'near';
+          td.className = relation;
+          if (growth === nearestGrowth && margin === nearestMargin) { td.classList.add('selected'); td.setAttribute('aria-current', 'true'); }
+          td.setAttribute('aria-label', `${growth}% CAGR, ${margin}% margin: ${money(result.presentValue)}; ${relation}`); tr.append(td);
+        }); return tr;
+      }));
+    };
+
+    const render = () => {
+      const assumptions = readAssumptions();
+      const result = calculateSterlingValuation(assumptions);
+      root.querySelectorAll<HTMLInputElement>('input[type="range"]').forEach((node) => { const output = root.querySelector<HTMLOutputElement>(`[data-value="${node.name}"]`); const formatter = rangeValues[node.name]; if (output && formatter) output.value = formatter(Number(node.value)); });
+      const upside = result.presentValue / currentPrice - 1;
+      write('presentValue', money(result.presentValue)); write('upside', percent(upside)); write('eps', money(result.adjustedEps, 2)); write('epsCopy', money(result.adjustedEps, 2));
+      write('futurePrice', `2030 ${money(result.futurePrice)}`); write('mos', money(result.presentValue * .8));
+      write('eRevenue', `${money(result.eInfrastructureRevenue, 2)}B`); write('otherRevenue', `${money(result.otherRevenue, 2)}B`); write('totalRevenue', `${money(result.totalRevenue, 2)}B`);
+      write('ebitda', `${money(result.adjustedEbitda, 2)}B`); write('depreciationValue', `−${money(result.depreciation, 2)}B`); write('netIncome', `${money(result.adjustedNetIncome, 2)}B`);
+      const upsideNode = root.querySelector<HTMLElement>('[data-out="upside"]')!; upsideNode.classList.toggle('positive', upside >= 0); upsideNode.classList.toggle('negative', upside < 0);
+      const implied = solveSterlingEInfrastructureGrowth({ targetPresentValue: currentPrice, assumptions: {
+        otherGrowth: assumptions.otherGrowth, ebitdaMargin: assumptions.ebitdaMargin, exitPe: assumptions.exitPe,
+        requiredReturn: assumptions.requiredReturn, depreciationRate: assumptions.depreciationRate,
+        taxRate: assumptions.taxRate, dilutedShares: assumptions.dilutedShares,
+      }});
+      write('impliedGrowth', implied === null ? (ko ? '범위 밖' : 'Out of range') : `${(implied * 100).toFixed(1)}%`);
+      write('impliedDetail', implied === null ? (ko ? '−20%~100% 성장 범위에서 현재가를 설명하지 못한다.' : 'The model cannot match the price within −20% to 100% growth.') : (ko ? `다른 선택값과 ${assumptions.exitPe.toFixed(1)}배 출구 P/E를 유지할 때 연 ${(implied * 100).toFixed(1)}%` : `${(implied * 100).toFixed(1)}% annually with the other selected assumptions and a ${assumptions.exitPe.toFixed(1)}x exit P/E`));
+      const requiredFuturePrice = currentPrice * (1 + assumptions.requiredReturn) ** sterlingDiscountYears;
+      write('requiredFuturePrice', money(requiredFuturePrice)); write('requiredEps', money(requiredFuturePrice / assumptions.exitPe, 1)); write('requiredPe', `${assumptions.exitPe.toFixed(1)}×`);
+      renderHeatmap(assumptions);
+    };
+
+    const setPreset = (name: keyof typeof presets) => {
+      Object.entries(presets[name]).forEach(([key, value]) => { input(key).value = String(value); });
+      input('depreciation').value = String(sterlingModelInputs.depreciationRate * 100); input('taxRate').value = String(sterlingModelInputs.taxRate * 100); input('shares').value = String(sterlingModelInputs.dilutedShares);
+      root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => { const active = button.dataset.preset === name; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); }); render();
+    };
+    root.querySelectorAll<HTMLInputElement>('input[type="range"]').forEach((node) => node.addEventListener('input', () => {
+      root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => { button.classList.remove('active'); button.setAttribute('aria-pressed', 'false'); }); render();
+      if (!tracked) { track('code_run', { articleSlug: 'sterling-infrastructure-valuation-lab', language: ko ? 'ko' : 'en', component: 'sterling-valuation-lab-v1' }); tracked = true; }
+    }));
+    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => button.addEventListener('click', () => setPreset(button.dataset.preset as keyof typeof presets)));
+    root.querySelector<HTMLButtonElement>('[data-reset]')!.addEventListener('click', () => setPreset('base'));
+    render();
+  });
+</script>
+
+<style>
+  .sterling-lab{--ink:#20382c;--muted:#686d65;--line:#d9ddd3;--soft:#f2f5ef;--accent:#315b45;--positive:#34684f;--negative:#a24f48;margin:2rem 0;padding:clamp(1rem,3vw,2rem);border:1px solid var(--line);border-radius:22px;background:#f8f9f5;color:#242b25;font-family:var(--sans);box-shadow:0 12px 35px rgba(23,45,31,.06)}
+  .lab-header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}.lab-header h3{margin:.2rem 0;font:700 clamp(1.5rem,3vw,2.2rem)/1.2 var(--serif)}.lab-header p:not(.kicker){max-width:660px;margin:.45rem 0 0;color:var(--muted)}.kicker,.section-heading span,.reverse-solve>div>span{margin:0;color:#4e6857;font:700 .68rem/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em}.badge{white-space:nowrap;border:1px solid #cbd7c9;border-radius:999px;background:#eaf1e8;padding:.35rem .65rem;color:#365c42;font-size:.75rem;font-weight:700}
+  .preset-row{display:flex;align-items:center;flex-wrap:wrap;gap:.35rem;margin:1.25rem 0}.preset-row>span{margin-right:.25rem;color:var(--muted);font-size:.74rem;font-weight:700}.preset-row button{min-height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:.42rem .7rem;color:var(--ink);font:700 .76rem/1 var(--sans);cursor:pointer}.preset-row button.active{border-color:var(--ink);background:var(--ink);color:#fff}.preset-row [data-reset]{margin-left:auto;background:transparent}
+  .headline-results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem;margin:1rem 0}.headline-results>div{display:flex;min-height:112px;flex-direction:column;justify-content:center;border:1px solid var(--line);border-radius:13px;background:#fff;padding:.85rem}.headline-results .primary{background:var(--ink);color:#fff}.headline-results span{color:var(--muted);font-size:.72rem;font-weight:700}.headline-results .primary span,.headline-results .primary small{color:#c8d8cf}.headline-results strong{margin:.2rem 0;font:700 clamp(1.35rem,3vw,2rem)/1.1 var(--serif);font-variant-numeric:tabular-nums}.headline-results small{color:var(--muted);font-size:.68rem}.positive{color:var(--positive)}.negative{color:var(--negative)}
+  .reverse-solve{display:grid;grid-template-columns:1fr auto;gap:.25rem 1rem;align-items:center;margin:1rem 0 1.5rem;border-left:4px solid var(--accent);background:#eaf1e8;padding:1rem}.reverse-solve h4{margin:.2rem 0 0;font-size:1rem}.reverse-solve>strong{grid-row:1 / 3;grid-column:2;font:700 clamp(1.8rem,4vw,2.7rem)/1 var(--serif);color:var(--accent);font-variant-numeric:tabular-nums}.reverse-solve>p{grid-column:1;margin:0;color:var(--muted);font-size:.72rem}
+  .workbench{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(250px,.85fr);gap:1rem}.controls,.bridge,.heatmap-section,.price-requirement{border-top:1px solid var(--line);padding-top:1rem}.section-heading h4{margin:.2rem 0;font-size:1.05rem}.control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin-top:.8rem}.control-grid label{display:block;border:1px solid var(--line);border-radius:10px;background:#fff;padding:.72rem}.control-grid label.emphasis{border-color:#aabfae;background:#f2f7f1}.control-grid label span{display:flex;justify-content:space-between;gap:.5rem;color:var(--muted);font-size:.72rem;font-weight:700}.control-grid output{color:var(--ink);font-variant-numeric:tabular-nums}.control-grid input{width:100%;margin-top:.55rem;accent-color:var(--accent)}.advanced{margin-top:.65rem;border:1px solid var(--line);border-radius:10px;background:#fff}.advanced summary{padding:.75rem;cursor:pointer;color:var(--ink);font-size:.78rem;font-weight:700}.advanced-grid{margin:0;padding:0 .7rem .7rem}.advanced-grid label{background:var(--soft)}
+  .bridge dl{margin:.8rem 0 0}.bridge dl div{display:flex;justify-content:space-between;gap:.8rem;border-bottom:1px solid #e5e9e4;padding:.58rem 0}.bridge dt{color:var(--muted);font-size:.76rem}.bridge dd{margin:0;color:var(--ink);font-size:.82rem;font-weight:700;font-variant-numeric:tabular-nums}.bridge .total{border-bottom:0}.bridge p,.section-note{margin:.6rem 0 0;color:var(--muted);font-size:.7rem;line-height:1.5}
+  .heatmap-section,.price-requirement{margin-top:1.5rem}.table-scroll{overflow-x:auto}.heatmap{width:100%;min-width:560px;margin-top:.8rem;border-collapse:separate;border-spacing:4px}.heatmap th{padding:.45rem;color:var(--muted);font-size:.7rem;text-align:center}.heatmap td{position:relative;border-radius:8px;padding:.72rem .45rem;text-align:center;font-size:.78rem;font-weight:700;font-variant-numeric:tabular-nums}.heatmap td.below{background:#f4e9e7;color:#803f3a}.heatmap td.near{background:#ebece8;color:#4d554e}.heatmap td.above{background:#e2eee6;color:#2d654c}.heatmap td.selected::after{position:absolute;top:5px;right:6px;width:6px;height:6px;border-radius:50%;background:currentColor;content:''}.legend{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:.5rem}.legend span{font-size:.66rem;color:var(--muted)}.legend span::before{display:inline-block;width:9px;height:9px;margin-right:.3rem;border-radius:2px;content:''}.legend .below::before{background:#e8c9c5}.legend .near::before{background:#d7dad4}.legend .above::before{background:#bad8c4}
+  .requirement-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;margin-top:.8rem}.requirement-grid>div{border-left:3px solid var(--accent);background:#fff;padding:.8rem}.requirement-grid span{display:block;color:var(--muted);font-size:.7rem}.requirement-grid strong{display:block;margin-top:.2rem;font:700 1.35rem/1.2 var(--serif);font-variant-numeric:tabular-nums}.model-note{margin:1.4rem 0 0;border-top:1px solid var(--line);padding-top:.9rem;color:var(--muted);font-size:.7rem;line-height:1.55}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media(max-width:760px){.headline-results{grid-template-columns:repeat(2,minmax(0,1fr))}.workbench{grid-template-columns:1fr}.lab-header{display:block}.badge{display:inline-block;margin-top:.75rem}.preset-row [data-reset]{margin-left:0}}
+  @media(max-width:520px){.sterling-lab{border-radius:16px}.control-grid,.requirement-grid{grid-template-columns:1fr}.headline-results>div{min-height:96px}.preset-row>span{width:100%}.headline-results strong{font-size:1.4rem}.reverse-solve{grid-template-columns:1fr}.reverse-solve>strong,.reverse-solve>p{grid-column:1;grid-row:auto}}
+</style>

@@ -1,0 +1,250 @@
+---
+title: "Huntington Ingalls Industries: Why Does a Monopoly Shipbuilder With $57 Billion of Orders Trade at 14×?"
+subtitle: "The market is not doubting HII's orders. It is doubting how profitably those orders become ships."
+description: "A valuation of Huntington Ingalls Industries through backlog conversion, shipbuilding productivity, normalized margin, and 2030 scenarios."
+publishedDate: 2026-10-07
+section: "Investing"
+subsection: "Markets"
+contentType: "research"
+topics: [portfolio, supply-chain]
+primaryTopic: portfolio
+tags: [valuation, defense, shipbuilding, supply-chain, research]
+author: "Jacob Shin"
+draft: true
+comments: true
+language: "en"
+translationKey: "huntington-ingalls-industries-valuation"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: time-sensitive
+lastReviewed: 2026-10-07
+nextReviewDate: 2026-11-16
+dataThrough: 2026-10-06
+methodology: "Company figures come from HII Forms 10-K for 2015–2025 and its Q2 2026 Form 10-Q and earnings release. Combined shipbuilding margin is reconstructed as Ingalls plus Newport News segment operating income divided by their combined segment revenue. The 2030 scenarios start from the midpoint of 2026 guidance; growth, margins, and exit multiples are author assumptions. Values are discounted at 10% for the 1,546 days from October 7, 2026 through December 31, 2030. The stock price is the October 6, 2026 close."
+references:
+  - title: "HII Q2 2026 earnings release"
+    url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000045/hii2026q2earningsrelease.htm"
+    publisher: "SEC"
+  - title: "HII Q2 2026 Form 10-Q"
+    url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000047/hii-20260630.htm"
+    publisher: "SEC"
+  - title: "HII 2025 Form 10-K"
+    url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000006/hii-20251231.htm"
+    publisher: "SEC"
+  - title: "Aircraft Carriers"
+    url: "https://www.hii.com/capabilities/aircraft-carriers"
+    publisher: "HII"
+  - title: "Navy Shipbuilding: A Generational Imperative for Systemic Change"
+    url: "https://www.gao.gov/products/gao-25-108136"
+    publisher: "U.S. GAO"
+  - title: "Shipbuilding and Repair: Navy Needs a Strategic Approach for Private Sector Industrial Base Investments"
+    url: "https://www.gao.gov/products/gao-25-106286"
+    publisher: "U.S. GAO"
+  - title: "Navy’s Maritime Industrial Base Program — 2025 Year in Review"
+    url: "https://www.secnav.navy.mil/rda/sib/SitePages/MIB-Program-Releases-2025-Year-in-Review-Highlighting-Integrated-Execution.aspx"
+    publisher: "U.S. Navy"
+  - title: "HII teams with Path Robotics"
+    url: "https://www.hii.com/news/hii-teams-with-path-robotics-to-integrate-physical-ai-into-manned-and-unmanned-shipbuilding"
+    publisher: "HII"
+  - title: "HII signs performance-based production agreements"
+    url: "https://www.hii.com/news/hii-signs-performance-based-production-agreements-with-path-robotics-and-graymatter-robotics"
+    publisher: "HII"
+  - title: "HII expands welding automation with HD Hyundai Heavy Industries"
+    url: "https://www.hii.com/news/hii-expands-welding-automation-at-ingalls-shipbuilding-through-partnership-with-hd-hhi"
+    publisher: "HII"
+  - title: "Hanwha Ocean expands U.S. shipbuilding ties"
+    url: "https://www.hanwha.com/newsroom/news/press-releases/hanwha-ocean-advances-korea-us-shipbuilding-cooperation-through-naval-vessel-development-and-broader-industry-collaboration.do"
+    publisher: "Hanwha"
+  - title: "HII historical prices"
+    url: "https://stockanalysis.com/stocks/hii/history/"
+    publisher: "Stock Analysis / S&P Global Market Intelligence"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import HiiValuationDiagrams from '../../../../components/HiiValuationDiagrams.astro';
+import HiiValuationTables from '../../../../components/HiiValuationTables.astro';
+import ValuationLabLinkCard from '../../../../components/ValuationLabLinkCard.astro';
+
+<AnswerBlock question="Why does HII trade at roughly 14× forward earnings with a \$57 billion backlog?">
+  The market is not doubting HII's orders. It is doubting the profitability of those orders. My 2030 base case is worth about \$285 today, 8% above the October 6, 2026 close of \$263.75. That is upside, but not a large margin of safety for taking shipbuilding execution risk.
+</AnswerBlock>
+
+Only one American shipyard can build a nuclear-powered aircraft carrier. It sits on roughly \$57.3 billion of backlog. Yet **Huntington Ingalls Industries (NYSE: HII)** closed at \$263.75 on October 6, 2026 and traded at about 13.5 times forward earnings.
+
+The apparent contradiction disappears once backlog is treated as revenue, not equity value:
+
+$$
+\text{Backlog} \rightarrow \text{Throughput} \rightarrow \text{Revenue} \rightarrow \text{Margin} \rightarrow \text{FCF}
+$$
+
+HII's bottleneck is not backlog. It is throughput. The same ships at a 6% margin and a 9% margin produce very different stocks.
+
+<ValuationLabLinkCard
+  href="/en/coding/experiments/huntington-ingalls-industries-valuation-lab/"
+  company="Huntington Ingalls Industries"
+  language="en"
+  tone="navy"
+  focusKo="조선 마진·성장률·출구 배수와 요구수익률을 바꾸며 2030년 EPS, 현재가치와 FCF 교차검증을 즉시 다시 계산합니다."
+  focusEn="Change shipbuilding margin, growth, the exit multiple, and required return to recalculate 2030 EPS, present value, and the FCF cross-check."
+/>
+
+## This is not a company short of orders
+
+Newport News Shipbuilding is the sole designer and builder of U.S. nuclear-powered aircraft carriers and the only yard performing carrier refueling and complex overhauls. It also shares Virginia- and Columbia-class nuclear-submarine work with General Dynamics' Electric Boat. [HII](https://www.hii.com/capabilities/aircraft-carriers)
+
+Ingalls Shipbuilding builds Arleigh Burke-class destroyers, America-class amphibious assault ships, and San Antonio-class amphibious transport docks. Mission Technologies provides C5ISR, cyber, electronic warfare, AI/ML, unmanned systems, training, and platform modernization.
+
+My recent [Sterling Infrastructure note](/en/investing/markets/sterling-infrastructure-fair-value/) also dealt with scarce capacity. The conversion path differs. Sterling can turn demand into share and revenue relatively quickly. At HII, orders first wait for skilled labor, supplier capacity, and yard schedules.
+
+## A monopoly supplier facing a monopsony buyer
+
+HII has an unusually deep industrial moat and constrained pricing power at the same time. Nuclear certifications, shipyard infrastructure, program knowledge, and a workforce of more than 40,000 are difficult to reproduce. Its customer—the U.S. government—controls contract structures, allowable costs, incentives, appropriations, and audits.
+
+The moat protects HII's relevance. It does not let the company capture all of the scarcity rent. In 2025, the U.S. Navy generated 81% of revenue.
+
+## The economics inside the backlog
+
+The 2025 revenue mix was 50% cost-type, 46% fixed-price incentive, 3% firm fixed-price, and 1% time and materials. [2025 Form 10-K](https://www.sec.gov/Archives/edgar/data/1501585/000150158526000006/hii-20251231.htm)
+
+<HiiValuationTables variant="contract" language="en" />
+
+Cost-type work generally reimburses allowable costs plus a fee, but profit does not rise one-for-one with cost. Fixed-price incentive contracts make labor productivity and estimates at completion, or EACs, matter directly.
+
+HII's net cumulative catch-up adjustments exceeded +\$100 million in each year from 2021 through 2023, then reversed to -\$126 million in 2024.
+
+<HiiValuationTables variant="eac" language="en" />
+
+The figure improved to -\$28 million in 2025 and +\$11 million in the first half of 2026, though a half-year figure is not comparable with a full year. The 2025 total still included a \$71 million unfavorable adjustment on CVN 80 and 81. Labor efficiency and EAC direction matter more than the headline price of a ship.
+
+## \$57.3 billion is the start of the thesis
+
+At June 30, 2026, HII reported \$57.322 billion of backlog: \$34.594 billion funded and \$22.728 billion unfunded. That is roughly 4.3 times expected 2026 revenue. [Q2 2026 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1501585/000150158526000047/hii-20260630.htm)
+
+<HiiValuationTables variant="backlog" language="en" />
+
+<HiiValuationDiagrams variant="backlog" language="en" />
+
+The company expected 35% of remaining performance obligations to become revenue through 2027, another 35% through 2029, and the balance later. Those are cumulative windows, not an annual revenue schedule.
+
+Comparing \$57 billion of backlog with a market capitalization near \$10.4 billion is meaningless. Backlog is revenue, not profit. It is the beginning of HII's investment thesis, not the end.
+
+## The U.S. lacks shipbuilding capacity
+
+The demand case is not the hard part. GAO has repeatedly found cost growth, schedule delays, and infrastructure, workforce, and supplier constraints across Navy shipbuilding. DOD spent more than \$5.8 billion on the private shipbuilding industrial base from fiscal 2014 through 2023 and planned another \$12.6 billion through 2028. [GAO-25-106286](https://www.gao.gov/products/gao-25-106286)
+
+The United States can order more ships. Turning purchase orders into ships still takes people and time.
+
+## HII's scarce asset is its production system
+
+At the end of 2025, more than 1,350 apprentices trained across over 27 trades at the two yards. Newport News had 1,096 Master Shipbuilders with over 40 years of service; Ingalls had 212. That knowledge does not appear when a new building opens.
+
+HII is extending the production system outside its yards. It planned to outsource more than 2.5 million shipbuilding hours in 2026, 30% more than in 2025, while expanding structural-assembly partners and robotic welding and surface treatment. Management said shipbuilding throughput rose about 14% in 2025 and targeted another 15% in 2026. [Path Robotics](https://www.hii.com/news/hii-teams-with-path-robotics-to-integrate-physical-ai-into-manned-and-unmanned-shipbuilding), [outsourced hours](https://www.hii.com/news/hii-signs-performance-based-production-agreements-with-path-robotics-and-graymatter-robotics)
+
+The directly disclosed Korean partner is HD Hyundai Heavy Industries, not Hanwha Ocean. Following 2025 agreements on distributed shipbuilding, auxiliary vessels, and automation, the companies launched an intelligent mechanized-welding pilot at Ingalls in August 2026. Hanwha Ocean is building a separate U.S. path through Hanwha Philly Shipyard, Navy MRO, and a design partnership with Leidos. I found no disclosed direct HII–Hanwha Ocean partnership as of the review date.
+
+My interpretation is that Korean capacity does not have to be purely competitive. If throughput is HII's constraint, external modules, automation, and supplier expansion can also help HII.
+
+## Is a 7.5% shipbuilding margin realistic?
+
+I reconstructed combined shipbuilding margin from Ingalls and Newport News segment revenue and operating income in HII's 2015–2025 annual reports. The 2026 estimate is the midpoint of 6.0–6.5% guidance.
+
+<HiiValuationDiagrams variant="margin" language="en" />
+
+The weighted averages tell the story:
+
+- 2015–2019: **9.9%**
+- 2021–2023: **7.9%**
+- 2024–2025: **5.6%**
+
+The 2020 decline included COVID disruption and a \$148 million unfavorable adjustment on Virginia-class Block IV. Margin recovered to 7.7–8.3% in 2021–2023, although Ingalls' 2023 result included a court-judgment sale and should not be treated as clean run-rate profitability.
+
+Labor availability, supply-chain problems, and inflation hit 2024. Newport News suffered lower performance on Virginia-class submarines and carriers; Ingalls had weaker amphibious and surface-combatant performance. Combined margin recovered only modestly to 5.9% in 2025.
+
+I therefore keep 7.5% as the base case and classify it as **neutral**. It is below the pre-COVID record and near the 2021–2023 recovery level. It still requires real execution: trained labor, fewer unfavorable EACs, and throughput becoming cost efficiency.
+
+## Same revenue, different economics
+
+Hold 2030 base-case shipbuilding revenue constant at \$13.0 billion:
+
+<HiiValuationDiagrams variant="sensitivity" language="en" />
+
+<HiiValuationTables variant="sensitivity" language="en" />
+
+Moving from 6% to 9% raises shipbuilding operating income from \$0.78 billion to \$1.17 billion—50% more profit with no extra revenue.
+
+## The 2030 scenario model
+
+The starting point is Q2 guidance: shipbuilding revenue of \$10.2–10.4 billion at a 6.0–6.5% margin, Mission Technologies revenue of \$3.0–3.2 billion at about a 5% segment margin, and \$500–600 million of free cash flow. [Q2 2026 earnings](https://www.sec.gov/Archives/edgar/data/1501585/000150158526000045/hii2026q2earningsrelease.htm)
+
+| Scenario | Shipbuilding CAGR | Shipbuilding margin | Mission CAGR | Mission margin | Exit P/E |
+| :-- | --: | --: | --: | --: | --: |
+| Bear | 3% | 6.0% | 3% | 5.0% | 12.5× |
+| Base | 6% | 7.5% | 5% | 6.5% | 16.0× |
+| Bull | 8% | 9.0% | 7% | 8.0% | 18.5× |
+
+The EPS bridge carries forward the explicit 2026 outlook items: -\$44 million of operating FAS/CAS, -\$20 million of non-current state tax, -\$105 million of interest expense, +\$213 million of non-operating retirement benefit, and a 17% tax rate. Diluted shares stay at 39.4 million. HII bought back 0.34 million shares in 2023 and 0.61 million in 2024, but none in 2025, so I do not assume recurring repurchases.
+
+Holding the retirement benefit flat through 2030 is the weakest line in the model. Rates and pension-asset returns can move it materially. That is why I cross-check EPS with free cash flow.
+
+<HiiValuationTables variant="scenario" language="en" />
+
+The recalculated EPS figures are \$19.25, \$26.63, and \$34.34—not the rough starting figures of \$20, \$28, and \$37. Flat share count and non-segment adjustments reduce the result.
+
+## Bringing 2030 back to today
+
+The period from October 7, 2026 through December 31, 2030 is 1,546 days, or 4.233 years.
+
+$$
+PV = \frac{Price_{2030}}{(1+10\%)^{4.233}}
+$$
+
+<HiiValuationDiagrams variant="valuation" language="en" />
+
+Present values are \$161 bear, \$285 base, and \$424 bull. The \$263.75 close sits about 8% below base value. There is upside, but little compensation for a failed productivity recovery.
+
+## Where does a margin of safety begin?
+
+Using the \$284.65 base present value:
+
+<HiiValuationTables variant="mos" language="en" />
+
+Around \$264, the discount to base is small. Near \$228, a 20% margin of safety becomes more interesting. The \$199–213 range offers a 25–30% discount, provided the operating thesis has not deteriorated with the price.
+
+## A free-cash-flow cross-check
+
+Median FCF margin from 2015 through 2025 was about 6.0%, with wide variation. FCF fell to \$40 million in 2024 as operating cash flow reached only \$393 million against \$367 million of capital expenditure, then rebounded to \$800 million in 2025. The 2026 guide of \$500–600 million is roughly 4% of expected revenue during a 4–5%-of-sales capital-investment cycle.
+
+Applying a 6% FCF margin to base-case 2030 revenue produces about \$1.01 billion. At 17 times FCF and the same discount rate:
+
+<HiiValuationTables variant="fcf" language="en" />
+
+The \$290 FCF present value is close to the \$285 EPS result. That supports the direction of the base case, but 6% is an 11-year median, not a level HII reaches every year.
+
+## What is the market doubting?
+
+The market appears more skeptical of HII's productivity than of demand for warships. Three questions matter:
+
+1. Does the 14–15% throughput improvement show up in milestones and margin?
+2. Do labor hours and rework fall as new hires gain experience?
+3. Does productivity become shareholder economics inside government contract structures rather than merely more revenue?
+
+If all three improve, 7.5% is not aggressive. If revenue rises while margin and FCF do not, backlog can bring more working-capital and execution risk with it.
+
+## How I could be wrong
+
+The upside case is an 8–9% shipbuilding margin reached sooner. Distributed shipbuilding and automation could work better than expected; workforce productivity, suppliers, Mission Technologies margin, industrial-base funding, contract mix, and buybacks could all help.
+
+The downside is that 6% has become structural. Unfavorable EACs, wage inflation, schedule delays, supplier problems, nuclear-program complexity, sustained capital expenditure, weak cash conversion, and budget timing could keep returns low.
+
+The cleanest falsifier is higher throughput through 2027 with shipbuilding margin still stuck near 6% and net EAC adjustments turning sharply negative again. That would require lowering the 7.5% base assumption.
+
+## Watch the 6%, not the \$57 billion
+
+HII is less a generic defense stock than a productivity-normalization investment. The carrier monopoly and \$57 billion backlog are raw material for operating leverage, not proof of undervaluation.
+
+At \$264, the stock is below my \$285 base value but not cheap enough to call an obvious bargain. The expected-return case becomes more persuasive near \$228.
+
+Investors may not need another \$57 billion of orders. Building the existing \$57 billion a little better could be enough.
+
+Disclosure: This article records personal investment research and judgment and is not investment advice. Fair values are author estimates based on assumptions, and actual outcomes may differ materially. The author's HII position, if any, must be confirmed before publication.
