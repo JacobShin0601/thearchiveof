@@ -2,7 +2,7 @@
 title: "Huntington Ingalls Industries Valuation Lab: 7.5% 마진을 직접 바꿔보면"
 subtitle: "조선 마진·성장률·출구 배수를 움직여 HII의 2030년 현재가치를 다시 계산한다."
 description: "Huntington Ingalls Industries의 조선 마진, 성장률, 출구 P/E와 요구수익률을 바꾸며 2030년 EPS와 현재 적정가치를 계산하는 인터랙티브 Lab."
-publishedDate: 2026-10-07
+publishedDate: 2026-10-08
 section: "Lab"
 subsection: "Experiments"
 contentType: "implementation"
@@ -11,14 +11,14 @@ primaryTopic: portfolio
 tags: [valuation, defense, shipbuilding, scenario-analysis, research]
 author: "Jacob Shin"
 featured: false
-draft: true
+draft: false
 comments: true
 language: "ko"
 translationKey: "huntington-ingalls-industries-valuation-lab"
 freshness: time-sensitive
-lastReviewed: 2026-10-07
+lastReviewed: 2026-10-08
 nextReviewDate: 2026-11-16
-dataThrough: 2026-10-06
+dataThrough: 2026-10-07
 methodology: "2026년 HII 가이던스 중간값에서 출발해 조선·Mission Technologies 매출을 2030년까지 복리 성장시키고, 선택한 영업마진으로 부문 영업이익을 계산한다. 비부문 항목, 이자비용, 비영업 퇴직급여와 세금을 반영한 EPS에 출구 P/E를 곱한 뒤 2026년 10월 7일부터 2030년 12월 31일까지 선택한 요구수익률로 할인한다. FCF 방식은 선택한 FCF 마진과 P/FCF를 사용한 별도 교차검증이다."
 references:
   - title: "HII Q2 2026 earnings release"
@@ -68,7 +68,7 @@ $$
 각 부문의 영업이익에 비부문 항목, 이자비용, 비영업 퇴직급여와 세금을 반영해 EPS를 구한다. 2030년 주가는 EPS에 선택한 P/E를 곱하고, 발행일에서 2030년 말까지 선택한 요구수익률로 할인한다.
 
 $$
-PV=\frac{EPS_{2030}\times Exit\ P/E}{(1+r)^{4.233}}
+PV=\frac{EPS_{2030}\times Exit\ P/E}{(1+r)^{4.230}}
 $$
 
 민감도 표는 Mission 성장률·마진, 배수, 요구수익률과 주식 수를 현재 선택값에 고정한 뒤 조선 성장률과 마진만 바꾼다. 따라서 셀 하나는 예측 확률이 아니라 **특정 가정 조합의 기계적 결과**다.
