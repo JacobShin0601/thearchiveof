@@ -1,6 +1,6 @@
-export const HII_PUBLISH_DATE = '2026-10-07';
-export const HII_DATA_THROUGH = '2026-10-06';
-export const HII_CURRENT_PRICE = 263.75;
+export const HII_PUBLISH_DATE = '2026-10-08';
+export const HII_DATA_THROUGH = '2026-10-07';
+export const HII_CURRENT_PRICE = 260.67;
 
 export const hiiHistoricalShipbuilding = [
   { year: 2015, ingallsRevenue: 2188, ingallsIncome: 379, newportRevenue: 4298, newportIncome: 401 },
