@@ -59,8 +59,12 @@ references:
 ---
 
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import EquityStance from '../../../../components/EquityStance.astro';
 import SterlingFairValueDiagrams from '../../../../components/SterlingFairValueDiagrams.astro';
 import ValuationLabLinkCard from '../../../../components/ValuationLabLinkCard.astro';
+import decision from '../../../../data/equity-decisions/strl-2026-10-06.json';
+
+<EquityStance decision={decision} language="en" labHref="/en/coding/experiments/sterling-infrastructure-valuation-lab/" />
 
 <AnswerBlock question="Should Sterling Infrastructure be sold here?">
   Not because the company got worse. The October 6, 2026 close of \$564 is almost the same as the \$568 present value I get for the 2030 base case. The business thesis is alive. At this price, the margin of safety is not.

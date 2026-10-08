@@ -1,0 +1,99 @@
+---
+import {
+  hiiBacklog,
+  hiiContractMix2025,
+  hiiEacHistory,
+  hiiFcfCrossCheck,
+  hiiFcfHistory,
+  hiiMarginSensitivity,
+  hiiModelInputs,
+  hiiMosPrices,
+  hiiScenarios,
+} from '../data/hii-valuation';
+
+interface Props {
+  variant: 'backlog' | 'contract' | 'eac' | 'sensitivity' | 'scenario' | 'mos' | 'fcf';
+  language?: 'ko' | 'en';
+}
+
+const { variant, language = 'ko' } = Astro.props;
+const en = language === 'en';
+const moneyB = (value: number) => `$${value.toFixed(2)}B`;
+---
+
+<div class="table-scroll" role="region" aria-label={en ? 'Financial analysis table' : '재무 분석 표'} tabindex="0">
+  {variant === 'backlog' && (
+    <table>
+      <thead><tr><th>{en ? 'Segment' : '부문'}</th><th>Funded</th><th>Unfunded</th><th>Total</th></tr></thead>
+      <tbody>
+        {hiiBacklog.segments.map((row) => <tr><td>{row.name}</td><td>${(row.funded / 1000).toFixed(1)}B</td><td>${(row.unfunded / 1000).toFixed(1)}B</td><td>${(row.total / 1000).toFixed(1)}B</td></tr>)}
+        <tr class="total"><td>Total</td><td>${(hiiBacklog.funded / 1000).toFixed(1)}B</td><td>${(hiiBacklog.unfunded / 1000).toFixed(1)}B</td><td>${(hiiBacklog.total / 1000).toFixed(1)}B</td></tr>
+      </tbody>
+    </table>
+  )}
+
+  {variant === 'contract' && (
+    <table>
+      <thead><tr><th>{en ? '2025 revenue contract type' : '2025년 매출 계약 유형'}</th><th>{en ? 'Share' : '비중'}</th><th>{en ? 'Economic implication' : '경제적 함의'}</th></tr></thead>
+      <tbody>
+        {hiiContractMix2025.map((row) => <tr><td>{en ? row.type : row.typeKo}</td><td>{Math.round(row.share * 100)}%</td><td>{row.type === 'Cost-type' ? (en ? 'Costs are reimbursable, but profit does not rise one-for-one with cost.' : '원가는 보전돼도 이익이 원가와 같은 비율로 늘지는 않는다.') : row.type === 'Fixed-price incentive' ? (en ? 'Productivity and EAC changes can move margin.' : '생산성과 EAC 변화가 마진을 흔든다.') : (en ? 'Smaller part of the mix.' : '전체에서 차지하는 비중이 작다.')}</td></tr>)}
+      </tbody>
+    </table>
+  )}
+
+  {variant === 'eac' && (
+    <table>
+      <thead><tr><th>{en ? 'Year' : '연도'}</th><th>{en ? 'Net cumulative catch-up adjustment' : '순 누적 catch-up 조정'}</th></tr></thead>
+      <tbody>{hiiEacHistory.map((row) => <tr><td>{row.year}</td><td class={row.netAdjustment < 0 ? 'negative' : 'positive'}>{row.netAdjustment > 0 ? '+' : ''}${row.netAdjustment}M</td></tr>)}</tbody>
+    </table>
+  )}
+
+  {variant === 'sensitivity' && (
+    <table>
+      <thead><tr><th>{en ? 'Shipbuilding margin' : '조선 마진'}</th><th>{en ? '2030 operating profit' : '2030 영업이익'}</th></tr></thead>
+      <tbody>{hiiMarginSensitivity.map((row) => <tr><td>{(row.margin * 100).toFixed(row.margin === 0.075 ? 1 : 0)}%</td><td>{moneyB(row.operatingIncome)}</td></tr>)}</tbody>
+    </table>
+  )}
+
+  {variant === 'scenario' && (
+    <table>
+      <thead><tr><th>{en ? 'Scenario' : '시나리오'}</th><th>{en ? '2030 revenue' : '2030 매출'}</th><th>{en ? 'Segment OI' : '부문 영업익'}</th><th>EPS</th><th>{en ? 'Exit P/E' : '출구 P/E'}</th><th>{en ? '2030 price' : '2030 가격'}</th><th>{en ? 'PV today' : '현재가치'}</th></tr></thead>
+      <tbody>{hiiScenarios.map((row) => <tr><td>{row.name}</td><td>{moneyB(row.totalSegmentRevenue)}</td><td>{moneyB(row.segmentOperatingIncome)}</td><td>${row.eps.toFixed(2)}</td><td>{row.exitPe.toFixed(1)}×</td><td>${Math.round(row.futurePrice)}</td><td>${Math.round(row.presentValue)}</td></tr>)}</tbody>
+    </table>
+  )}
+
+  {variant === 'mos' && (
+    <table>
+      <thead><tr><th>{en ? 'Margin of safety' : '안전마진'}</th><th>{en ? 'Price' : '가격'}</th></tr></thead>
+      <tbody>{hiiMosPrices.map((row) => <tr><td>{Math.round(row.marginOfSafety * 100)}%</td><td>${Math.round(row.price)}</td></tr>)}</tbody>
+    </table>
+  )}
+
+  {variant === 'fcf' && (
+    <table>
+      <thead><tr><th>{en ? 'Cross-check' : '교차검증'}</th><th>{en ? 'Assumption / result' : '가정 / 결과'}</th></tr></thead>
+      <tbody>
+        <tr><td>{en ? '2015–2025 median FCF margin' : '2015–2025 FCF 마진 중앙값'}</td><td>{(hiiFcfHistory.map((row) => row.fcfMargin).sort((a, b) => a - b)[5] * 100).toFixed(1)}%</td></tr>
+        <tr><td>{en ? '2030 base FCF margin' : '2030 Base FCF 마진'}</td><td>{(hiiFcfCrossCheck.fcfMargin * 100).toFixed(1)}%</td></tr>
+        <tr><td>{en ? '2030 FCF' : '2030 FCF'}</td><td>{moneyB(hiiFcfCrossCheck.fcf)}</td></tr>
+        <tr><td>P/FCF</td><td>{hiiFcfCrossCheck.multiple}×</td></tr>
+        <tr><td>{en ? '2030 implied price' : '2030 환산 가격'}</td><td>${Math.round(hiiFcfCrossCheck.futurePrice)}</td></tr>
+        <tr><td>{en ? 'Present value at 10%' : '연 10% 할인 현재가치'}</td><td>${Math.round(hiiFcfCrossCheck.presentValue)}</td></tr>
+        <tr><td>{en ? 'Diluted shares' : '희석주식 수'}</td><td>{hiiModelInputs.dilutedShares.toFixed(1)}M</td></tr>
+      </tbody>
+    </table>
+  )}
+</div>
+
+<style>
+  .table-scroll{margin:1.6rem 0;overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line)}
+  table{width:100%;min-width:520px;border-collapse:collapse;font-family:var(--sans);font-size:.82rem;background:var(--paper-deep)}
+  th,td{padding:.68rem .72rem;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th{color:var(--muted);font-weight:650;background:color-mix(in srgb,var(--accent) 7%,var(--paper-deep))}
+  th:first-child,td:first-child{text-align:left}
+  tbody tr:last-child td{border-bottom:0}
+  .total td{font-weight:700}
+  .positive{color:var(--accent)}
+  .negative{color:#a33}
+  @media(max-width:650px){th,td{padding:.58rem .6rem}}
+</style>

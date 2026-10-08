@@ -1,0 +1,260 @@
+---
+title: "Huntington Ingalls Industries: 570억 달러의 주문을 가진 독점 조선소는 왜 14배에 거래될까?"
+subtitle: "시장은 HII의 주문보다 그 주문이 이익과 현금으로 바뀌는 속도를 의심한다."
+description: "핵항공모함 독점기업 Huntington Ingalls Industries의 수주잔고, 생산성, 조선 마진과 2030년 적정가치를 분석한다."
+publishedDate: 2026-10-08
+section: "Investing"
+subsection: "Markets"
+contentType: "research"
+topics: [portfolio, supply-chain]
+primaryTopic: portfolio
+tags: [valuation, defense, shipbuilding, supply-chain, research]
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "ko"
+translationKey: "huntington-ingalls-industries-valuation"
+freshness: time-sensitive
+lastReviewed: 2026-10-08
+nextReviewDate: 2026-11-16
+dataThrough: 2026-10-07
+methodology: "회사 숫자는 HII의 2015~2025 Form 10-K와 2026년 2분기 Form 10-Q·실적 발표를 사용했다. 조선 통합 마진은 Ingalls와 Newport News의 부문 영업이익 합계를 두 부문의 매출 합계로 나눠 재구성했다. 2030년 시나리오는 2026년 가이던스 중간값에서 출발하며, 매출 성장률·마진·출구 배수는 저자 가정이다. 2026년 10월 8일부터 2030년 12월 31일까지 1,545일을 연 10%로 할인했다. 주가는 2026년 10월 7일 종가다."
+references:
+  - title: "HII Q2 2026 earnings release"
+    url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000045/hii2026q2earningsrelease.htm"
+    publisher: "SEC"
+  - title: "HII Q2 2026 Form 10-Q"
+    url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000047/hii-20260630.htm"
+    publisher: "SEC"
+  - title: "HII 2025 Form 10-K"
+    url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000006/hii-20251231.htm"
+    publisher: "SEC"
+  - title: "Aircraft Carriers"
+    url: "https://www.hii.com/capabilities/aircraft-carriers"
+    publisher: "HII"
+  - title: "Navy Shipbuilding: A Generational Imperative for Systemic Change"
+    url: "https://www.gao.gov/products/gao-25-108136"
+    publisher: "U.S. GAO"
+  - title: "Shipbuilding and Repair: Navy Needs a Strategic Approach for Private Sector Industrial Base Investments"
+    url: "https://www.gao.gov/products/gao-25-106286"
+    publisher: "U.S. GAO"
+  - title: "Navy’s Maritime Industrial Base Program — 2025 Year in Review"
+    url: "https://www.secnav.navy.mil/rda/sib/SitePages/MIB-Program-Releases-2025-Year-in-Review-Highlighting-Integrated-Execution.aspx"
+    publisher: "U.S. Navy"
+  - title: "HII teams with Path Robotics"
+    url: "https://www.hii.com/news/hii-teams-with-path-robotics-to-integrate-physical-ai-into-manned-and-unmanned-shipbuilding"
+    publisher: "HII"
+  - title: "HII signs performance-based production agreements"
+    url: "https://www.hii.com/news/hii-signs-performance-based-production-agreements-with-path-robotics-and-graymatter-robotics"
+    publisher: "HII"
+  - title: "HII expands welding automation with HD Hyundai Heavy Industries"
+    url: "https://www.hii.com/news/hii-expands-welding-automation-at-ingalls-shipbuilding-through-partnership-with-hd-hhi"
+    publisher: "HII"
+  - title: "Hanwha Ocean expands U.S. shipbuilding ties"
+    url: "https://www.hanwha.com/newsroom/news/press-releases/hanwha-ocean-advances-korea-us-shipbuilding-cooperation-through-naval-vessel-development-and-broader-industry-collaboration.do"
+    publisher: "Hanwha"
+  - title: "HII historical prices"
+    url: "https://stockanalysis.com/stocks/hii/history/"
+    publisher: "Stock Analysis / S&P Global Market Intelligence"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import EquityStance from '../../../components/EquityStance.astro';
+import HiiValuationDiagrams from '../../../components/HiiValuationDiagrams.astro';
+import HiiValuationTables from '../../../components/HiiValuationTables.astro';
+import ValuationLabLinkCard from '../../../components/ValuationLabLinkCard.astro';
+import decision from '../../../data/equity-decisions/hii-2026-10-06.json';
+
+<EquityStance decision={decision} language="ko" labHref="/coding/experiments/huntington-ingalls-industries-valuation-lab/" />
+
+<AnswerBlock question="570억 달러의 수주잔고를 가진 HII는 왜 forward earnings 약 14배에 거래될까?">
+  시장은 HII의 주문을 의심하는 것이 아니다. 그 주문의 수익성을 의심하고 있다. 2026년 조선 마진 가이던스는 6.0–6.5%다. 내가 계산한 2030년 Base 현재가치는 약 \$285로 2026년 10월 7일 종가 \$260.67보다 9% 높지만, 생산성 회복 위험을 감수할 만큼 큰 안전마진은 아니다.
+</AnswerBlock>
+
+미국에서 핵추진 항공모함을 지을 수 있는 조선소는 하나다. 그 회사의 수주잔고는 약 573억 달러(\$57.3B)다. 그런데 <strong>Huntington Ingalls Industries (NYSE: HII)</strong>의 2026년 10월 7일 종가는 \$260.67, forward P/E는 약 13.5배였다. 독점, 국방예산, 4년이 넘는 매출 가시성을 한 문장에 넣으면 이 배수는 이상해 보인다.
+
+문제는 \$57B가 HII의 돈이 아니라는 데 있다. 수주잔고는 미래 매출이고, 주주가 받는 것은 그 매출에서 인건비·재료비·재작업·설비투자·운전자본을 뺀 현금이다.
+
+$$
+\text{Backlog} \rightarrow \text{Throughput} \rightarrow \text{Revenue} \rightarrow \text{Margin} \rightarrow \text{FCF}
+$$
+
+이 글의 결론은 단순하다. **HII의 bottleneck은 backlog가 아니라 throughput이다.** 같은 배를 만들어도 6% margin과 9% margin은 완전히 다른 주식을 만든다.
+
+<ValuationLabLinkCard
+  href="/coding/experiments/huntington-ingalls-industries-valuation-lab/"
+  company="Huntington Ingalls Industries"
+  tone="navy"
+  focusKo="조선 마진·성장률·출구 배수와 요구수익률을 바꾸며 2030년 EPS, 현재가치와 FCF 교차검증을 즉시 다시 계산합니다."
+  focusEn="Change shipbuilding margin, growth, the exit multiple, and required return to recalculate 2030 EPS, present value, and the FCF cross-check."
+/>
+
+## 1. 주문이 부족한 회사가 아니다
+
+HII에는 세 사업이 있다.
+
+**Newport News Shipbuilding**은 핵추진 항공모함, Virginia급·Columbia급 핵잠수함, 항공모함 핵연료 재장전 및 복합정비(RCOH)를 맡는다. Newport News는 미국 핵추진 항공모함의 유일한 설계·건조사이며 RCOH도 유일하게 수행한다. 핵잠수함은 General Dynamics (NYSE: GD)의 Electric Boat와 나눠 만든다. [HII의 항공모함 설명](https://www.hii.com/capabilities/aircraft-carriers)
+
+**Ingalls Shipbuilding**은 Arleigh Burke급 구축함, America급 강습상륙함, San Antonio급 수송상륙함을 만든다. HII는 미 해군 강습상륙함의 단독 건조사이고 수상전투함 공급자 둘 중 하나다.
+
+**Mission Technologies**는 C5ISR, cyber, electronic warfare, AI/ML, 무인체계, 훈련·시뮬레이션, 플랫폼 현대화를 제공한다. 중요한 사업이지만 이 글의 valuation puzzle은 매출의 대부분을 차지하는 두 조선소에 있다.
+
+이전 [Sterling Infrastructure 분석](/investing/markets/sterling-infrastructure-fair-value/)도 scarce capacity를 다뤘다. 그러나 전환식은 다르다. Sterling은 수요가 시장점유율과 매출로 비교적 빠르게 연결된다. HII에서는 주문이 먼저 쌓이고, 그것을 숙련 노동시간과 도크 일정으로 처리한 뒤에야 매출과 이익이 된다.
+
+## 2. 독점인데 왜 마진이 6%인가?
+
+HII의 산업적 해자는 깊지만 pricing power는 제한적이다. 공급자는 극소수이고 구매자는 사실상 미국 정부 하나다. **monopoly supplier와 monopsony buyer가 마주 보는 구조**다.
+
+핵 항모 조선소, 원자로를 다루는 인증, 수십 년의 프로그램 지식, 4만 명이 넘는 조직과 공급망은 새 경쟁자가 복제하기 어렵다. 반대로 미 해군은 계약 유형, 원가 인정, 인센티브, 예산 승인과 감사를 통해 scarcity rent의 상당 부분을 통제한다. HII가 유일한 공급자라는 사실이 곧 소프트웨어 같은 마진을 뜻하지는 않는다.
+
+2025년 매출의 81%가 미 해군에서 나왔다. 고객 집중은 수요 안정성을 높이는 동시에 가격 협상력을 제한한다. HII의 해자는 생존 가능성과 장기 수요를 방어하지만, 그 해자가 만들어 내는 경제적 지대가 모두 주주에게 가지는 않는다.
+
+## 3. 문제는 backlog가 아니라 backlog의 economics다
+
+2025년 계약 유형은 원가보상형 50%, 고정가격 인센티브 46%, 확정 고정가격 3%, 시간·재료비 1%였다. [2025 Form 10-K](https://www.sec.gov/Archives/edgar/data/1501585/000150158526000006/hii-20251231.htm)
+
+<HiiValuationTables variant="contract" />
+
+원가보상형 계약은 허용 원가를 돌려받고 fee를 얹는다. 원가가 10% 늘었다고 이익도 10% 늘지는 않는다. 고정가격 인센티브 계약은 목표 원가와 성과에 따라 손익이 달라지기 때문에 생산성 저하와 EAC(Estimate at Completion) 변경이 마진을 직접 흔든다.
+
+EAC는 “이 계약을 끝내는 데 총 얼마가 들까”라는 추정이다. 장기 계약의 총이익 추정이 바뀌면 그 영향 일부를 당기에 누적 catch-up 조정으로 반영한다. HII의 순 조정은 2021~2023년 매년 +\$100M을 넘었지만 2024년에는 -\$126M으로 뒤집혔다.
+
+<HiiValuationTables variant="eac" />
+
+2025년에는 -\$28M으로 손실 폭이 줄었고, 2026년 상반기는 +\$11M이었다. 방향은 개선됐지만 반년 숫자를 연간과 그대로 비교해서는 안 된다. 더 중요한 것은 2025년에도 CVN 80·81 항공모함 건조에서 \$71M의 불리한 조정이 있었다는 점이다. HII에서는 “배 가격이 오른다”보다 labor efficiency와 EAC가 어떻게 움직이는지가 더 중요하다.
+
+## 4. 573억 달러의 수주잔고는 투자 thesis의 시작이다
+
+2026년 6월 30일 총 backlog는 \$57.322B였다. funded backlog는 \$34.594B, 아직 예산이 계약상 의무화되지 않은 unfunded backlog는 \$22.728B다. 2026년 예상 총매출 약 \$13.4B의 4.3배다. [2026년 2분기 10-Q](https://www.sec.gov/Archives/edgar/data/1501585/000150158526000047/hii-20260630.htm)
+
+<HiiValuationTables variant="backlog" />
+
+가장 큰 몫은 Newport News의 \$32.5B다. Ingalls \$19.4B, Mission Technologies \$5.5B가 뒤를 잇는다. 6월 말 이후에는 USS Harry S. Truman RCOH의 약 \$5.1B 계약도 발표됐지만, 아직 분기 보고된 backlog와 섞지 않았다.
+
+<HiiValuationDiagrams variant="backlog" />
+
+HII는 2026년 6월 말 잔여 수행의무의 약 35%를 2027년까지, 추가 35%를 2029년까지, 나머지를 그 이후 매출로 인식할 것으로 봤다. 이건 연도별 정확한 매출표가 아니다. 긴 전환 시간을 보여 주는 누적 구간이다.
+
+시가총액이 약 \$10.4B인데 backlog가 \$57B라는 비교는 도움이 되지 않는다. backlog는 revenue이지 profit이 아니다. **수주잔고는 HII 투자 thesis의 끝이 아니라 시작이다.**
+
+## 5. 미국은 군함을 만들 capacity가 부족하다
+
+수요 쪽 근거는 충분하다. 그러나 그것만으로 낙관하면 중요한 절반을 놓친다. GAO는 미 해군 조선 프로그램이 예산 확대에도 지속적으로 비용과 일정을 넘겼고, 인프라·숙련인력·공급망 부족이 지연을 되돌리기 어렵게 만든다고 지적했다. 국방부는 2014~2023년 민간 조선 산업기반에 \$5.8B 이상을 투입했고 2028년까지 \$12.6B를 추가로 계획했다. [GAO-25-106286](https://www.gao.gov/products/gao-25-106286)
+
+미 해군의 산업기반 프로그램도 공급망, advanced manufacturing, workforce development, shipbuilder infrastructure와 strategic outsourcing을 함께 다룬다. 주문서 한 장으로 생산성이 생기지 않기 때문이다.
+
+미국은 군함을 더 주문할 수 있다. 하지만 주문서를 군함으로 바꾸는 데는 사람과 시간이 필요하다.
+
+## 6. Huntington Ingalls Industries의 진짜 해자는 무엇인가
+
+HII의 scarce asset은 계약서가 아니라 사람과 생산시스템이다. 2025년 말 두 조선소에는 27개가 넘는 직종에서 1,350명 이상의 견습생이 있었고, 40년 이상 근무한 Master Shipbuilder는 Newport News 1,096명, Ingalls 212명이었다. 이런 암묵지는 공장을 짓는다고 바로 생기지 않는다.
+
+회사도 이 자산을 yard 밖으로 넓히고 있다. 2026년 조선 외주 작업은 250만 시간을 넘길 계획으로 2025년보다 30% 많다. 구조물 assembly partner를 늘리고, Path Robotics·GrayMatter Robotics와 용접·표면처리 자동화를 추진한다. HII가 밝힌 조선 throughput 증가율은 2025년 약 14%, 2026년 목표는 추가 15%다. 여기서 throughput은 단순 매출 증가가 아니라 같은 생산체계가 처리하는 실물 작업량을 늘리는 운영 목표에 가깝다. [Path Robotics 협력](https://www.hii.com/news/hii-teams-with-path-robotics-to-integrate-physical-ai-into-manned-and-unmanned-shipbuilding), [외주 작업시간](https://www.hii.com/news/hii-signs-performance-based-production-agreements-with-path-robotics-and-graymatter-robotics)
+
+한국 조선사와의 연결도 이 맥락에서 봐야 한다. 공개적으로 확인되는 HII의 직접 파트너는 한화오션이 아니라 HD Hyundai Heavy Industries다. 2025년 MOU·MOA 이후 distributed shipbuilding, 보조함 공동 제안, AI/ML·robotics·automation을 협력했고, 2026년 8월에는 Ingalls에 지능형 기계용접 pilot을 도입했다. [HII–HD현대 용접 자동화](https://www.hii.com/news/hii-expands-welding-automation-at-ingalls-shipbuilding-through-partnership-with-hd-hhi)
+
+한화오션은 Hanwha Philly Shipyard, 미 해군 MRO, Leidos와의 함정 설계 협력이라는 별도 축을 만들고 있다. 이 글을 검증한 시점에는 HII–한화오션의 직접 협력 발표를 찾지 못했다. 한국 조선업의 미국 진출을 HII의 경쟁 심화로만 읽을 필요는 없다. **내 해석으로는**, HII의 병목이 throughput이라면 외부 모듈 제작·자동화·공급자 증설은 단기적으로 HII의 처리능력을 높일 수도 있다.
+
+## 7. HII의 margin은 왜 무너졌고 다시 올라갈 수 있을까?
+
+7.5% 정상화 가정을 먼저 의심했다. 2015~2025 Form 10-K에서 Ingalls와 Newport News의 매출과 부문 영업이익을 같은 연도 기준으로 다시 합쳤다. 2026E는 회사 가이던스 6.0–6.5%의 중간값이다.
+
+<HiiValuationDiagrams variant="margin" />
+
+결과는 세 구간으로 나뉜다.
+
+- 2015~2019 가중평균: **9.9%**
+- 2021~2023 가중평균: **7.9%**
+- 2024~2025 가중평균: **5.6%**
+
+2020년에는 COVID disruption과 Virginia급 Block IV의 \$148M 불리한 조정이 겹쳐 Newport News 마진이 4.2%로 내려갔다. 2021~2023년 통합 마진은 7.7~8.3%로 회복했다. 다만 2023년 Ingalls의 13.2%에는 court judgment 매각 이익이 들어 있어 그대로 정상 마진으로 볼 수 없다.
+
+2024년에는 노동력 가용성, 공급망과 인플레이션 문제가 겹쳤다. Newport News에서는 Virginia급 잠수함과 항공모함 성과가 악화됐고, Ingalls에서는 강습상륙함·수상전투함 성과가 낮아졌다. 2025년 통합 마진은 5.9%로 조금 회복했고 2026년 가이던스 중간값은 6.25%다.
+
+따라서 나는 7.5%를 유지한다. 분류는 **Neutral**이다. 과거 8~10%를 다시 찍는 Bull case는 아니지만, 현재 6%대에서 아무 개선 없이 저절로 나오는 숫자도 아니다. 신규 인력이 숙련되고, 불리한 EAC가 줄며, 14~15% throughput 목표가 비용 효율로 이어져야 한다.
+
+## 8. 같은 매출, 완전히 다른 earnings
+
+2030년 Base 조선 매출 \$13.0B를 고정하면 마진 한 점의 가치가 선명해진다.
+
+<HiiValuationDiagrams variant="sensitivity" />
+
+<HiiValuationTables variant="sensitivity" />
+
+6%에서 9%로 가면 매출은 그대로인데 영업이익은 \$0.78B에서 \$1.17B로 50% 늘어난다. HII 분석에서 revenue CAGR보다 margin normalization이 중요한 이유다.
+
+## 9. 2030년에는 얼마나 벌 수 있을까?
+
+출발점은 2026년 2분기 최신 가이던스다. 조선 매출 \$10.2–10.4B, 조선 영업마진 6.0–6.5%, Mission Technologies 매출 \$3.0–3.2B, 부문 마진 약 5%, FCF \$500–600M이다. [2026년 2분기 실적](https://www.sec.gov/Archives/edgar/data/1501585/000150158526000045/hii2026q2earningsrelease.htm)
+
+| 시나리오 | 조선 CAGR | 조선 마진 | Mission CAGR | Mission 마진 | 출구 P/E |
+| :-- | --: | --: | --: | --: | --: |
+| Bear | 3% | 6.0% | 3% | 5.0% | 12.5× |
+| Base | 6% | 7.5% | 5% | 6.5% | 16.0× |
+| Bull | 8% | 9.0% | 7% | 8.0% | 18.5× |
+
+EPS bridge에는 2026년 회사 전망의 비부문 항목을 명시적으로 넣었다. Operating FAS/CAS -\$44M, non-current state tax -\$20M, 이자비용 -\$105M, 비영업 퇴직급여 +\$213M, 세율 17%다. 희석주식 수는 2026년 상반기 39.4M으로 고정했다. 2023년 33.7만 주, 2024년 60.8만 주를 매입했지만 2025년에는 자사주를 사지 않았으므로 지속적인 감소를 기본 가정에 넣지 않았다.
+
+비영업 퇴직급여를 2030년까지 고정하는 것은 모델에서 가장 약한 가정이다. 실제 금리와 연금자산 수익률에 따라 크게 달라질 수 있다. 그래서 EPS 결과를 FCF로 별도 검산한다.
+
+<HiiValuationTables variant="scenario" />
+
+초기 rough model의 \$20/\$28/\$37보다 EPS가 각각 \$19.25/\$26.63/\$34.34로 낮아졌다. 주식 수를 공격적으로 줄이지 않았고, 비부문 조정항목을 뺀 결과다. 모델이 결론을 정하게 해야 한다.
+
+## 10. 미래가격을 오늘 가치로 바꿔보면
+
+2030년 가격을 지금 가격과 바로 비교하면 4년의 시간을 공짜로 취급하게 된다. 2026년 10월 8일부터 2030년 12월 31일까지는 1,545일, 4.230년이다.
+
+$$
+PV = \frac{Price_{2030}}{(1+10\%)^{4.230}}
+$$
+
+<HiiValuationDiagrams variant="valuation" />
+
+Bear \$161, Base \$285, Bull \$424다. 현재가 \$260.67은 Base보다 약 9% 낮다. upside는 있지만, 조선 생산성 정상화가 실패할 위험을 보상하는 큰 간격은 아니다.
+
+## 11. 어느 가격부터 안전마진이 생길까?
+
+Base 현재가치 \$284.65를 기준으로 계산했다.
+
+<HiiValuationTables variant="mos" />
+
+\$264 부근은 Base 대비 작은 할인이다. \$228 전후의 20% 안전마진부터 관심이 크게 높아지고, \$199~213의 25~30% 할인은 사업 논리가 깨지지 않았다는 전제에서 적극적으로 검토할 구간이다. 가격이 내려갔다는 사실만으로 충분하지 않다. 그때 마진 가이던스와 EAC가 같이 나빠졌다면 fair value도 내려가야 한다.
+
+## 12. FCF로 다시 확인해보기
+
+2015~2025 FCF 마진의 중앙값은 약 6.0%다. 분산은 컸다. 2024년은 CFO \$393M과 설비투자 \$367M 때문에 FCF가 \$40M에 그쳤고, 2025년은 \$800M으로 반등했다. 2026년 FCF 가이던스 \$500–600M은 매출 대비 약 4%로, 회사가 매출의 4~5%를 설비투자에 쓰는 투자 사이클과 운전자본 부담을 반영한다.
+
+Base의 2030년 매출 \$16.77B에 6%를 적용하면 FCF는 약 \$1.01B다. 여기에 17배를 적용하고 같은 10%로 할인했다.
+
+<HiiValuationTables variant="fcf" />
+
+FCF 현재가치 약 \$290은 EPS 방식의 \$285와 가깝다. 두 방식이 같은 연금 가정을 공유하지 않는데도 비슷하다는 점은 Base 값의 방향을 지지한다. 다만 6% FCF 마진은 “최근 매년 달성한 수준”이 아니라 11년 중앙값이다. CAPEX와 working capital이 오래 높으면 이 교차검증도 낙관적이다.
+
+## 13. 시장은 무엇을 의심하고 있는가?
+
+시장에는 군함 수요에 대한 의심보다 HII의 생산성에 대한 의심이 더 많이 반영되어 있다. 내가 보는 질문은 세 가지다.
+
+1. 2025년 +14%, 2026년 +15%라는 throughput 개선이 실제 선박 milestone과 margin으로 이어지는가?
+2. 신규 인력이 숙련되면서 배 한 척에 필요한 labor hours와 rework가 줄어드는가?
+3. productivity gain이 정부 계약 구조 안에서 매출 증가에 그치지 않고 shareholder economics로 전환되는가?
+
+이 세 질문에 “그렇다”가 쌓이면 7.5%는 과한 숫자가 아니다. 반대로 매출만 늘고 마진과 FCF가 움직이지 않으면 backlog가 늘수록 운전자본과 execution risk도 같이 늘 수 있다.
+
+## 14. 내가 틀릴 수 있는 이유
+
+**Upside**는 조선 마진이 8~9%로 더 빨리 회복되는 경우다. distributed shipbuilding과 자동화가 예상보다 큰 생산성 개선을 만들고, 숙련도와 공급망이 정상화되며, Mission Technologies 마진이 확대될 수 있다. 미 해군의 산업기반 투자, 더 나은 contract mix, 자사주 매입도 주당가치를 높인다.
+
+**Downside**는 6%가 일시적 저점이 아니라 새 구조가 되는 경우다. 불리한 EAC, 임금 상승, 일정 지연, 공급자 문제, 핵 프로그램의 복잡성, 높은 CAPEX와 약한 FCF conversion이 이어질 수 있다. 정부 예산과 계약 시점도 수요의 존재와 별개로 분기·연간 현금흐름을 늦춘다.
+
+가장 직접적인 falsifier는 2027년까지 throughput은 늘었는데 조선 마진이 6%대에 머무르고 순 EAC가 다시 크게 음수로 가는 경우다. 그때는 7.5% Base를 낮춰야 한다.
+
+## 결론: 570억 달러보다 6%를 보자
+
+HII는 단순한 방산주보다 생산성 정상화에 투자하는 주식에 가깝다. 핵항모 독점과 \$57B backlog는 downside를 없애는 주문서가 아니라, 생산성이 회복될 때 operating leverage가 작동할 수 있는 재료다.
+
+현재 \$264는 내 Base 현재가치 \$285보다 낮다. 그러나 7.5% 마진으로 돌아가는 과정의 불확실성을 감안하면 “절대 저평가”라고 부를 만큼 싸지는 않다. \$228 부근부터 기대수익률이 더 설득력 있어진다.
+
+투자자에게 필요한 것은 새로운 570억 달러의 주문이 아닐 수도 있다. 이미 주문받은 570억 달러를 조금 더 잘 만드는 것만으로도 충분할 수 있다.
+
+Disclosure: 이 글은 개인적인 투자 리서치와 판단 과정을 기록한 것이며 투자 권유가 아니다. 본문의 적정가치는 여러 가정을 기반으로 한 저자의 추정치이며 실제 결과는 크게 달라질 수 있다. 작성 시점의 HII 보유 여부는 발행 전 확인이 필요하다.

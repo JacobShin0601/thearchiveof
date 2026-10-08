@@ -1,0 +1,48 @@
+---
+import {
+  formatDate,
+  formatPrice,
+  prepareEquityDecision,
+  priceFieldLabel,
+  stanceLabel,
+  type EquityLanguage,
+} from '../lib/equity-decision';
+
+interface Props {
+  decision: unknown;
+  language?: EquityLanguage;
+  labHref?: string;
+}
+const { decision, language = 'ko', labHref } = Astro.props;
+const prepared = prepareEquityDecision(decision);
+const ko = language === 'ko';
+const field = priceFieldLabel(prepared.priceField, language);
+---
+
+<aside class="equity-stance" aria-label={ko ? '이 글의 매매 의견' : 'Position stated in this note'}>
+  <p class="equity-stance-kicker">{ko ? 'Position / 의견' : 'Position'}</p>
+  <p class="equity-stance-line">
+    <strong>{stanceLabel(prepared.stance, language)}</strong>
+    <span>{prepared.ticker}</span>
+    <span>{prepared.venue}</span>
+  </p>
+  <p class="equity-stance-fact">
+    {formatDate(prepared.decisionDate, language)} {field} {formatPrice(prepared.currency, prepared.decisionClose)}
+    · {ko ? prepared.name.ko : prepared.name.en}
+  </p>
+  <p class="equity-stance-note">{ko ? '개인 기록이다. 매수나 매도를 권하지 않는다.' : 'A personal record. Not a recommendation to buy or sell.'}</p>
+  {labHref && <p class="equity-stance-lab"><a href={labHref}>{ko ? '이후 가격은 Lab에서 갱신한다' : 'The Lab keeps the price since this decision'} <span aria-hidden="true">→</span></a></p>}
+</aside>
+
+<style>
+  .equity-stance { margin: 0 0 1.6em; padding: 0 0 0 16px; border-left: 2px solid var(--accent); font-family: var(--sans); color: var(--ink); }
+  .equity-stance-kicker { margin: 0; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+  .equity-stance-line { display: flex; flex-wrap: wrap; gap: .35em .7em; align-items: baseline; margin: .35em 0 0; }
+  .equity-stance-line strong { font-family: var(--serif-kr), var(--serif); font-size: 1.7rem; font-weight: 500; letter-spacing: -.03em; line-height: 1.1; }
+  .equity-stance-line span { color: var(--muted); font-size: .95rem; font-weight: 650; letter-spacing: .04em; }
+  .equity-stance-fact, .equity-stance-note, .equity-stance-lab { margin: .45em 0 0; font-size: .92rem; line-height: 1.5; }
+  .equity-stance-note { color: var(--muted); }
+  .equity-stance-lab a { color: var(--accent); font-weight: 700; }
+  .equity-stance-lab span { display: inline-block; transition: transform .2s ease; }
+  .equity-stance-lab a:hover span { transform: translateX(3px); }
+</style>

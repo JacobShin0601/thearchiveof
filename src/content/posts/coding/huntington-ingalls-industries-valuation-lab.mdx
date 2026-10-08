@@ -1,0 +1,86 @@
+---
+title: "Huntington Ingalls Industries Valuation Lab: 7.5% 마진을 직접 바꿔보면"
+subtitle: "조선 마진·성장률·출구 배수를 움직여 HII의 2030년 현재가치를 다시 계산한다."
+description: "Huntington Ingalls Industries의 조선 마진, 성장률, 출구 P/E와 요구수익률을 바꾸며 2030년 EPS와 현재 적정가치를 계산하는 인터랙티브 Lab."
+publishedDate: 2026-10-08
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, supply-chain]
+primaryTopic: portfolio
+tags: [valuation, defense, shipbuilding, scenario-analysis, research]
+author: "Jacob Shin"
+featured: false
+draft: false
+comments: true
+language: "ko"
+translationKey: "huntington-ingalls-industries-valuation-lab"
+freshness: time-sensitive
+lastReviewed: 2026-10-08
+nextReviewDate: 2026-11-16
+dataThrough: 2026-10-07
+methodology: "2026년 HII 가이던스 중간값에서 출발해 조선·Mission Technologies 매출을 2030년까지 복리 성장시키고, 선택한 영업마진으로 부문 영업이익을 계산한다. 비부문 항목, 이자비용, 비영업 퇴직급여와 세금을 반영한 EPS에 출구 P/E를 곱한 뒤 2026년 10월 7일부터 2030년 12월 31일까지 선택한 요구수익률로 할인한다. FCF 방식은 선택한 FCF 마진과 P/FCF를 사용한 별도 교차검증이다."
+references:
+  - title: "HII Q2 2026 earnings release"
+    url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000045/hii2026q2earningsrelease.htm"
+    publisher: "SEC"
+  - title: "HII Q2 2026 Form 10-Q"
+    url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000047/hii-20260630.htm"
+    publisher: "SEC"
+  - title: "HII 2025 Form 10-K"
+    url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000006/hii-20251231.htm"
+    publisher: "SEC"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import EquityDecisionChart from '../../../components/interactive/EquityDecisionChart.astro';
+import HiiValuationLab from '../../../components/interactive/HiiValuationLab.astro';
+import decision from '../../../data/equity-decisions/hii-2026-10-06.json';
+
+<EquityDecisionChart decision={decision} language="ko" />
+
+<AnswerBlock question="HII 가치평가에서 가장 먼저 움직여야 할 숫자는 무엇일까?">
+  **조선 매출보다 조선 마진이다.** 기본값에서 조선 마진을 6%와 9%로 바꾸면 같은 성장률 아래에서도 현재가치가 크게 달라진다. 이 도구는 7.5% 정상화 가정을 정답으로 두지 않고 직접 반증해 보도록 만든 계산기다.
+</AnswerBlock>
+
+이 페이지는 [Huntington Ingalls Industries 분석](/investing/markets/huntington-ingalls-industries-valuation/)의 계산을 직접 바꾸어 보는 실험이다. 원글의 핵심 질문은 “미 해군이 함정을 더 주문할까?”가 아니라 “이미 받은 주문이 어느 마진으로 이익과 현금이 될까?”였다.
+
+기본값은 원글의 Base case다. 2026년 가이던스 중간값에서 출발해 조선 매출은 연 6%, Mission Technologies 매출은 연 5% 성장하고, 2030년 조선 마진은 7.5%에 도달한다고 가정한다. 이 가정은 회사의 공식 전망이 아니라 저자의 추정치다.
+
+## 7.5%를 믿지 말고 움직여 보기
+
+<HiiValuationLab language="ko" />
+
+## 이 도구를 읽는 순서
+
+먼저 조선 영업마진만 6%에서 9% 사이로 움직인다. 매출 성장률을 그대로 두면 margin normalization 하나가 EPS와 적정가치에 주는 영향을 분리해서 볼 수 있다. 그다음 조선 성장률을 바꾸어 throughput 개선이 매출로 전환될 때의 operating leverage를 확인한다.
+
+출구 P/E는 결과를 크게 움직이지만 사업의 질을 설명하지는 않는다. 그래서 배수를 높이기 전에 2030년 EPS가 어떻게 만들어졌는지 earnings bridge를 확인하는 편이 낫다. EPS 방식과 FCF 방식이 크게 갈라진다면, 연금손익·CAPEX·운전자본 가정 중 무엇이 차이를 만드는지 다시 살펴야 한다.
+
+## 계산식
+
+조선과 Mission Technologies 매출은 각각 2026년 기준점에서 4년간 복리 성장시킨다.
+
+$$
+Revenue_{2030}=Revenue_{2026}(1+g)^4
+$$
+
+각 부문의 영업이익에 비부문 항목, 이자비용, 비영업 퇴직급여와 세금을 반영해 EPS를 구한다. 2030년 주가는 EPS에 선택한 P/E를 곱하고, 발행일에서 2030년 말까지 선택한 요구수익률로 할인한다.
+
+$$
+PV=\frac{EPS_{2030}\times Exit\ P/E}{(1+r)^{4.230}}
+$$
+
+민감도 표는 Mission 성장률·마진, 배수, 요구수익률과 주식 수를 현재 선택값에 고정한 뒤 조선 성장률과 마진만 바꾼다. 따라서 셀 하나는 예측 확률이 아니라 **특정 가정 조합의 기계적 결과**다.
+
+## 이 모형이 답하지 않는 것
+
+- 개별 프로그램의 EAC 조정과 일정 지연이 어느 해에 발생할지
+- 함정별 계약 유형과 incentive fee가 실제 마진에 미치는 영향
+- 연금자산 수익률, 금리와 비영업 퇴직급여의 변동
+- CAPEX와 운전자본의 연도별 경로
+- 시장이 2030년에 실제로 부여할 배수
+
+따라서 이 Lab의 목적은 정확한 목표가격 한 점을 만드는 것이 아니다. **어떤 가정이 결론을 지배하는지 찾고, 그 가정을 실적 발표마다 다시 검증하는 것**이다.
+
+Disclosure: 이 도구는 개인적인 투자 리서치와 판단 과정을 기록한 것이며 투자 권유가 아니다. 적정가치는 여러 가정을 기반으로 한 저자의 추정치이며 실제 결과는 크게 달라질 수 있다.

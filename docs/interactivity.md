@@ -149,6 +149,10 @@ The first demo is `ParetoExplorer` on the Pareto draft. It reads `src/data/paret
 
 Label the control **Interactive equivalent** / **직접 실험**. Do not claim that Python is executed.
 
+## Listed-equity decision chart
+
+`EquityDecisionChart` is the Lab opening for a listed-stock decision. The decision and the decision close are in the HTML. Later closes come from `GET /api/equity-decisions/<id>` when the page opens. The function is allowlisted, answers only the chart's own fetch, returns only completed sessions, and reuses that JSON for an hour. After 100,000 requests on a UTC day it stops refreshing and leaves the decision close. Hover and arrow keys move the readout under the line. The headline stays on the latest completed close. See `docs/listed-equity.md`.
+
 ## Preview vs Production
 
 | | Preview (`develop`) | Production (`main`) |
@@ -182,6 +186,7 @@ Repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` let CI con
 1. Pages project → Settings → Bindings: verify `DB` points to `archive-interactions-preview` in Preview and `archive-interactions-production` in Production after each deployment. Binding changes are made in `wrangler.toml`, not the dashboard.
 2. Pages project → Settings → Variables and secrets: register `INTERACTION_SECRET` separately in Preview and Production. Keep its values out of git.
 3. Verify both databases contain `article_reactions` and `interaction_events` before serving writes.
+4. Apply `migrations/0003_equity_refresh_day.sql` to both databases before the listed-equity chart depends on the daily refresh cap. Without that table the deployed chart leaves the price feed off.
 
 Local:
 
