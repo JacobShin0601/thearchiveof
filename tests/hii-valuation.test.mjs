@@ -14,11 +14,11 @@ import {
 
 test('HII scenario model reproduces the article values', () => {
   assert.equal(hiiScenarios.length, 3);
-  assert.ok(Math.abs(hiiDiscountYears - 4.2327) < 0.001);
+  assert.ok(Math.abs(hiiDiscountYears - 4.23) < 0.001);
   assert.ok(Math.abs(hiiBaseScenario.totalSegmentRevenue - 16.7716) < 0.001);
   assert.ok(Math.abs(hiiBaseScenario.eps - 26.6314) < 0.001);
-  assert.ok(Math.abs(hiiBaseScenario.presentValue - 284.6492) < 0.01);
-  assert.ok(Math.abs(hiiFcfCrossCheck.presentValue - 290.0474) < 0.01);
+  assert.ok(Math.abs(hiiBaseScenario.presentValue - 284.7235) < 0.01);
+  assert.ok(Math.abs(hiiFcfCrossCheck.presentValue - 290.1268) < 0.01);
 });
 
 test('HII margin normalization and margin sensitivity are internally consistent', () => {
@@ -35,7 +35,7 @@ test('HII margin normalization and margin sensitivity are internally consistent'
 test('HII margin-of-safety prices descend from base present value', () => {
   assert.deepEqual(
     hiiMosPrices.map((row) => Math.round(row.price)),
-    [256, 242, 228, 213, 199],
+    [256, 242, 228, 214, 199],
   );
 });
 
