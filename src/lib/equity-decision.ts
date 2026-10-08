@@ -239,7 +239,9 @@ export function prepareEquityDecision(input: unknown): PreparedEquityDecision {
   if (input.currency !== 'USD' && input.currency !== 'KRW') fail('currency must be USD or KRW');
   if (!EQUITY_STANCES.includes(input.stance as EquityStance)) fail('stance must be buy, hold, reduce, or sell');
   if (typeof input.decisionDate !== 'string' || !isIsoDate(input.decisionDate)) fail('decisionDate must be YYYY-MM-DD');
+  const decisionDate = input.decisionDate;
   if (typeof input.decisionClose !== 'number' || !(input.decisionClose > 0)) fail('decisionClose must be a positive number');
+  const decisionClose = input.decisionClose;
   if (input.priceField !== 'close' && input.priceField !== 'adjclose') fail('priceField must be close or adjclose');
   if (!isRecord(input.feed)) fail('feed must be an object');
   exactKeys(input.feed, ['kind', 'symbol'], 'feed');
@@ -255,9 +257,9 @@ export function prepareEquityDecision(input: unknown): PreparedEquityDecision {
   exactKeys(input.source, ['name', 'url'], 'source');
   if (typeof input.source.name !== 'string' || !input.source.name) fail('source name is required');
   if (typeof input.source.url !== 'string' || !/^https:\/\//.test(input.source.url)) fail('source url must be https');
-  const closes = readCloses(input.closes, input.decisionDate, input.decisionClose);
+  const closes = readCloses(input.closes, decisionDate, decisionClose);
   const latest = closes[closes.length - 1];
-  const observationsAfterDecision = closes.filter((row) => row.date > input.decisionDate).length;
+  const observationsAfterDecision = closes.filter((row) => row.date > decisionDate).length;
   return {
     id: input.id,
     ticker: input.ticker,
@@ -265,8 +267,8 @@ export function prepareEquityDecision(input: unknown): PreparedEquityDecision {
     venue: input.venue,
     currency: input.currency,
     stance: input.stance as EquityStance,
-    decisionDate: input.decisionDate,
-    decisionClose: input.decisionClose,
+    decisionDate,
+    decisionClose,
     priceField: input.priceField,
     feed: input.feed.kind === 'yahoo'
       ? { kind: 'yahoo', symbol: input.feed.symbol as string }
@@ -274,7 +276,7 @@ export function prepareEquityDecision(input: unknown): PreparedEquityDecision {
     source: { name: input.source.name, url: input.source.url },
     closes,
     latest,
-    priceChange: observationsAfterDecision === 0 ? null : priceChange(input.decisionClose, latest.close),
+    priceChange: observationsAfterDecision === 0 ? null : priceChange(decisionClose, latest.close),
     observationsAfterDecision,
   };
 }
