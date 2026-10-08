@@ -2,7 +2,7 @@
 title: "Huntington Ingalls Industries: Why Does a Monopoly Shipbuilder With $57 Billion of Orders Trade at 14×?"
 subtitle: "The market is not doubting HII's orders. It is doubting how profitably those orders become ships."
 description: "A valuation of Huntington Ingalls Industries through backlog conversion, shipbuilding productivity, normalized margin, and 2030 scenarios."
-publishedDate: 2026-10-07
+publishedDate: 2026-10-08
 section: "Investing"
 subsection: "Markets"
 contentType: "research"
@@ -10,7 +10,7 @@ topics: [portfolio, supply-chain]
 primaryTopic: portfolio
 tags: [valuation, defense, shipbuilding, supply-chain, research]
 author: "Jacob Shin"
-draft: true
+draft: false
 comments: true
 language: "en"
 translationKey: "huntington-ingalls-industries-valuation"
@@ -18,10 +18,10 @@ localization:
   locale: "en-US"
   strategy: "localized-adaptation"
 freshness: time-sensitive
-lastReviewed: 2026-10-07
+lastReviewed: 2026-10-08
 nextReviewDate: 2026-11-16
-dataThrough: 2026-10-06
-methodology: "Company figures come from HII Forms 10-K for 2015–2025 and its Q2 2026 Form 10-Q and earnings release. Combined shipbuilding margin is reconstructed as Ingalls plus Newport News segment operating income divided by their combined segment revenue. The 2030 scenarios start from the midpoint of 2026 guidance; growth, margins, and exit multiples are author assumptions. Values are discounted at 10% for the 1,546 days from October 7, 2026 through December 31, 2030. The stock price is the October 6, 2026 close."
+dataThrough: 2026-10-07
+methodology: "Company figures come from HII Forms 10-K for 2015–2025 and its Q2 2026 Form 10-Q and earnings release. Combined shipbuilding margin is reconstructed as Ingalls plus Newport News segment operating income divided by their combined segment revenue. The 2030 scenarios start from the midpoint of 2026 guidance; growth, margins, and exit multiples are author assumptions. Values are discounted at 10% for the 1,545 days from October 8, 2026 through December 31, 2030. The stock price is the October 7, 2026 close."
 references:
   - title: "HII Q2 2026 earnings release"
     url: "https://www.sec.gov/Archives/edgar/data/1501585/000150158526000045/hii2026q2earningsrelease.htm"
@@ -71,10 +71,10 @@ import decision from '../../../../data/equity-decisions/hii-2026-10-06.json';
 <EquityStance decision={decision} language="en" labHref="/en/coding/experiments/huntington-ingalls-industries-valuation-lab/" />
 
 <AnswerBlock question="Why does HII trade at roughly 14× forward earnings with a \$57 billion backlog?">
-  The market is not doubting HII's orders. It is doubting the profitability of those orders. My 2030 base case is worth about \$285 today, 8% above the October 6, 2026 close of \$263.75. That is upside, but not a large margin of safety for taking shipbuilding execution risk.
+  The market is not doubting HII's orders. It is doubting the profitability of those orders. My 2030 base case is worth about \$285 today, 9% above the October 7, 2026 close of \$260.67. That is upside, but not a large margin of safety for taking shipbuilding execution risk.
 </AnswerBlock>
 
-Only one American shipyard can build a nuclear-powered aircraft carrier. It sits on roughly \$57.3 billion of backlog. Yet **Huntington Ingalls Industries (NYSE: HII)** closed at \$263.75 on October 6, 2026 and traded at about 13.5 times forward earnings.
+Only one American shipyard can build a nuclear-powered aircraft carrier. It sits on roughly \$57.3 billion of backlog. Yet **Huntington Ingalls Industries (NYSE: HII)** closed at \$260.67 on October 7, 2026 and traded at about 13.5 times forward earnings.
 
 The apparent contradiction disappears once backlog is treated as revenue, not equity value:
 
@@ -197,15 +197,15 @@ The recalculated EPS figures are \$19.25, \$26.63, and \$34.34—not the rough s
 
 ## Bringing 2030 back to today
 
-The period from October 7, 2026 through December 31, 2030 is 1,546 days, or 4.233 years.
+The period from October 8, 2026 through December 31, 2030 is 1,545 days, or 4.230 years.
 
 $$
-PV = \frac{Price_{2030}}{(1+10\%)^{4.233}}
+PV = \frac{Price_{2030}}{(1+10\%)^{4.230}}
 $$
 
 <HiiValuationDiagrams variant="valuation" language="en" />
 
-Present values are \$161 bear, \$285 base, and \$424 bull. The \$263.75 close sits about 8% below base value. There is upside, but little compensation for a failed productivity recovery.
+Present values are \$161 bear, \$285 base, and \$424 bull. The \$260.67 close sits about 9% below base value. There is upside, but little compensation for a failed productivity recovery.
 
 ## Where does a margin of safety begin?
 
