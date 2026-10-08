@@ -1,12 +1,21 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import EquityDecisionChart from '../../components/interactive/EquityDecisionChart.astro';
 import { postPath } from '../../consts';
 import { IS_PREVIEW } from '../../environment';
 
 export function getStaticPaths() {
-  return IS_PREVIEW ? [{ params: { page: 'content-review' } }] : [];
+  if (!IS_PREVIEW) return [];
+  return [
+    { params: { page: 'content-review' } },
+    { params: { page: 'equity-decisions' } },
+  ];
 }
+
+const { page } = Astro.params;
+const decisions = Object.values(import.meta.glob('../../data/equity-decisions/*.json', { eager: true }))
+  .map((module) => (module as { default: unknown }).default);
 
 const posts = (await getCollection('posts')).sort((a, b) => {
   const aDate = a.data.nextReviewDate?.valueOf() ?? Number.POSITIVE_INFINITY;
@@ -41,6 +50,23 @@ const counts = posts.reduce<Record<ReviewState, number>>((result, post) => {
 }, { overdue: 0, upcoming: 0, scheduled: 0, unscheduled: 0 });
 ---
 
+{page === 'equity-decisions' ? (
+<BaseLayout
+  title="상장주 의사결정"
+  description="The Archive Preview 전용 상장주 의사결정 차트입니다."
+  language="ko"
+  indexable={false}
+>
+  <section class="review-page shell">
+    <header>
+      <p class="eyebrow">Preview operations</p>
+      <h1>상장주 의사결정</h1>
+      <p>Lab에 올리기 전에 의견, 의사결정 종가, 이후 가격 변화가 한 화면에 맞는지 확인합니다. 이 주소는 Production에 만들지 않습니다.</p>
+    </header>
+    {decisions.map((decision) => <EquityDecisionChart decision={decision} language="ko" />)}
+  </section>
+</BaseLayout>
+) : (
 <BaseLayout
   title="콘텐츠 검토 대시보드"
   description="The Archive Preview 전용 콘텐츠 검토 일정입니다."
@@ -99,6 +125,7 @@ const counts = posts.reduce<Record<ReviewState, number>>((result, post) => {
     </div>
   </section>
 </BaseLayout>
+)}
 
 <style>
   .review-page { padding-top: 78px; padding-bottom: 120px; }

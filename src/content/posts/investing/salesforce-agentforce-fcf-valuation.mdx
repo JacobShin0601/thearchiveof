@@ -38,8 +38,13 @@ references:
 ---
 
 import AnswerBlock from '../../../components/AnswerBlock.astro';
+import EquityStance from '../../../components/EquityStance.astro';
 import SalesforceValuationDiagrams from '../../../components/SalesforceValuationDiagrams.astro';
+import ValuationLabLinkCard from '../../../components/ValuationLabLinkCard.astro';
 import SalesforceValuationSimulator from '../../../components/interactive/SalesforceValuationSimulator.astro';
+import decision from '../../../data/equity-decisions/crm-2026-10-07.json';
+
+<EquityStance decision={decision} language="ko" labHref="/coding/experiments/salesforce-agentforce-fcf-valuation-lab/" />
 
 <AnswerBlock question="Salesforce는 AI에 잠식될 SaaS인가, AI로 다시 성장할 플랫폼인가?">
   아직 어느 쪽도 증명되지 않았다. 다만 2026년 10월 7일 종가 $224.56은 보고 FCF가 앞으로 거의 늘지 않아도 설명된다. SBC를 전부 경제적 비용으로 보면 필요한 성장률은 약 6.3%다. 내 판단은 “Agentforce의 성공을 비싸게 선반영한 주식”보다 “현금창출력의 질을 확인하며 매수해 볼 수 있는 성숙 SaaS”에 가깝다.
@@ -52,6 +57,13 @@ import SalesforceValuationSimulator from '../../../components/interactive/Salesf
 그런데 Salesforce는 빈 화면에서 CRM을 다시 만드는 스타트업과 같지 않다. 고객 관계, 권한 체계, 영업·서비스 프로세스, 그리고 기업 데이터가 이미 제품 안에 있다. Data 360이 데이터를 묶고 Agentforce가 그 위에서 행동한다면 기존 설치 기반은 AI의 유통망이 된다. 반대로 Agentforce 한 개가 여러 좌석을 대체한다면 같은 설치 기반은 잠식 대상이 된다.
 
 내가 알고 싶은 것은 Salesforce가 “AI 회사”라는 이름을 얻을 수 있느냐가 아니다. **현재 가격이 이미 얼마나 많은 AI의 성공을 요구하고 있는가**다. 성장 서사보다 가격에 내재된 기대를 먼저 역산한다는 점에서는 [Sterling Infrastructure 분석](/investing/markets/sterling-infrastructure-fair-value/)과 같은 질문이고, AI 기능의 매출이 누구에게 남는지를 묻는 점에서는 [Rogo와 금융 AI의 경제성](/investing/markets/will-rogo-eat-financial-ai/)과 이어진다.
+
+<ValuationLabLinkCard
+  href="/coding/experiments/salesforce-agentforce-fcf-valuation-lab/"
+  company="Salesforce"
+  focusKo="FCF 성장률·SBC 반영·할인율을 바꾸고, 현재 주가가 요구하는 현금흐름 성장률을 반대로 계산합니다."
+  focusEn="Change FCF growth, the SBC adjustment, and the discount rate, then reverse-solve the cash-flow growth required by today’s price."
+/>
 
 <SalesforceValuationDiagrams variant="flywheel" />
 

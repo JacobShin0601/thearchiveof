@@ -33,3 +33,18 @@ const list = [...keys].sort();
 await mkdir(new URL('.', outFile), { recursive: true });
 await writeFile(outFile, `export const ARTICLE_KEYS = ${JSON.stringify(list, null, 2)};\n`);
 console.log(`Wrote ${list.length} article keys`);
+
+const decisionDir = fileURLToPath(new URL('../src/data/equity-decisions', import.meta.url));
+const decisions = {};
+for (const name of (await readdir(decisionDir)).filter((entry) => entry.endsWith('.json')).sort()) {
+  const record = JSON.parse(await readFile(join(decisionDir, name), 'utf8'));
+  decisions[record.id] = {
+    decisionDate: record.decisionDate,
+    decisionClose: record.decisionClose,
+    priceField: record.priceField,
+    feed: record.feed,
+  };
+}
+const decisionFile = new URL('../functions/_generated/equity-decisions.js', import.meta.url);
+await writeFile(decisionFile, `export const EQUITY_DECISIONS = ${JSON.stringify(decisions, null, 2)};\n`);
+console.log(`Wrote ${Object.keys(decisions).length} equity decisions`);

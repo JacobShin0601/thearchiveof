@@ -22,6 +22,7 @@ export const ARTICLE_KEYS = [
   "poisson-demand-inventory-lab",
   "queueing-theory-everyday-llm",
   "salesforce-agentforce-fcf-valuation",
+  "salesforce-agentforce-fcf-valuation-lab",
   "samsung-earnings-event-lab",
   "state-is-not-event",
   "sterling-infrastructure-fair-value",

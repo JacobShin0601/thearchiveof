@@ -49,6 +49,20 @@ When drafting or reviewing a piece in this series, keep the investment lens expl
 
 Agent Engineering teaches how to build agent systems; Enterprise AX covers organizational redesign; this series asks **who captures economic value across the AI stack**.
 
+## Listed equity decisions
+
+Use this when an article states what to do with a listed stock. An industry essay that names no position does not need it.
+
+The essay opens with the decision: buy, hold, reduce, or sell, together with the ticker, the decision date, and the close used that day. Render it with `EquityStance` before the argument. Keep the reason in HTML. Do not leave the only statement of the trade inside a chart.
+
+The paired Lab opens with `EquityDecisionChart`, then the rest of the lab below it. The HTML states the decision and the decision close. The path after that close loads when the page opens, through the previous completed session, from `/api/equity-decisions/<id>`. Do not commit each new close into the decision file.
+
+The percent is the price change. The words say what that change means: after a sale, a lower price is 피한 하락 and a higher price is 놓친 상승. Do not flip the sign into an account profit.
+
+Both pages read one file in `src/data/equity-decisions/`. That file keeps the decision. It does not store the daily path.
+
+The contract, the MDX snippet, and the daily update are in `docs/listed-equity.md`.
+
 ## 1. Intake
 
 Start from `docs/ARTICLE_BRIEF_TEMPLATE.md`. The author provides at least:

@@ -41,8 +41,13 @@ references:
 ---
 
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import EquityStance from '../../../../components/EquityStance.astro';
 import SalesforceValuationDiagrams from '../../../../components/SalesforceValuationDiagrams.astro';
+import ValuationLabLinkCard from '../../../../components/ValuationLabLinkCard.astro';
 import SalesforceValuationSimulator from '../../../../components/interactive/SalesforceValuationSimulator.astro';
+import decision from '../../../../data/equity-decisions/crm-2026-10-07.json';
+
+<EquityStance decision={decision} language="en" labHref="/en/coding/experiments/salesforce-agentforce-fcf-valuation-lab/" />
 
 <AnswerBlock question="Is Salesforce a SaaS incumbent that AI will cannibalize, or an AI platform that can reaccelerate?">
   Neither claim is proven. The October 7, 2026 close of $224.56 can be explained with essentially no growth in reported FCF. Treat all SBC as an economic cost, however, and the required growth rises to roughly 6.3%. I read the stock less as an expensive bet on Agentforce and more as a mature SaaS company worth buying if cash-flow quality holds.
@@ -55,6 +60,14 @@ Cheaper software creation can erode a moat. If an AI agent does the work of seve
 But Salesforce is not a startup rebuilding CRM on a blank page. Customer relationships, permissions, sales and service workflows, and enterprise data already live inside its products. If Data 360 unifies the data and Agentforce acts on it, the installed base becomes distribution. If one agent replaces several seats, the same installed base becomes the pool being cannibalized.
 
 I am less interested in whether Salesforce can earn the label “AI company” than in **how much AI success today’s price already requires**. That reverse-pricing question follows the logic of my [Sterling Infrastructure valuation](/en/investing/markets/sterling-infrastructure-fair-value/); the question of who captures the economics from an AI feature connects to [Rogo and financial AI](/en/investing/markets/will-rogo-eat-financial-ai/).
+
+<ValuationLabLinkCard
+  href="/en/coding/experiments/salesforce-agentforce-fcf-valuation-lab/"
+  company="Salesforce"
+  language="en"
+  focusKo="FCF 성장률·SBC 반영·할인율을 바꾸고, 현재 주가가 요구하는 현금흐름 성장률을 반대로 계산합니다."
+  focusEn="Change FCF growth, the SBC adjustment, and the discount rate, then reverse-solve the cash-flow growth required by today’s price."
+/>
 
 <SalesforceValuationDiagrams variant="flywheel" language="en" />
 

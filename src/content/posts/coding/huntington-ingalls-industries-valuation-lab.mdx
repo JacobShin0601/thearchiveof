@@ -33,7 +33,11 @@ references:
 ---
 
 import AnswerBlock from '../../../components/AnswerBlock.astro';
+import EquityDecisionChart from '../../../components/interactive/EquityDecisionChart.astro';
 import HiiValuationLab from '../../../components/interactive/HiiValuationLab.astro';
+import decision from '../../../data/equity-decisions/hii-2026-10-06.json';
+
+<EquityDecisionChart decision={decision} language="ko" />
 
 <AnswerBlock question="HII 가치평가에서 가장 먼저 움직여야 할 숫자는 무엇일까?">
   **조선 매출보다 조선 마진이다.** 기본값에서 조선 마진을 6%와 9%로 바꾸면 같은 성장률 아래에서도 현재가치가 크게 달라진다. 이 도구는 7.5% 정상화 가정을 정답으로 두지 않고 직접 반증해 보도록 만든 계산기다.
