@@ -36,6 +36,16 @@ Copy this brief into Work when starting a new article. The author supplies the t
 - Interpret:
 - Desired conclusion:
 
+## 4a. Listed equity
+
+Fill this in only when the article states a position in a listed stock. See [listed equity](listed-equity.md).
+
+- Stance: `buy` / `hold` / `reduce` / `sell`
+- Ticker, venue, decision date, and decision close:
+- Price field: `adjclose` or `close`, the same one the essay cites
+- Decision file: `src/data/equity-decisions/<id>.json`
+- Essay opens with `EquityStance`. Lab opens with `EquityDecisionChart`, and the rest of the lab goes below it.
+
 ## 5. Publication metadata
 
 - Suggested English slug:

@@ -1,0 +1,365 @@
+---
+import {
+  EQUITY_CHART,
+  chartLine,
+  equityChartLayout,
+  formatAxisPrice,
+  formatChange,
+  formatDate,
+  formatPrice,
+  prepareEquityDecision,
+  priceFieldLabel,
+  stanceLabel,
+  xLabelIndexes,
+  type EquityChartPoint,
+  type EquityLanguage,
+} from '../../lib/equity-decision';
+
+interface Props {
+  decision: unknown;
+  language?: EquityLanguage;
+}
+const { decision, language = 'ko' } = Astro.props;
+const prepared = prepareEquityDecision(decision);
+const ko = language === 'ko';
+const layout = equityChartLayout(prepared.closes, prepared.decisionClose);
+const line = chartLine(layout.points);
+const last = layout.points[layout.points.length - 1];
+const decisionY = layout.yFor(prepared.decisionClose);
+const labels = new Set(xLabelIndexes(layout.points.length));
+const field = priceFieldLabel(prepared.priceField, language);
+const changeText = ko ? '최근 종가를 불러오는 중' : 'Loading the latest close';
+const changeClass = 'waiting';
+const clientSpec = {
+  id: prepared.id,
+  stance: prepared.stance,
+  currency: prepared.currency,
+  decisionDate: prepared.decisionDate,
+  decisionClose: prepared.decisionClose,
+  language,
+};
+const series = layout.points.map((point) => ({
+  date: point.date,
+  dateLabel: formatDate(point.date, language),
+  price: formatPrice(prepared.currency, point.close),
+  change: point.change === null ? changeText : formatChange(point.change),
+  tone: point.change === null ? 'flat' : point.change > 0 ? 'up' : point.change < 0 ? 'down' : 'flat',
+  x: Number(point.x.toFixed(1)),
+  y: Number(point.y.toFixed(1)),
+}));
+const chartLabel = ko
+  ? `${prepared.ticker} ${stanceLabel(prepared.stance, language)}. ${formatDate(prepared.decisionDate, language)} ${field} ${formatPrice(prepared.currency, prepared.decisionClose)}. 그 다음 종가는 페이지를 열 때 불러오고, 표에도 채워진다.`
+  : `${prepared.ticker} ${stanceLabel(prepared.stance, language)}. Decision ${field} ${formatPrice(prepared.currency, prepared.decisionClose)} on ${formatDate(prepared.decisionDate, language)}. Later closes load when the page opens and fill the table.`;
+const method = prepared.priceField === 'adjclose'
+  ? (ko
+    ? '조정 종가다. 분할과 배당이 가격 시계열에 반영되어 있다. 거래비용, 세금, 실제 보유 비중은 없다. 계좌 수익률이 아니며 매매 권유가 아니다.'
+    : 'Adjusted close. Splits and dividends are in the price series. Trading costs, taxes, and position size are not. This is not an account return and not a recommendation.')
+  : (ko
+    ? '거래소 종가다. 배당, 거래비용, 세금, 실제 보유 비중은 없다. 계좌 수익률이 아니며 매매 권유가 아니다.'
+    : 'Exchange close. Dividends, trading costs, taxes, and position size are not included. This is not an account return and not a recommendation.');
+const pointLabel = (point: EquityChartPoint) => `${point.date} ${formatPrice(prepared.currency, point.close)}`;
+---
+
+<section class="equity-chart" data-equity-decision-chart>
+  <script type="application/json" data-equity-decision set:html={JSON.stringify(clientSpec)} />
+  <script type="application/json" data-equity-series set:html={JSON.stringify(series)} />
+  <p class="equity-kicker">{ko ? 'Lab / 의사결정 이후 가격' : 'Lab / Price since the decision'}</p>
+  <p class="equity-stance-line"><strong>{stanceLabel(prepared.stance, language)}</strong> <span>{prepared.ticker}</span> <span>{prepared.venue}</span></p>
+  <p class={`equity-return ${changeClass}`} data-return>{changeText}</p>
+  <p class="equity-outcome" data-outcome></p>
+  <p class="equity-direction" data-direction>{ko ? '의사결정 종가는 아래에 있다. 그 다음 가격은 페이지를 열 때, 이미 끝난 장의 종가로 채워진다.' : 'The decision close is below. Prices after it load when this page opens, and only after that session has finished.'}</p>
+  <dl class="equity-facts">
+    <div>
+      <dt>{ko ? `의사결정 ${field}` : `Decision ${field}`}</dt>
+      <dd>{formatPrice(prepared.currency, prepared.decisionClose)} <small>{formatDate(prepared.decisionDate, language)}</small></dd>
+    </div>
+    <div>
+      <dt>{ko ? `최근 ${field}` : `Latest ${field}`}</dt>
+      <dd><span data-latest-price>—</span> <small data-latest-date>{ko ? '끝난 장의 종가' : 'Last completed close'}</small></dd>
+    </div>
+    <div>
+      <dt>{ko ? '이후 거래일' : 'Later closes'}</dt>
+      <dd><span data-sessions>—</span><small>{ko ? '의사결정일 제외' : 'after the decision date'}</small></dd>
+    </div>
+  </dl>
+
+  <figure tabindex="0">
+    <svg viewBox={`0 0 ${EQUITY_CHART.width} ${EQUITY_CHART.height}`} role="img" aria-label={chartLabel}>
+      {layout.ticks.map((tick) => {
+        const y = layout.yFor(tick);
+        return <g><line x1={EQUITY_CHART.padL} x2={EQUITY_CHART.width - EQUITY_CHART.padR} y1={y} y2={y} class="grid" /><text x="8" y={y + 4} class="axis">{prepared.currency === 'USD' ? `$${formatAxisPrice(prepared.currency, tick)}` : formatAxisPrice(prepared.currency, tick)}</text></g>;
+      })}
+      <line x1={EQUITY_CHART.padL} x2={EQUITY_CHART.width - EQUITY_CHART.padR} y1={decisionY} y2={decisionY} class="decision-level" />
+      <path d={line} class="series" />
+      <line data-guide x1={last.x} x2={last.x} y1={EQUITY_CHART.padT} y2={EQUITY_CHART.height - EQUITY_CHART.padB} class="guide" />
+      {layout.points.map((point, index) => labels.has(index) && <text x={point.x} y={EQUITY_CHART.height - 8} text-anchor={index === 0 ? 'start' : index === layout.points.length - 1 ? 'end' : 'middle'} class="axis">{point.date.slice(5).replace('-', '.')}</text>)}
+      <circle data-marker cx={last.x} cy={last.y} r="4.5" class="marker" />
+      <rect class="hit" x="0" y="0" width={EQUITY_CHART.width} height={EQUITY_CHART.height} fill="transparent" />
+    </svg>
+    <figcaption class="equity-readout" data-readout>
+      <span data-readout-date>{formatDate(last.date, language)}</span>
+      <span data-readout-price>{formatPrice(prepared.currency, last.close)}</span>
+      <strong data-readout-change class="flat">—</strong>
+    </figcaption>
+  </figure>
+  <p class="equity-hint">{ko ? '차트 위를 움직이거나, 차트를 선택한 뒤 좌우 방향키로 날짜를 본다. 맨 위 수치는 항상 최근 종가 기준이다.' : 'Move across the chart, or focus it and use the arrow keys. The figure at the top always stays on the latest close.'}</p>
+  <p class="equity-method">{method} <a href={prepared.source.url}>{prepared.source.name}</a></p>
+
+  <details>
+    <summary>{ko ? '날짜별 종가 표' : 'Closes by date'}</summary>
+    <div class="table-scroll">
+      <table>
+        <caption>{prepared.ticker} {field}. {ko ? '변화는 의사결정 종가 대비다.' : 'Change is versus the decision close.'}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{ko ? '날짜' : 'Date'}</th>
+            <th scope="col">{field}</th>
+            <th scope="col">{ko ? '변화' : 'Change'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {layout.points.map((point) => <tr><th scope="row">{formatDate(point.date, language)}</th><td>{formatPrice(prepared.currency, point.close)}</td><td>{point.change === null ? '—' : formatChange(point.change)}</td></tr>)}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  <p class="sr-only">{layout.points.map(pointLabel).join('. ')}</p>
+</section>
+
+<script>
+  import {
+    decisionReading,
+    equityChartLayout,
+    formatAxisPrice,
+    formatChange,
+    formatDate,
+    formatPrice,
+    mergeCloses,
+    xLabelIndexes,
+    type EquityClose,
+    type EquityCurrency,
+    type EquityLanguage,
+    type EquityStance,
+  } from '../../lib/equity-decision';
+
+  interface Spec {
+    id: string;
+    stance: EquityStance;
+    currency: EquityCurrency;
+    decisionDate: string;
+    decisionClose: number;
+    language: EquityLanguage;
+  }
+  interface SeriesPoint { dateLabel: string; price: string; change: string; tone: string; x: number; y: number }
+
+  const NS = 'http://www.w3.org/2000/svg';
+
+  function scopeName(node: Element | null) {
+    return node?.getAttributeNames().find((name) => name.startsWith('data-astro-cid')) ?? '';
+  }
+
+  function el(tag: string, scope: string, attributes: Record<string, string>) {
+    const node = document.createElementNS(NS, tag);
+    if (scope) node.setAttribute(scope, '');
+    Object.entries(attributes).forEach(([name, value]) => node.setAttribute(name, value));
+    return node;
+  }
+
+  function bind(root: HTMLElement) {
+    const specNode = root.querySelector('[data-equity-decision]');
+    const svg = root.querySelector('svg');
+    const figure = root.querySelector('figure');
+    const tbody = root.querySelector('tbody');
+    const headline = root.querySelector('[data-return]');
+    const outcome = root.querySelector('[data-outcome]');
+    const direction = root.querySelector('[data-direction]');
+    const latestPrice = root.querySelector('[data-latest-price]');
+    const latestDate = root.querySelector('[data-latest-date]');
+    const sessions = root.querySelector('[data-sessions]');
+    const readoutDate = root.querySelector('[data-readout-date]');
+    const readoutPrice = root.querySelector('[data-readout-price]');
+    const readoutChange = root.querySelector('[data-readout-change]');
+    if (!(specNode instanceof HTMLScriptElement) || !(svg instanceof SVGSVGElement) || !(figure instanceof HTMLElement) || !(tbody instanceof HTMLElement) || !(headline instanceof HTMLElement) || !(outcome instanceof HTMLElement) || !(direction instanceof HTMLElement) || !(latestPrice instanceof HTMLElement) || !(latestDate instanceof HTMLElement) || !(sessions instanceof HTMLElement) || !(readoutDate instanceof HTMLElement) || !(readoutPrice instanceof HTMLElement) || !(readoutChange instanceof HTMLElement)) return;
+    const spec = JSON.parse(specNode.textContent || '{}') as Spec;
+    const svgScope = scopeName(svg);
+    const rowScope = scopeName(tbody.querySelector('td') ?? tbody);
+    let series: SeriesPoint[] = [];
+    let index = 0;
+
+    const paint = (point: SeriesPoint | undefined) => {
+      if (!point) return;
+      const guide = svg.querySelector('[data-guide]');
+      const marker = svg.querySelector('[data-marker]');
+      guide?.setAttribute('x1', String(point.x));
+      guide?.setAttribute('x2', String(point.x));
+      marker?.setAttribute('cx', String(point.x));
+      marker?.setAttribute('cy', String(point.y));
+      readoutDate.textContent = point.dateLabel;
+      readoutPrice.textContent = point.price;
+      readoutChange.textContent = point.change;
+      readoutChange.classList.remove('up', 'down', 'flat');
+      readoutChange.classList.add(point.tone);
+    };
+    const nearest = (clientX: number) => {
+      const width = svg.viewBox.baseVal.width || 720;
+      const rect = svg.getBoundingClientRect();
+      const x = rect.width ? ((clientX - rect.left) / rect.width) * width : 0;
+      let best = 0;
+      let distance = Infinity;
+      series.forEach((point, pointIndex) => {
+        const gap = Math.abs(point.x - x);
+        if (gap < distance) { best = pointIndex; distance = gap; }
+      });
+      return best;
+    };
+    const draw = (closes: EquityClose[]) => {
+      const layout = equityChartLayout(closes, spec.decisionClose);
+      const labels = new Set(xLabelIndexes(layout.points.length));
+      const last = layout.points[layout.points.length - 1];
+      const change = closes.length === 1 ? null : last.close / spec.decisionClose - 1;
+      const reading = decisionReading(spec.stance, change, spec.language);
+      const tone = change === null || change === 0 ? 'flat' : change > 0 ? 'up' : 'down';
+      headline.textContent = change === null ? reading.label : formatChange(change);
+      headline.classList.remove('waiting', 'up', 'down', 'flat');
+      headline.classList.add(change === null ? 'waiting' : tone);
+      outcome.textContent = change === null ? '' : reading.label;
+      direction.textContent = reading.sentence;
+      latestPrice.textContent = formatPrice(spec.currency, last.close);
+      latestDate.textContent = formatDate(last.date, spec.language);
+      sessions.textContent = String(Math.max(closes.length - 1, 0));
+      series = layout.points.map((point) => ({
+        dateLabel: formatDate(point.date, spec.language),
+        price: formatPrice(spec.currency, point.close),
+        change: point.change === null ? '—' : formatChange(point.change),
+        tone: point.change === null || point.change === 0 ? 'flat' : point.change > 0 ? 'up' : 'down',
+        x: Number(point.x.toFixed(1)),
+        y: Number(point.y.toFixed(1)),
+      }));
+      svg.replaceChildren();
+      const width = String(layout.width);
+      const height = String(layout.height);
+      for (const tick of layout.ticks) {
+        const y = String(layout.yFor(tick));
+        const label = spec.currency === 'USD' ? `$${formatAxisPrice(spec.currency, tick)}` : formatAxisPrice(spec.currency, tick);
+        svg.append(el('line', svgScope, { x1: '58', x2: String(layout.width - 16), y1: y, y2: y, class: 'grid' }));
+        const text = el('text', svgScope, { x: '8', y: String(Number(y) + 4), class: 'axis' });
+        text.textContent = label;
+        svg.append(text);
+      }
+      svg.append(el('line', svgScope, { x1: '58', x2: String(layout.width - 16), y1: String(layout.yFor(spec.decisionClose)), y2: String(layout.yFor(spec.decisionClose)), class: 'decision-level' }));
+      const path = layout.points.map((point, pointIndex) => `${pointIndex === 0 ? 'M' : 'L'}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
+      svg.append(el('path', svgScope, { d: path, class: 'series' }));
+      svg.append(el('line', svgScope, { 'data-guide': '', x1: String(last.x), x2: String(last.x), y1: '16', y2: String(layout.height - 32), class: 'guide' }));
+      layout.points.forEach((point, pointIndex) => {
+        if (!labels.has(pointIndex)) return;
+        const anchor = pointIndex === 0 ? 'start' : pointIndex === layout.points.length - 1 ? 'end' : 'middle';
+        const text = el('text', svgScope, { x: String(point.x), y: String(layout.height - 8), 'text-anchor': anchor, class: 'axis' });
+        text.textContent = point.date.slice(5).replace('-', '.');
+        svg.append(text);
+      });
+      svg.append(el('circle', svgScope, { 'data-marker': '', cx: String(last.x), cy: String(last.y), r: '4.5', class: 'marker' }));
+      svg.append(el('rect', svgScope, { class: 'hit', x: '0', y: '0', width, height, fill: 'transparent' }));
+      tbody.replaceChildren();
+      for (const point of layout.points) {
+        const row = document.createElement('tr');
+        const head = document.createElement('th');
+        const price = document.createElement('td');
+        const move = document.createElement('td');
+        if (rowScope) { head.setAttribute(rowScope, ''); price.setAttribute(rowScope, ''); move.setAttribute(rowScope, ''); }
+        head.scope = 'row';
+        head.textContent = formatDate(point.date, spec.language);
+        price.textContent = formatPrice(spec.currency, point.close);
+        move.textContent = point.change === null ? '—' : formatChange(point.change);
+        row.append(head, price, move);
+        tbody.append(row);
+      }
+      index = series.length - 1;
+      paint(series[index]);
+    };
+
+    figure.addEventListener('pointermove', (event) => {
+      if (series.length === 0) return;
+      if (event.pointerType === 'mouse' || event.buttons > 0) paint(series[nearest(event.clientX)]);
+    });
+    figure.addEventListener('pointerdown', (event) => { if (series.length) paint(series[nearest(event.clientX)]); });
+    figure.addEventListener('pointerleave', () => { index = series.length - 1; paint(series[index]); });
+    figure.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' || series.length === 0) return;
+      event.preventDefault();
+      index = Math.min(series.length - 1, Math.max(0, index + (event.key === 'ArrowRight' ? 1 : -1)));
+      paint(series[index]);
+    });
+    figure.addEventListener('blur', () => { index = series.length - 1; paint(series[index]); });
+
+    const fail = () => {
+      headline.textContent = spec.language === 'ko' ? '최근 종가를 불러오지 못했다' : 'The latest close did not load';
+      headline.classList.add('waiting');
+    };
+    fetch(`/api/equity-decisions/${spec.id}`)
+      .then((response) => { if (!response.ok) throw new Error(String(response.status)); return response.json(); })
+      .then((body: { closes?: EquityClose[]; refresh?: string }) => {
+        const incoming = Array.isArray(body.closes) ? body.closes : [];
+        draw(mergeCloses([{ date: spec.decisionDate, close: spec.decisionClose }], incoming, spec.decisionDate, spec.decisionClose));
+        if (body.refresh !== 'paused') return;
+        headline.textContent = spec.language === 'ko'
+          ? '오늘 갱신 한도에 닿았다. 의사결정 종가만 보인다.'
+          : "Today's refresh limit was reached. Only the decision close is shown.";
+        headline.classList.add('waiting');
+        outcome.textContent = '';
+        direction.textContent = spec.language === 'ko'
+          ? '이 한도는 UTC 자정에 다시 열린다.'
+          : 'The limit opens again at midnight UTC.';
+      })
+      .catch(fail);
+  }
+
+  document.querySelectorAll('[data-equity-decision-chart]').forEach((node) => {
+    if (node instanceof HTMLElement) bind(node);
+  });
+</script>
+
+<style>
+  .equity-chart { margin: 0 0 2.4em; padding: 22px 22px 16px; border: 1px solid var(--ink); background: var(--paper); font-family: var(--sans); color: var(--ink); }
+  .equity-kicker { margin: 0; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+  .equity-stance-line { display: flex; flex-wrap: wrap; gap: .35em .65em; align-items: baseline; margin: .55em 0 0; }
+  .equity-stance-line strong { font-family: var(--serif-kr), var(--serif); font-size: 1.85rem; font-weight: 500; letter-spacing: -.03em; line-height: 1; }
+  .equity-stance-line span { color: var(--muted); font-weight: 650; letter-spacing: .04em; }
+  .equity-return { margin: .35em 0 0; font-size: clamp(2rem, 5vw, 2.7rem); font-weight: 650; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .equity-return.waiting { font-size: 1.15rem; font-weight: 550; letter-spacing: 0; color: var(--muted); }
+  .equity-return.up, .equity-readout .up { color: var(--accent); }
+  .equity-return.down, .equity-readout .down { color: #8b4c36; }
+  .equity-outcome { margin: .45em 0 0; font-family: var(--serif-kr), var(--serif); font-size: 1.25rem; line-height: 1.3; }
+  .equity-outcome:empty { display: none; }
+  .equity-direction { margin: .55em 0 0; max-width: 40em; font-size: .98rem; line-height: 1.5; }
+  .equity-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 1em 0 0; }
+  .equity-facts div { min-width: 0; padding-top: 8px; border-top: 1px solid var(--line); }
+  .equity-facts dt { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .equity-facts dd { margin: .25em 0 0; font-variant-numeric: tabular-nums; font-weight: 650; }
+  .equity-facts small, .equity-hint, .equity-method { color: var(--muted); }
+  .equity-facts small { display: block; font-weight: 450; }
+  figure { margin: .9em 0 0; }
+  figure:focus { outline: 2px solid var(--accent); outline-offset: 4px; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; cursor: crosshair; touch-action: pan-y; }
+  text { fill: var(--muted); font-family: var(--sans); font-size: 12px; }
+  .grid { stroke: var(--line); stroke-width: 1; }
+  .decision-level { stroke: var(--accent); stroke-width: 1.25; stroke-dasharray: 4 4; }
+  .series { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .guide { stroke: var(--muted); stroke-width: 1; }
+  .marker { fill: var(--ink); stroke: var(--paper); stroke-width: 2; }
+  .hit { pointer-events: all; }
+  .equity-readout { display: flex; flex-wrap: wrap; gap: .4em 1em; align-items: baseline; margin-top: .35em; font-variant-numeric: tabular-nums; }
+  .equity-readout strong { font-size: 1.05rem; }
+  .equity-hint, .equity-method { margin: .7em 0 0; font-size: .86rem; line-height: 1.55; }
+  .equity-method a { color: var(--accent); }
+  details { margin-top: .8em; }
+  summary { cursor: pointer; font-size: .92rem; font-weight: 700; }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; margin-top: .6em; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+  caption { margin-bottom: .4em; color: var(--muted); caption-side: bottom; font-size: .8rem; text-align: left; }
+  th, td { padding: .4em .5em; border-bottom: 1px solid var(--line); text-align: left; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  @media (max-width: 640px) {
+    .equity-chart { padding: 16px 14px 12px; }
+    .equity-facts { grid-template-columns: 1fr; }
+  }
+</style>

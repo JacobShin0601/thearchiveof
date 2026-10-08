@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
@@ -29,5 +31,35 @@ export default defineConfig({
   },
   build: {
     format: 'directory',
+  },
+  vite: {
+    plugins: [{
+      name: 'equity-decision-dev-api',
+      enforce: 'post',
+      configureServer(server) {
+        const equityRoute = pathToFileURL(join(process.cwd(), 'functions/api/equity-decisions', '[id].js')).href;
+        const handleEquity = async (req, res, next) => {
+          const path = req.url?.split('?')[0] ?? '';
+          const match = path.match(/^\/api\/equity-decisions\/([a-z0-9-]+)\/?$/);
+          if (!match) return next();
+          try {
+            // Vite rewrites import() in this file. Node's own import keeps the Pages function out of the dev module runner.
+            const load = new Function('href', 'return import(href)');
+            const { onRequest } = await load(equityRoute);
+            const request = new Request(`http://127.0.0.1${req.url}`, { method: req.method ?? 'GET' });
+            const response = await onRequest({ request, params: { id: match[1] } });
+            res.statusCode = response.status;
+            response.headers.forEach((value, key) => res.setHeader(key, value));
+            res.end(Buffer.from(await response.arrayBuffer()));
+          } catch (error) {
+            res.statusCode = 500;
+            res.end(error instanceof Error ? error.message : 'equity feed failed');
+          }
+        };
+        return () => {
+          server.middlewares.stack.unshift({ route: '', handle: handleEquity });
+        };
+      },
+    }],
   },
 });

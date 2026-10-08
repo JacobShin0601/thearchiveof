@@ -25,15 +25,19 @@ describe('robots policy', () => {
     for (const agent of namedProductionAgents) {
       assert.match(productionRobotsPolicy, new RegExp(`User-agent: ${agent}\\nAllow: /`));
     }
-    assert.match(productionRobotsPolicy, /User-agent: \*\nAllow: \//);
-    assert.doesNotMatch(productionRobotsPolicy, /Disallow: \//);
+    assert.match(productionRobotsPolicy, /User-agent: \*\nAllow: \/\nDisallow: \/api\//);
+    assert.doesNotMatch(productionRobotsPolicy, /^Disallow: \/$/m);
+    assert.equal(
+      productionRobotsPolicy.match(/^Allow: \/$/gm)?.length,
+      productionRobotsPolicy.match(/^Disallow: \/api\/$/gm)?.length,
+    );
     assert.match(productionRobotsPolicy, /Sitemap: https:\/\/thearchiveof.com\/sitemap-index.xml/);
   });
 
   it('keeps Preview off the public graph', () => {
     assert.match(previewRobotsPolicy, /User-agent: \*\nDisallow: \//);
-    assert.match(previewRobotsPolicy, /User-agent: Googlebot\nAllow: \//);
-    assert.match(previewRobotsPolicy, /User-agent: Bingbot\nAllow: \//);
+    assert.match(previewRobotsPolicy, /User-agent: Googlebot\nAllow: \/\nDisallow: \/api\//);
+    assert.match(previewRobotsPolicy, /User-agent: Bingbot\nAllow: \/\nDisallow: \/api\//);
     assert.doesNotMatch(previewRobotsPolicy, /OAI-SearchBot|GPTBot|Claude-SearchBot|PerplexityBot/);
   });
 });

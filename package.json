@@ -17,6 +17,7 @@
     "check:functions": "wrangler pages functions build --outdir .wrangler/functions-check --compatibility-date 2026-09-01",
     "check:cloudflare": "node scripts/check-cloudflare.mjs",
     "check:urls": "node --experimental-strip-types scripts/check-url-contract.mjs",
+    "equity:check": "node --experimental-strip-types scripts/check-equity-closes.mjs",
     "model:hii": "node --experimental-strip-types scripts/hii-valuation.mjs",
     "model:salesforce": "node --experimental-strip-types scripts/salesforce-valuation.mjs"
   },
