@@ -26,7 +26,6 @@ Cloudflare deploys automatically. `develop` is Preview (`*.pages.dev`, drafts on
 - Useful counts are shared by `translationKey`. giscus threads stay per URL.
 - Every published article has GitHub Discussions comments enabled: keep `comments: true` in both Korean and English frontmatter. Do not disable comments for a production article unless the user explicitly asks.
 - Keep article prose readable without JavaScript. Explorers and Useful are enhancements. Put the claim in `AnswerBlock` / HTML, not only in a widget.
-- A listed-stock position opens with `EquityStance` (buy, hold, reduce, or sell). The paired Lab opens with `EquityDecisionChart`. Follow `docs/listed-equity.md`.
 - Do not add extra analytics beacons or a CSP that would break giscus or Web Analytics.
 - Do not store raw IP or fingerprints. Functions trust only build-generated article keys.
 - Cost vs Carbon explorer is out of scope until that article exists.
