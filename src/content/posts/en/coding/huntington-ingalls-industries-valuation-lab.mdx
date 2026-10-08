@@ -2,7 +2,7 @@
 title: "Huntington Ingalls Industries Valuation Lab: Stress-Test the 7.5% Margin"
 subtitle: "Move shipbuilding margin, growth, and the exit multiple to recalculate HII’s 2030 present value."
 description: "Change Huntington Ingalls Industries' shipbuilding margin, growth, exit P/E, and required return to recalculate 2030 EPS and present fair value."
-publishedDate: 2026-10-07
+publishedDate: 2026-10-08
 section: "Lab"
 subsection: "Experiments"
 contentType: "implementation"
@@ -11,14 +11,14 @@ primaryTopic: portfolio
 tags: [valuation, defense, shipbuilding, scenario-analysis, research]
 author: "Jacob Shin"
 featured: false
-draft: true
+draft: false
 comments: true
 language: "en"
 translationKey: "huntington-ingalls-industries-valuation-lab"
 freshness: time-sensitive
-lastReviewed: 2026-10-07
+lastReviewed: 2026-10-08
 nextReviewDate: 2026-11-16
-dataThrough: 2026-10-06
+dataThrough: 2026-10-07
 methodology: "The model starts from the midpoint of HII’s 2026 guidance, compounds Shipbuilding and Mission Technologies revenue through 2030, and applies the selected operating margins. It converts segment operating income to EPS after non-segment items, interest, non-operating retirement benefits, and tax; applies an exit P/E; then discounts from October 7, 2026 to December 31, 2030 at the selected required return. The FCF method is a separate cross-check using the selected FCF margin and P/FCF multiple."
 references:
   - title: "HII Q2 2026 earnings release"
@@ -68,7 +68,7 @@ $$
 The model applies segment margins, then adjusts for non-segment items, interest, non-operating retirement benefits, and tax. It multiplies 2030 EPS by the selected exit P/E and discounts the result to the publication date.
 
 $$
-PV=\frac{EPS_{2030}\times Exit\ P/E}{(1+r)^{4.233}}
+PV=\frac{EPS_{2030}\times Exit\ P/E}{(1+r)^{4.230}}
 $$
 
 The sensitivity table holds Mission growth and margin, the multiple, required return, and share count at the currently selected values. It changes only Shipbuilding growth and margin. Each cell is therefore a mechanical scenario result, not a probability forecast.
