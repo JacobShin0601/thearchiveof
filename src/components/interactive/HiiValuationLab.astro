@@ -39,7 +39,7 @@ const initialUpside = hiiBaseScenario.presentValue / HII_CURRENT_PRICE - 1;
 
   <div class="headline-results" aria-live="polite">
     <div class="primary"><span>{ko ? '오늘의 적정가치' : 'Present fair value'}</span><strong data-out="presentValue">${hiiBaseScenario.presentValue.toFixed(0)}</strong><small>{ko ? '2030년 가격을 현재로 할인' : '2030 price discounted to today'}</small></div>
-    <div><span>{ko ? '현재가 대비' : 'Versus current price'}</span><strong data-out="upside" class={initialUpside >= 0 ? 'positive' : 'negative'}>{initialUpside >= 0 ? '+' : ''}{(initialUpside * 100).toFixed(1)}%</strong><small>${HII_CURRENT_PRICE.toFixed(2)} · 2026-10-06</small></div>
+    <div><span>{ko ? '현재가 대비' : 'Versus current price'}</span><strong data-out="upside" class={initialUpside >= 0 ? 'positive' : 'negative'}>{initialUpside >= 0 ? '+' : ''}{(initialUpside * 100).toFixed(1)}%</strong><small>${HII_CURRENT_PRICE.toFixed(2)} · 2026-10-07</small></div>
     <div><span>{ko ? '2030년 EPS' : '2030 EPS'}</span><strong data-out="eps">${hiiBaseScenario.eps.toFixed(2)}</strong><small data-out="futurePrice">2030 ${hiiBaseScenario.futurePrice.toFixed(0)}</small></div>
     <div><span>{ko ? '20% 안전마진 가격' : '20% MOS price'}</span><strong data-out="mos">${(hiiBaseScenario.presentValue * .8).toFixed(0)}</strong><small>{ko ? '선택한 적정가치 기준' : 'From selected fair value'}</small></div>
   </div>
@@ -105,7 +105,7 @@ const initialUpside = hiiBaseScenario.presentValue / HII_CURRENT_PRICE - 1;
 
   <p class="model-note">{ko
     ? '교육용 시나리오 계산기 · 확률 시뮬레이션이나 투자 권유가 아니다. 2026년 가이던스 중간값에서 출발하며, 현재가는 2026년 10월 6일 종가다. 사실값과 저자 가정을 구분해 사용한다.'
-    : 'Educational scenario calculator · This is not a probability simulation or investment advice. It starts from the midpoint of 2026 guidance; the current price is the October 6, 2026 close. Company facts and author assumptions are kept separate.'}</p>
+    : 'Educational scenario calculator · This is not a probability simulation or investment advice. It starts from the midpoint of 2026 guidance; the current price is the October 7, 2026 close. Company facts and author assumptions are kept separate.'}</p>
 </section>
 
 <script>
