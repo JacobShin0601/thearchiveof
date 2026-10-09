@@ -29,4 +29,10 @@ describe('mdx emphasis', () => {
     }
     assert.deepEqual(leftovers, []);
   });
+
+  it('keeps numeric ranges in the HII article from becoming strikethrough', async () => {
+    const path = new URL('../src/content/posts/investing/huntington-ingalls-industries-valuation.mdx', import.meta.url);
+    const source = await readFile(path, 'utf8');
+    assert.equal(/\d~\d/.test(source), false);
+  });
 });
