@@ -5,6 +5,7 @@ import {
   dayQuery,
   normalizeDayResponse,
   renderAnalyticsSql,
+  scopedZoneId,
 } from '../scripts/lib/cloudflare-analytics.mjs';
 
 describe('Cloudflare analytics collector', () => {
@@ -48,6 +49,22 @@ describe('Cloudflare analytics collector', () => {
     assert.throws(
       () => normalizeDayResponse('2026-10-08', 'thearchiveof.com', { errors: [{ message: 'forbidden' }] }),
       /forbidden/,
+    );
+  });
+
+  it('discovers one scoped zone and rejects ambiguous tokens', () => {
+    assert.equal(scopedZoneId({
+      data: { viewer: { zones: [{ zoneTag: 'a'.repeat(32) }] } },
+    }), 'a'.repeat(32));
+    assert.throws(
+      () => scopedZoneId({ data: { viewer: { zones: [] } } }),
+      /exactly one zone/,
+    );
+    assert.throws(
+      () => scopedZoneId({ data: { viewer: { zones: [
+        { zoneTag: 'a'.repeat(32) }, { zoneTag: 'b'.repeat(32) },
+      ] } } }),
+      /received 2/,
     );
   });
 });

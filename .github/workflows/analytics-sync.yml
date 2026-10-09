@@ -30,7 +30,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLOUDFLARE_ANALYTICS_TOKEN: ${{ secrets.CLOUDFLARE_ANALYTICS_TOKEN }}
-      CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
       ANALYTICS_HOSTNAME: thearchiveof.com
     steps:
       - uses: actions/checkout@v4
