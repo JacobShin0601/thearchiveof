@@ -1,0 +1,242 @@
+---
+import {
+  SALESFORCE_CURRENT_PRICE,
+  SALESFORCE_PRICE_DATE,
+  projectShareCount,
+  salesforceBaseScenario,
+  salesforceImpliedGrowth,
+} from '../../data/salesforce-valuation';
+
+interface Props { language?: 'ko' | 'en' }
+const { language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+const baseFutureShares = projectShareCount({ annualShareChange: 0 });
+---
+
+<section class="sf-lab" data-salesforce-lab data-language={language} data-current-price={SALESFORCE_CURRENT_PRICE} aria-labelledby={`sf-lab-title-${language}`}>
+  <header>
+    <div><p class="kicker">THE ARCHIVE / VALUATION LAB</p><h3 id={`sf-lab-title-${language}`}>{ko ? 'Salesforce AI Economics & FCF Simulator' : 'Salesforce AI Economics & FCF Simulator'}</h3><p>{ko ? '성장률을 목표가에 끼워 맞추는 대신, 현재 가격이 요구하는 현금흐름과 AI 순증 효과를 직접 바꿔 봅니다.' : 'Instead of fitting growth to a target, change the cash-flow and incremental AI economics required by the market price.'}</p></div>
+    <span class="badge">FCFE PROXY · 5Y DCF</span>
+  </header>
+
+  <div class="toolbar" role="group" aria-label={ko ? '시나리오 프리셋' : 'Scenario presets'}><span>{ko ? '프리셋' : 'Presets'}</span><button type="button" data-preset="bear">Bear</button><button type="button" data-preset="base" class="active" aria-pressed="true">Base</button><button type="button" data-preset="bull">Bull</button><button type="button" data-reset>{ko ? '초기화' : 'Reset'}</button><button type="button" data-share>{ko ? '설정 링크 복사' : 'Copy settings link'}</button></div>
+
+  <div class="results" aria-live="polite">
+    <div class="primary"><span>{ko ? '주당 적정가치' : 'Fair value / share'}</span><strong data-out="fairValue">${salesforceBaseScenario.fairValuePerShare.toFixed(0)}</strong><small>{ko ? '보고 FCF 기준' : 'Reported-FCF basis'}</small></div>
+    <div><span>{ko ? '현재가 대비' : 'Versus market'}</span><strong class="positive" data-out="upside">+{(salesforceBaseScenario.upside * 100).toFixed(1)}%</strong><small>${SALESFORCE_CURRENT_PRICE.toFixed(2)} · {SALESFORCE_PRICE_DATE}</small></div>
+    <div><span>{ko ? '5년차 FCF' : 'Year-five FCF'}</span><strong data-out="yearFiveFcf">${salesforceBaseScenario.yearFiveFcf.toFixed(1)}B</strong><small data-out="yearFiveFcfPerShare">${(salesforceBaseScenario.yearFiveFcf * 1000 / baseFutureShares).toFixed(2)} / share</small></div>
+    <div><span>{ko ? 'Terminal value 비중' : 'Terminal-value share'}</span><strong data-out="terminalShare">{(salesforceBaseScenario.terminalValueShare * 100).toFixed(1)}%</strong><small>{ko ? '현재가치 중 비중' : 'Share of present value'}</small></div>
+  </div>
+
+  <section class="reverse" aria-live="polite"><div><span>REVERSE DCF</span><h4>{ko ? '현재 가격이 요구하는 연간 FCF 성장률' : 'Annual FCF growth required by the market price'}</h4><p data-out="impliedDetail">{ko ? '10% 할인율, 2.5% 영구성장률, SBC 미조정' : '10% discount rate, 2.5% terminal growth, no SBC adjustment'}</p></div><strong data-out="impliedGrowth">{(salesforceImpliedGrowth * 100).toFixed(2)}%</strong></section>
+
+  <div class="mode-tabs" role="tablist" aria-label={ko ? '모델 모드' : 'Model mode'}><button type="button" role="tab" aria-selected="true" data-mode="simple">Simple</button><button type="button" role="tab" aria-selected="false" data-mode="advanced">Advanced AI bridge</button></div>
+
+  <div class="workbench">
+    <section class="controls" aria-labelledby={`sf-assumptions-${language}`}>
+      <div class="section-heading"><span>01 / ASSUMPTIONS</span><h4 id={`sf-assumptions-${language}`}>{ko ? '가정 바꾸기' : 'Change assumptions'}</h4></div>
+      <div class="control-grid" data-simple-controls>
+        <label class="emphasis"><span>FCF CAGR <output data-value="fcfGrowth">7.0%</output></span><input name="fcfGrowth" type="range" min="-5" max="20" step="0.5" value="7" /></label>
+      </div>
+      <div class="control-grid advanced-controls" data-advanced-controls hidden>
+        <label><span>{ko ? '기존 사업 FCF CAGR' : 'Legacy-business FCF CAGR'} <output data-value="legacyGrowth">4.0%</output></span><input name="legacyGrowth" type="range" min="-5" max="15" step="0.5" value="4" /></label>
+        <label><span>{ko ? '5년차 AI 순증 매출' : 'Year-five incremental AI revenue'} <output data-value="aiRevenue">$5.0B</output></span><input name="aiRevenue" type="range" min="0" max="15" step="0.5" value="5" /></label>
+        <label><span>{ko ? 'AI 공헌이익률' : 'AI contribution margin'} <output data-value="aiMargin">55%</output></span><input name="aiMargin" type="range" min="0" max="80" step="5" value="55" /></label>
+        <label><span>{ko ? '기존 CRM 잠식률' : 'CRM cannibalization rate'} <output data-value="cannibalization">15%</output></span><input name="cannibalization" type="range" min="0" max="30" step="1" value="15" /></label>
+      </div>
+      <div class="control-grid">
+        <label><span>{ko ? '할인율' : 'Discount rate'} <output data-value="discountRate">10.0%</output></span><input name="discountRate" type="range" min="7" max="15" step="0.5" value="10" /></label>
+        <label><span>{ko ? '영구성장률' : 'Terminal growth'} <output data-value="terminalGrowth">2.5%</output></span><input name="terminalGrowth" type="range" min="0" max="4" step="0.25" value="2.5" /></label>
+        <label><span>{ko ? 'SBC 경제적 비용 반영' : 'SBC economic-cost adjustment'} <output data-value="sbcAdjustment">0%</output></span><input name="sbcAdjustment" type="range" min="0" max="100" step="5" value="0" /></label>
+        <label><span>{ko ? '연간 주식수 변화' : 'Annual share-count change'} <output data-value="shareChange">0.0%</output></span><input name="shareChange" type="range" min="-3" max="3" step="0.25" value="0" /></label>
+      </div>
+      <p class="validation" data-validation hidden></p>
+    </section>
+
+    <section class="bridge" aria-labelledby={`sf-bridge-${language}`}>
+      <div class="section-heading"><span>02 / CASH-FLOW BRIDGE</span><h4 id={`sf-bridge-${language}`}>{ko ? '같은 FCF를 두 번 세지 않는다' : 'Do not count the same cash flow twice'}</h4></div>
+      <dl>
+        <div><dt>FY27E reported FCF</dt><dd>$15.05B</dd></div>
+        <div><dt>{ko ? 'SBC 경제적 조정' : 'SBC economic adjustment'}</dt><dd data-out="sbcCost">−$0.00B</dd></div>
+        <div><dt>{ko ? '조정 출발 FCF' : 'Adjusted starting FCF'}</dt><dd data-out="adjustedFcf">$15.05B</dd></div>
+        <div data-ai-row hidden><dt>{ko ? '5년차 AI 순 FCF 기여' : 'Year-five net AI FCF contribution'}</dt><dd data-out="aiContribution">$2.34B</dd></div>
+        <div><dt>{ko ? '5년차 예상 주식수' : 'Year-five share-count bridge'}</dt><dd data-out="futureShares">823M</dd></div>
+        <div class="total"><dt>{ko ? '20% 안전마진 가격' : '20% margin-of-safety price'}</dt><dd data-out="mosPrice">${(salesforceBaseScenario.fairValuePerShare * .8).toFixed(0)}</dd></div>
+      </dl>
+      <p>{ko ? '주식수 변화는 주당 FCF 브리지에만 반영한다. 자사주 매입은 현금 사용이므로 DCF 기업가치까지 동시에 높이지 않는다.' : 'Share-count change affects the per-share FCF bridge only. Because repurchases use cash, it does not also increase DCF equity value.'}</p>
+    </section>
+  </div>
+
+  <section class="projection"><div class="section-heading"><span>03 / FIVE-YEAR PATH</span><h4>{ko ? 'FCF와 주당 FCF 경로' : 'FCF and FCF-per-share path'}</h4></div><div class="projection-bars" data-projection></div></section>
+
+  <p class="model-note">{ko ? '교육용 시나리오 도구 · 투자 권유가 아니다. CFO−CAPEX를 FCFE 근사치로 보고 자기자본비용으로 할인한다. 이자비용이 이미 포함되어 있으므로 부채를 다시 차감하지 않는다. 전략적 투자자산도 별도로 더하지 않는다.' : 'Educational scenario tool, not investment advice. CFO less capex is treated as an FCFE proxy and discounted at the cost of equity. Debt is not subtracted again because interest is already reflected. Strategic investments are not added separately.'}</p>
+</section>
+
+<script>
+  import { calculateSalesforceAdvancedDcf, calculateSalesforceDcf, projectShareCount, solveSalesforceImpliedGrowth } from '../../data/salesforce-valuation';
+  import { track } from '../../scripts/track';
+
+  const presets = {
+    bear: { fcfGrowth: 2, discountRate: 11, terminalGrowth: 2, sbcAdjustment: 50, shareChange: 1 },
+    base: { fcfGrowth: 7, discountRate: 10, terminalGrowth: 2.5, sbcAdjustment: 0, shareChange: 0 },
+    bull: { fcfGrowth: 12, discountRate: 9, terminalGrowth: 3, sbcAdjustment: 0, shareChange: -1.5 },
+  } as const;
+
+  document.querySelectorAll<HTMLElement>('[data-salesforce-lab]').forEach((root) => {
+    const ko = root.dataset.language !== 'en';
+    const currentPrice = Number(root.dataset.currentPrice);
+    let mode: 'simple' | 'advanced' = 'simple';
+    let tracked = false;
+    const input = (name: string) => root.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
+    const number = (name: string) => Number(input(name).value);
+    const write = (name: string, value: string) => { const node = root.querySelector<HTMLElement>(`[data-out="${name}"]`); if (node) node.textContent = value; };
+    const money = (value: number, digits = 0) => Number.isFinite(value) ? `$${value.toFixed(digits)}` : '—';
+    const fmt = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value * 100).toFixed(1)}%`;
+    const formatters: Record<string, (value: number) => string> = {
+      fcfGrowth: (v) => `${v.toFixed(1)}%`, legacyGrowth: (v) => `${v.toFixed(1)}%`, aiRevenue: (v) => `$${v.toFixed(1)}B`,
+      aiMargin: (v) => `${v.toFixed(0)}%`, cannibalization: (v) => `${v.toFixed(0)}%`, discountRate: (v) => `${v.toFixed(1)}%`,
+      terminalGrowth: (v) => `${v.toFixed(2).replace(/\.00$/, '')}%`, sbcAdjustment: (v) => `${v.toFixed(0)}%`, shareChange: (v) => `${v.toFixed(2).replace(/0$/, '').replace(/\.0$/, '.0')}%`,
+    };
+    const setUrl = () => {
+      const url = new URL(window.location.href); url.searchParams.set('sfmode', mode);
+      ['fcfGrowth','legacyGrowth','aiRevenue','aiMargin','cannibalization','discountRate','terminalGrowth','sbcAdjustment','shareChange'].forEach((name) => url.searchParams.set(`sf_${name}`, input(name).value));
+      history.replaceState(null, '', url);
+    };
+    const render = () => {
+      root.querySelectorAll<HTMLInputElement>('input[type="range"]').forEach((node) => { const output = root.querySelector<HTMLOutputElement>(`[data-value="${node.name}"]`); if (output) output.value = formatters[node.name](Number(node.value)); });
+      const discountRate = number('discountRate') / 100; const terminalGrowth = number('terminalGrowth') / 100; const sbcAdjustmentRatio = number('sbcAdjustment') / 100;
+      const validation = root.querySelector<HTMLElement>('[data-validation]')!;
+      if (discountRate <= terminalGrowth) { validation.hidden = false; validation.textContent = ko ? '할인율은 영구성장률보다 커야 합니다.' : 'The discount rate must exceed terminal growth.'; return; }
+      validation.hidden = true;
+      const result = mode === 'simple'
+        ? calculateSalesforceDcf({ fcfGrowth: number('fcfGrowth') / 100, discountRate, terminalGrowth, sbcAdjustmentRatio })
+        : calculateSalesforceAdvancedDcf({ legacyFcfGrowth: number('legacyGrowth') / 100, yearFiveIncrementalAiRevenue: number('aiRevenue'), aiContributionMargin: number('aiMargin') / 100, crmCannibalizationRate: number('cannibalization') / 100, discountRate, terminalGrowth, sbcAdjustmentRatio });
+      const futureShares = projectShareCount({ annualShareChange: number('shareChange') / 100 });
+      const implied = solveSalesforceImpliedGrowth({ targetPrice: currentPrice, discountRate, terminalGrowth, sbcAdjustmentRatio });
+      write('fairValue', money(result.fairValuePerShare)); write('upside', fmt(result.fairValuePerShare / currentPrice - 1)); write('yearFiveFcf', `${money(result.yearFiveFcf, 1)}B`);
+      write('yearFiveFcfPerShare', `${money(result.yearFiveFcf * 1000 / futureShares, 2)} / share`); write('terminalShare', `${(result.terminalValueShare * 100).toFixed(1)}%`);
+      write('sbcCost', `−${money(result.sbcAdjustment, 2)}B`); write('adjustedFcf', `${money(result.adjustedStartingFcf, 2)}B`); write('futureShares', `${futureShares.toFixed(0)}M`); write('mosPrice', money(result.fairValuePerShare * .8));
+      write('impliedGrowth', implied === null ? '—' : `${(implied * 100).toFixed(Math.abs(implied) < .001 ? 2 : 1)}%`);
+      write('impliedDetail', ko ? `${(discountRate * 100).toFixed(1)}% 할인율, ${(terminalGrowth * 100).toFixed(1)}% 영구성장률, SBC ${Math.round(sbcAdjustmentRatio * 100)}% 조정` : `${(discountRate * 100).toFixed(1)}% discount rate, ${(terminalGrowth * 100).toFixed(1)}% terminal growth, ${Math.round(sbcAdjustmentRatio * 100)}% SBC adjustment`);
+      const aiRow = root.querySelector<HTMLElement>('[data-ai-row]')!; aiRow.hidden = mode !== 'advanced';
+      if (mode === 'advanced' && 'aiBridge' in result) write('aiContribution', `${money(result.aiBridge.netFcfContribution, 2)}B`);
+      const upsideNode = root.querySelector<HTMLElement>('[data-out="upside"]')!; upsideNode.classList.toggle('positive', result.fairValuePerShare >= currentPrice); upsideNode.classList.toggle('negative', result.fairValuePerShare < currentPrice);
+      const max = Math.max(...result.projections.map((row) => row.fcf));
+      const projection = root.querySelector<HTMLElement>('[data-projection]')!; projection.replaceChildren(...result.projections.map((row) => { const item = document.createElement('div'); const bar = document.createElement('i'); bar.style.setProperty('--h', `${Math.max(8, row.fcf / max * 120)}px`); const strong = document.createElement('strong'); strong.textContent = `$${row.fcf.toFixed(1)}B`; const span = document.createElement('span'); span.textContent = `FY${28 + row.year - 1}`; item.append(strong, bar, span); return item; }));
+      setUrl();
+    };
+    const setMode = (next: 'simple' | 'advanced') => { mode = next; root.querySelector<HTMLElement>('[data-simple-controls]')!.hidden = mode !== 'simple'; root.querySelector<HTMLElement>('[data-advanced-controls]')!.hidden = mode !== 'advanced'; root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((button) => button.setAttribute('aria-selected', String(button.dataset.mode === mode))); render(); };
+    const setPreset = (name: keyof typeof presets) => { Object.entries(presets[name]).forEach(([key, value]) => input(key).value = String(value)); root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => { const active = button.dataset.preset === name; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); }); setMode('simple'); };
+    const url = new URL(window.location.href); ['fcfGrowth','legacyGrowth','aiRevenue','aiMargin','cannibalization','discountRate','terminalGrowth','sbcAdjustment','shareChange'].forEach((name) => { const value = url.searchParams.get(`sf_${name}`); if (value !== null && Number.isFinite(Number(value))) input(name).value = value; }); if (url.searchParams.get('sfmode') === 'advanced') mode = 'advanced';
+    root.querySelectorAll<HTMLInputElement>('input[type="range"]').forEach((node) => node.addEventListener('input', () => { root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => { button.classList.remove('active'); button.setAttribute('aria-pressed', 'false'); }); render(); if (!tracked) { track('code_run', { articleSlug: 'salesforce-agentforce-fcf-valuation', language: ko ? 'ko' : 'en', component: 'salesforce-valuation-simulator-v1' }); tracked = true; } }));
+    root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((button) => button.addEventListener('click', () => setMode(button.dataset.mode as 'simple' | 'advanced')));
+    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => button.addEventListener('click', () => setPreset(button.dataset.preset as keyof typeof presets)));
+    root.querySelector<HTMLButtonElement>('[data-reset]')!.addEventListener('click', () => setPreset('base'));
+    root.querySelector<HTMLButtonElement>('[data-share]')!.addEventListener('click', async () => { setUrl(); try { await navigator.clipboard.writeText(window.location.href); const button = root.querySelector<HTMLButtonElement>('[data-share]')!; button.textContent = ko ? '복사됨' : 'Copied'; setTimeout(() => button.textContent = ko ? '설정 링크 복사' : 'Copy settings link', 1400); } catch {} });
+    setMode(mode);
+  });
+</script>
+
+<style>
+  .sf-lab {
+    --ink: #23304a;
+    --muted: #687083;
+    --line: #d9deea;
+    --soft: #f1f3fa;
+    --accent: #5368d7;
+    --positive: #168b80;
+    --negative: #b05b57;
+    box-sizing: border-box;
+    max-width: 100%;
+    margin: 2rem 0;
+    padding: clamp(1rem, 3vw, 2rem);
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: #f8f9fd;
+    box-shadow: 0 14px 40px rgba(31, 44, 77, .08);
+    color: var(--ink);
+    font-family: var(--sans);
+  }
+  .sf-lab *, .sf-lab *::before, .sf-lab *::after { box-sizing: border-box; min-width: 0; }
+  header { display: flex; justify-content: space-between; gap: 1rem; }
+  header > div { min-width: 0; }
+  header h3 { margin: .2rem 0; font: 700 clamp(1.35rem, 3vw, 2.1rem)/1.2 var(--serif); overflow-wrap: anywhere; }
+  :global(html[lang="ko"]) header h3,
+  :global(html[lang="ko"]) .reverse h4,
+  :global(html[lang="ko"]) .section-heading h4 { font-family: var(--serif-kr), var(--serif); }
+  header p:not(.kicker) { max-width: 720px; margin: .4rem 0; color: var(--muted); line-height: 1.55; }
+  .kicker, .section-heading span, .reverse > div > span { margin: 0; color: #5368a2; font: 700 .68rem/1.3 ui-monospace, monospace; letter-spacing: .12em; }
+  .badge { height: max-content; padding: .35rem .65rem; flex: 0 0 auto; border: 1px solid #c9d0ed; border-radius: 999px; color: #5368a2; font-size: .7rem; font-weight: 700; white-space: nowrap; }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin: 1.2rem 0; }
+  .toolbar > span { margin-right: .3rem; color: var(--muted); font-size: .72rem; font-weight: 700; }
+  .toolbar button, .mode-tabs button { min-height: 36px; padding: .45rem .7rem; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font: 700 .78rem/1.2 var(--sans); cursor: pointer; }
+  .toolbar button.active, .mode-tabs button[aria-selected="true"] { border-color: var(--ink); background: var(--ink); color: #fff; }
+  .toolbar [data-reset] { margin-left: auto; }
+  .results { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; }
+  .results > div { display: flex; min-width: 0; min-height: 108px; padding: .8rem; flex-direction: column; justify-content: center; border: 1px solid var(--line); border-radius: 13px; background: #fff; }
+  .results .primary { background: var(--ink); color: #fff; }
+  .results span, .results small { color: var(--muted); font-size: .7rem; line-height: 1.35; overflow-wrap: anywhere; }
+  .results .primary span, .results .primary small { color: #cbd2e2; }
+  .results strong { margin: .2rem 0; font: 700 clamp(1.3rem, 3vw, 1.9rem)/1 var(--serif); font-variant-numeric: tabular-nums; }
+  .positive { color: var(--positive); }
+  .negative { color: var(--negative); }
+  .reverse { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; margin: 1rem 0; padding: 1rem; border-left: 4px solid var(--accent); border-radius: 0 12px 12px 0; background: #eceffd; }
+  .reverse h4 { margin: .15rem 0; font: 700 1rem/1.35 var(--serif); overflow-wrap: anywhere; }
+  .reverse p { margin: 0; color: var(--muted); font-size: .72rem; line-height: 1.45; }
+  .reverse > strong { font: 700 clamp(1.55rem, 5vw, 2rem)/1 var(--serif); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mode-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1.3rem 0 .7rem; }
+  .workbench { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(240px, .7fr); gap: .8rem; }
+  .controls, .bridge, .projection { min-width: 0; padding: 1rem; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+  .section-heading { display: block; padding: 0; border: 0; color: inherit; font-size: inherit; letter-spacing: normal; text-transform: none; }
+  .section-heading > span { display: block; }
+  .section-heading h4 { margin: .15rem 0 1rem; font: 700 1.05rem/1.35 var(--serif); }
+  .control-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
+  .control-grid + .control-grid { margin-top: .85rem; }
+  .control-grid label { display: grid; min-width: 0; gap: .45rem; color: var(--muted); font-size: .74rem; font-weight: 700; }
+  .control-grid label > span { display: flex; justify-content: space-between; gap: .5rem; line-height: 1.35; }
+  .control-grid output { flex: 0 0 auto; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .control-grid input { display: block; width: 100%; min-width: 0; margin: 0; accent-color: var(--accent); }
+  .bridge dl { display: grid; gap: .45rem; margin: 0; }
+  .bridge dl > div { display: flex; justify-content: space-between; gap: .6rem; padding: .55rem 0; border-bottom: 1px solid var(--line); }
+  .bridge dt { color: var(--muted); font-size: .72rem; line-height: 1.35; }
+  .bridge dd { margin: 0; flex: 0 0 auto; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  .bridge .total { padding: .7rem; border: 0; border-radius: 8px; background: var(--soft); }
+  .bridge > p, .model-note { color: var(--muted); font-size: .7rem; line-height: 1.55; }
+  .projection { margin-top: .8rem; }
+  .projection-bars { display: flex; height: 175px; align-items: flex-end; justify-content: space-around; gap: clamp(.2rem, 2vw, .8rem); }
+  .projection-bars > :global(div) { display: flex; min-width: 0; height: 100%; flex: 1; flex-direction: column; align-items: center; justify-content: flex-end; gap: .3rem; }
+  .projection-bars :global(i) { display: block; width: min(60px, 80%); height: var(--h); flex: 0 0 var(--h); border-radius: 8px 8px 2px 2px; background: linear-gradient(var(--accent), #91a0ed); }
+  .projection-bars :global(strong), .projection-bars :global(span) { font-size: clamp(.6rem, 1.6vw, .72rem); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .validation { padding: .7rem; border-radius: 8px; background: #f6dfdd; color: #8f3f3a; font-size: .75rem; }
+  .model-note { margin: 1rem 0 0; }
+  .advanced-controls[hidden], [hidden] { display: none !important; }
+  @media (max-width: 800px) {
+    header { display: block; }
+    .badge { display: inline-block; margin-top: .6rem; }
+    .results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .workbench { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) {
+    .sf-lab { padding: 1rem; border-radius: 16px; }
+    .toolbar > span { flex-basis: 100%; }
+    .toolbar [data-reset] { margin-left: 0; }
+    .control-grid { grid-template-columns: 1fr; }
+    .reverse { grid-template-columns: 1fr; gap: .65rem; }
+    .reverse > strong { justify-self: start; }
+  }
+  @media (max-width: 340px) {
+    .results { grid-template-columns: 1fr; }
+  }
+  :global(html.dark) .sf-lab { --ink: #edf0f7; --muted: #aab1c2; --line: #41485b; --soft: #282e3d; background: #1d222d; color: #edf0f7; }
+  :global(html.dark) .results > div,
+  :global(html.dark) .controls,
+  :global(html.dark) .bridge,
+  :global(html.dark) .projection,
+  :global(html.dark) .toolbar button,
+  :global(html.dark) .mode-tabs button { background: #252b38; }
+  :global(html.dark) .results .primary,
+  :global(html.dark) .toolbar button.active,
+  :global(html.dark) .mode-tabs button[aria-selected="true"] { background: #10151f; }
+  :global(html.dark) .reverse { background: #292f49; }
+</style>

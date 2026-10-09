@@ -1,0 +1,90 @@
+---
+title: "Salesforce Valuation Lab: The FCF Growth Implied by Today’s Price"
+subtitle: "Move FCF growth, the SBC adjustment, and the discount rate, then reverse-solve the growth embedded in the market price."
+description: "Change Salesforce FCF growth, the SBC adjustment, the discount rate, and terminal growth to calculate five-year fair value and the growth implied by today’s price."
+publishedDate: 2026-10-08
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, enterprise-ai]
+primaryTopic: portfolio
+tags: [salesforce, agentforce, valuation, free-cash-flow, scenario-analysis]
+author: "Jacob Shin"
+featured: false
+comments: true
+language: "en"
+translationKey: "salesforce-agentforce-fcf-valuation-lab"
+localization:
+  locale: en-US
+  strategy: localized-adaptation
+freshness: time-sensitive
+lastReviewed: 2026-10-08
+nextReviewDate: 2026-12-05
+dataThrough: 2026-10-08
+methodology: "The model starts from $15.05B, the midpoint of Salesforce’s 4–5% FY27 FCF growth guide applied to FY26 reported FCF of $14.4B. It compounds that cash flow for five years, builds a terminal value from the final year, and discounts both the forecast and the terminal value at the selected rate. Equity value is divided by 823 million shares. The SBC adjustment is deducted from starting FCF. Share-count change affects only the per-share bridge. A bisection solver finds the FCF CAGR that makes present value equal the October 7, 2026 close of $224.56."
+references:
+  - title: "Salesforce FY2027 Q2 earnings release"
+    url: "https://www.sec.gov/Archives/edgar/data/1108524/000110852426000187/crm-q2fy27xexhibit991.htm"
+    publisher: "SEC"
+  - title: "Salesforce FY2027 Q2 Form 10-Q"
+    url: "https://www.sec.gov/Archives/edgar/data/1108524/000110852426000190/crm-20260731.htm"
+    publisher: "SEC"
+  - title: "Salesforce FY2026 fourth-quarter and full-year results"
+    url: "https://investor.salesforce.com/news/news-details/2026/Salesforce-Announces-Record-Fourth-Quarter-Fiscal-2026-Results/default.aspx"
+    publisher: "Salesforce"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import EquityDecisionChart from '../../../../components/interactive/EquityDecisionChart.astro';
+import SalesforceValuationSimulator from '../../../../components/interactive/SalesforceValuationSimulator.astro';
+import decision from '../../../../data/equity-decisions/crm-2026-10-07.json';
+
+<EquityDecisionChart decision={decision} language="en" />
+
+<AnswerBlock question="What cash-flow growth does Salesforce’s current price require?">
+  With a 10% discount rate, 2.5% terminal growth, and 823 million shares, the October 7, 2026 close of \$224.56 requires reported FCF to grow only about **0%** a year for five years. Treat all SBC as an economic cost and the required growth rises to about 6.3%. That implied growth is the number to read before the forward fair value.
+</AnswerBlock>
+
+This page turns the model behind the [Salesforce analysis](/en/investing/markets/salesforce-agentforce-fcf-valuation/) in both directions. Enter growth to get fair value per share, or start from the market price and solve for the FCF growth that price requires.
+
+The defaults reproduce the article’s Base case. Estimated FY27 FCF of \$15.05 billion grows 7% a year, the discount rate is 10%, and terminal growth is 2.5%. Those assumptions produce a fair value of about \$302 a share. They are author estimates, not company guidance. Only the FY27 starting point applies the midpoint of the company’s 4–5% guide to FY26 FCF of \$14.4 billion.
+
+## Move 0% and 6.3% together
+
+<SalesforceValuationSimulator language="en" />
+
+## How to read the tool
+
+Start in Simple mode and move only the FCF CAGR. Shifting the 7% base to 0% and then to 12% isolates how one growth rate changes value per share and the gap to the market price. Then raise the SBC adjustment from 0% to 100%. On reported FCF, today’s price requires almost no growth. Deducting all SBC asks for growth a little above the company’s FY27 guide of 4–5%.
+
+Advanced mode separates legacy-business growth from year-five incremental AI revenue, AI contribution margin, and CRM cannibalization. More Agentforce revenue does not become the same amount of cash flow if it replaces seats. The discount rate and terminal growth move the result sharply without describing the quality of the business. About 72% of base value sits in the terminal value, so read how year-five FCF is built before raising the multiple.
+
+## The calculation
+
+Starting cash flow is the FY27 FCF estimate after the SBC adjustment. It compounds for five years at the selected growth rate.
+
+$$
+FCF_t=FCF_0(1+g)^t
+$$
+
+Terminal value applies the perpetual growth rate to year-five cash flow. Forecast cash flows and that terminal value are then discounted.
+
+$$
+TV=\frac{FCF_5(1+g_{tv})}{r-g_{tv}},\qquad Value=\sum_{t=1}^{5}\frac{FCF_t}{(1+r)^t}+\frac{TV}{(1+r)^5}
+$$
+
+Value per share divides that equity value by 823 million shares. The solver finds the \(g\) that makes present value equal \$224.56. That rate is not the market’s only expectation. The same price can also be explained by slower growth with a lower discount rate, or faster growth with a larger SBC adjustment.
+
+Share-count change enters only the per-share FCF bridge. Repurchases spend cash, so the model does not also increase DCF equity value while shrinking the share count. CFO less capex is treated as an FCFE proxy and discounted at the cost of equity. Debt is not subtracted again, because interest is already inside the cash flow.
+
+## What this model does not answer
+
+- How Informatica and later acquisitions split organic growth from integration cost
+- How much Agentforce usage revenue actually replaces seat revenue
+- The path by which leverage and interest further pressure FCF
+- Whether the economic cost of SBC is 25%, 50%, or 100% of the annualized figure
+- The terminal growth rate the market will actually assign in five years
+
+The point of this Lab is to separate “it is an AI company” from “it is cheap.” Read the FCF growth today’s price requires, then judge whether that number is realistic in growth excluding acquisitions and in free cash flow per share after SBC.
+
+Disclosure: This tool records a personal research process. It is not a recommendation. Fair value and implied growth are the author’s estimates under stated assumptions, and actual results can differ materially.
