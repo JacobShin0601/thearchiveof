@@ -117,7 +117,9 @@ export function renderAnalyticsSql({ days, hostname, refreshedAt }) {
   const rangeStart = days[0].total.day;
   const lastDay = days.at(-1).total.day;
   const rangeEnd = new Date(Date.parse(`${lastDay}T00:00:00.000Z`) + DAY_MS).toISOString().slice(0, 10);
-  const statements = ['BEGIN TRANSACTION;'];
+  // Wrangler executes uploaded SQL through D1's managed transaction path.
+  // Explicit BEGIN/COMMIT statements are rejected for remote file execution.
+  const statements = [];
 
   for (const entry of days) {
     const { total, paths } = entry;
@@ -134,7 +136,6 @@ export function renderAnalyticsSql({ days, hostname, refreshedAt }) {
 
   statements.push(
     `INSERT INTO analytics_sync_state (source, refreshed_at, range_start, range_end, schema_version) VALUES (${sqlText(ANALYTICS_SOURCE)}, ${sqlText(refreshedAt)}, ${sqlText(rangeStart)}, ${sqlText(rangeEnd)}, ${ANALYTICS_SCHEMA_VERSION}) ON CONFLICT(source) DO UPDATE SET refreshed_at = excluded.refreshed_at, range_start = MIN(analytics_sync_state.range_start, excluded.range_start), range_end = MAX(analytics_sync_state.range_end, excluded.range_end), schema_version = excluded.schema_version;`,
-    'COMMIT;',
   );
   return `${statements.join('\n')}\n`;
 }

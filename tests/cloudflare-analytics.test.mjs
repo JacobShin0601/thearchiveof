@@ -42,6 +42,7 @@ describe('Cloudflare analytics collector', () => {
     assert.match(sql, /ON CONFLICT\(day, hostname\) DO UPDATE/);
     assert.match(sql, /\/it''s-good\//);
     assert.match(sql, /'2026-10-09'/);
+    assert.doesNotMatch(sql, /BEGIN TRANSACTION|COMMIT;/);
     assert.doesNotMatch(sql, /undefined|NaN/);
   });
 
