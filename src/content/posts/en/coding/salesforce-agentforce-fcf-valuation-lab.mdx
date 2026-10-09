@@ -43,12 +43,12 @@ import decision from '../../../../data/equity-decisions/crm-2026-10-07.json';
 <EquityDecisionChart decision={decision} language="en" />
 
 <AnswerBlock question="What cash-flow growth does Salesforce’s current price require?">
-  With a 10% discount rate, 2.5% terminal growth, and 823 million shares, the October 7, 2026 close of $224.56 requires reported FCF to grow only about **0%** a year for five years. Treat all SBC as an economic cost and the required growth rises to about 6.3%. That implied growth is the number to read before the forward fair value.
+  With a 10% discount rate, 2.5% terminal growth, and 823 million shares, the October 7, 2026 close of \$224.56 requires reported FCF to grow only about **0%** a year for five years. Treat all SBC as an economic cost and the required growth rises to about 6.3%. That implied growth is the number to read before the forward fair value.
 </AnswerBlock>
 
 This page turns the model behind the [Salesforce analysis](/en/investing/markets/salesforce-agentforce-fcf-valuation/) in both directions. Enter growth to get fair value per share, or start from the market price and solve for the FCF growth that price requires.
 
-The defaults reproduce the article’s Base case. Estimated FY27 FCF of $15.05 billion grows 7% a year, the discount rate is 10%, and terminal growth is 2.5%. Those assumptions produce a fair value of about $302 a share. They are author estimates, not company guidance. Only the FY27 starting point applies the midpoint of the company’s 4–5% guide to FY26 FCF of $14.4 billion.
+The defaults reproduce the article’s Base case. Estimated FY27 FCF of \$15.05 billion grows 7% a year, the discount rate is 10%, and terminal growth is 2.5%. Those assumptions produce a fair value of about \$302 a share. They are author estimates, not company guidance. Only the FY27 starting point applies the midpoint of the company’s 4–5% guide to FY26 FCF of \$14.4 billion.
 
 ## Move 0% and 6.3% together
 
@@ -74,7 +74,7 @@ $$
 TV=\frac{FCF_5(1+g_{tv})}{r-g_{tv}},\qquad Value=\sum_{t=1}^{5}\frac{FCF_t}{(1+r)^t}+\frac{TV}{(1+r)^5}
 $$
 
-Value per share divides that equity value by 823 million shares. The solver finds the \(g\) that makes present value equal $224.56. That rate is not the market’s only expectation. The same price can also be explained by slower growth with a lower discount rate, or faster growth with a larger SBC adjustment.
+Value per share divides that equity value by 823 million shares. The solver finds the \(g\) that makes present value equal \$224.56. That rate is not the market’s only expectation. The same price can also be explained by slower growth with a lower discount rate, or faster growth with a larger SBC adjustment.
 
 Share-count change enters only the per-share FCF bridge. Repurchases spend cash, so the model does not also increase DCF equity value while shrinking the share count. CFO less capex is treated as an FCFE proxy and discounted at the cost of equity. Debt is not subtracted again, because interest is already inside the cash flow.
 
