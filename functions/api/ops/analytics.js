@@ -3,8 +3,12 @@ import {
   ALLOWED_ANALYTICS_WINDOWS,
   analyticsWindow,
   bearerToken,
+  buildArticleRows,
+  buildStrategyCandidates,
+  lookupArticle,
   percentChange,
   safeAnalyticsPath,
+  successRate,
   sumRows,
   tokenMatches,
 } from '../../lib/analytics-dashboard.js';
@@ -32,6 +36,17 @@ function metric(current, previous) {
     previous,
     change: percentChange(current, previous),
   };
+}
+
+function topicAiMap(pathRows) {
+  const map = new Map();
+  for (const row of pathRows) {
+    const article = lookupArticle(row.path);
+    const topic = article?.primaryTopic ?? article?.topics?.[0];
+    if (!topic) continue;
+    map.set(topic, (map.get(topic) ?? 0) + Number(row.visits ?? 0));
+  }
+  return map;
 }
 
 export async function onRequest(context) {
@@ -87,7 +102,7 @@ export async function onRequest(context) {
      WHERE day >= ? AND day < ?
      GROUP BY path
      ORDER BY visits DESC, requests DESC
-     LIMIT 100`,
+     LIMIT 200`,
   ).bind(bounds.currentStart, bounds.currentEnd).all();
   const topPaths = results(pathResult)
     .filter((row) => safeAnalyticsPath(row.path))
@@ -96,7 +111,89 @@ export async function onRequest(context) {
       path: row.path,
       requests: Number(row.requests ?? 0),
       visits: Number(row.visits ?? 0),
+      article: lookupArticle(row.path),
     }));
+
+  const countryResult = await env.DB.prepare(
+    `SELECT country, SUM(requests) AS requests, SUM(visits) AS visits
+     FROM analytics_country_daily
+     WHERE day >= ? AND day < ?
+     GROUP BY country
+     ORDER BY visits DESC, requests DESC
+     LIMIT 20`,
+  ).bind(bounds.currentStart, bounds.currentEnd).all().catch(() => ({ results: [] }));
+
+  const statusResult = await env.DB.prepare(
+    `SELECT bucket, SUM(requests) AS requests
+     FROM analytics_status_daily
+     WHERE day >= ? AND day < ?
+     GROUP BY bucket`,
+  ).bind(bounds.currentStart, bounds.currentEnd).all().catch(() => ({ results: [] }));
+
+  const crawlerResult = await env.DB.prepare(
+    `SELECT crawler, category, operator, SUM(requests) AS requests, SUM(bytes) AS bytes
+     FROM analytics_crawler_daily
+     WHERE day >= ? AND day < ?
+     GROUP BY crawler, category, operator
+     ORDER BY requests DESC
+     LIMIT 50`,
+  ).bind(bounds.currentStart, bounds.currentEnd).all().catch(() => ({ results: [] }));
+
+  const crawlerPathResult = await env.DB.prepare(
+    `SELECT path, crawler, SUM(requests) AS requests
+     FROM analytics_crawler_path_daily
+     WHERE day >= ? AND day < ?
+     GROUP BY path, crawler
+     ORDER BY requests DESC
+     LIMIT 200`,
+  ).bind(bounds.currentStart, bounds.currentEnd).all().catch(() => ({ results: [] }));
+
+  const crawlerStatusResult = await env.DB.prepare(
+    `SELECT bucket, SUM(requests) AS requests
+     FROM analytics_crawler_status_daily
+     WHERE day >= ? AND day < ?
+     GROUP BY bucket`,
+  ).bind(bounds.currentStart, bounds.currentEnd).all().catch(() => ({ results: [] }));
+
+  const referrerResult = await env.DB.prepare(
+    `SELECT source, SUM(requests) AS requests, SUM(visits) AS visits
+     FROM analytics_referrer_daily
+     WHERE day >= ? AND day < ? AND source != 'other'
+     GROUP BY source
+     ORDER BY visits DESC, requests DESC
+     LIMIT 20`,
+  ).bind(bounds.currentStart, bounds.currentEnd).all().catch(() => ({ results: [] }));
+
+  const referrerPathResult = await env.DB.prepare(
+    `SELECT source, path, SUM(requests) AS requests, SUM(visits) AS visits
+     FROM analytics_referrer_path_daily
+     WHERE day >= ? AND day < ?
+     GROUP BY source, path
+     ORDER BY visits DESC, requests DESC
+     LIMIT 100`,
+  ).bind(bounds.currentStart, bounds.currentEnd).all().catch(() => ({ results: [] }));
+
+  const previousReferrerPathResult = await env.DB.prepare(
+    `SELECT source, path, SUM(visits) AS visits
+     FROM analytics_referrer_path_daily
+     WHERE day >= ? AND day < ?
+     GROUP BY source, path`,
+  ).bind(bounds.previousStart, bounds.previousEnd).all().catch(() => ({ results: [] }));
+
+  const errorPathResult = await env.DB.prepare(
+    `SELECT path, SUM(requests) AS requests
+     FROM analytics_error_path_daily
+     WHERE day >= ? AND day < ?
+     GROUP BY path
+     ORDER BY requests DESC
+     LIMIT 50`,
+  ).bind(bounds.currentStart, bounds.currentEnd).all().catch(() => ({ results: [] }));
+
+  const capability = await env.DB.prepare(
+    `SELECT key, available, detail, checked_at
+     FROM analytics_capability
+     WHERE key = 'clientRefererHost'`,
+  ).first().catch(() => null);
 
   const usefulResult = await env.DB.prepare(
     `SELECT article_slug AS article, COUNT(*) AS active_useful
@@ -115,6 +212,58 @@ export async function onRequest(context) {
      LIMIT 100`,
   ).bind(`${bounds.currentStart}T00:00:00.000Z`, `${bounds.currentEnd}T00:00:00.000Z`).all();
 
+  const pathRows = results(pathResult).map((row) => ({
+    path: row.path,
+    requests: Number(row.requests ?? 0),
+    visits: Number(row.visits ?? 0),
+  }));
+  const crawlerPathRows = results(crawlerPathResult).map((row) => ({
+    path: row.path,
+    crawler: row.crawler,
+    requests: Number(row.requests ?? 0),
+  }));
+  const referrerPathRows = results(referrerPathResult).map((row) => ({
+    source: row.source,
+    path: row.path,
+    requests: Number(row.requests ?? 0),
+    visits: Number(row.visits ?? 0),
+  }));
+  const errorPathRows = results(errorPathResult).map((row) => ({
+    path: row.path,
+    requests: Number(row.requests ?? 0),
+  }));
+  const usefulRows = results(usefulResult).map((row) => ({
+    article: row.article,
+    count: Number(row.active_useful ?? 0),
+  }));
+  const eventRows = results(eventResult).map((row) => ({
+    event: row.event,
+    article: row.article,
+    count: Number(row.total ?? 0),
+  }));
+
+  const articles = buildArticleRows({
+    pathRows,
+    crawlerPathRows,
+    referrerPathRows,
+    usefulRows,
+    eventRows,
+    errorPathRows,
+  });
+  const previousTopicAi = topicAiMap(results(previousReferrerPathResult).map((row) => ({
+    path: row.path,
+    visits: Number(row.visits ?? 0),
+  })));
+  const candidates = buildStrategyCandidates(articles, {
+    previousAiReferrerByTopic: previousTopicAi,
+  });
+
+  const crawlerStatuses = results(crawlerStatusResult).map((row) => ({
+    bucket: row.bucket,
+    requests: Number(row.requests ?? 0),
+  }));
+  const referrerAvailable = capability ? Number(capability.available) === 1 : referrerPathRows.length > 0;
+
   return privateJson({
     ok: true,
     schemaVersion: ANALYTICS_SCHEMA_VERSION,
@@ -125,7 +274,17 @@ export async function onRequest(context) {
       windowDays: days,
       windowStart: bounds.currentStart,
       windowEnd: bounds.currentEnd,
-      privacy: 'Aggregated daily metrics only; no raw IP, fingerprint, or visitor identifier.',
+      privacy: 'Aggregated daily metrics only; no raw IP, fingerprint, full user-agent, or visitor identifier.',
+      capabilities: {
+        referrers: {
+          available: referrerAvailable,
+          detail: capability?.detail
+            ?? (referrerAvailable
+              ? 'Referrer host dimensions are available.'
+              : 'Referrer host dimensions have not been synced yet.'),
+          checkedAt: capability?.checked_at ?? null,
+        },
+      },
     },
     overview: {
       requests: metric(current.requests, previous.requests),
@@ -133,29 +292,80 @@ export async function onRequest(context) {
       bytes: metric(current.bytes, previous.bytes),
     },
     daily: currentRows,
-    topPaths,
+    readers: {
+      topPaths,
+      countries: results(countryResult).map((row) => ({
+        country: row.country,
+        requests: Number(row.requests ?? 0),
+        visits: Number(row.visits ?? 0),
+      })),
+      statuses: successRate(results(statusResult).map((row) => ({
+        bucket: row.bucket,
+        requests: Number(row.requests ?? 0),
+      }))),
+      topArticles: articles.filter((row) => row.visits > 0).slice(0, 20),
+    },
+    aiCrawl: {
+      crawlers: results(crawlerResult).map((row) => ({
+        crawler: row.crawler,
+        category: row.category,
+        operator: row.operator,
+        requests: Number(row.requests ?? 0),
+        bytes: Number(row.bytes ?? 0),
+      })),
+      topPaths: crawlerPathRows
+        .filter((row) => safeAnalyticsPath(row.path))
+        .slice(0, 20)
+        .map((row) => ({
+          path: row.path,
+          crawler: row.crawler,
+          requests: row.requests,
+          article: lookupArticle(row.path),
+        })),
+      statuses: successRate(crawlerStatuses),
+    },
+    aiReferral: {
+      available: referrerAvailable,
+      unavailableReason: referrerAvailable ? null : (capability?.detail ?? 'Referrer dimensions unavailable.'),
+      sources: results(referrerResult).map((row) => ({
+        source: row.source,
+        requests: Number(row.requests ?? 0),
+        visits: Number(row.visits ?? 0),
+      })),
+      topPaths: referrerPathRows
+        .filter((row) => safeAnalyticsPath(row.path))
+        .slice(0, 20)
+        .map((row) => ({
+          source: row.source,
+          path: row.path,
+          requests: row.requests,
+          visits: row.visits,
+          article: lookupArticle(row.path),
+        })),
+    },
+    strategy: {
+      articles: articles.slice(0, 50),
+      candidates,
+    },
     engagement: {
-      activeUseful: results(usefulResult).map((row) => ({
-        article: row.article,
-        count: Number(row.active_useful ?? 0),
-      })),
-      events: results(eventResult).map((row) => ({
-        event: row.event,
-        article: row.article,
-        count: Number(row.total ?? 0),
-      })),
+      activeUseful: usefulRows,
+      events: eventRows,
     },
     definitions: {
       requests: 'Cloudflare edge HTTP requests from eyeball traffic; this includes non-HTML assets.',
       visits: 'Cloudflare visits: a page view originating from another site or a direct link.',
+      crawlers: 'Known search, training, agent, and user-fetch bots classified from user-agent strings in memory. Raw user-agent strings are not stored.',
+      aiReferral: 'Visits whose referrer host matches ChatGPT, Perplexity, Gemini, Copilot, or Claude.',
       activeUseful: 'Current active Useful reactions from anonymous human browsers.',
       change: 'Decimal change versus the immediately preceding window of equal length; null means the prior value was zero.',
+      candidates: 'Rule-based editorial candidates only. They do not replace judgment.',
     },
     interpretationHints: [
       'Separate readership volume from engagement; requests are not page views.',
-      'Check data freshness before drawing a conclusion.',
+      'Check data freshness and referrer capability before drawing a conclusion.',
       'Treat small samples as directional rather than causal evidence.',
       'Do not infer individual behavior from aggregate path totals.',
+      'Strategy candidates suggest Expand, Refresh, Defend, or Fix; they do not write the strategy for you.',
     ],
   });
 }
