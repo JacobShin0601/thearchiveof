@@ -59,9 +59,17 @@ references:
 ---
 
 import AnswerBlock from '../../../components/AnswerBlock.astro';
+import EquityStance from '../../../components/EquityStance.astro';
 import HiiValuationDiagrams from '../../../components/HiiValuationDiagrams.astro';
 import HiiValuationTables from '../../../components/HiiValuationTables.astro';
 import ValuationLabLinkCard from '../../../components/ValuationLabLinkCard.astro';
+import decision from '../../../data/equity-decisions/hii-2026-10-06.json';
+
+<EquityStance
+  decision={decision}
+  language="ko"
+  labHref="/coding/experiments/huntington-ingalls-industries-valuation-lab/"
+/>
 
 <AnswerBlock question="570억 달러의 수주잔고를 가진 HII는 왜 forward earnings 약 14배에 거래될까?">
   시장은 HII의 주문을 의심하는 것이 아니다. 그 주문의 수익성을 의심하고 있다. 2026년 조선 마진 가이던스는 6.0–6.5%다. 내가 계산한 2030년 Base 현재가치는 약 \$285로 2026년 10월 7일 종가 \$260.67보다 9% 높지만, 생산성 회복 위험을 감수할 만큼 큰 안전마진은 아니다.

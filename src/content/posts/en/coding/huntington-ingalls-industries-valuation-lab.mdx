@@ -33,7 +33,11 @@ references:
 ---
 
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import EquityDecisionChart from '../../../../components/interactive/EquityDecisionChart.astro';
 import HiiValuationLab from '../../../../components/interactive/HiiValuationLab.astro';
+import decision from '../../../../data/equity-decisions/hii-2026-10-06.json';
+
+<EquityDecisionChart decision={decision} language="en" />
 
 <AnswerBlock question="Which input should move first in an HII valuation?">
   **Shipbuilding margin before shipbuilding revenue.** Moving margin from 6% to 9% while holding growth constant materially changes present value. This calculator is designed to challenge the 7.5% normalization assumption, not treat it as an answer.
