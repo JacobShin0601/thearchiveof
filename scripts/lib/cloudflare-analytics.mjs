@@ -2,6 +2,19 @@ const DAY_MS = 86_400_000;
 export const ANALYTICS_SOURCE = 'cloudflare-zone-analytics';
 export const ANALYTICS_SCHEMA_VERSION = 1;
 
+export function scopedZoneId(body) {
+  if (Array.isArray(body?.errors) && body.errors.length > 0) {
+    throw new Error(`Cloudflare GraphQL error: ${body.errors.map((error) => error.message).join('; ')}`);
+  }
+  const ids = (body?.data?.viewer?.zones ?? [])
+    .map((zone) => zone?.zoneTag)
+    .filter((value) => typeof value === 'string' && /^[a-f0-9]{32}$/i.test(value));
+  if (ids.length !== 1) {
+    throw new Error(`Analytics token must expose exactly one zone; received ${ids.length}`);
+  }
+  return ids[0];
+}
+
 export function completeUtcDays(days, now = new Date()) {
   if (!Number.isInteger(days) || days < 1 || days > 90) {
     throw new Error('days must be an integer between 1 and 90');

@@ -21,9 +21,7 @@ GitHub Actions repository secrets:
 - `CLOUDFLARE_API_TOKEN`: existing CI token. Analytics sync requires `D1 Edit` in addition to the existing Pages read access.
 - `CLOUDFLARE_ACCOUNT_ID`: existing account ID.
 
-GitHub Actions repository variable:
-
-- `CLOUDFLARE_ZONE_ID`: the 32-character Zone ID for `thearchiveof.com`. It is an identifier, not a secret.
+The analytics token must be scoped to exactly one zone. The collector discovers that permitted Zone ID through GraphQL and refuses to guess if the token exposes zero or multiple zones. `CLOUDFLARE_ZONE_ID` remains an optional override for local diagnostics.
 
 Cloudflare Pages Preview secret:
 
