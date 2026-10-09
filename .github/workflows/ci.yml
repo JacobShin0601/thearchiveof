@@ -37,12 +37,16 @@ jobs:
           );
           const body = await response.json();
           if (!response.ok) throw new Error(body.errors?.[0]?.message ?? response.statusText);
-          const preview = body.result?.deployment_configs?.preview ?? {};
-          const envVars = Object.fromEntries(Object.entries(preview.env_vars ?? {}).map(([name, item]) => [name, item?.type ?? 'unknown']));
-          const d1 = Object.fromEntries(Object.entries(preview.d1_databases ?? {}).map(([name, item]) => [name, {
-            database_name: item?.database_name ?? null,
-            id_present: Boolean(item?.id),
-          }]));
-          console.log(JSON.stringify({ envVars, d1 }, null, 2));
+          const summarize = (config = {}) => ({
+            envVars: Object.fromEntries(Object.entries(config.env_vars ?? {}).map(([name, item]) => [name, item?.type ?? 'unknown'])),
+            d1: Object.fromEntries(Object.entries(config.d1_databases ?? {}).map(([name, item]) => [name, {
+              database_name: item?.database_name ?? null,
+              id_present: Boolean(item?.id),
+            }])),
+          });
+          console.log(JSON.stringify({
+            preview: summarize(body.result?.deployment_configs?.preview),
+            production: summarize(body.result?.deployment_configs?.production),
+          }, null, 2));
           NODE
       - run: npm run build
