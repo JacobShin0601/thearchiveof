@@ -33,7 +33,7 @@ Generate a read token locally, then paste the value directly into the Cloudflare
 openssl rand -hex 32
 ```
 
-The dashboard is built only for Preview at `/ops/analytics/`. The API returns 404 when `DEPLOY_ENV` is not `preview`.
+The dashboard is built only for Preview at `/ops/analytics/`. The API returns 404 when `DEPLOY_ENV` is not `preview`. After adding or rotating `ANALYTICS_READ_TOKEN`, redeploy the latest `develop` build so the Pages Function receives the updated secret.
 
 ## First sync
 
