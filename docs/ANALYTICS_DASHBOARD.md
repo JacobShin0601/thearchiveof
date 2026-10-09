@@ -11,7 +11,7 @@ Cloudflare zone analytics
   -> /ops/analytics and a user-directed GPT Action
 ```
 
-Only aggregate UTC-day metrics are stored: hostname, path, HTTP requests, Cloudflare visits, transferred bytes, and existing first-party Useful/event totals. The pipeline does not store raw IPs, fingerprints, user agents, or visitor identifiers.
+Only aggregate UTC-day metrics are stored: hostname, path, HTTP requests, Cloudflare visits, transferred bytes, status-code buckets, countries, known crawler catalog keys, AI referrer sources, 4xx paths, and existing first-party Useful/event totals. The pipeline does not store raw IPs, fingerprints, full user-agent strings, or visitor identifiers.
 
 ## Required configuration
 
@@ -35,6 +35,26 @@ openssl rand -hex 32
 
 The dashboard is built only for Preview at `/ops/analytics/`. The API returns 404 when `DEPLOY_ENV` is not `preview`. After adding or rotating `ANALYTICS_READ_TOKEN`, redeploy the latest `develop` build so the Pages Function receives the updated secret.
 
+## Collected strategy signals
+
+Daily sync stores:
+
+- reader totals and top content paths;
+- HTTP status buckets (`2xx`–`5xx`) and top 4xx paths;
+- top countries;
+- known crawlers classified in memory into catalog keys such as `gptbot`, `claudebot`, `perplexitybot`, `googlebot`;
+- crawler path and crawler status aggregates;
+- AI referrer sources (`chatgpt`, `perplexity`, `gemini`, `copilot`, `claude`) and landing paths when the Cloudflare plan exposes `clientRefererHost`.
+
+If referrer dimensions are unavailable, sync continues and writes `analytics_capability.clientRefererHost = 0`. The dashboard shows that empty state instead of inventing referral data.
+
+## Dashboard sections
+
+1. **Readers** — visits, requests, transfer, daily trend, countries, top articles.
+2. **AI crawl** — operator/category totals, crawled paths, success-response share.
+3. **AI referral** — AI-service visits and landing articles, or an explicit unavailable reason.
+4. **Strategy candidates** — rule-based Expand / Refresh / Defend / Fix suggestions joined to article metadata. Candidates are directional only; they do not write the publishing strategy.
+
 ## First sync
 
 1. Merge the feature into `develop` so Cloudflare creates the Preview build and its D1 binding.
@@ -48,10 +68,14 @@ Scheduled workflows run from GitHub's default branch. Until the workflow exists 
 
 `docs/analytics-openapi.yaml` describes the same read-only endpoint used by the dashboard. A user-directed GPT Action can import that schema and store `ANALYTICS_READ_TOKEN` as bearer authentication. The GPT should:
 
-1. check `metadata.refreshedAt` and `metadata.throughDay` first;
-2. distinguish HTTP requests from visits;
-3. compare traffic with Useful and interaction events without claiming causality;
+1. check `metadata.refreshedAt`, `metadata.throughDay`, and `metadata.capabilities.referrers` first;
+2. distinguish HTTP requests from visits and AI crawl from AI referral;
+3. treat strategy candidates as hypotheses, not conclusions;
 4. treat small samples as directional;
 5. never call write endpoints or synthesize engagement.
 
 Do not place `ANALYTICS_READ_TOKEN` in the OpenAPI file, repository, chat, or client source.
+
+## Out of scope
+
+Google Search Console impressions, clicks, CTR, and queries are not part of this Cloudflare-only dashboard. Add them only as a later integration when title and query decisions need search evidence.

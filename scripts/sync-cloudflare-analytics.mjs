@@ -1,8 +1,12 @@
 import { writeFile } from 'node:fs/promises';
 import {
+  attachReferrerDay,
+  availableReferrerCapability,
   completeUtcDays,
   dayQuery,
+  interpretReferrerFailure,
   normalizeDayResponse,
+  referrerQuery,
   renderAnalyticsSql,
   scopedZoneId,
 } from './lib/cloudflare-analytics.mjs';
@@ -35,6 +39,9 @@ async function graphQlRequest(query) {
     const detail = body?.errors?.[0]?.message ?? response.statusText;
     throw new Error(`Cloudflare Analytics request failed (${response.status}): ${detail}`);
   }
+  if (Array.isArray(body?.errors) && body.errors.length > 0) {
+    throw new Error(`Cloudflare GraphQL error: ${body.errors.map((error) => error.message).join('; ')}`);
+  }
   return body;
 }
 
@@ -46,16 +53,39 @@ if (!zoneId) {
 
 const windows = completeUtcDays(days);
 const normalized = [];
+let capability = availableReferrerCapability(new Date().toISOString());
+let referrersEnabled = true;
 
 for (const window of windows) {
   const body = await graphQlRequest(dayQuery({ zoneId, hostname, start: window.start, end: window.end }));
-  normalized.push(normalizeDayResponse(window.day, hostname, body));
+  let entry = normalizeDayResponse(window.day, hostname, body);
+
+  if (referrersEnabled) {
+    try {
+      const referrerBody = await graphQlRequest(referrerQuery({
+        zoneId,
+        hostname,
+        start: window.start,
+        end: window.end,
+      }));
+      entry = attachReferrerDay(entry, referrerBody);
+      capability = availableReferrerCapability(new Date().toISOString());
+    } catch (error) {
+      capability = interpretReferrerFailure(error, new Date().toISOString());
+      referrersEnabled = false;
+      console.warn(`Referrer dimensions unavailable; continuing without them. ${capability.detail}`);
+    }
+  }
+
+  normalized.push(entry);
 }
 
 const sql = renderAnalyticsSql({
   days: normalized,
   hostname,
   refreshedAt: new Date().toISOString(),
+  capability,
 });
 await writeFile(output, sql, { mode: 0o600 });
 console.log(`Prepared ${normalized.length} complete UTC day(s) for ${hostname}.`);
+console.log(`Referrer capability: ${capability.available ? 'available' : 'unavailable'}.`);
