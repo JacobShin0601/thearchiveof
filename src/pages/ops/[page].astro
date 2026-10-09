@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import AnalyticsDashboard from '../../components/interactive/AnalyticsDashboard.astro';
 import EquityDecisionChart from '../../components/interactive/EquityDecisionChart.astro';
 import { postPath } from '../../consts';
 import { IS_PREVIEW } from '../../environment';
@@ -10,6 +11,7 @@ export function getStaticPaths() {
   return [
     { params: { page: 'content-review' } },
     { params: { page: 'equity-decisions' } },
+    { params: { page: 'analytics' } },
   ];
 }
 
@@ -50,7 +52,23 @@ const counts = posts.reduce<Record<ReviewState, number>>((result, post) => {
 }, { overdue: 0, upcoming: 0, scheduled: 0, unscheduled: 0 });
 ---
 
-{page === 'equity-decisions' ? (
+{page === 'analytics' ? (
+<BaseLayout
+  title="Analytics Dashboard"
+  description="The Archive Preview 전용 집계 분석 대시보드입니다."
+  language="ko"
+  indexable={false}
+>
+  <section class="review-page shell">
+    <header>
+      <p class="eyebrow">Preview operations</p>
+      <h1>Analytics</h1>
+      <p>방문량과 독자 반응을 같은 화면에서 보되, 서로 다른 신호로 해석합니다. GPT도 동일한 읽기 전용 집계 API를 사용할 수 있습니다.</p>
+    </header>
+    <AnalyticsDashboard />
+  </section>
+</BaseLayout>
+) : page === 'equity-decisions' ? (
 <BaseLayout
   title="상장주 의사결정"
   description="The Archive Preview 전용 상장주 의사결정 차트입니다."

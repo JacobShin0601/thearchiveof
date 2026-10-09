@@ -2,6 +2,12 @@ name = "thearchiveof"
 compatibility_date = "2026-09-01"
 pages_build_output_dir = "dist"
 
+[env.preview.vars]
+DEPLOY_ENV = "preview"
+
+[env.production.vars]
+DEPLOY_ENV = "production"
+
 [[env.preview.d1_databases]]
 binding = "DB"
 database_name = "archive-interactions-preview"

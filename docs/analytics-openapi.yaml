@@ -1,0 +1,51 @@
+openapi: 3.1.0
+info:
+  title: The Archive Analytics Reader
+  version: 1.0.0
+  description: Read-only, aggregate analytics for interpreting The Archive readership and engagement.
+servers:
+  - url: https://develop.thearchiveof.pages.dev
+paths:
+  /api/ops/analytics:
+    get:
+      operationId: readArchiveAnalytics
+      summary: Read aggregate traffic and engagement metrics
+      description: Returns daily Cloudflare zone metrics and aggregate first-party reactions. It never returns raw IPs, fingerprints, or visitor identifiers.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: days
+          required: false
+          schema:
+            type: integer
+            enum: [7, 30, 90]
+            default: 30
+          description: Current period length. Changes are calculated against the immediately preceding period of equal length.
+      responses:
+        '200':
+          description: Aggregate analytics snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, schemaVersion, metadata, overview, daily, topPaths, engagement, definitions, interpretationHints]
+                properties:
+                  ok: { type: boolean, const: true }
+                  schemaVersion: { type: integer }
+                  metadata: { type: object, additionalProperties: true }
+                  overview: { type: object, additionalProperties: true }
+                  daily: { type: array, items: { type: object, additionalProperties: true } }
+                  topPaths: { type: array, items: { type: object, additionalProperties: true } }
+                  engagement: { type: object, additionalProperties: true }
+                  definitions: { type: object, additionalProperties: true }
+                  interpretationHints: { type: array, items: { type: string } }
+        '401': { description: Missing or invalid read token }
+        '404': { description: Endpoint is disabled outside Preview }
+        '503': { description: Analytics has not been synced or required bindings are unavailable }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
