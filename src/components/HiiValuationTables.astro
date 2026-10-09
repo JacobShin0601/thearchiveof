@@ -8,11 +8,12 @@ import {
   hiiMarginSensitivity,
   hiiModelInputs,
   hiiMosPrices,
+  hiiScenarioInputs,
   hiiScenarios,
 } from '../data/hii-valuation';
 
 interface Props {
-  variant: 'backlog' | 'contract' | 'eac' | 'sensitivity' | 'scenario' | 'mos' | 'fcf';
+  variant: 'backlog' | 'contract' | 'eac' | 'sensitivity' | 'assumptions' | 'scenario' | 'mos' | 'fcf';
   language?: 'ko' | 'en';
 }
 
@@ -21,7 +22,7 @@ const en = language === 'en';
 const moneyB = (value: number) => `$${value.toFixed(2)}B`;
 ---
 
-<div class="table-scroll" role="region" aria-label={en ? 'Financial analysis table' : '재무 분석 표'} tabindex="0">
+<div class:list={['table-scroll', `table-scroll--${variant}`, { 'table-scroll--compact': ['eac', 'sensitivity', 'mos', 'fcf'].includes(variant) }]} role="region" aria-label={en ? 'Financial analysis table' : '재무 분석 표'} tabindex="0">
   {variant === 'backlog' && (
     <table>
       <thead><tr><th>{en ? 'Segment' : '부문'}</th><th>Funded</th><th>Unfunded</th><th>Total</th></tr></thead>
@@ -52,6 +53,13 @@ const moneyB = (value: number) => `$${value.toFixed(2)}B`;
     <table>
       <thead><tr><th>{en ? 'Shipbuilding margin' : '조선 마진'}</th><th>{en ? '2030 operating profit' : '2030 영업이익'}</th></tr></thead>
       <tbody>{hiiMarginSensitivity.map((row) => <tr><td>{(row.margin * 100).toFixed(row.margin === 0.075 ? 1 : 0)}%</td><td>{moneyB(row.operatingIncome)}</td></tr>)}</tbody>
+    </table>
+  )}
+
+  {variant === 'assumptions' && (
+    <table>
+      <thead><tr><th>{en ? 'Scenario' : '시나리오'}</th><th>{en ? 'Shipbuilding CAGR' : '조선 CAGR'}</th><th>{en ? 'Shipbuilding margin' : '조선 마진'}</th><th>Mission CAGR</th><th>{en ? 'Mission margin' : 'Mission 마진'}</th><th>{en ? 'Exit P/E' : '출구 P/E'}</th></tr></thead>
+      <tbody>{hiiScenarioInputs.map((row) => <tr><td>{row.name}</td><td>{Math.round(row.shipbuildingGrowth * 100)}%</td><td>{(row.shipbuildingMargin * 100).toFixed(1)}%</td><td>{Math.round(row.missionGrowth * 100)}%</td><td>{(row.missionMargin * 100).toFixed(1)}%</td><td>{row.exitPe.toFixed(1)}×</td></tr>)}</tbody>
     </table>
   )}
 
@@ -87,12 +95,19 @@ const moneyB = (value: number) => `$${value.toFixed(2)}B`;
 
 <style>
   .table-scroll{margin:1.6rem 0;overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line)}
-  table{width:100%;min-width:520px;border-collapse:collapse;font-family:var(--sans);font-size:.82rem;background:var(--paper-deep)}
-  th,td{padding:.68rem .72rem;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
-  th{color:var(--muted);font-weight:650;background:color-mix(in srgb,var(--accent) 7%,var(--paper-deep))}
-  th:first-child,td:first-child{text-align:left}
-  tbody tr:last-child td{border-bottom:0}
-  .total td{font-weight:700}
+  .table-scroll>table{display:table;width:100%;max-width:none;min-width:520px;overflow:visible;border-collapse:collapse;font-family:var(--sans);font-size:.82rem;background:var(--paper-deep)}
+  .table-scroll--compact>table{min-width:0;table-layout:fixed}
+  .table-scroll--assumptions>table,.table-scroll--scenario>table{min-width:720px}
+  .table-scroll--contract>table{min-width:600px;table-layout:fixed}
+  .table-scroll th,.table-scroll td{padding:.68rem .72rem;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  .table-scroll th{color:var(--muted);font-weight:650;background:color-mix(in srgb,var(--accent) 7%,var(--paper-deep))}
+  .table-scroll th:first-child,.table-scroll td:first-child{text-align:left}
+  .table-scroll--contract :is(th,td):first-child{width:25%}
+  .table-scroll--contract :is(th,td):nth-child(2){width:13%}
+  .table-scroll--contract :is(th,td):last-child{width:62%;text-align:left;white-space:normal}
+  .table-scroll--compact :is(th,td):first-child{white-space:normal}
+  .table-scroll tbody tr:last-child td{border-bottom:0}
+  .table-scroll .total td{font-weight:700}
   .positive{color:var(--accent)}
   .negative{color:#a33}
   @media(max-width:650px){th,td{padding:.58rem .6rem}}
