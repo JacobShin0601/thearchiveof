@@ -137,6 +137,7 @@ const heatValue = (growth: number, discount: number) => {
   .sf-figure *, .sf-figure *::before, .sf-figure *::after { box-sizing: border-box; }
   .sf-figure figcaption { display: grid; gap: .28rem; margin-bottom: 1rem; }
   .sf-figure figcaption strong { font: 700 clamp(1.05rem, 2.5vw, 1.35rem)/1.3 var(--serif); }
+  :global(html[lang="ko"]) .sf-figure figcaption strong { font-family: var(--serif-kr), var(--serif); }
   .sf-figure figcaption span, .figure-note { color: var(--muted); font-size: .77rem; line-height: 1.55; }
   .figure-note { margin: .8rem 0 0; }
   .chart-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
@@ -166,6 +167,7 @@ const heatValue = (growth: number, discount: number) => {
   .crpo-dot { fill: var(--teal); }
   .waterfall { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; align-items: end; min-height: 235px; }
   .waterfall > div {
+    --bar-color: var(--accent);
     display: flex;
     min-width: 0;
     height: var(--h);
@@ -174,11 +176,11 @@ const heatValue = (growth: number, discount: number) => {
     flex-direction: column;
     justify-content: flex-end;
     border-radius: 10px 10px 2px 2px;
-    background: var(--accent);
+    background: var(--bar-color);
     color: #fff;
   }
-  .waterfall .negative { background: var(--red); }
-  .waterfall .total { background: var(--teal); }
+  .waterfall .negative { --bar-color: var(--red); }
+  .waterfall .total { --bar-color: var(--teal); }
   .waterfall strong { font: 700 clamp(1rem, 2vw, 1.2rem)/1.2 var(--serif); font-variant-numeric: tabular-nums; }
   .waterfall span { margin-top: .25rem; font-size: .7rem; line-height: 1.35; overflow-wrap: anywhere; }
   .bridge-cards { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: .6rem; align-items: center; }
@@ -214,9 +216,12 @@ const heatValue = (growth: number, discount: number) => {
     .mobile-flow p { margin: 0; padding: .45rem .65rem; border-radius: 8px; font-size: .7rem; font-weight: 700; line-height: 1.4; }
     .mobile-flow .positive-impact { background: #dcefe9; color: #126f67; }
     .mobile-flow .negative-impact { background: #f0dddd; color: #944c49; }
-    .trend-chart svg { width: 520px; max-width: none; }
+    .trend-chart { direction: rtl; }
+    .trend-chart svg { width: 520px; max-width: none; direction: ltr; }
     .waterfall { grid-template-columns: 1fr; min-height: 0; }
-    .waterfall > div { height: auto; min-height: 78px; border-radius: 10px; border-left: 6px solid rgba(255, 255, 255, .36); }
+    .waterfall > div { position: relative; height: auto; min-height: 78px; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); }
+    .waterfall > div::before { position: absolute; z-index: 0; inset: 0 auto 0 0; width: var(--h); background: var(--bar-color); opacity: .18; content: ''; }
+    .waterfall > div > * { position: relative; z-index: 1; }
     .bridge-cards { grid-template-columns: 1fr; gap: .35rem; }
     .bridge-cards > div { min-height: 0; padding: .85rem; }
     .bridge-cards > b { height: 20px; line-height: 16px; }
@@ -235,6 +240,8 @@ const heatValue = (growth: number, discount: number) => {
   :global(html.dark) .mobile-flow-track span { background: #262c39; }
   :global(html.dark) .mobile-flow .positive-impact { background: #254b43; color: #d7f1e8; }
   :global(html.dark) .mobile-flow .negative-impact { background: #543938; color: #f5d6d3; }
+  :global(html.dark) .waterfall > div { background: #262c39; }
+  :global(html.dark) .table-scroll th { background: #2d3442; color: #e4e8f2; }
   :global(html.dark) .above { background: #254b43; }
   :global(html.dark) .near { background: #554b29; }
   :global(html.dark) .below { background: #543938; }
