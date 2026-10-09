@@ -1,0 +1,247 @@
+<section class="analytics-dashboard" data-analytics-dashboard>
+  <div class="access-panel">
+    <div>
+      <p class="eyebrow">Private aggregate feed</p>
+      <h2>읽기 토큰으로 연결</h2>
+      <p>토큰은 이 탭의 메모리에서만 사용하며 저장하지 않습니다. 원시 방문자 데이터는 이 화면에 제공되지 않습니다.</p>
+    </div>
+    <form data-access-form>
+      <label>
+        <span>Analytics read token</span>
+        <input name="token" type="password" autocomplete="off" spellcheck="false" required />
+      </label>
+      <label>
+        <span>비교 기간</span>
+        <select name="days">
+          <option value="7">최근 7일</option>
+          <option value="30" selected>최근 30일</option>
+          <option value="90">최근 90일</option>
+        </select>
+      </label>
+      <button type="submit">불러오기</button>
+    </form>
+    <p class="status" data-status role="status">토큰을 입력하면 집계 데이터를 불러옵니다.</p>
+  </div>
+
+  <div class="dashboard-content" data-content hidden>
+    <header class="dashboard-meta">
+      <div>
+        <p class="eyebrow">Cloudflare zone analytics + first-party events</p>
+        <h2>읽힌 것과 반응한 것을 분리해서 본다</h2>
+      </div>
+      <p data-freshness></p>
+    </header>
+
+    <dl class="metric-grid">
+      <div><dt>Visits</dt><dd data-metric="visits">—</dd><small data-change="visits">—</small></div>
+      <div><dt>HTTP requests</dt><dd data-metric="requests">—</dd><small data-change="requests">—</small></div>
+      <div><dt>Transferred</dt><dd data-metric="bytes">—</dd><small data-change="bytes">—</small></div>
+    </dl>
+
+    <section class="trend-panel">
+      <div class="panel-heading">
+        <div><p class="eyebrow">Daily trend</p><h3>Visits</h3></div>
+        <p>직전 동일 기간과의 변화는 위 카드에 표시됩니다.</p>
+      </div>
+      <svg data-trend viewBox="0 0 900 260" role="img" aria-label="일별 visits 추이"></svg>
+    </section>
+
+    <div class="table-grid">
+      <section>
+        <div class="panel-heading"><div><p class="eyebrow">Discovery</p><h3>상위 경로</h3></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>경로</th><th>Visits</th><th>Requests</th></tr></thead>
+            <tbody data-paths></tbody>
+          </table>
+        </div>
+      </section>
+      <section>
+        <div class="panel-heading"><div><p class="eyebrow">Engagement</p><h3>Active Useful</h3></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Article key</th><th>Count</th></tr></thead>
+            <tbody data-useful></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <aside class="reading-note">
+      <strong>해석 규칙</strong>
+      <p>Requests는 페이지뷰가 아니라 정적 자산을 포함한 HTTP 요청입니다. Visits와 Useful을 함께 보고, 표본이 작을 때는 인과관계보다 방향성만 읽습니다.</p>
+    </aside>
+  </div>
+</section>
+
+<script>
+  type MetricValue = { current: number; previous: number; change: number | null };
+  type DailyRow = { day: string; requests: number; visits: number; bytes: number };
+  type PathRow = { path: string; requests: number; visits: number };
+  type UsefulRow = { article: string; count: number };
+  type AnalyticsPayload = {
+    ok: boolean;
+    error?: string;
+    metadata: { windowStart: string; windowEnd: string; refreshedAt: string };
+    overview: { visits: MetricValue; requests: MetricValue; bytes: MetricValue };
+    daily: DailyRow[];
+    topPaths: PathRow[];
+    engagement: { activeUseful: UsefulRow[] };
+  };
+
+  const root = document.querySelector<HTMLElement>('[data-analytics-dashboard]');
+  const form = root?.querySelector<HTMLFormElement>('[data-access-form]');
+  const status = root?.querySelector<HTMLElement>('[data-status]');
+  const content = root?.querySelector<HTMLElement>('[data-content]');
+
+  const number = new Intl.NumberFormat('ko-KR');
+  const compact = new Intl.NumberFormat('ko-KR', { notation: 'compact', maximumFractionDigits: 1 });
+
+  function setText(selector: string, value: string) {
+    const element = root?.querySelector(selector);
+    if (element) element.textContent = value;
+  }
+
+  function changeLabel(change: number | null) {
+    if (change == null) return '직전 기간 0 · 비교 불가';
+    const sign = change > 0 ? '+' : '';
+    return `직전 기간 대비 ${sign}${(change * 100).toFixed(1)}%`;
+  }
+
+  function metric(name: string, value: MetricValue, formatter: Intl.NumberFormat = number) {
+    setText(`[data-metric="${name}"]`, formatter.format(value.current));
+    setText(`[data-change="${name}"]`, changeLabel(value.change));
+  }
+
+  function renderTrend(rows: DailyRow[]) {
+    const svg = root?.querySelector<SVGElement>('[data-trend]');
+    if (!(svg instanceof SVGElement)) return;
+    svg.replaceChildren();
+    if (!rows.length) {
+      const empty = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      empty.setAttribute('x', '450'); empty.setAttribute('y', '130'); empty.setAttribute('text-anchor', 'middle');
+      empty.textContent = '아직 표시할 데이터가 없습니다.';
+      svg.append(empty); return;
+    }
+    const width = 900; const height = 260; const pad = 34;
+    const max = Math.max(1, ...rows.map((row) => row.visits));
+    const points = rows.map((row, index) => {
+      const x = rows.length === 1 ? width / 2 : pad + index * ((width - pad * 2) / (rows.length - 1));
+      const y = height - pad - (row.visits / max) * (height - pad * 2);
+      return `${x},${y}`;
+    }).join(' ');
+    const baseline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    baseline.setAttribute('x1', String(pad)); baseline.setAttribute('x2', String(width - pad));
+    baseline.setAttribute('y1', String(height - pad)); baseline.setAttribute('y2', String(height - pad));
+    baseline.setAttribute('class', 'baseline');
+    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    polyline.setAttribute('points', points); polyline.setAttribute('class', 'trend-line');
+    const start = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    start.setAttribute('x', String(pad)); start.setAttribute('y', String(height - 8)); start.textContent = rows[0].day;
+    const end = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    end.setAttribute('x', String(width - pad)); end.setAttribute('y', String(height - 8)); end.setAttribute('text-anchor', 'end');
+    end.textContent = rows[rows.length - 1]!.day;
+    svg.append(baseline, polyline, start, end);
+  }
+
+  function renderRows<Row>(selector: string, rows: Row[], cells: Array<(row: Row) => string>) {
+    const body = root?.querySelector(selector);
+    if (!(body instanceof HTMLElement)) return;
+    body.replaceChildren();
+    if (!rows.length) {
+      const row = document.createElement('tr'); const cell = document.createElement('td');
+      cell.colSpan = cells.length; cell.textContent = '데이터 없음'; row.append(cell); body.append(row); return;
+    }
+    for (const item of rows) {
+      const row = document.createElement('tr');
+      for (const cellValue of cells) {
+        const cell = document.createElement('td'); cell.textContent = cellValue(item); row.append(cell);
+      }
+      body.append(row);
+    }
+  }
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const data = new FormData(form);
+    const token = String(data.get('token') ?? '').trim();
+    const days = String(data.get('days') ?? '30');
+    if (!token || !status || !content) return;
+    status.textContent = '집계 데이터를 불러오는 중…';
+    try {
+      const response = await fetch(`/api/ops/analytics?days=${encodeURIComponent(days)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await response.json() as AnalyticsPayload;
+      if (!response.ok || !payload.ok) throw new Error(payload.error ?? `HTTP ${response.status}`);
+      metric('visits', payload.overview.visits);
+      metric('requests', payload.overview.requests);
+      metric('bytes', payload.overview.bytes, compact);
+      renderTrend(payload.daily);
+      renderRows('[data-paths]', payload.topPaths, [
+        (row) => row.path, (row) => number.format(row.visits), (row) => number.format(row.requests),
+      ]);
+      renderRows('[data-useful]', payload.engagement.activeUseful, [
+        (row) => row.article, (row) => number.format(row.count),
+      ]);
+      setText('[data-freshness]', `집계 ${payload.metadata.windowStart}–${payload.metadata.windowEnd} · 동기화 ${payload.metadata.refreshedAt}`);
+      content.hidden = false;
+      status.textContent = '연결됨. 토큰은 저장되지 않았습니다.';
+    } catch (error) {
+      content.hidden = true;
+      status.textContent = `불러오지 못했습니다: ${error instanceof Error ? error.message : 'unknown error'}`;
+    }
+  });
+</script>
+
+<style>
+  .analytics-dashboard { margin-top: 42px; }
+  .access-panel, .trend-panel, .table-grid > section, .reading-note { border: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 96%, var(--ink)); }
+  .access-panel { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; padding: 28px; }
+  .access-panel h2, .dashboard-meta h2, .panel-heading h3 { margin: 8px 0 0; font-family: var(--serif); font-weight: 400; }
+  .access-panel h2 { font-size: 28px; }
+  .access-panel p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .access-panel form { display: grid; grid-template-columns: 1fr 140px auto; gap: 10px; align-items: end; }
+  .access-panel label span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+  .access-panel input, .access-panel select, .access-panel button { width: 100%; min-height: 42px; border: 1px solid var(--ink); border-radius: 0; background: var(--paper); color: var(--ink); font: inherit; }
+  .access-panel input, .access-panel select { padding: 0 10px; }
+  .access-panel button { padding: 0 16px; background: var(--ink); color: var(--paper); cursor: pointer; }
+  .status { grid-column: 1 / -1; margin: 0; }
+  .dashboard-content { margin-top: 64px; }
+  .dashboard-meta { display: flex; justify-content: space-between; gap: 30px; align-items: end; margin-bottom: 24px; }
+  .dashboard-meta h2 { max-width: 680px; font-size: clamp(32px, 5vw, 62px); line-height: .95; letter-spacing: -.04em; }
+  .dashboard-meta > p { max-width: 320px; color: var(--muted); font-size: 11px; text-align: right; }
+  .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 0 22px; }
+  .metric-grid > div { padding: 26px; border: 1px solid var(--line); border-right: 0; }
+  .metric-grid > div:last-child { border-right: 1px solid var(--line); }
+  .metric-grid dt { color: var(--muted); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+  .metric-grid dd { margin: 10px 0 8px; font-family: var(--serif); font-size: clamp(34px, 5vw, 58px); line-height: 1; }
+  .metric-grid small { color: var(--muted); font-size: 10px; }
+  .trend-panel, .table-grid > section { padding: 24px; }
+  .panel-heading { display: flex; justify-content: space-between; gap: 20px; align-items: end; margin-bottom: 20px; }
+  .panel-heading h3 { font-size: 28px; }
+  .panel-heading > p { color: var(--muted); font-size: 11px; }
+  [data-trend] { display: block; width: 100%; min-height: 220px; overflow: visible; }
+  [data-trend] :global(.trend-line) { fill: none; stroke: var(--accent); stroke-width: 3; vector-effect: non-scaling-stroke; }
+  [data-trend] :global(.baseline) { stroke: var(--line); stroke-width: 1; }
+  [data-trend] :global(text) { fill: var(--muted); font-size: 11px; }
+  .table-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 22px; margin-top: 22px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 11px 8px; border-bottom: 1px solid var(--line); text-align: left; font-size: 11px; }
+  th { color: var(--muted); font-size: 8px; letter-spacing: .09em; text-transform: uppercase; }
+  th:not(:first-child), td:not(:first-child) { text-align: right; }
+  td:first-child { max-width: 360px; overflow-wrap: anywhere; }
+  .reading-note { margin-top: 22px; padding: 18px 22px; }
+  .reading-note strong { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+  .reading-note p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  @media (max-width: 820px) {
+    .access-panel { grid-template-columns: 1fr; }
+    .access-panel form { grid-template-columns: 1fr; }
+    .dashboard-meta { display: block; }
+    .dashboard-meta > p { margin-top: 14px; text-align: left; }
+    .metric-grid, .table-grid { grid-template-columns: 1fr; }
+    .metric-grid > div { border-right: 1px solid var(--line); border-bottom: 0; }
+    .metric-grid > div:last-child { border-bottom: 1px solid var(--line); }
+  }
+</style>
