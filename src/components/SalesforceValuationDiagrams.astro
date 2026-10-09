@@ -1,0 +1,248 @@
+---
+import {
+  SALESFORCE_CURRENT_PRICE,
+  salesforceQuarterlyGrowth,
+  salesforceScenarios,
+  salesforceSbcImpliedGrowth,
+} from '../data/salesforce-valuation';
+
+interface Props {
+  variant: 'flywheel' | 'growth' | 'crpo' | 'ai-waterfall' | 'fcf-quality' | 'valuation' | 'heatmap' | 'implied-growth';
+  language?: 'ko' | 'en';
+}
+
+const { variant, language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+const latest = salesforceQuarterlyGrowth.at(-1)!;
+const maxGrowth = 0.18;
+const chartX = (index: number) => 45 + index * 48;
+const chartY = (value: number) => 178 - (value / maxGrowth) * 135;
+const points = (key: 'revenueGrowth' | 'crpoGrowth') =>
+  salesforceQuarterlyGrowth.map((row, index) => `${chartX(index)},${chartY(row[key])}`).join(' ');
+const heatDiscounts = [0.08, 0.09, 0.10, 0.11, 0.12];
+const heatGrowth = [0.02, 0.04, 0.06, 0.08, 0.10];
+const heatValue = (growth: number, discount: number) => {
+  const start = 15.048;
+  const years = [1, 2, 3, 4, 5];
+  const pv = years.reduce((sum, year) => sum + start * (1 + growth) ** year / (1 + discount) ** year, 0);
+  const terminal = start * (1 + growth) ** 5 * 1.025 / (discount - 0.025) / (1 + discount) ** 5;
+  return (pv + terminal) * 1000 / 823;
+};
+---
+
+<figure class="sf-figure" data-variant={variant}>
+  {variant === 'flywheel' && (
+    <>
+      <figcaption><strong>{ko ? 'Salesforce의 AI 플라이휠에는 두 방향이 있다' : 'Salesforce’s AI flywheel runs in two directions'}</strong><span>{ko ? '추가 사용량과 좌석 잠식은 동시에 일어날 수 있다.' : 'Incremental usage and seat cannibalization can happen at the same time.'}</span></figcaption>
+      <div class="chart-scroll flow-chart">
+      <svg viewBox="0 0 760 300" role="img" aria-label={ko ? 'CRM 고객, 기업 데이터, Data 360, Agentforce, 추가 매출과 좌석 잠식의 관계' : 'Relationship among CRM customers, enterprise data, Data 360, Agentforce, incremental revenue, and seat cannibalization'}>
+        <defs><marker id="sf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" /></marker></defs>
+        <g class="flow positive-flow"><path d="M135 95H245M350 95H460M565 95H665"/><path d="M665 125C665 215 145 215 145 135"/></g>
+        <g class="node"><rect x="25" y="55" width="110" height="80" rx="16"/><text x="80" y="88">CRM</text><text x="80" y="108">{ko ? '고객' : 'customers'}</text></g>
+        <g class="node"><rect x="245" y="55" width="105" height="80" rx="16"/><text x="297" y="88">Data</text><text x="297" y="108">360</text></g>
+        <g class="node accent"><rect x="460" y="55" width="105" height="80" rx="16"/><text x="512" y="88">Agentforce</text></g>
+        <g class="node"><rect x="665" y="55" width="70" height="80" rx="16"/><text x="700" y="84">AI</text><text x="700" y="104">{ko ? '사용량' : 'usage'}</text></g>
+        <g class="negative-flow"><path d="M512 135C512 240 200 255 83 140"/></g>
+        <text class="positive-label" x="388" y="220">{ko ? '+ 사용량·업셀·신규 업무' : '+ usage, upsell, new work'}</text>
+        <text class="negative-label" x="360" y="275">{ko ? '− 좌석·기존 라이선스 잠식' : '− seats and license cannibalization'}</text>
+      </svg>
+      </div>
+      <div class="mobile-flow" role="img" aria-label={ko ? 'CRM 고객에서 Data 360, Agentforce, AI 사용량으로 이어지는 흐름. 사용량과 업셀은 늘지만 기존 좌석을 잠식할 수 있다.' : 'Flow from CRM customers to Data 360, Agentforce, and AI usage, with both upsell potential and seat cannibalization.'}>
+        <div class="mobile-flow-track">
+          <span>CRM<br />{ko ? '고객' : 'customers'}</span><b>→</b><span>Data<br />360</span><b>→</b><span>Agentforce</span><b>→</b><span>AI<br />{ko ? '사용량' : 'usage'}</span>
+        </div>
+        <p class="positive-impact">{ko ? '+ 사용량·업셀·신규 업무' : '+ usage, upsell, new work'}</p>
+        <p class="negative-impact">{ko ? '− 좌석·기존 라이선스 잠식' : '− seats and license cannibalization'}</p>
+      </div>
+    </>
+  )}
+
+  {(variant === 'growth' || variant === 'crpo') && (
+    <>
+      <figcaption><strong>{variant === 'growth' ? (ko ? '보고 성장률과 본업 성장률은 같지 않다' : 'Reported growth is not the same as underlying growth') : (ko ? 'cRPO는 매출보다 먼저 움직였지만 완벽한 예언자는 아니다' : 'cRPO moved first, but it is not a perfect forecast')}</strong><span>{ko ? '회사 공시 수치. 점선은 Informatica 매출을 단순 제외한 저자 추정치다.' : 'Company-reported figures. The dotted series is an author estimate excluding disclosed Informatica revenue.'}</span></figcaption>
+      <div class="chart-scroll trend-chart">
+      <svg viewBox="0 0 560 235" role="img" aria-label={ko ? '최근 10개 분기 매출 성장률과 cRPO 성장률' : 'Revenue and cRPO growth over the last ten quarters'}>
+        {[0.05, 0.10, 0.15].map((value) => <g class="grid"><line x1="35" x2="530" y1={chartY(value)} y2={chartY(value)}/><text x="4" y={chartY(value) + 4}>{Math.round(value * 100)}%</text></g>)}
+        <polyline class="line revenue" points={points('revenueGrowth')} />
+        <polyline class="line crpo" points={points('crpoGrowth')} />
+        <polyline class="line estimate" points={salesforceQuarterlyGrowth.slice(7).map((row, index) => `${chartX(index + 7)},${chartY(row.estimatedExInformaticaGrowth ?? row.revenueGrowth)}`).join(' ')} />
+        {salesforceQuarterlyGrowth.map((row, index) => <text class="axis" x={chartX(index)} y="215" transform={`rotate(-35 ${chartX(index)} 215)`}>{row.period.replace('FY', 'F')}</text>)}
+      </svg>
+      </div>
+      <div class="chart-legend" aria-hidden="true"><span class="revenue-key">Revenue</span><span class="crpo-key">cRPO</span><span class="estimate-key">Ex-Inf. est.</span></div>
+      <p class="figure-note">FY27 Q2: Revenue {(latest.revenueGrowth * 100).toFixed(0)}% · cRPO {(latest.crpoGrowth * 100).toFixed(0)}% · {ko ? 'Informatica 단순 제외 추정' : 'simple ex-Informatica estimate'} {((latest.estimatedExInformaticaGrowth ?? 0) * 100).toFixed(1)}%</p>
+    </>
+  )}
+
+  {variant === 'ai-waterfall' && (
+    <>
+      <figcaption><strong>{ko ? 'AI 매출보다 중요한 것은 순경제적 기여다' : 'Net economic contribution matters more than gross AI revenue'}</strong><span>{ko ? '$5B의 5년차 순증 AI 매출을 둔 저자 예시. 회사 가이던스가 아니다.' : 'Author illustration using $5B of year-five incremental AI revenue; not company guidance.'}</span></figcaption>
+      <div class="waterfall">
+        <div style="--h:100%"><strong>$5.00B</strong><span>{ko ? 'Gross AI revenue' : 'Gross AI revenue'}</span></div>
+        <div class="negative" style="--h:15%"><strong>−$0.75B</strong><span>{ko ? 'CRM 잠식 15%' : 'CRM cannibalization 15%'}</span></div>
+        <div class="negative" style="--h:38.25%"><strong>−$1.91B</strong><span>{ko ? 'AI 비용·세금 등' : 'AI cost, tax, etc.'}</span></div>
+        <div class="total" style="--h:46.75%"><strong>$2.34B</strong><span>{ko ? 'Net FCF contribution' : 'Net FCF contribution'}</span></div>
+      </div>
+    </>
+  )}
+
+  {variant === 'fcf-quality' && (
+    <>
+      <figcaption><strong>{ko ? '현금흐름의 양과 질을 나눠서 본다' : 'Separate the amount of cash flow from its quality'}</strong><span>{ko ? 'FY27 FCF는 회사 가이던스 중간값을 적용한 저자 추정. SBC는 상반기 연율화.' : 'FY27 FCF is an author estimate at the guidance midpoint; SBC is annualized from the first half.'}</span></figcaption>
+      <div class="bridge-cards"><div><small>Reported FCF</small><strong>$15.05B</strong><span>FY27E</span></div><b>−</b><div><small>{ko ? '연율화 SBC' : 'Annualized SBC'}</small><strong>$3.53B</strong><span>{ko ? '경제적 비용 100% 가정' : '100% economic-cost lens'}</span></div><b>=</b><div class="highlight"><small>{ko ? '보수적 owner earnings' : 'Conservative owner earnings'}</small><strong>$11.52B</strong><span>{ko ? '세금 효과 단순화' : 'tax effects simplified'}</span></div></div>
+    </>
+  )}
+
+  {variant === 'valuation' && (
+    <>
+      <figcaption><strong>{ko ? 'Salesforce의 오늘 적정가치는 얼마인가' : 'What is Salesforce worth today?'}</strong><span>{ko ? '5년 FCFE 근사 DCF. 현재가는 2026년 10월 7일 정규장 종가.' : 'Five-year FCFE-proxy DCF. Market price is the October 7, 2026 regular-session close.'}</span></figcaption>
+      <div class="bars">{salesforceScenarios.map((scenario) => <div><span>{scenario.name}</span><i style={`--w:${scenario.fairValuePerShare / 500 * 100}%`}></i><strong>${scenario.fairValuePerShare.toFixed(0)}</strong></div>)}<div class="market"><span>{ko ? '현재가' : 'Market'}</span><i style={`--w:${SALESFORCE_CURRENT_PRICE / 500 * 100}%`}></i><strong>${SALESFORCE_CURRENT_PRICE.toFixed(2)}</strong></div></div>
+    </>
+  )}
+
+  {variant === 'heatmap' && (
+    <>
+      <figcaption><strong>{ko ? '성장률보다 할인율에 더 민감할 때가 있다' : 'Sometimes the discount rate matters more than growth'}</strong><span>{ko ? '영구성장률 2.5%, 823M 주 고정. 단위: 주당 달러.' : '2.5% terminal growth and 823M shares. Dollars per share.'}</span></figcaption>
+      <div class="table-scroll"><table><thead><tr><th>{ko ? 'FCF CAGR \ 할인율' : 'FCF CAGR \ discount'}</th>{heatDiscounts.map((rate) => <th>{(rate * 100).toFixed(0)}%</th>)}</tr></thead><tbody>{heatGrowth.map((growth) => <tr><th>{(growth * 100).toFixed(0)}%</th>{heatDiscounts.map((discount) => { const value = heatValue(growth, discount); return <td class={value > SALESFORCE_CURRENT_PRICE * 1.1 ? 'above' : value < SALESFORCE_CURRENT_PRICE * .9 ? 'below' : 'near'}>${value.toFixed(0)}</td>; })}</tr>)}</tbody></table></div>
+    </>
+  )}
+
+  {variant === 'implied-growth' && (
+    <>
+      <figcaption><strong>{ko ? '현재 가격이 요구하는 FCF 성장률' : 'FCF growth required by today’s price'}</strong><span>{ko ? '할인율 10%, 영구성장률 2.5%. SBC를 경제적 비용으로 볼수록 요구 성장률이 높아진다.' : '10% discount rate and 2.5% terminal growth. The required rate rises as more SBC is treated as an economic cost.'}</span></figcaption>
+      <div class="implied">{salesforceSbcImpliedGrowth.map((row) => <div><span>SBC {Math.round(row.sbcAdjustmentRatio * 100)}%</span><i style={`--w:${Math.max(row.impliedGrowth, .001) / .07 * 100}%`}></i><strong>{(row.impliedGrowth * 100).toFixed(row.impliedGrowth < .001 ? 2 : 1)}%</strong></div>)}</div>
+    </>
+  )}
+</figure>
+
+<style>
+  .sf-figure {
+    --ink: #23304a;
+    --muted: #687083;
+    --accent: #5368d7;
+    --teal: #168b80;
+    --red: #b05b57;
+    --line: #d9deea;
+    box-sizing: border-box;
+    max-width: 100%;
+    margin: 2rem 0;
+    padding: clamp(1rem, 3vw, 1.55rem);
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: linear-gradient(145deg, #fbfcff, #f3f5fb);
+    color: var(--ink);
+    font-family: var(--sans);
+  }
+  .sf-figure *, .sf-figure *::before, .sf-figure *::after { box-sizing: border-box; }
+  .sf-figure figcaption { display: grid; gap: .28rem; margin-bottom: 1rem; }
+  .sf-figure figcaption strong { font: 700 clamp(1.05rem, 2.5vw, 1.35rem)/1.3 var(--serif); }
+  :global(html[lang="ko"]) .sf-figure figcaption strong { font-family: var(--serif-kr), var(--serif); }
+  .sf-figure figcaption span, .figure-note { color: var(--muted); font-size: .77rem; line-height: 1.55; }
+  .figure-note { margin: .8rem 0 0; }
+  .chart-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
+  .sf-figure svg { display: block; width: 100%; height: auto; }
+  .mobile-flow { display: none; }
+  .chart-legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; justify-content: flex-end; margin-top: .65rem; color: var(--muted); font-size: .7rem; }
+  .chart-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+  .chart-legend span::before { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: var(--accent); content: ''; }
+  .chart-legend .crpo-key::before { background: var(--teal); }
+  .chart-legend .estimate-key::before { width: 15px; height: 0; border-top: 2px dashed var(--red); border-radius: 0; background: transparent; }
+  .flow path, .positive-flow path, .negative-flow path { fill: none; stroke: currentColor; stroke-width: 3; marker-end: url(#sf-arrow); }
+  .positive-flow { color: var(--teal); }
+  .negative-flow { color: var(--red); }
+  .node rect { fill: #fff; stroke: #cbd2e2; stroke-width: 2; }
+  .node.accent rect { fill: #e9ecff; stroke: var(--accent); }
+  .node text { text-anchor: middle; fill: var(--ink); font: 700 16px var(--sans); }
+  .positive-label, .negative-label { text-anchor: middle; font: 700 14px var(--sans); }
+  .positive-label { fill: var(--teal); }
+  .negative-label { fill: var(--red); }
+  .grid line { stroke: #e0e4ed; stroke-width: 1; }
+  .grid text, .axis, .legend text { fill: #737b8c; font: 11px var(--sans); }
+  .line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .line.revenue { stroke: var(--accent); }
+  .line.crpo { stroke: var(--teal); }
+  .line.estimate { stroke: var(--red); stroke-dasharray: 5 5; }
+  .revenue-dot { fill: var(--accent); }
+  .crpo-dot { fill: var(--teal); }
+  .waterfall { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; align-items: end; min-height: 235px; }
+  .waterfall > div {
+    --bar-color: var(--accent);
+    display: flex;
+    min-width: 0;
+    height: var(--h);
+    min-height: 70px;
+    padding: .7rem;
+    flex-direction: column;
+    justify-content: flex-end;
+    border-radius: 10px 10px 2px 2px;
+    background: var(--bar-color);
+    color: #fff;
+  }
+  .waterfall .negative { --bar-color: var(--red); }
+  .waterfall .total { --bar-color: var(--teal); }
+  .waterfall strong { font: 700 clamp(1rem, 2vw, 1.2rem)/1.2 var(--serif); font-variant-numeric: tabular-nums; }
+  .waterfall span { margin-top: .25rem; font-size: .7rem; line-height: 1.35; overflow-wrap: anywhere; }
+  .bridge-cards { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: .6rem; align-items: center; }
+  .bridge-cards > div { display: flex; min-width: 0; min-height: 120px; padding: 1rem; flex-direction: column; justify-content: center; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+  .bridge-cards > b { color: var(--muted); font-size: 1.5rem; text-align: center; }
+  .bridge-cards strong { margin: .25rem 0; font: 700 clamp(1.2rem, 2.5vw, 1.5rem)/1.2 var(--serif); font-variant-numeric: tabular-nums; }
+  .bridge-cards small, .bridge-cards span { color: var(--muted); font-size: .72rem; line-height: 1.4; overflow-wrap: anywhere; }
+  .bridge-cards .highlight { background: var(--ink); color: #fff; }
+  .bridge-cards .highlight small, .bridge-cards .highlight span { color: #cbd2e2; }
+  .bars, .implied { display: grid; gap: .65rem; }
+  .bars > div, .implied > div { display: grid; grid-template-columns: 75px minmax(0, 1fr) 75px; gap: .7rem; align-items: center; }
+  .bars i, .implied i { display: block; width: min(var(--w), 100%); height: 16px; border-radius: 999px; background: linear-gradient(90deg, var(--accent), #8d9aec); }
+  .bars .market i { background: var(--teal); }
+  .bars span, .implied span { font-size: .74rem; font-weight: 700; line-height: 1.25; }
+  .bars strong, .implied strong { font-size: .9rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .implied i { background: linear-gradient(90deg, var(--teal), var(--accent)); }
+  .table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
+  .table-scroll table { display: table; width: 100%; min-width: 500px; border-collapse: separate; border-spacing: 4px; font-size: .75rem; text-align: center; }
+  .table-scroll th, .table-scroll td { padding: .55rem; border: 0; border-radius: 6px; text-align: center; white-space: nowrap; }
+  .table-scroll th { color: var(--muted); }
+  .table-scroll th:first-child { width: 145px; white-space: normal; }
+  .table-scroll td { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .above { background: #dcefe9; }
+  .near { background: #f5e9bd; }
+  .below { background: #f0dddd; }
+  @media (max-width: 620px) {
+    .sf-figure { padding: 1rem; border-radius: 14px; }
+    .flow-chart { display: none; }
+    .mobile-flow { display: grid; gap: .65rem; }
+    .mobile-flow-track { display: grid; grid-template-columns: repeat(7, auto); align-items: center; justify-content: space-between; gap: .2rem; }
+    .mobile-flow-track span { display: grid; min-width: 48px; min-height: 58px; padding: .45rem .35rem; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: .64rem; font-weight: 700; line-height: 1.2; text-align: center; }
+    .mobile-flow-track b { color: var(--teal); font-size: .9rem; }
+    .mobile-flow p { margin: 0; padding: .45rem .65rem; border-radius: 8px; font-size: .7rem; font-weight: 700; line-height: 1.4; }
+    .mobile-flow .positive-impact { background: #dcefe9; color: #126f67; }
+    .mobile-flow .negative-impact { background: #f0dddd; color: #944c49; }
+    .trend-chart { direction: rtl; }
+    .trend-chart svg { width: 520px; max-width: none; direction: ltr; }
+    .waterfall { grid-template-columns: 1fr; min-height: 0; }
+    .waterfall > div { position: relative; height: auto; min-height: 78px; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); }
+    .waterfall > div::before { position: absolute; z-index: 0; inset: 0 auto 0 0; width: var(--h); background: var(--bar-color); opacity: .18; content: ''; }
+    .waterfall > div > * { position: relative; z-index: 1; }
+    .bridge-cards { grid-template-columns: 1fr; gap: .35rem; }
+    .bridge-cards > div { min-height: 0; padding: .85rem; }
+    .bridge-cards > b { height: 20px; line-height: 16px; }
+    .bars > div, .implied > div { grid-template-columns: 65px minmax(0, 1fr) 64px; gap: .5rem; }
+  }
+  :global(html.dark) .sf-figure { --ink: #e7eaf3; --muted: #aeb5c6; --line: #41485b; background: linear-gradient(145deg, #222734, #1b202b); color: #e7eaf3; }
+  :global(html.dark) .node rect { fill: #242a38; stroke: #515b70; }
+  :global(html.dark) .node.accent rect { fill: #303757; }
+  :global(html.dark) .node text { fill: #eef0f7; }
+  :global(html.dark) .grid line { stroke: #3b4251; }
+  :global(html.dark) .grid text,
+  :global(html.dark) .axis,
+  :global(html.dark) .legend text { fill: #aeb5c6; }
+  :global(html.dark) .bridge-cards > div { background: #262c39; }
+  :global(html.dark) .bridge-cards .highlight { background: #111620; }
+  :global(html.dark) .mobile-flow-track span { background: #262c39; }
+  :global(html.dark) .mobile-flow .positive-impact { background: #254b43; color: #d7f1e8; }
+  :global(html.dark) .mobile-flow .negative-impact { background: #543938; color: #f5d6d3; }
+  :global(html.dark) .waterfall > div { background: #262c39; }
+  :global(html.dark) .table-scroll th { background: #2d3442; color: #e4e8f2; }
+  :global(html.dark) .above { background: #254b43; }
+  :global(html.dark) .near { background: #554b29; }
+  :global(html.dark) .below { background: #543938; }
+</style>
