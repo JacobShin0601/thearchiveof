@@ -3,10 +3,12 @@ import { describe, it } from 'node:test';
 import { onRequest } from '../functions/api/ops/analytics.js';
 import {
   analyticsWindow,
+  articleImpact,
   buildArticleRows,
   buildStrategyCandidates,
   lookupArticle,
   safeAnalyticsPath,
+  summarizeTrafficSignals,
 } from '../functions/lib/analytics-dashboard.js';
 
 function fakeAnalyticsD1({ referrersAvailable = true } = {}) {
@@ -124,8 +126,12 @@ describe('analytics dashboard API', () => {
     assert.deepEqual(body.overview.visits, { current: 10, previous: 5, change: 1 });
     assert.equal(body.readers.topArticles[0].key, 'sterling-infrastructure-fair-value');
     assert.equal(body.aiCrawl.crawlers[0].crawler, 'gptbot');
+    assert.equal(body.signals.human.visits, 10);
+    assert.equal(body.signals.ai.training, 12);
+    assert.equal(body.signals.search.requests, 0);
     assert.equal(body.aiReferral.available, true);
     assert.equal(body.aiReferral.sources[0].source, 'chatgpt');
+    assert.ok(body.strategy.articles[0].impact);
     assert.ok(Array.isArray(body.strategy.candidates));
     assert.match(body.metadata.privacy, /no raw IP/i);
     assert.doesNotMatch(JSON.stringify(body), /GPTBot\/|Mozilla\//);
@@ -185,5 +191,19 @@ describe('analytics helpers', () => {
     assert.ok(candidates.some((row) => row.type === 'distribution_gap'));
     assert.ok(candidates.some((row) => row.type === 'translation_gap'));
     assert.ok(candidates.some((row) => row.type === 'citation_discovery' && row.smallSample === false));
+    assert.equal(articles[0].impact.score, articleImpact(articles[0]).score);
+    assert.deepEqual(summarizeTrafficSignals([
+      { category: 'search', requests: 8, bytes: 100 },
+      { category: 'training', requests: 5, bytes: 50 },
+      { category: 'user-fetch', requests: 2, bytes: 20 },
+      { category: 'agent', requests: 1, bytes: 10 },
+    ], 40), {
+      human: {
+        visits: 40,
+        note: 'Cloudflare visits are not a pure human count; pair with Useful and Lab events.',
+      },
+      search: { requests: 8, bytes: 100 },
+      ai: { requests: 8, bytes: 80, training: 5, userFetch: 2, agent: 1 },
+    });
   });
 });

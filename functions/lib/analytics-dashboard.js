@@ -5,6 +5,8 @@ const DAY_MS = 86_400_000;
 export const ANALYTICS_SCHEMA_VERSION = 2;
 export const ALLOWED_ANALYTICS_WINDOWS = new Set([7, 30, 90]);
 export const SMALL_SAMPLE_THRESHOLD = 20;
+export const SEARCH_CRAWL_CATEGORIES = new Set(['search']);
+export const AI_CRAWL_CATEGORIES = new Set(['training', 'agent', 'user-fetch']);
 
 export function shiftDay(day, delta) {
   const value = new Date(`${day}T00:00:00.000Z`);
@@ -141,7 +143,7 @@ export function buildArticleRows({
     const errorRequests = errorsByPath.get(path)?.requests ?? errorsByPath.get(normalized)?.requests ?? 0;
     const useful = usefulByKey.get(meta.key)?.count ?? 0;
     const events = eventsByKey.get(meta.key) ?? {};
-    articles.push({
+    const article = {
       path: meta.path,
       key: meta.key,
       title: meta.title,
@@ -166,10 +168,62 @@ export function buildArticleRows({
         language_switch: Number(events.language_switch ?? 0),
         reaction_added: Number(events.reaction_added ?? 0),
       },
+    };
+    articles.push({
+      ...article,
+      impact: articleImpact(article),
     });
   }
 
-  return articles.sort((a, b) => b.visits - a.visits || b.crawlerRequests - a.crawlerRequests || a.path.localeCompare(b.path));
+  return articles.sort((a, b) => b.impact.score - a.impact.score || b.visits - a.visits || b.crawlerRequests - a.crawlerRequests || a.path.localeCompare(b.path));
+}
+
+/** Reference-only reader impact. Useful is weighted highest; not a ranking score for SEO. */
+export function articleImpact(article) {
+  const useful = Number(article?.useful ?? 0);
+  const codeRun = Number(article?.events?.code_run ?? 0);
+  const languageSwitch = Number(article?.events?.language_switch ?? 0);
+  const visits = Number(article?.visits ?? 0);
+  const score = useful * 3 + codeRun * 2 + languageSwitch;
+  const usefulRate = useful / Math.max(visits, 1);
+  let label = 'weak';
+  if (score >= 9 || (visits >= 20 && usefulRate >= 0.1)) label = 'strong';
+  else if (score >= 3 || (visits >= 10 && useful > 0)) label = 'moderate';
+  return {
+    score,
+    usefulRate,
+    label,
+  };
+}
+
+export function summarizeTrafficSignals(crawlers, humanVisits) {
+  const search = { requests: 0, bytes: 0 };
+  const ai = { requests: 0, bytes: 0, training: 0, userFetch: 0, agent: 0 };
+  for (const row of crawlers ?? []) {
+    const requests = Number(row.requests ?? 0);
+    const bytes = Number(row.bytes ?? 0);
+    const category = row.category;
+    if (SEARCH_CRAWL_CATEGORIES.has(category)) {
+      search.requests += requests;
+      search.bytes += bytes;
+      continue;
+    }
+    if (AI_CRAWL_CATEGORIES.has(category)) {
+      ai.requests += requests;
+      ai.bytes += bytes;
+      if (category === 'training') ai.training += requests;
+      if (category === 'user-fetch') ai.userFetch += requests;
+      if (category === 'agent') ai.agent += requests;
+    }
+  }
+  return {
+    human: {
+      visits: Number(humanVisits ?? 0),
+      note: 'Cloudflare visits are not a pure human count; pair with Useful and Lab events.',
+    },
+    search,
+    ai,
+  };
 }
 
 export function buildStrategyCandidates(articles, {

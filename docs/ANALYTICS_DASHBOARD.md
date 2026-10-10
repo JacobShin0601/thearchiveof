@@ -50,10 +50,13 @@ If referrer dimensions are unavailable, sync continues and writes `analytics_cap
 
 ## Dashboard sections
 
-1. **Readers** — visits, requests, transfer, daily trend, countries, top articles.
-2. **AI crawl** — operator/category totals, crawled paths, success-response share.
-3. **AI referral** — AI-service visits and landing articles, or an explicit unavailable reason.
-4. **Strategy candidates** — rule-based Expand / Refresh / Defend / Fix suggestions joined to article metadata. Candidates are directional only; they do not write the publishing strategy.
+1. **Signal layers** — Human visits, Search crawl requests, and AI crawl requests (training / user-fetch / agent) as separate cards.
+2. **Readers** — visits, requests, transfer, daily trend, countries, top articles with a reference-only Impact column.
+3. **AI crawl** — operator/category totals, crawled paths, success-response share.
+4. **AI referral** — AI-service visits and landing articles, or an explicit unavailable reason.
+5. **Strategy candidates** — rule-based Expand / Refresh / Defend / Fix suggestions joined to article metadata, plus Impact. Candidates are directional only; they do not write the publishing strategy.
+
+Impact is `Useful×3 + code_run×2 + language_switch`. It is a reader-response reference, not an SEO rank.
 
 ## First sync
 

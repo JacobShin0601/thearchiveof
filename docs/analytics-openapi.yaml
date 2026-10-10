@@ -34,6 +34,7 @@ paths:
                   - schemaVersion
                   - metadata
                   - overview
+                  - signals
                   - daily
                   - readers
                   - aiCrawl
@@ -47,6 +48,7 @@ paths:
                   schemaVersion: { type: integer }
                   metadata: { type: object, additionalProperties: true }
                   overview: { type: object, additionalProperties: true }
+                  signals: { type: object, additionalProperties: true }
                   daily: { type: array, items: { type: object, additionalProperties: true } }
                   readers: { type: object, additionalProperties: true }
                   aiCrawl: { type: object, additionalProperties: true }
