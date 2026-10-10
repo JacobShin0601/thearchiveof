@@ -62,3 +62,47 @@ export function statusBucket(status) {
   if (code < 500) return '4xx';
   return '5xx';
 }
+
+/**
+ * Path-only 4xx classification. Does not use User-Agent strings and never
+ * stores them. Prefer this for separating scanner noise from content gaps.
+ */
+export function classifyErrorPath(path) {
+  if (typeof path !== 'string' || !path.startsWith('/')) return 'other';
+  const normalized = path.split('?')[0]?.split('#')[0] ?? path;
+
+  if (
+    normalized.startsWith('/api/')
+  ) return 'api';
+
+  if (
+    normalized.startsWith('/_astro/')
+    || normalized.startsWith('/assets/')
+    || normalized.startsWith('/fonts/')
+    || /\.(?:avif|css|gif|ico|jpe?g|js|json|map|png|svg|webp|woff2?)(?:$|\/)/i.test(normalized)
+    || /favicon|apple-touch|site\.webmanifest|manifest\.json/i.test(normalized)
+  ) return 'asset';
+
+  if (
+    /(?:^|\/)(?:wp-admin|wp-login|wp-content|wp-includes|wordpress|xmlrpc\.php|phpmyadmin|cgi-bin)(?:\/|$)/i.test(normalized)
+    || normalized.includes('wlwmanifest.xml')
+    || /(?:^|\/)\.env(?:$|\.|\/)/i.test(normalized)
+    || /(?:^|\/)\.git(?:\/|$)/i.test(normalized)
+    || /(?:^|\/)\.aws(?:\/|$)/i.test(normalized)
+    || /\.php(?:$|\/)/i.test(normalized)
+    || /(?:^|\/)(?:admin|administrator|signup|signin|login|register)(?:\/|$)/i.test(normalized)
+    || normalized.startsWith('/auth/')
+    || normalized === '/blog/'
+    || normalized === '/blog'
+    || normalized.startsWith('//')
+  ) return 'scanner';
+
+  if (
+    /^(?:\/en)?\/(?:ai|coding|investing|math|misc|series|about|archive|topics|notes)(?:\/|$)/i.test(normalized)
+    || normalized === '/'
+    || normalized === '/en/'
+    || normalized === '/en'
+  ) return 'content';
+
+  return 'other';
+}

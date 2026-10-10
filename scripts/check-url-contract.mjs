@@ -1,11 +1,14 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { flattenLegacyRedirects, renderRedirectsFile } from './lib/legacy-redirects.mjs';
+import { FORBIDDEN_PUBLIC_LINK_MARKERS } from './lib/scanner-noise-paths.mjs';
 import { SITE_URL } from '../src/site-origin.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const dist = join(root, 'dist');
 const redirectsFile = join(root, 'public', '_redirects');
+const robotsFile = join(dist, 'robots.txt');
 
 function walk(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -82,8 +85,32 @@ const pages = htmlFiles.map((file) => {
 const pageRoutes = new Set(pages.map((page) => page.route));
 const staticPaths = new Set(files.map(webPath));
 const redirects = parseRedirects();
+const catalogRedirects = flattenLegacyRedirects();
 const redirectSources = new Set(redirects.map(({ source }) => source));
 const errors = [];
+
+const expectedRedirects = renderRedirectsFile().trim();
+const actualRedirects = existsSync(redirectsFile)
+  ? readFileSync(redirectsFile, 'utf8').trim()
+  : '';
+if (actualRedirects !== expectedRedirects) {
+  errors.push('public/_redirects is out of sync with scripts/lib/legacy-redirects.mjs (run npm run write:redirects)');
+}
+
+if (existsSync(robotsFile)) {
+  const robots = readFileSync(robotsFile, 'utf8');
+  if (!robots.includes(`Sitemap: ${SITE_URL}/sitemap-index.xml`)) {
+    errors.push(`robots.txt must declare Sitemap: ${SITE_URL}/sitemap-index.xml`);
+  }
+} else {
+  errors.push('dist/robots.txt is missing');
+}
+
+for (const alias of ['/sitemap.xml', '/sitemap_index.xml']) {
+  if (!redirectSources.has(alias)) {
+    errors.push(`${alias} must permanently redirect to /sitemap-index.xml`);
+  }
+}
 
 for (const page of pages) {
   const is404 = page.route === '/404';
@@ -118,6 +145,11 @@ for (const page of pages) {
     if (target.origin !== SITE_URL || target.pathname.startsWith('/api/')) continue;
     const targetPath = target.pathname;
     const slashVariant = targetPath.endsWith('/') ? targetPath : `${targetPath}/`;
+    for (const marker of FORBIDDEN_PUBLIC_LINK_MARKERS) {
+      if (targetPath.includes(marker) || href.includes(marker)) {
+        errors.push(`${page.route} links to forbidden scanner/auth path ${targetPath}`);
+      }
+    }
     if (
       pageRoutes.has(targetPath)
       || pageRoutes.has(slashVariant)
@@ -125,6 +157,21 @@ for (const page of pages) {
       || redirectSources.has(targetPath)
     ) continue;
     errors.push(`${page.route} links to missing production path ${targetPath}`);
+  }
+
+  if (page.canonical) {
+    for (const marker of FORBIDDEN_PUBLIC_LINK_MARKERS) {
+      if (page.canonical.includes(marker)) {
+        errors.push(`${page.route} canonical points at forbidden path marker ${marker}`);
+      }
+    }
+  }
+  for (const alternate of page.alternates) {
+    for (const marker of FORBIDDEN_PUBLIC_LINK_MARKERS) {
+      if (alternate.href?.includes(marker)) {
+        errors.push(`${page.route} hreflang points at forbidden path marker ${marker}`);
+      }
+    }
   }
 }
 
@@ -144,8 +191,21 @@ for (const page of pages) {
 
 for (const { source, target, status } of redirects) {
   if (status !== '301') errors.push(`${source} redirect must be permanent (301)`);
-  if (!pageRoutes.has(target)) errors.push(`${source} redirects to missing path ${target}`);
+  if (!pageRoutes.has(target) && !staticPaths.has(target)) {
+    errors.push(`${source} redirects to missing path ${target}`);
+  }
   if (redirectSources.has(target)) errors.push(`${source} creates a redirect chain through ${target}`);
+}
+
+for (const entry of catalogRedirects) {
+  const match = redirects.find((row) => row.source === entry.source);
+  if (!match) {
+    errors.push(`catalog redirect missing from _redirects: ${entry.source}`);
+    continue;
+  }
+  if (match.target !== entry.target || match.status !== entry.status) {
+    errors.push(`catalog redirect mismatch for ${entry.source}`);
+  }
 }
 
 const sitemapFiles = files.filter((file) => /^sitemap-\d+\.xml$/.test(relative(dist, file)));
@@ -164,6 +224,9 @@ if (sitemapFiles.length > 0) {
   for (const url of sitemapSet) {
     if (!url.startsWith(`${SITE_URL}/`)) errors.push(`sitemap uses a non-canonical origin: ${url}`);
     if (!indexableSet.has(url)) errors.push(`sitemap contains a non-indexable URL: ${url}`);
+    for (const marker of FORBIDDEN_PUBLIC_LINK_MARKERS) {
+      if (url.includes(marker)) errors.push(`sitemap contains forbidden path marker ${marker}: ${url}`);
+    }
   }
   for (const url of indexableSet) {
     if (!sitemapSet.has(url)) errors.push(`indexable page is missing from sitemap: ${url}`);
