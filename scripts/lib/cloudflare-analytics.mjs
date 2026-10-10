@@ -26,8 +26,8 @@ export function scopedZoneId(body) {
 }
 
 export function completeUtcDays(days, now = new Date()) {
-  if (!Number.isInteger(days) || days < 1 || days > 90) {
-    throw new Error('days must be an integer between 1 and 90');
+  if (!Number.isInteger(days) || days < 1 || days > 180) {
+    throw new Error('days must be an integer between 1 and 180');
   }
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const start = new Date(end.valueOf() - days * DAY_MS);

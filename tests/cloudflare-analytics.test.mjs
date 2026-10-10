@@ -13,10 +13,12 @@ import {
 } from '../scripts/lib/cloudflare-analytics.mjs';
 
 describe('Cloudflare analytics collector', () => {
-  it('selects only complete UTC days', () => {
+  it('selects only complete UTC days and allows longer backfills', () => {
     const days = completeUtcDays(2, new Date('2026-10-09T18:22:00Z'));
     assert.deepEqual(days.map(({ day }) => day), ['2026-10-07', '2026-10-08']);
     assert.equal(days[1].end, '2026-10-09T00:00:00.000Z');
+    assert.equal(completeUtcDays(180, new Date('2026-10-09T18:22:00Z')).length, 180);
+    assert.throws(() => completeUtcDays(181, new Date('2026-10-09T18:22:00Z')), /1 and 180/);
   });
 
   it('builds zone queries without embedding credentials', () => {

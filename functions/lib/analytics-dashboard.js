@@ -2,7 +2,7 @@ import { ARTICLE_CATALOG } from '../_generated/article-catalog.js';
 
 const DAY_MS = 86_400_000;
 
-export const ANALYTICS_SCHEMA_VERSION = 2;
+export const ANALYTICS_SCHEMA_VERSION = 3;
 export const ALLOWED_ANALYTICS_WINDOWS = new Set([7, 30, 90]);
 export const SMALL_SAMPLE_THRESHOLD = 20;
 export const SEARCH_CRAWL_CATEGORIES = new Set(['search']);
@@ -35,6 +35,36 @@ export function sumRows(rows) {
 export function percentChange(current, previous) {
   if (previous === 0) return current === 0 ? 0 : null;
   return (current - previous) / previous;
+}
+
+export function buildDataQuality({
+  requestedDays,
+  currentCoverageDays,
+  previousCoverageDays,
+}) {
+  const comparisonComplete = currentCoverageDays >= requestedDays
+    && previousCoverageDays >= requestedDays;
+  return {
+    requestedDays,
+    currentCoverageDays,
+    previousCoverageDays,
+    comparisonComplete,
+    changeUnavailableReason: comparisonComplete ? null : 'insufficient_coverage',
+    note: comparisonComplete
+      ? 'Current and previous windows both have full daily coverage.'
+      : `A complete ${requestedDays}-day comparison needs ${requestedDays * 2} synced UTC days.`,
+  };
+}
+
+export function metricWithCoverage(current, previous, dataQuality) {
+  return {
+    current,
+    previous,
+    change: dataQuality.comparisonComplete ? percentChange(current, previous) : null,
+    changeUnavailableReason: dataQuality.comparisonComplete
+      ? null
+      : dataQuality.changeUnavailableReason,
+  };
 }
 
 export function safeAnalyticsPath(path) {
@@ -141,8 +171,10 @@ export function buildArticleRows({
     const crawlerRequests = crawlerByPath.get(path)?.requests ?? crawlerByPath.get(normalized)?.requests ?? 0;
     const aiReferrerVisits = referrerByPath.get(path)?.visits ?? referrerByPath.get(normalized)?.visits ?? 0;
     const errorRequests = errorsByPath.get(path)?.requests ?? errorsByPath.get(normalized)?.requests ?? 0;
-    const useful = usefulByKey.get(meta.key)?.count ?? 0;
+    const allTimeActiveUseful = usefulByKey.get(meta.key)?.count ?? 0;
     const events = eventsByKey.get(meta.key) ?? {};
+    const periodUsefulAdded = Number(events.reaction_added ?? 0);
+    const periodUsefulRemoved = Number(events.reaction_removed ?? 0);
     const article = {
       path: meta.path,
       key: meta.key,
@@ -158,15 +190,22 @@ export function buildArticleRows({
       nextReviewDate: meta.nextReviewDate,
       reviewState: reviewState(meta.nextReviewDate, today),
       visits,
+      periodVisits: visits,
       requests,
       crawlerRequests,
       aiReferrerVisits,
       errorRequests,
-      useful,
+      allTimeActiveUseful,
+      periodUsefulAdded,
+      periodUsefulRemoved,
+      periodNetUseful: periodUsefulAdded - periodUsefulRemoved,
+      // Kept for older clients: all-time active Useful, not a period rate numerator.
+      useful: allTimeActiveUseful,
       events: {
         code_run: Number(events.code_run ?? 0),
         language_switch: Number(events.language_switch ?? 0),
-        reaction_added: Number(events.reaction_added ?? 0),
+        reaction_added: periodUsefulAdded,
+        reaction_removed: periodUsefulRemoved,
       },
     };
     articles.push({
@@ -178,25 +217,31 @@ export function buildArticleRows({
   return articles.sort((a, b) => b.impact.score - a.impact.score || b.visits - a.visits || b.crawlerRequests - a.crawlerRequests || a.path.localeCompare(b.path));
 }
 
-/** Reference-only reader impact. Useful is weighted highest; not a ranking score for SEO. */
+/**
+ * Reference-only period impact. Uses same-window Useful adds and Lab events.
+ * allTimeActiveUseful is intentionally excluded from the score.
+ */
 export function articleImpact(article) {
-  const useful = Number(article?.useful ?? 0);
+  const periodUsefulAdded = Number(
+    article?.periodUsefulAdded ?? article?.events?.reaction_added ?? 0,
+  );
   const codeRun = Number(article?.events?.code_run ?? 0);
   const languageSwitch = Number(article?.events?.language_switch ?? 0);
-  const visits = Number(article?.visits ?? 0);
-  const score = useful * 3 + codeRun * 2 + languageSwitch;
-  const usefulRate = useful / Math.max(visits, 1);
+  const visits = Number(article?.periodVisits ?? article?.visits ?? 0);
+  const score = periodUsefulAdded * 3 + codeRun * 2 + languageSwitch;
+  const periodUsefulAddRate = periodUsefulAdded / Math.max(visits, 1);
   let label = 'weak';
-  if (score >= 9 || (visits >= 20 && usefulRate >= 0.1)) label = 'strong';
-  else if (score >= 3 || (visits >= 10 && useful > 0)) label = 'moderate';
+  if (score >= 9 || (visits >= 20 && periodUsefulAddRate >= 0.1)) label = 'strong';
+  else if (score >= 3 || (visits >= 10 && periodUsefulAdded > 0)) label = 'moderate';
   return {
     score,
-    usefulRate,
+    usefulRate: periodUsefulAddRate,
+    periodUsefulAddRate,
     label,
   };
 }
 
-export function summarizeTrafficSignals(crawlers, humanVisits) {
+export function summarizeTrafficSignals(crawlers, zoneVisits) {
   const search = { requests: 0, bytes: 0 };
   const ai = { requests: 0, bytes: 0, training: 0, userFetch: 0, agent: 0 };
   for (const row of crawlers ?? []) {
@@ -217,9 +262,10 @@ export function summarizeTrafficSignals(crawlers, humanVisits) {
     }
   }
   return {
-    human: {
-      visits: Number(humanVisits ?? 0),
-      note: 'Cloudflare visits are not a pure human count; pair with Useful and Lab events.',
+    zone: {
+      visits: Number(zoneVisits ?? 0),
+      label: 'Zone visits',
+      note: 'Cloudflare Zone visits are not unique humans or page views; pair with period Useful and Lab events.',
     },
     search,
     ai,

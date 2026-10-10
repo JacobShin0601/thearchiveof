@@ -50,13 +50,33 @@ If referrer dimensions are unavailable, sync continues and writes `analytics_cap
 
 ## Dashboard sections
 
-1. **Signal layers** — Human visits, Search crawl requests, and AI crawl requests (training / user-fetch / agent) as separate cards.
-2. **Readers** — visits, requests, transfer, daily trend, countries, top articles with a reference-only Impact column.
+1. **Signal layers** — Zone visits, Search crawl requests, and AI crawl requests (training / user-fetch / agent) as separate cards.
+2. **Readers** — visits, requests, transfer, daily trend, countries, top articles with all-time Useful and period Impact.
 3. **AI crawl** — operator/category totals, crawled paths, success-response share.
 4. **AI referral** — AI-service visits and landing articles, or an explicit unavailable reason.
-5. **Strategy candidates** — rule-based Expand / Refresh / Defend / Fix suggestions joined to article metadata, plus Impact. Candidates are directional only; they do not write the publishing strategy.
+5. **Strategy candidates** — rule-based Expand / Refresh / Defend / Fix suggestions joined to article metadata, plus period Impact. Candidates are directional only; they do not write the publishing strategy.
 
-Impact is `Useful×3 + code_run×2 + language_switch`. It is a reader-response reference, not an SEO rank.
+Zone visits are Cloudflare Zone Analytics visits, not unique humans. Impact uses the selected window only: `periodUsefulAdded×3 + code_run×2 + language_switch`. All-time active Useful remains a separate long-term trust signal.
+
+## Data quality
+
+The reader API returns `dataQuality`:
+
+```json
+{
+  "requestedDays": 90,
+  "currentCoverageDays": 90,
+  "previousCoverageDays": 30,
+  "comparisonComplete": false,
+  "changeUnavailableReason": "insufficient_coverage"
+}
+```
+
+When `comparisonComplete` is false, overview `change` values are `null`. Do not interpret growth until both the current and previous windows have full daily coverage. A 90-day comparison needs 180 synced UTC days.
+
+## Automatic sync
+
+The scheduled workflow must exist on the default branch. The job checks out `develop` for the collector scripts until those scripts are selectively published to `main`. Manual dispatch can still target Preview or Production D1 and choose 1–180 days for backfill.
 
 ## First sync
 

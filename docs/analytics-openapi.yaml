@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: The Archive Analytics Reader
-  version: 2.0.0
-  description: Read-only, aggregate analytics for interpreting The Archive readership, AI crawl, AI referral, and editorial candidates.
+  version: 3.0.0
+  description: Read-only, aggregate analytics for interpreting The Archive Zone visits, AI crawl, AI referral, period engagement, and editorial candidates.
 servers:
   - url: https://develop.thearchiveof.pages.dev
 paths:
@@ -34,6 +34,7 @@ paths:
                   - schemaVersion
                   - metadata
                   - overview
+                  - dataQuality
                   - signals
                   - daily
                   - readers
@@ -48,6 +49,7 @@ paths:
                   schemaVersion: { type: integer }
                   metadata: { type: object, additionalProperties: true }
                   overview: { type: object, additionalProperties: true }
+                  dataQuality: { type: object, additionalProperties: true }
                   signals: { type: object, additionalProperties: true }
                   daily: { type: array, items: { type: object, additionalProperties: true } }
                   readers: { type: object, additionalProperties: true }
