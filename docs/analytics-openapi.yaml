@@ -57,6 +57,7 @@ paths:
                   aiReferral: { type: object, additionalProperties: true }
                   strategy: { type: object, additionalProperties: true }
                   engagement: { type: object, additionalProperties: true }
+                  errors: { type: object, additionalProperties: true }
                   definitions: { type: object, additionalProperties: true }
                   interpretationHints: { type: array, items: { type: string } }
         '401': { description: Missing or invalid read token }

@@ -35,6 +35,7 @@
     <nav class="section-nav" aria-label="대시보드 구역">
       <a href="#signals">신호</a>
       <a href="#readers">독자</a>
+      <a href="#errors">오류</a>
       <a href="#ai-crawl">AI 크롤</a>
       <a href="#ai-referral">AI 유입</a>
       <a href="#strategy">판단 후보</a>
@@ -97,6 +98,47 @@
             <table class="data-table compact">
               <thead><tr><th class="col-text">국가</th><th class="col-num">Visits</th><th class="col-num">Requests</th></tr></thead>
               <tbody data-countries></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="errors" class="panel-block">
+      <div class="panel-heading">
+        <div><p class="eyebrow">Errors</p><h3>4xx / 5xx 분리</h3></div>
+        <p data-error-summary>경로 패턴으로 scanner / content / asset / api를 나눕니다. 원문 User-Agent는 저장하지 않습니다.</p>
+      </div>
+      <dl class="metric-grid">
+        <div><dt>Scanner 4xx</dt><dd data-error-metric="scanner">—</dd></div>
+        <div><dt>Content 4xx</dt><dd data-error-metric="content">—</dd></div>
+        <div><dt>5xx paths</dt><dd data-error-metric="server">—</dd></div>
+      </dl>
+      <div class="table-grid">
+        <section class="table-card">
+          <div class="table-card-heading"><p class="eyebrow">Classes</p><h4>4xx 분류</h4></div>
+          <div class="table-wrap">
+            <table class="data-table compact">
+              <thead><tr><th class="col-tag">Class</th><th class="col-num">Requests</th></tr></thead>
+              <tbody data-error-classes></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="table-card">
+          <div class="table-card-heading"><p class="eyebrow">Detail</p><h4>상위 4xx 경로</h4></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th class="col-text">경로</th><th class="col-tag">Status</th><th class="col-tag">Class</th><th class="col-num">Requests</th></tr></thead>
+              <tbody data-error-details></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="table-card">
+          <div class="table-card-heading"><p class="eyebrow">Server</p><h4>상위 5xx 경로</h4></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th class="col-text">경로</th><th class="col-tag">Status</th><th class="col-num">Requests</th></tr></thead>
+              <tbody data-server-errors></tbody>
             </table>
           </div>
         </section>
@@ -270,6 +312,20 @@
       topPaths: Array<{ source: string; path: string; visits: number }>;
     };
     strategy: { articles: ArticleRow[]; candidates: Candidate[] };
+    errors?: {
+      available: boolean;
+      byClass: Array<{ class: string; requests: number }>;
+      byStatus: Array<{ status: number; requests: number }>;
+      topDetails: Array<{ path: string; status: number; class: string; requests: number }>;
+      topServerErrors: Array<{ path: string; status: number; requests: number }>;
+      totals: {
+        scanner4xx: number;
+        content4xx: number;
+        serverErrors: number;
+        scannerShare: number | null;
+      };
+      legacyTopPaths?: Array<{ path: string; requests: number }>;
+    };
   };
 
   const root = document.querySelector<HTMLElement>('[data-analytics-dashboard]');
@@ -470,6 +526,50 @@
         { className: 'col-num', value: (row) => number.format(row.visits) },
         { className: 'col-num', value: (row) => number.format(row.requests) },
       ]);
+
+      const errors = payload.errors;
+      if (errors?.available) {
+        const scannerShare = errors.totals.scannerShare;
+        setText('[data-error-summary]', scannerShare == null
+          ? '경로 패턴으로 4xx를 분류합니다. 배포 효과는 1일·7일 창으로 보세요.'
+          : `분류된 4xx 중 scanner 비중 ${(scannerShare * 100).toFixed(1)}%. 배포 효과는 1일·7일 창으로 보세요.`);
+        setText('[data-error-metric="scanner"]', number.format(errors.totals.scanner4xx));
+        setText('[data-error-metric="content"]', number.format(errors.totals.content4xx));
+        setText('[data-error-metric="server"]', number.format(errors.totals.serverErrors));
+        renderRows('[data-error-classes]', errors.byClass, [
+          { className: 'col-tag', value: (row) => row.class },
+          { className: 'col-num', value: (row) => number.format(row.requests) },
+        ]);
+        renderRows('[data-error-details]', errors.topDetails.slice(0, 20), [
+          { className: 'col-text', value: (row) => shortTitle(row.path, 48), title: (row) => row.path },
+          { className: 'col-tag', value: (row) => String(row.status) },
+          { className: 'col-tag', value: (row) => row.class },
+          { className: 'col-num', value: (row) => number.format(row.requests) },
+        ]);
+        renderRows('[data-server-errors]', errors.topServerErrors, [
+          { className: 'col-text', value: (row) => shortTitle(row.path, 48), title: (row) => row.path },
+          { className: 'col-tag', value: (row) => String(row.status) },
+          { className: 'col-num', value: (row) => number.format(row.requests) },
+        ]);
+      } else {
+        setText('[data-error-summary]', 'error detail sync 이전 데이터입니다. Analytics sync 후 scanner/content 분리가 채워집니다.');
+        setText('[data-error-metric="scanner"]', '—');
+        setText('[data-error-metric="content"]', '—');
+        setText('[data-error-metric="server"]', '—');
+        renderRows('[data-error-classes]', [], []);
+        renderRows('[data-error-details]', errors?.legacyTopPaths?.map((row) => ({
+          path: row.path,
+          status: 0,
+          class: 'legacy',
+          requests: row.requests,
+        })) ?? [], [
+          { className: 'col-text', value: (row) => shortTitle(row.path, 48), title: (row) => row.path },
+          { className: 'col-tag', value: () => '—' },
+          { className: 'col-tag', value: () => 'legacy' },
+          { className: 'col-num', value: (row) => number.format(row.requests) },
+        ]);
+        renderRows('[data-server-errors]', [], []);
+      }
 
       const success = payload.aiCrawl.statuses.successShare;
       setText('[data-crawler-success]', success == null

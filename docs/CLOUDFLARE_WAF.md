@@ -69,10 +69,37 @@ These were observed in zone logs. They are not site features.
 - `wp-config*`
 - `phpmyadmin*`
 
-Do not add catch-all blocks for `/wp-admin` plus every CMS path unless logs show they are noisy. Start with the list above.
+Observed at high volume in 2026-09 scanner spikes (optional second rule wave):
+
+- `wlwmanifest.xml`
+- `xmlrpc.php`
+- `wp-includes`
+- path starts with `//` (double-slash CMS probes)
+
+Example extra clauses (keep `not cf.client.bot`):
+
+```txt
+or http.request.uri.path contains "wlwmanifest.xml"
+or http.request.uri.path contains "xmlrpc.php"
+or http.request.uri.path contains "wp-includes"
+or starts_with(http.request.uri.path, "//")
+```
+
+Do not add catch-all blocks for every CMS path on day one. Prefer measured additions. Never enable Bot Fight Mode.
 
 ## What this does not do
 
 - It does not change `src/pages/robots.txt.ts` or Preview `noindex`.
 - It does not install GA4, ads, or a newsletter provider.
 - It does not enforce Content-Security-Policy. Production `_headers` only ship Report-Only in v1.
+- It does not add application routes for `/auth/callback` or WordPress URLs. Those must stay missing (404) or be blocked at WAF (403); never soft-redirect to `/`.
+
+## Interpreting 403 vs 404
+
+| Edge status | Typical meaning on this site |
+| --- | --- |
+| **404** | Path not in the static build (expected for `/auth/callback`, WP probes) |
+| **405** | Method not allowed on a static asset/page (e.g. `POST /`) |
+| **403** | Usually Cloudflare WAF / security — confirm in Security Events before changing app code |
+
+See `docs/OPS_URL_HEALTH.md` for the 2026-09-18 spike checklist.

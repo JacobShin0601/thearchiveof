@@ -10,6 +10,7 @@ import {
   metricWithCoverage,
   safeAnalyticsPath,
   successRate,
+  summarizeErrorOps,
   summarizeTrafficSignals,
   sumRows,
   tokenMatches,
@@ -199,6 +200,24 @@ export async function onRequest(context) {
      LIMIT 50`,
   ).bind(bounds.currentStart, bounds.currentEnd).all().catch(() => ({ results: [] }));
 
+  const errorDetailResult = await env.DB.prepare(
+    `SELECT path, status, class, SUM(requests) AS requests
+     FROM analytics_error_detail_daily
+     WHERE day >= ? AND day < ?
+     GROUP BY path, status, class
+     ORDER BY requests DESC
+     LIMIT 200`,
+  ).bind(bounds.currentStart, bounds.currentEnd).all().catch(() => ({ results: [] }));
+
+  const serverErrorResult = await env.DB.prepare(
+    `SELECT path, status, SUM(requests) AS requests
+     FROM analytics_server_error_path_daily
+     WHERE day >= ? AND day < ?
+     GROUP BY path, status
+     ORDER BY requests DESC
+     LIMIT 100`,
+  ).bind(bounds.currentStart, bounds.currentEnd).all().catch(() => ({ results: [] }));
+
   const capability = await env.DB.prepare(
     `SELECT key, available, detail, checked_at
      FROM analytics_capability
@@ -245,6 +264,21 @@ export async function onRequest(context) {
     path: row.path,
     requests: Number(row.requests ?? 0),
   }));
+  const errorDetailRows = results(errorDetailResult).map((row) => ({
+    path: row.path,
+    status: Number(row.status ?? 0),
+    class: row.class,
+    requests: Number(row.requests ?? 0),
+  }));
+  const serverErrorRows = results(serverErrorResult).map((row) => ({
+    path: row.path,
+    status: Number(row.status ?? 0),
+    requests: Number(row.requests ?? 0),
+  }));
+  const errorOps = summarizeErrorOps({
+    detailRows: errorDetailRows,
+    serverRows: serverErrorRows,
+  });
   const usefulRows = results(usefulResult).map((row) => ({
     article: row.article,
     count: Number(row.active_useful ?? 0),
@@ -328,6 +362,11 @@ export async function onRequest(context) {
       }))),
       topArticles: articles.filter((row) => row.visits > 0).slice(0, 20),
     },
+    errors: {
+      available: errorDetailRows.length > 0 || serverErrorRows.length > 0,
+      ...errorOps,
+      legacyTopPaths: errorPathRows.slice(0, 20),
+    },
     aiCrawl: {
       crawlers,
       topPaths: crawlerPathRows
@@ -384,6 +423,7 @@ export async function onRequest(context) {
       change: 'Decimal change versus the immediately preceding window of equal length when dataQuality.comparisonComplete is true; otherwise null.',
       dataQuality: 'Coverage of synced UTC days for the current and previous windows.',
       candidates: 'Rule-based editorial candidates only. They do not replace judgment.',
+      errors: '4xx rows classified by path pattern into scanner/content/asset/api/other with exact status codes. Raw User-Agent strings are never stored. Judge deploy impact on 1-day and 7-day windows, not a 30-day rolling mix.',
     },
     interpretationHints: [
       'Check dataQuality.comparisonComplete before interpreting growth rates.',
@@ -392,6 +432,8 @@ export async function onRequest(context) {
       'Use periodUsefulAdded with period visits for rates; keep allTimeActiveUseful as a long-term trust signal.',
       'Treat small samples as directional rather than causal evidence.',
       'Strategy candidates suggest Expand, Refresh, Defend, or Fix; they do not write the strategy for you.',
+      'Use errors.content4xx and errors.scanner4xx separately; do not treat total 4xx as reader failures.',
+      'After a deploy, compare complete UTC days for 1d and 7d — not the previous 30-day blend.',
     ],
   });
 }
