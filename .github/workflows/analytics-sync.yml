@@ -14,9 +14,13 @@ on:
           - preview
           - production
       days:
-        description: Complete UTC days to refresh (1-90)
+        description: Complete UTC days to refresh (1-180)
         required: true
         default: '30'
+      source_ref:
+        description: Git ref that contains the sync scripts
+        required: true
+        default: develop
 
 permissions:
   contents: read
@@ -33,6 +37,10 @@ jobs:
       ANALYTICS_HOSTNAME: thearchiveof.com
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Scheduled runs load this workflow from the default branch, but the
+          # collector scripts may still live on develop until selectively published.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || 'develop' }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
