@@ -33,11 +33,36 @@
     </header>
 
     <nav class="section-nav" aria-label="대시보드 구역">
+      <a href="#signals">신호</a>
       <a href="#readers">독자</a>
       <a href="#ai-crawl">AI 크롤</a>
       <a href="#ai-referral">AI 유입</a>
       <a href="#strategy">판단 후보</a>
     </nav>
+
+    <section id="signals" class="panel-block">
+      <div class="panel-heading">
+        <div><p class="eyebrow">Signal layers</p><h3>Human / Search / AI</h3></div>
+        <p>같은 기간의 신호를 겹치지 않게 분리합니다. Visits만으로 사람을 단정하지 마세요.</p>
+      </div>
+      <dl class="signal-grid">
+        <div>
+          <dt>Human visits</dt>
+          <dd data-signal="human">—</dd>
+          <small data-signal-note="human">Useful·Lab 이벤트와 함께 봅니다.</small>
+        </div>
+        <div>
+          <dt>Search crawl</dt>
+          <dd data-signal="search">—</dd>
+          <small data-signal-note="search">Googlebot, Bingbot 등 검색 인덱싱</small>
+        </div>
+        <div>
+          <dt>AI crawl</dt>
+          <dd data-signal="ai">—</dd>
+          <small data-signal-note="ai">training / user-fetch / agent</small>
+        </div>
+      </dl>
+    </section>
 
     <section id="readers" class="panel-block">
       <div class="panel-heading">
@@ -60,7 +85,7 @@
           <div class="panel-heading"><div><p class="eyebrow">Discovery</p><h3>상위 글</h3></div></div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>글</th><th>언어</th><th>Visits</th><th>Useful</th></tr></thead>
+              <thead><tr><th>글</th><th>언어</th><th>Visits</th><th>Useful</th><th>Impact</th></tr></thead>
               <tbody data-top-articles></tbody>
             </table>
           </div>
@@ -147,6 +172,7 @@
               <th>AI crawl</th>
               <th>AI referral</th>
               <th>Useful</th>
+              <th>Impact</th>
               <th>Code run</th>
               <th>Lang switch</th>
               <th>검토</th>
@@ -159,7 +185,7 @@
 
     <aside class="reading-note">
       <strong>해석 규칙</strong>
-      <p>Requests는 페이지뷰가 아닙니다. Visits, AI 크롤, AI 유입, Useful을 분리해서 보고, 표본이 작을 때는 인과관계보다 방향성만 읽습니다. Google Search Console 검색어·CTR은 이 화면에 없습니다.</p>
+      <p>Requests는 페이지뷰가 아닙니다. Human visits, Search crawl, AI crawl을 먼저 분리한 뒤 Useful·Impact를 보세요. Impact는 Useful×3 + code_run×2 + language_switch 참고값이며 SEO 순위가 아닙니다. 표본이 작을 때는 방향성만 읽습니다.</p>
     </aside>
   </div>
 </section>
@@ -177,6 +203,7 @@
     useful: number;
     reviewState: string;
     events: { code_run: number; language_switch: number };
+    impact: { score: number; usefulRate: number; label: string };
   };
   type Candidate = {
     type: string;
@@ -198,6 +225,11 @@
       capabilities?: { referrers?: { available: boolean; detail: string } };
     };
     overview: { visits: MetricValue; requests: MetricValue; bytes: MetricValue };
+    signals: {
+      human: { visits: number; note: string };
+      search: { requests: number; bytes: number };
+      ai: { requests: number; bytes: number; training: number; userFetch: number; agent: number };
+    };
     daily: DailyRow[];
     readers: {
       countries: Array<{ country: string; visits: number; requests: number }>;
@@ -236,9 +268,27 @@
     return `직전 기간 대비 ${sign}${(change * 100).toFixed(1)}%`;
   }
 
+  function impactLabel(row: ArticleRow) {
+    const impact = row.impact ?? { score: 0, usefulRate: 0, label: 'weak' };
+    const rate = `${(impact.usefulRate * 100).toFixed(0)}%`;
+    return `${impact.score} · ${impact.label} · useful ${rate}`;
+  }
+
   function metric(name: string, value: MetricValue, formatter: Intl.NumberFormat = number) {
     setText(`[data-metric="${name}"]`, formatter.format(value.current));
     setText(`[data-change="${name}"]`, changeLabel(value.change));
+  }
+
+  function renderSignals(signals: AnalyticsPayload['signals'], visitChange: MetricValue) {
+    setText('[data-signal="human"]', number.format(signals.human.visits));
+    setText('[data-signal-note="human"]', `${changeLabel(visitChange.change)} · ${signals.human.note}`);
+    setText('[data-signal="search"]', number.format(signals.search.requests));
+    setText('[data-signal-note="search"]', `검색 크롤 요청 · ${compact.format(signals.search.bytes)} transferred`);
+    setText('[data-signal="ai"]', number.format(signals.ai.requests));
+    setText(
+      '[data-signal-note="ai"]',
+      `training ${number.format(signals.ai.training)} · user-fetch ${number.format(signals.ai.userFetch)} · agent ${number.format(signals.ai.agent)}`,
+    );
   }
 
   function renderTrend(rows: DailyRow[]) {
@@ -349,6 +399,7 @@
       metric('visits', payload.overview.visits);
       metric('requests', payload.overview.requests);
       metric('bytes', payload.overview.bytes, compact);
+      renderSignals(payload.signals, payload.overview.visits);
       renderTrend(payload.daily);
 
       renderRows('[data-top-articles]', payload.readers.topArticles, [
@@ -356,6 +407,7 @@
         (row) => row.language,
         (row) => number.format(row.visits),
         (row) => number.format(row.useful),
+        (row) => impactLabel(row),
       ]);
       renderRows('[data-countries]', payload.readers.countries, [
         (row) => row.country,
@@ -407,6 +459,7 @@
         (row) => number.format(row.crawlerRequests),
         (row) => number.format(row.aiReferrerVisits),
         (row) => number.format(row.useful),
+        (row) => impactLabel(row),
         (row) => number.format(row.events.code_run),
         (row) => number.format(row.events.language_switch),
         (row) => reviewLabel(row.reviewState),
@@ -453,12 +506,12 @@
     font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
   }
   .panel-block { padding: 24px; margin-bottom: 22px; }
-  .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 0 22px; }
-  .metric-grid > div { padding: 26px; border: 1px solid var(--line); border-right: 0; }
-  .metric-grid > div:last-child { border-right: 1px solid var(--line); }
-  .metric-grid dt { color: var(--muted); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
-  .metric-grid dd { margin: 10px 0 8px; font-family: var(--serif); font-size: clamp(34px, 5vw, 58px); line-height: 1; }
-  .metric-grid small { color: var(--muted); font-size: 10px; }
+  .metric-grid, .signal-grid { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 0 22px; }
+  .metric-grid > div, .signal-grid > div { padding: 26px; border: 1px solid var(--line); border-right: 0; }
+  .metric-grid > div:last-child, .signal-grid > div:last-child { border-right: 1px solid var(--line); }
+  .metric-grid dt, .signal-grid dt { color: var(--muted); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+  .metric-grid dd, .signal-grid dd { margin: 10px 0 8px; font-family: var(--serif); font-size: clamp(34px, 5vw, 58px); line-height: 1; }
+  .metric-grid small, .signal-grid small { color: var(--muted); font-size: 10px; line-height: 1.45; display: block; }
   .trend-panel, .table-grid > section { padding: 24px; }
   .panel-heading { display: flex; justify-content: space-between; gap: 20px; align-items: end; margin-bottom: 20px; }
   .panel-heading h3 { font-size: 28px; }
@@ -489,8 +542,8 @@
     .access-panel form { grid-template-columns: 1fr; }
     .dashboard-meta { display: block; }
     .dashboard-meta > p { margin-top: 14px; text-align: left; }
-    .metric-grid, .table-grid, .candidate-list { grid-template-columns: 1fr; }
-    .metric-grid > div { border-right: 1px solid var(--line); border-bottom: 0; }
-    .metric-grid > div:last-child { border-bottom: 1px solid var(--line); }
+    .metric-grid, .signal-grid, .table-grid, .candidate-list { grid-template-columns: 1fr; }
+    .metric-grid > div, .signal-grid > div { border-right: 1px solid var(--line); border-bottom: 0; }
+    .metric-grid > div:last-child, .signal-grid > div:last-child { border-bottom: 1px solid var(--line); }
   }
 </style>

@@ -9,6 +9,7 @@ import {
   percentChange,
   safeAnalyticsPath,
   successRate,
+  summarizeTrafficSignals,
   sumRows,
   tokenMatches,
 } from '../../lib/analytics-dashboard.js';
@@ -263,6 +264,14 @@ export async function onRequest(context) {
     requests: Number(row.requests ?? 0),
   }));
   const referrerAvailable = capability ? Number(capability.available) === 1 : referrerPathRows.length > 0;
+  const crawlers = results(crawlerResult).map((row) => ({
+    crawler: row.crawler,
+    category: row.category,
+    operator: row.operator,
+    requests: Number(row.requests ?? 0),
+    bytes: Number(row.bytes ?? 0),
+  }));
+  const signals = summarizeTrafficSignals(crawlers, current.visits);
 
   return privateJson({
     ok: true,
@@ -291,6 +300,7 @@ export async function onRequest(context) {
       visits: metric(current.visits, previous.visits),
       bytes: metric(current.bytes, previous.bytes),
     },
+    signals,
     daily: currentRows,
     readers: {
       topPaths,
@@ -306,13 +316,7 @@ export async function onRequest(context) {
       topArticles: articles.filter((row) => row.visits > 0).slice(0, 20),
     },
     aiCrawl: {
-      crawlers: results(crawlerResult).map((row) => ({
-        crawler: row.crawler,
-        category: row.category,
-        operator: row.operator,
-        requests: Number(row.requests ?? 0),
-        bytes: Number(row.bytes ?? 0),
-      })),
+      crawlers,
       topPaths: crawlerPathRows
         .filter((row) => safeAnalyticsPath(row.path))
         .slice(0, 20)
@@ -357,11 +361,14 @@ export async function onRequest(context) {
       crawlers: 'Known search, training, agent, and user-fetch bots classified from user-agent strings in memory. Raw user-agent strings are not stored.',
       aiReferral: 'Visits whose referrer host matches ChatGPT, Perplexity, Gemini, Copilot, or Claude.',
       activeUseful: 'Current active Useful reactions from anonymous human browsers.',
+      signals: 'Human visits, search-crawler requests, and AI-crawler requests (training / user-fetch / agent) kept as separate layers.',
+      impact: 'Reference-only reader impact: Useful×3 + code_run×2 + language_switch. Not an SEO rank.',
       change: 'Decimal change versus the immediately preceding window of equal length; null means the prior value was zero.',
       candidates: 'Rule-based editorial candidates only. They do not replace judgment.',
     },
     interpretationHints: [
-      'Separate readership volume from engagement; requests are not page views.',
+      'Separate human visits, search crawl, and AI crawl before comparing articles.',
+      'Pair visits with Useful and Lab events; visits alone are not pure humans.',
       'Check data freshness and referrer capability before drawing a conclusion.',
       'Treat small samples as directional rather than causal evidence.',
       'Do not infer individual behavior from aggregate path totals.',
