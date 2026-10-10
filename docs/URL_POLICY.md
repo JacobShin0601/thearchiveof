@@ -29,7 +29,20 @@ For a Korean/English pair:
 
 ## Redirects
 
-Repository-managed legacy redirects live in `public/_redirects`. Add a redirect only when a published URL moved or production 404 data shows an established inbound path. Avoid redirect chains.
+Repository-managed legacy redirects are defined in `scripts/lib/legacy-redirects.mjs` and written to `public/_redirects` by `npm run write:redirects` (also run at the start of `npm run build`).
+
+Add a redirect only when a published URL moved or production 404 data shows an established inbound path. Include both trailing-slash and no-slash sources when the platform would otherwise 404 the no-slash form. Avoid redirect chains and never fall back unknown paths to `/`.
+
+| Status | Meaning |
+| --- | --- |
+| 301 | Stable successor exists (catalog entries) |
+| 308 | Existing page trailing-slash normalization (Astro / Pages) |
+| 404 | No successor; error page is `noindex` |
+| 410 | Reserved for deliberate retirement without a successor (unused today) |
+
+Common sitemap aliases `/sitemap.xml` and `/sitemap_index.xml` permanently redirect to `/sitemap-index.xml`.
+
+Ops verification windows and analytics separation: `docs/OPS_URL_HEALTH.md`.
 
 Cloudflare must also normalize the hostname:
 

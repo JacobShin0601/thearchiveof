@@ -11,7 +11,7 @@ Cloudflare zone analytics
   -> /ops/analytics and a user-directed GPT Action
 ```
 
-Only aggregate UTC-day metrics are stored: hostname, path, HTTP requests, Cloudflare visits, transferred bytes, status-code buckets, countries, known crawler catalog keys, AI referrer sources, 4xx paths, and existing first-party Useful/event totals. The pipeline does not store raw IPs, fingerprints, full user-agent strings, or visitor identifiers.
+Only aggregate UTC-day metrics are stored: hostname, path, HTTP requests, Cloudflare visits, transferred bytes, status-code buckets, countries, known crawler catalog keys, AI referrer sources, 4xx paths, 4xx detail rows (path + exact status + path class), 5xx path rows, and existing first-party Useful/event totals. The pipeline does not store raw IPs, fingerprints, full user-agent strings, or visitor identifiers.
 
 ## Required configuration
 
@@ -41,6 +41,8 @@ Daily sync stores:
 
 - reader totals and top content paths;
 - HTTP status buckets (`2xx`–`5xx`) and top 4xx paths;
+- 4xx detail rows with exact status and path class (`scanner`, `content`, `asset`, `api`, `other`);
+- 5xx path + exact status rows;
 - top countries;
 - known crawlers classified in memory into catalog keys such as `gptbot`, `claudebot`, `perplexitybot`, `googlebot`;
 - crawler path and crawler status aggregates;
@@ -52,9 +54,10 @@ If referrer dimensions are unavailable, sync continues and writes `analytics_cap
 
 1. **Signal layers** — Zone visits, Search crawl requests, and AI crawl requests (training / user-fetch / agent) as separate cards.
 2. **Readers** — visits, requests, transfer, daily trend, countries, top articles with all-time Useful and period Impact.
-3. **AI crawl** — operator/category totals, crawled paths, success-response share.
-4. **AI referral** — AI-service visits and landing articles, or an explicit unavailable reason.
-5. **Strategy candidates** — rule-based Expand / Refresh / Defend / Fix suggestions joined to article metadata, plus period Impact. Candidates are directional only; they do not write the publishing strategy.
+3. **Errors** — scanner vs content vs asset vs api 4xx, exact status codes, and top 5xx paths. Judge deploys on 1-day and 7-day windows (`docs/OPS_URL_HEALTH.md`).
+4. **AI crawl** — operator/category totals, crawled paths, success-response share.
+5. **AI referral** — AI-service visits and landing articles, or an explicit unavailable reason.
+6. **Strategy candidates** — rule-based Expand / Refresh / Defend / Fix suggestions joined to article metadata, plus period Impact. Candidates are directional only; they do not write the publishing strategy.
 
 Zone visits are Cloudflare Zone Analytics visits, not unique humans. Impact uses the selected window only: `periodUsefulAdded×3 + code_run×2 + language_switch`. All-time active Useful remains a separate long-term trust signal.
 

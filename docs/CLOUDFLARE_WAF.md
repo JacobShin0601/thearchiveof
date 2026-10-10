@@ -69,7 +69,23 @@ These were observed in zone logs. They are not site features.
 - `wp-config*`
 - `phpmyadmin*`
 
-Do not add catch-all blocks for `/wp-admin` plus every CMS path unless logs show they are noisy. Start with the list above.
+Observed at high volume in 2026-09 scanner spikes (optional second rule wave):
+
+- `wlwmanifest.xml`
+- `xmlrpc.php`
+- `wp-includes`
+- path starts with `//` (double-slash CMS probes)
+
+Example extra clauses (keep `not cf.client.bot`):
+
+```txt
+or http.request.uri.path contains "wlwmanifest.xml"
+or http.request.uri.path contains "xmlrpc.php"
+or http.request.uri.path contains "wp-includes"
+or starts_with(http.request.uri.path, "//")
+```
+
+Do not add catch-all blocks for every CMS path on day one. Prefer measured additions. Never enable Bot Fight Mode.
 
 ## What this does not do
 
