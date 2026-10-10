@@ -41,20 +41,28 @@ jobs:
       - run: npm ci
       - name: Dump status / crawler / error aggregates
         run: |
+          set -euo pipefail
           DB="archive-interactions-${TARGET_ENV}"
+          mkdir -p diagnose-out
           run_q() {
-            echo "::group::$1"
-            npx wrangler d1 execute "$DB" --env "$TARGET_ENV" --remote --json --command "$2"
-            echo "::endgroup::"
+            local name="$1"
+            local sql="$2"
+            npx wrangler d1 execute "$DB" --env "$TARGET_ENV" --remote --json --command "$sql" > "diagnose-out/${name}.json"
+            echo "wrote diagnose-out/${name}.json"
           }
-          run_q "sync_state" "SELECT * FROM analytics_sync_state;"
-          run_q "status_buckets" "SELECT bucket, SUM(requests) AS requests FROM analytics_status_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY bucket ORDER BY bucket;"
-          run_q "status_by_day" "SELECT day, bucket, SUM(requests) AS requests FROM analytics_status_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY day, bucket ORDER BY day, bucket;"
-          run_q "error_paths" "SELECT path, SUM(requests) AS requests FROM analytics_error_path_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY path ORDER BY requests DESC LIMIT 50;"
-          run_q "error_paths_by_day_top" "SELECT day, path, SUM(requests) AS requests FROM analytics_error_path_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY day, path ORDER BY requests DESC LIMIT 80;"
-          run_q "crawlers" "SELECT crawler, category, operator, SUM(requests) AS requests, SUM(bytes) AS bytes FROM analytics_crawler_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY crawler, category, operator ORDER BY requests DESC LIMIT 50;"
-          run_q "crawler_status" "SELECT bucket, SUM(requests) AS requests FROM analytics_crawler_status_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY bucket ORDER BY bucket;"
-          run_q "crawler_paths" "SELECT path, crawler, SUM(requests) AS requests FROM analytics_crawler_path_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY path, crawler ORDER BY requests DESC LIMIT 50;"
-          run_q "top_paths" "SELECT path, SUM(requests) AS requests, SUM(visits) AS visits FROM analytics_path_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY path ORDER BY visits DESC, requests DESC LIMIT 40;"
-          run_q "daily_totals" "SELECT day, SUM(requests) AS requests, SUM(visits) AS visits FROM analytics_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY day ORDER BY day;"
-          run_q "capability" "SELECT * FROM analytics_capability;"
+          run_q sync_state "SELECT * FROM analytics_sync_state;"
+          run_q status_buckets "SELECT bucket, SUM(requests) AS requests FROM analytics_status_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY bucket ORDER BY bucket;"
+          run_q status_by_day "SELECT day, bucket, SUM(requests) AS requests FROM analytics_status_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY day, bucket ORDER BY day, bucket;"
+          run_q error_paths "SELECT path, SUM(requests) AS requests FROM analytics_error_path_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY path ORDER BY requests DESC LIMIT 50;"
+          run_q error_paths_by_day_top "SELECT day, path, SUM(requests) AS requests FROM analytics_error_path_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY day, path ORDER BY requests DESC LIMIT 80;"
+          run_q crawlers "SELECT crawler, category, operator, SUM(requests) AS requests, SUM(bytes) AS bytes FROM analytics_crawler_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY crawler, category, operator ORDER BY requests DESC LIMIT 50;"
+          run_q crawler_status "SELECT bucket, SUM(requests) AS requests FROM analytics_crawler_status_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY bucket ORDER BY bucket;"
+          run_q crawler_paths "SELECT path, crawler, SUM(requests) AS requests FROM analytics_crawler_path_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY path, crawler ORDER BY requests DESC LIMIT 50;"
+          run_q top_paths "SELECT path, SUM(requests) AS requests, SUM(visits) AS visits FROM analytics_path_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY path ORDER BY visits DESC, requests DESC LIMIT 40;"
+          run_q daily_totals "SELECT day, SUM(requests) AS requests, SUM(visits) AS visits FROM analytics_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' GROUP BY day ORDER BY day;"
+          run_q capability "SELECT * FROM analytics_capability;"
+          run_q five_xx_days "SELECT day, SUM(requests) AS requests FROM analytics_status_daily WHERE day >= '${START_DAY}' AND day < '${END_DAY}' AND bucket = '5xx' GROUP BY day HAVING SUM(requests) > 0 ORDER BY requests DESC;"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: analytics-diagnose-${{ inputs.environment }}-${{ inputs.start_day }}-${{ inputs.end_day }}
+          path: diagnose-out/
