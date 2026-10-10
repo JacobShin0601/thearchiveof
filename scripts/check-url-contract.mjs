@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { flattenLegacyRedirects, renderRedirectsFile } from './lib/legacy-redirects.mjs';
+import { FORBIDDEN_PUBLIC_LINK_MARKERS } from './lib/scanner-noise-paths.mjs';
 import { SITE_URL } from '../src/site-origin.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -144,6 +145,11 @@ for (const page of pages) {
     if (target.origin !== SITE_URL || target.pathname.startsWith('/api/')) continue;
     const targetPath = target.pathname;
     const slashVariant = targetPath.endsWith('/') ? targetPath : `${targetPath}/`;
+    for (const marker of FORBIDDEN_PUBLIC_LINK_MARKERS) {
+      if (targetPath.includes(marker) || href.includes(marker)) {
+        errors.push(`${page.route} links to forbidden scanner/auth path ${targetPath}`);
+      }
+    }
     if (
       pageRoutes.has(targetPath)
       || pageRoutes.has(slashVariant)
@@ -151,6 +157,21 @@ for (const page of pages) {
       || redirectSources.has(targetPath)
     ) continue;
     errors.push(`${page.route} links to missing production path ${targetPath}`);
+  }
+
+  if (page.canonical) {
+    for (const marker of FORBIDDEN_PUBLIC_LINK_MARKERS) {
+      if (page.canonical.includes(marker)) {
+        errors.push(`${page.route} canonical points at forbidden path marker ${marker}`);
+      }
+    }
+  }
+  for (const alternate of page.alternates) {
+    for (const marker of FORBIDDEN_PUBLIC_LINK_MARKERS) {
+      if (alternate.href?.includes(marker)) {
+        errors.push(`${page.route} hreflang points at forbidden path marker ${marker}`);
+      }
+    }
   }
 }
 
@@ -203,6 +224,9 @@ if (sitemapFiles.length > 0) {
   for (const url of sitemapSet) {
     if (!url.startsWith(`${SITE_URL}/`)) errors.push(`sitemap uses a non-canonical origin: ${url}`);
     if (!indexableSet.has(url)) errors.push(`sitemap contains a non-indexable URL: ${url}`);
+    for (const marker of FORBIDDEN_PUBLIC_LINK_MARKERS) {
+      if (url.includes(marker)) errors.push(`sitemap contains forbidden path marker ${marker}: ${url}`);
+    }
   }
   for (const url of indexableSet) {
     if (!sitemapSet.has(url)) errors.push(`indexable page is missing from sitemap: ${url}`);

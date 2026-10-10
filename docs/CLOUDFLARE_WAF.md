@@ -92,3 +92,14 @@ Do not add catch-all blocks for every CMS path on day one. Prefer measured addit
 - It does not change `src/pages/robots.txt.ts` or Preview `noindex`.
 - It does not install GA4, ads, or a newsletter provider.
 - It does not enforce Content-Security-Policy. Production `_headers` only ship Report-Only in v1.
+- It does not add application routes for `/auth/callback` or WordPress URLs. Those must stay missing (404) or be blocked at WAF (403); never soft-redirect to `/`.
+
+## Interpreting 403 vs 404
+
+| Edge status | Typical meaning on this site |
+| --- | --- |
+| **404** | Path not in the static build (expected for `/auth/callback`, WP probes) |
+| **405** | Method not allowed on a static asset/page (e.g. `POST /`) |
+| **403** | Usually Cloudflare WAF / security — confirm in Security Events before changing app code |
+
+See `docs/OPS_URL_HEALTH.md` for the 2026-09-18 spike checklist.

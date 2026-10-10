@@ -33,6 +33,41 @@ Preview-only `/ops/analytics` reads D1. Production still 404s that API.
 
 Never silently send unknown paths to `/`. That creates soft-404 analytics noise.
 
+Never redirect `/auth/callback`, WordPress probe paths (`wp-includes`, `xmlrpc.php`, `wlwmanifest.xml`, etc.) to `/` or invent compatibility endpoints. Those are scanner targets, not product URLs.
+
+## Auth / OAuth
+
+The Archive has **no** login or OAuth product. There is no `/auth/callback` page, Pages Function, or middleware that validates `state` / provider codes.
+
+| Request | Observed on production (2026-10-10 probe) | Policy |
+| --- | --- | --- |
+| `GET` / `HEAD` `/` | **200** | Required for readers |
+| `POST` / `PUT` / `OPTIONS` `/` | **405** | Static hosting; not a reader failure |
+| `GET` / `HEAD` `/auth/callback` | **404** | Path does not exist — keep 404 |
+| `POST` `/auth/callback` | **405** | No callback handler |
+| `GET` WordPress probe paths | **404** | Keep 404; no redirects |
+
+A normal OAuth success path is **out of scope** until an auth product exists. Do not add a callback route “to clear 4xx.”
+
+## 2026-09-18 spike (confirmed analytics)
+
+Same UTC hour (~09:00) saw:
+
+- `/auth/callback`: 109× **403**, Zone visits **0**
+- `/`: ~170× **403** plus a few **405**; month totals ≈ 178× 403 + 17× 405 on `/`
+- Concurrent WordPress paths (`//wp…/wlwmanifest.xml`, `//xmlrpc.php`, …)
+
+**Judgment:** automated scanner / blocked probe traffic, not an ongoing reader outage. Current edge probes show healthy `GET /` → 200 and missing auth/WP paths → 404/405. Bulk **403** on that day is **not** explained by Astro routes (none exist for `/auth/callback`). Treat 403 as **likely Cloudflare security** until Security Events say otherwise — do not redesign the homepage or invent auth from this alone.
+
+### Cloudflare Security Events checklist
+
+1. Zone → **Security** → **Events** (or Analytics → Security).
+2. Time range: **2026-09-18 08:50–09:10 UTC** (adjust account TZ).
+3. Filter path `/` and `/auth/callback` (and optionally `wlwmanifest` / `xmlrpc`).
+4. If **Block** / **Managed Challenge** / WAF managed rules appear → record as normal defense; no app change.
+5. If **no** security events → check Pages/deployment logs for that window; still do **not** add home redirects for scanner paths.
+6. Keep Free Analytics limitation in mind: **no User-Agent breakdown** in the UI; rely on D1 path class + Security Events.
+
 ## Local checks
 
 ```sh
@@ -55,11 +90,21 @@ npm run build          # includes check:urls
 Pages trailing-slash **308** behavior is platform-side. After production deploy, probe:
 
 ```sh
+curl -sI --max-redirs 0 'https://thearchiveof.com/'
+curl -sk -o /dev/null -w '%{http_code}\n' -X GET 'https://thearchiveof.com/'
+curl -sk -o /dev/null -w '%{http_code}\n' -X POST 'https://thearchiveof.com/'
+curl -sk -o /dev/null -w '%{http_code}\n' -X GET 'https://thearchiveof.com/auth/callback'
+curl -sk -o /dev/null -w '%{http_code}\n' -X POST 'https://thearchiveof.com/auth/callback'
+curl -sk -o /dev/null -w '%{http_code}\n' -X GET 'https://thearchiveof.com/wp-login.php'
+curl -sk -o /dev/null -w '%{http_code}\n' -X GET 'https://thearchiveof.com//wp/wp-includes/wlwmanifest.xml'
 curl -sI --max-redirs 0 'https://thearchiveof.com/series/internal-llm-serving'
 curl -sI --max-redirs 0 'https://thearchiveof.com/sitemap.xml'
-curl -sI --max-redirs 0 'https://thearchiveof.com/about'
 curl -sI 'https://thearchiveof.com/robots.txt'
 ```
+
+Expect: `GET /` → 200; `POST /` → 405; `GET /auth/callback` → 404; WP probes → 404; legacy/sitemap aliases → 301.
+
+Regression coverage: `tests/edge-path-policy.test.mjs`, `npm run check:urls` (forbids auth/WP markers in links, canonical, hreflang, sitemap).
 
 ## Observability (privacy-preserving)
 
@@ -78,8 +123,8 @@ Do **not** use a 30-day rolling total the day after merge. Prefer complete UTC d
 
 | Window | What to watch | Pass criteria (directional) |
 | --- | --- | --- |
-| **24h** (1 complete UTC day after deploy) | `content` 4xx, 5xx path rows, legacy no-slash probes | No new content 4xx spike vs prior complete day; sitemap alias and legacy no-slash return 301→200 |
-| **7d** | `errors.totals.content4xx`, `scanner4xx`, server errors; known crawler 2xx share | content 4xx flat or down; scanner may stay high (WAF optional); crawler success not degraded |
+| **24h** (1 complete UTC day after deploy) | `content` 4xx, 5xx path rows, legacy no-slash probes; `GET /` still 200 | No new content 4xx spike vs prior complete day; sitemap alias and legacy no-slash return 301→200; do not alert on `/auth/callback` or WP 404/403 alone |
+| **7d** | `errors.totals.content4xx`, `scanner4xx`, server errors; known crawler 2xx share | content 4xx flat or down; scanner may stay high (WAF optional); crawler success not degraded; `/` 403 bursts without content-path failures → Security Events, not homepage rewrite |
 | **30d** | Same, after ≥14 post-deploy days dominate the window | Use only for trend; still separate scanner vs content |
 
 Suggested alert ideas (not automated yet):
