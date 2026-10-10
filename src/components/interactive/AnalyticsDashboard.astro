@@ -42,14 +42,15 @@
 
     <section id="signals" class="panel-block">
       <div class="panel-heading">
-        <div><p class="eyebrow">Signal layers</p><h3>Human / Search / AI</h3></div>
-        <p>같은 기간의 신호를 겹치지 않게 분리합니다. Visits만으로 사람을 단정하지 마세요.</p>
+        <div><p class="eyebrow">Signal layers</p><h3>Zone / Search / AI</h3></div>
+        <p>같은 기간의 신호를 겹치지 않게 분리합니다. Zone visits를 고유 방문자로 단정하지 마세요.</p>
       </div>
+      <p class="quality-banner" data-quality hidden></p>
       <dl class="signal-grid">
         <div>
-          <dt>Human visits</dt>
-          <dd data-signal="human">—</dd>
-          <small data-signal-note="human">Useful·Lab 이벤트와 함께 봅니다.</small>
+          <dt>Zone visits</dt>
+          <dd data-signal="zone">—</dd>
+          <small data-signal-note="zone">Cloudflare Zone visits · 사람 수 아님</small>
         </div>
         <div>
           <dt>Search crawl</dt>
@@ -85,7 +86,7 @@
           <div class="table-card-heading"><p class="eyebrow">Discovery</p><h4>상위 글</h4></div>
           <div class="table-wrap">
             <table class="data-table">
-              <thead><tr><th class="col-text">글</th><th class="col-tag">언어</th><th class="col-num">Visits</th><th class="col-num">Useful</th><th class="col-tag">Impact</th></tr></thead>
+              <thead><tr><th class="col-text">글</th><th class="col-tag">언어</th><th class="col-num">Visits</th><th class="col-num">Useful∞</th><th class="col-tag">Impact</th></tr></thead>
               <tbody data-top-articles></tbody>
             </table>
           </div>
@@ -176,7 +177,8 @@
                 <th class="col-num">Visits</th>
                 <th class="col-num">AI crawl</th>
                 <th class="col-num">AI referral</th>
-                <th class="col-num">Useful</th>
+                <th class="col-num">Useful∞</th>
+                <th class="col-num">+Useful</th>
                 <th class="col-tag">Impact</th>
                 <th class="col-num">Code</th>
                 <th class="col-num">Lang</th>
@@ -191,13 +193,18 @@
 
     <aside class="reading-note">
       <strong>해석 규칙</strong>
-      <p>Requests는 페이지뷰가 아닙니다. Human visits, Search crawl, AI crawl을 먼저 분리한 뒤 Useful·Impact를 보세요. Impact는 Useful×3 + code_run×2 + language_switch 참고값이며 SEO 순위가 아닙니다. 표본이 작을 때는 방향성만 읽습니다.</p>
+      <p>Requests는 페이지뷰가 아닙니다. Zone visits, Search crawl, AI crawl을 먼저 분리하세요. Useful∞는 누적 활성 Useful, +Useful와 Impact는 선택 기간의 추가·이벤트만 사용합니다. 비교 기간 coverage가 부족하면 성장률을 읽지 마세요.</p>
     </aside>
   </div>
 </section>
 
 <script>
-  type MetricValue = { current: number; previous: number; change: number | null };
+  type MetricValue = {
+    current: number;
+    previous: number;
+    change: number | null;
+    changeUnavailableReason?: string | null;
+  };
   type DailyRow = { day: string; requests: number; visits: number; bytes: number };
   type ArticleRow = {
     path: string;
@@ -207,9 +214,11 @@
     crawlerRequests: number;
     aiReferrerVisits: number;
     useful: number;
+    allTimeActiveUseful?: number;
+    periodUsefulAdded?: number;
     reviewState: string;
     events: { code_run: number; language_switch: number };
-    impact: { score: number; usefulRate: number; label: string };
+    impact: { score: number; usefulRate: number; periodUsefulAddRate?: number; label: string };
   };
   type Candidate = {
     type: string;
@@ -230,9 +239,17 @@
       refreshedAt: string;
       capabilities?: { referrers?: { available: boolean; detail: string } };
     };
+    dataQuality: {
+      requestedDays: number;
+      currentCoverageDays: number;
+      previousCoverageDays: number;
+      comparisonComplete: boolean;
+      changeUnavailableReason: string | null;
+      note: string;
+    };
     overview: { visits: MetricValue; requests: MetricValue; bytes: MetricValue };
     signals: {
-      human: { visits: number; note: string };
+      zone: { visits: number; note: string; label?: string };
       search: { requests: number; bytes: number };
       ai: { requests: number; bytes: number; training: number; userFetch: number; agent: number };
     };
@@ -268,15 +285,32 @@
     if (element) element.textContent = value;
   }
 
-  function changeLabel(change: number | null) {
-    if (change == null) return '직전 기간 0 · 비교 불가';
-    const sign = change > 0 ? '+' : '';
-    return `직전 기간 대비 ${sign}${(change * 100).toFixed(1)}%`;
+  function changeLabel(metric: MetricValue) {
+    if (!metric || metric.change == null) {
+      return metric?.changeUnavailableReason === 'insufficient_coverage'
+        ? 'coverage 부족 · 성장률 숨김'
+        : '직전 기간 비교 불가';
+    }
+    const sign = metric.change > 0 ? '+' : '';
+    return `직전 기간 대비 ${sign}${(metric.change * 100).toFixed(1)}%`;
   }
 
   function impactLabel(row: ArticleRow) {
     const impact = row.impact ?? { score: 0, usefulRate: 0, label: 'weak' };
     return `${impact.score} ${impact.label}`;
+  }
+
+  function renderQuality(quality: AnalyticsPayload['dataQuality']) {
+    const banner = root?.querySelector<HTMLElement>('[data-quality]');
+    if (!(banner instanceof HTMLElement)) return;
+    banner.hidden = false;
+    if (quality.comparisonComplete) {
+      banner.textContent = `Coverage 완전 · 현재 ${quality.currentCoverageDays}일 / 이전 ${quality.previousCoverageDays}일`;
+      banner.dataset.state = 'ok';
+      return;
+    }
+    banner.textContent = `Coverage 부족 · 현재 ${quality.currentCoverageDays}/${quality.requestedDays}일, 이전 ${quality.previousCoverageDays}/${quality.requestedDays}일 · 성장률을 숨깁니다`;
+    banner.dataset.state = 'warn';
   }
 
   function shortTitle(value: string, limit = 42) {
@@ -286,12 +320,12 @@
 
   function metric(name: string, value: MetricValue, formatter: Intl.NumberFormat = number) {
     setText(`[data-metric="${name}"]`, formatter.format(value.current));
-    setText(`[data-change="${name}"]`, changeLabel(value.change));
+    setText(`[data-change="${name}"]`, changeLabel(value));
   }
 
-  function renderSignals(signals: AnalyticsPayload['signals'], visitChange: MetricValue) {
-    setText('[data-signal="human"]', number.format(signals.human.visits));
-    setText('[data-signal-note="human"]', `${changeLabel(visitChange.change)} · Useful·Lab과 함께 읽기`);
+  function renderSignals(signals: AnalyticsPayload['signals'], visitMetric: MetricValue) {
+    setText('[data-signal="zone"]', number.format(signals.zone.visits));
+    setText('[data-signal-note="zone"]', `${changeLabel(visitMetric)} · 고유 방문자 아님`);
     setText('[data-signal="search"]', number.format(signals.search.requests));
     setText('[data-signal-note="search"]', `검색 크롤 · ${compact.format(signals.search.bytes)}`);
     setText('[data-signal="ai"]', number.format(signals.ai.requests));
@@ -420,6 +454,7 @@
       metric('visits', payload.overview.visits);
       metric('requests', payload.overview.requests);
       metric('bytes', payload.overview.bytes, compact);
+      renderQuality(payload.dataQuality);
       renderSignals(payload.signals, payload.overview.visits);
       renderTrend(payload.daily);
 
@@ -427,8 +462,8 @@
         { className: 'col-text', value: (row) => shortTitle(row.title || row.path), title: (row) => row.title || row.path },
         { className: 'col-tag', value: (row) => row.language },
         { className: 'col-num', value: (row) => number.format(row.visits) },
-        { className: 'col-num', value: (row) => number.format(row.useful) },
-        { className: 'col-tag', value: (row) => impactLabel(row), title: (row) => `useful ${(row.impact.usefulRate * 100).toFixed(0)}%` },
+        { className: 'col-num', value: (row) => number.format(row.allTimeActiveUseful ?? row.useful) },
+        { className: 'col-tag', value: (row) => impactLabel(row), title: (row) => `period useful add ${((row.impact.periodUsefulAddRate ?? row.impact.usefulRate) * 100).toFixed(0)}%` },
       ]);
       renderRows('[data-countries]', payload.readers.countries, [
         { className: 'col-text', value: (row) => row.country },
@@ -479,8 +514,9 @@
         { className: 'col-num', value: (row) => number.format(row.visits) },
         { className: 'col-num', value: (row) => number.format(row.crawlerRequests) },
         { className: 'col-num', value: (row) => number.format(row.aiReferrerVisits) },
-        { className: 'col-num', value: (row) => number.format(row.useful) },
-        { className: 'col-tag', value: (row) => impactLabel(row), title: (row) => `useful ${(row.impact.usefulRate * 100).toFixed(0)}%` },
+        { className: 'col-num', value: (row) => number.format(row.allTimeActiveUseful ?? row.useful) },
+        { className: 'col-num', value: (row) => number.format(row.periodUsefulAdded ?? 0) },
+        { className: 'col-tag', value: (row) => impactLabel(row), title: (row) => `period useful add ${((row.impact.periodUsefulAddRate ?? row.impact.usefulRate) * 100).toFixed(0)}%` },
         { className: 'col-num', value: (row) => number.format(row.events.code_run) },
         { className: 'col-num', value: (row) => number.format(row.events.language_switch) },
         { className: 'col-tag', value: (row) => reviewLabel(row.reviewState) },
@@ -527,6 +563,14 @@
     font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
   }
   .panel-block { padding: 22px; margin-bottom: 22px; overflow: hidden; }
+  .quality-banner {
+    margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--line);
+    color: var(--muted); font-size: 12px; line-height: 1.45;
+  }
+  .quality-banner[data-state='warn'] {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+    color: var(--ink);
+  }
   .metric-grid, .signal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 22px; }
   .metric-grid > div, .signal-grid > div {
     min-width: 0; padding: 18px; border: 1px solid var(--line);

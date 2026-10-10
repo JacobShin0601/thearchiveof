@@ -4,9 +4,10 @@ import {
   analyticsWindow,
   bearerToken,
   buildArticleRows,
+  buildDataQuality,
   buildStrategyCandidates,
   lookupArticle,
-  percentChange,
+  metricWithCoverage,
   safeAnalyticsPath,
   successRate,
   summarizeTrafficSignals,
@@ -29,14 +30,6 @@ function privateJson(body, status = 200, extraHeaders = {}) {
       ...extraHeaders,
     },
   });
-}
-
-function metric(current, previous) {
-  return {
-    current,
-    previous,
-    change: percentChange(current, previous),
-  };
 }
 
 function topicAiMap(pathRows) {
@@ -96,6 +89,22 @@ export async function onRequest(context) {
   const previousRows = daily.filter((row) => row.day < bounds.currentStart);
   const current = sumRows(currentRows);
   const previous = sumRows(previousRows);
+
+  const currentCoverage = await env.DB.prepare(
+    `SELECT COUNT(DISTINCT day) AS days
+     FROM analytics_daily
+     WHERE day >= ? AND day < ?`,
+  ).bind(bounds.currentStart, bounds.currentEnd).first().catch(() => null);
+  const previousCoverage = await env.DB.prepare(
+    `SELECT COUNT(DISTINCT day) AS days
+     FROM analytics_daily
+     WHERE day >= ? AND day < ?`,
+  ).bind(bounds.previousStart, bounds.previousEnd).first().catch(() => null);
+  const dataQuality = buildDataQuality({
+    requestedDays: days,
+    currentCoverageDays: Number(currentCoverage?.days ?? currentRows.length),
+    previousCoverageDays: Number(previousCoverage?.days ?? previousRows.length),
+  });
 
   const pathResult = await env.DB.prepare(
     `SELECT path, SUM(requests) AS requests, SUM(visits) AS visits
@@ -207,10 +216,13 @@ export async function onRequest(context) {
   const eventResult = await env.DB.prepare(
     `SELECT event_name AS event, article_slug AS article, COUNT(*) AS total
      FROM interaction_events
-     WHERE actor_type = 'human' AND created_at >= ? AND created_at < ?
+     WHERE actor_type = 'human'
+       AND created_at >= ?
+       AND created_at < ?
+       AND event_name IN ('reaction_added', 'reaction_removed', 'code_run', 'language_switch')
      GROUP BY event_name, article_slug
      ORDER BY total DESC, event_name, article_slug
-     LIMIT 100`,
+     LIMIT 500`,
   ).bind(`${bounds.currentStart}T00:00:00.000Z`, `${bounds.currentEnd}T00:00:00.000Z`).all();
 
   const pathRows = results(pathResult).map((row) => ({
@@ -295,10 +307,11 @@ export async function onRequest(context) {
         },
       },
     },
+    dataQuality,
     overview: {
-      requests: metric(current.requests, previous.requests),
-      visits: metric(current.visits, previous.visits),
-      bytes: metric(current.bytes, previous.bytes),
+      requests: metricWithCoverage(current.requests, previous.requests, dataQuality),
+      visits: metricWithCoverage(current.visits, previous.visits, dataQuality),
+      bytes: metricWithCoverage(current.bytes, previous.bytes, dataQuality),
     },
     signals,
     daily: currentRows,
@@ -352,26 +365,32 @@ export async function onRequest(context) {
       candidates,
     },
     engagement: {
+      allTimeActiveUseful: usefulRows,
+      // Backward-compatible alias for all-time active Useful.
       activeUseful: usefulRows,
+      periodEvents: eventRows,
       events: eventRows,
     },
     definitions: {
       requests: 'Cloudflare edge HTTP requests from eyeball traffic; this includes non-HTML assets.',
-      visits: 'Cloudflare visits: a page view originating from another site or a direct link.',
+      visits: 'Cloudflare Zone visits: a page view originating from another site or a direct link. Not unique humans.',
       crawlers: 'Known search, training, agent, and user-fetch bots classified from user-agent strings in memory. Raw user-agent strings are not stored.',
       aiReferral: 'Visits whose referrer host matches ChatGPT, Perplexity, Gemini, Copilot, or Claude.',
-      activeUseful: 'Current active Useful reactions from anonymous human browsers.',
-      signals: 'Human visits, search-crawler requests, and AI-crawler requests (training / user-fetch / agent) kept as separate layers.',
-      impact: 'Reference-only reader impact: Useful×3 + code_run×2 + language_switch. Not an SEO rank.',
-      change: 'Decimal change versus the immediately preceding window of equal length; null means the prior value was zero.',
+      allTimeActiveUseful: 'Currently active Useful reactions across all time.',
+      periodUsefulAdded: 'Useful reactions added during the selected window.',
+      periodUsefulRemoved: 'Useful reactions removed during the selected window.',
+      signals: 'Zone visits, search-crawler requests, and AI-crawler requests (training / user-fetch / agent) kept as separate layers.',
+      impact: 'Reference-only period impact: periodUsefulAdded×3 + code_run×2 + language_switch. Not an SEO rank and not based on all-time Useful.',
+      change: 'Decimal change versus the immediately preceding window of equal length when dataQuality.comparisonComplete is true; otherwise null.',
+      dataQuality: 'Coverage of synced UTC days for the current and previous windows.',
       candidates: 'Rule-based editorial candidates only. They do not replace judgment.',
     },
     interpretationHints: [
-      'Separate human visits, search crawl, and AI crawl before comparing articles.',
-      'Pair visits with Useful and Lab events; visits alone are not pure humans.',
-      'Check data freshness and referrer capability before drawing a conclusion.',
+      'Check dataQuality.comparisonComplete before interpreting growth rates.',
+      'Separate Zone visits, search crawl, and AI crawl before comparing articles.',
+      'Do not treat Zone visits as unique humans or page views.',
+      'Use periodUsefulAdded with period visits for rates; keep allTimeActiveUseful as a long-term trust signal.',
       'Treat small samples as directional rather than causal evidence.',
-      'Do not infer individual behavior from aggregate path totals.',
       'Strategy candidates suggest Expand, Refresh, Defend, or Fix; they do not write the strategy for you.',
     ],
   });
