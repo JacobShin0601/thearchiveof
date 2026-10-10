@@ -61,7 +61,14 @@ describe('Cloudflare analytics collector', () => {
         ],
         crawlerPaths: [{ count: 7, dimensions: { clientRequestPath: '/investing/markets/example/', userAgent: 'GPTBot/1.2' } }],
         crawlerStatuses: [{ count: 15, dimensions: { edgeResponseStatus: 200 } }],
-        errorPaths: [{ count: 5, dimensions: { clientRequestPath: '/missing/' } }],
+        errorPaths: [{
+          count: 5,
+          dimensions: { clientRequestPath: '/ai/agents/missing/', edgeResponseStatus: 404 },
+        }],
+        serverErrorPaths: [{
+          count: 2,
+          dimensions: { clientRequestPath: '/api/events', edgeResponseStatus: 500 },
+        }],
       }] } },
     });
     const withReferrers = attachReferrerDay(entry, {
@@ -77,6 +84,10 @@ describe('Cloudflare analytics collector', () => {
       capability: { key: 'clientRefererHost', available: 1, detail: 'ok', checkedAt: '2026-10-09T00:10:00.000Z' },
     });
     assert.match(sql, /analytics_crawler_daily/);
+    assert.match(sql, /analytics_error_detail_daily/);
+    assert.match(sql, /analytics_server_error_path_daily/);
+    assert.match(sql, /'content'/);
+    assert.match(sql, /\/ai\/agents\/missing\//);
     assert.match(sql, /'gptbot'/);
     assert.match(sql, /'chatgpt'/);
     assert.match(sql, /analytics_capability/);
@@ -84,6 +95,14 @@ describe('Cloudflare analytics collector', () => {
     assert.doesNotMatch(sql, /GPTBot\/1\.2|MysteryBot|BEGIN TRANSACTION|COMMIT;|undefined|NaN/);
     assert.equal(withReferrers.crawlers[0].crawler, 'gptbot');
     assert.equal(withReferrers.referrers[0].source, 'chatgpt');
+    assert.equal(entry.errorDetails[0].status, 404);
+    assert.equal(entry.serverErrorPaths[0].status, 500);
+    assert.match(dayQuery({
+      zoneId: 'a'.repeat(32),
+      hostname: 'thearchiveof.com',
+      start: '2026-10-08T00:00:00.000Z',
+      end: '2026-10-09T00:00:00.000Z',
+    }), /serverErrorPaths/);
   });
 
   it('records referrer capability when the plan blocks the dimension', () => {

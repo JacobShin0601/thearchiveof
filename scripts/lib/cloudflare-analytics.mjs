@@ -3,14 +3,21 @@ import {
   CRAWLER_UA_OR_FILTER,
   classifyAiReferrer,
   classifyCrawler,
+  classifyErrorPath,
   statusBucket,
 } from './analytics-catalog.mjs';
 
 const DAY_MS = 86_400_000;
 export const ANALYTICS_SOURCE = 'cloudflare-zone-analytics';
-export const ANALYTICS_SCHEMA_VERSION = 2;
+export const ANALYTICS_SCHEMA_VERSION = 3;
 
-export { AI_REFERRER_CATALOG, classifyAiReferrer, classifyCrawler, statusBucket };
+export {
+  AI_REFERRER_CATALOG,
+  classifyAiReferrer,
+  classifyCrawler,
+  classifyErrorPath,
+  statusBucket,
+};
 
 export function scopedZoneId(body) {
   if (Array.isArray(body?.errors) && body.errors.length > 0) {
@@ -142,7 +149,7 @@ ${crawlerOrFilter()}
           dimensions { edgeResponseStatus }
         }
         errorPaths: httpRequestsAdaptiveGroups(
-          limit: 100
+          limit: 200
           orderBy: [count_DESC]
           filter: {
             datetime_geq: ${graphQlString(start)}
@@ -154,7 +161,22 @@ ${crawlerOrFilter()}
           }
         ) {
           count
-          dimensions { clientRequestPath }
+          dimensions { clientRequestPath edgeResponseStatus }
+        }
+        serverErrorPaths: httpRequestsAdaptiveGroups(
+          limit: 100
+          orderBy: [count_DESC]
+          filter: {
+            datetime_geq: ${graphQlString(start)}
+            datetime_lt: ${graphQlString(end)}
+            clientRequestHTTPHost: ${graphQlString(hostname)}
+            requestSource: "eyeball"
+            edgeResponseStatus_geq: 500
+            edgeResponseStatus_lt: 600
+          }
+        ) {
+          count
+          dimensions { clientRequestPath edgeResponseStatus }
         }
       }
     }
@@ -326,15 +348,40 @@ export function normalizeDayResponse(day, hostname, body) {
   const crawlers = aggregateKnownCrawlers(zone.userAgents).map((row) => ({ day, hostname, ...row }));
   const crawlerPaths = aggregateCrawlerPaths(zone.crawlerPaths).map((row) => ({ day, hostname, ...row }));
   const crawlerStatuses = aggregateStatusBuckets(zone.crawlerStatuses).map((row) => ({ day, hostname, ...row }));
-  const errorPaths = (zone.errorPaths ?? [])
-    .map((row) => ({
-      day,
-      hostname,
-      path: row?.dimensions?.clientRequestPath,
-      requests: nonNegativeInteger(row?.count),
-    }))
-    .filter((row) => typeof row.path === 'string' && row.path.startsWith('/') && row.path.length <= 500)
-    .slice(0, 50);
+  const errorDetails = (zone.errorPaths ?? [])
+    .map((row) => {
+      const path = row?.dimensions?.clientRequestPath;
+      const status = Number(row?.dimensions?.edgeResponseStatus);
+      if (typeof path !== 'string' || !path.startsWith('/') || path.length > 500) return null;
+      if (!Number.isInteger(status) || status < 400 || status >= 500) return null;
+      return {
+        day,
+        hostname,
+        path,
+        status,
+        class: classifyErrorPath(path),
+        requests: nonNegativeInteger(row?.count),
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 200);
+  const errorPaths = aggregateErrorPaths(errorDetails);
+  const serverErrorPaths = (zone.serverErrorPaths ?? [])
+    .map((row) => {
+      const path = row?.dimensions?.clientRequestPath;
+      const status = Number(row?.dimensions?.edgeResponseStatus);
+      if (typeof path !== 'string' || !path.startsWith('/') || path.length > 500) return null;
+      if (!Number.isInteger(status) || status < 500 || status >= 600) return null;
+      return {
+        day,
+        hostname,
+        path,
+        status,
+        requests: nonNegativeInteger(row?.count),
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 100);
 
   return {
     total: {
@@ -351,9 +398,26 @@ export function normalizeDayResponse(day, hostname, body) {
     crawlerPaths,
     crawlerStatuses,
     errorPaths,
+    errorDetails,
+    serverErrorPaths,
     referrers: [],
     referrerPaths: [],
   };
+}
+
+export function aggregateErrorPaths(errorDetails) {
+  const totals = new Map();
+  for (const row of errorDetails ?? []) {
+    const current = totals.get(row.path) ?? {
+      day: row.day,
+      hostname: row.hostname,
+      path: row.path,
+      requests: 0,
+    };
+    current.requests += nonNegativeInteger(row.requests);
+    totals.set(row.path, current);
+  }
+  return [...totals.values()].sort((a, b) => b.requests - a.requests).slice(0, 50);
 }
 
 export function attachReferrerDay(entry, body) {
@@ -421,6 +485,8 @@ export function renderAnalyticsSql({ days, hostname, refreshedAt, capability }) 
       crawlerPaths = [],
       crawlerStatuses = [],
       errorPaths = [],
+      errorDetails = [],
+      serverErrorPaths = [],
       referrers = [],
       referrerPaths = [],
     } = entry;
@@ -435,6 +501,8 @@ export function renderAnalyticsSql({ days, hostname, refreshedAt, capability }) 
       `DELETE FROM analytics_referrer_daily WHERE day = ${sqlText(total.day)} AND hostname = ${sqlText(hostname)};`,
       `DELETE FROM analytics_referrer_path_daily WHERE day = ${sqlText(total.day)} AND hostname = ${sqlText(hostname)};`,
       `DELETE FROM analytics_error_path_daily WHERE day = ${sqlText(total.day)} AND hostname = ${sqlText(hostname)};`,
+      `DELETE FROM analytics_error_detail_daily WHERE day = ${sqlText(total.day)} AND hostname = ${sqlText(hostname)};`,
+      `DELETE FROM analytics_server_error_path_daily WHERE day = ${sqlText(total.day)} AND hostname = ${sqlText(hostname)};`,
       `INSERT INTO analytics_daily (day, hostname, requests, visits, bytes) VALUES (${sqlText(total.day)}, ${sqlText(hostname)}, ${total.requests}, ${total.visits}, ${total.bytes}) ON CONFLICT(day, hostname) DO UPDATE SET requests = excluded.requests, visits = excluded.visits, bytes = excluded.bytes;`,
     );
 
@@ -471,6 +539,16 @@ export function renderAnalyticsSql({ days, hostname, refreshedAt, capability }) 
     for (const row of errorPaths) {
       statements.push(
         `INSERT INTO analytics_error_path_daily (day, hostname, path, requests) VALUES (${sqlText(row.day)}, ${sqlText(hostname)}, ${sqlText(row.path)}, ${row.requests}) ON CONFLICT(day, hostname, path) DO UPDATE SET requests = excluded.requests;`,
+      );
+    }
+    for (const row of errorDetails) {
+      statements.push(
+        `INSERT INTO analytics_error_detail_daily (day, hostname, path, status, class, requests) VALUES (${sqlText(row.day)}, ${sqlText(hostname)}, ${sqlText(row.path)}, ${row.status}, ${sqlText(row.class)}, ${row.requests}) ON CONFLICT(day, hostname, path, status) DO UPDATE SET class = excluded.class, requests = excluded.requests;`,
+      );
+    }
+    for (const row of serverErrorPaths) {
+      statements.push(
+        `INSERT INTO analytics_server_error_path_daily (day, hostname, path, status, requests) VALUES (${sqlText(row.day)}, ${sqlText(hostname)}, ${sqlText(row.path)}, ${row.status}, ${row.requests}) ON CONFLICT(day, hostname, path, status) DO UPDATE SET requests = excluded.requests;`,
       );
     }
     for (const row of referrers) {
