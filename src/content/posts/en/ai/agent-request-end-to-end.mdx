@@ -1,0 +1,504 @@
+---
+title: "An Agent Request, End to End"
+subtitle: "Follow one execution from POST through the queue, worker, LangGraph, Redis, SSE, and XACK"
+description: "Trace an agent request through authentication, durable run creation, queue delivery, LangGraph execution, state/event projection, SSE, result persistence, and acknowledgement."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - agent-backend
+  - fastapi
+  - redis-streams
+  - langgraph
+  - sse
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "agent-request-end-to-end"
+series: "Agent Engineering"
+seriesOrder: 14
+seriesPart: "delivery"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "FastAPI Dependencies"
+    url: "https://fastapi.tiangolo.com/reference/dependencies/"
+    publisher: "FastAPI Documentation"
+  - title: "FastAPI StreamingResponse"
+    url: "https://fastapi.tiangolo.com/advanced/custom-response/"
+    publisher: "FastAPI Documentation"
+  - title: "LangGraph Streaming"
+    url: "https://docs.langchain.com/oss/python/langgraph/streaming"
+    publisher: "LangChain Documentation"
+  - title: "LangGraph Persistence"
+    url: "https://docs.langchain.com/oss/python/langgraph/persistence"
+    publisher: "LangChain Documentation"
+  - title: "Redis Streams"
+    url: "https://redis.io/docs/latest/develop/data-types/streams/"
+    publisher: "Redis Documentation"
+  - title: "Redis XREADGROUP"
+    url: "https://redis.io/docs/latest/commands/xreadgroup/"
+    publisher: "Redis Documentation"
+  - title: "Redis XACK"
+    url: "https://redis.io/docs/latest/commands/xack/"
+    publisher: "Redis Documentation"
+  - title: "PostgreSQL Transactions"
+    url: "https://www.postgresql.org/docs/current/tutorial-transactions.html"
+    publisher: "PostgreSQL Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AgentRequestTraceDiagrams from '../../../../components/AgentRequestTraceDiagrams.astro';
+
+<AnswerBlock question="What path does one agent request take through the backend?">
+  <strong>The API authenticates and validates the request, creates a durable run, and hands execution intent to a queue. A worker owns a separate attempt and runs LangGraph and its tools.</strong> Runtime output is projected into current state and chronological events in Redis, while SSE relays observation to the browser. The worker commits the terminal result to PostgreSQL first and acknowledges the queue message last.
+</AnswerBlock>
+
+Earlier articles deliberately separated the system. [A Conversation Is Not a Run](/en/ai/agents/conversation-is-not-a-run/) split persistent context from individual execution. [When Workers Die](/en/ai/agents/when-workers-die/) split delivery from completion. [Running Agents on Kubernetes](/en/ai/agents/running-agents-on-kubernetes/) split API and worker deployment lifecycles.
+
+This article reconnects them. Start when a user asks:
+
+> Analyze NVIDIA's latest earnings and valuation.
+
+A useful architecture diagram is not a collection of boxes. At every moment, it should answer **who owns execution, which record survives failure, and what the user can observe**.
+
+<AgentRequestTraceDiagrams
+  kind="sequence"
+  language="en"
+  caption="Figure 1. One agent request passes through admission, persistence, dispatch, execution, observation, and settlement."
+/>
+
+## Stage 1: The API admits work instead of executing it
+
+The browser creates a run under an existing conversation session.
+
+```http
+POST /sessions/9c2.../runs
+Content-Type: application/json
+
+{
+  "query": "Analyze NVIDIA's latest earnings and valuation",
+  "analysis_type": "deep"
+}
+```
+
+If an ingress or SSO proxy authenticates the user, FastAPI should receive identity from that verified path. It must not trust an arbitrary client-supplied `X-User-ID`, and network policy must prevent clients from bypassing the auth proxy.
+
+The request body carries business input, not identity.
+
+```python
+from typing import Literal
+from pydantic import BaseModel, Field
+
+class AnalysisRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=4_000)
+    analysis_type: Literal["quick", "deep"]
+```
+
+The endpoint's first responsibility is validation, not execution.
+
+```python
+@app.post("/sessions/{session_id}/runs", status_code=202)
+async def create_run(
+    session_id: UUID,
+    request: AnalysisRequest,
+    identity: Annotated[Identity, Depends(current_identity)],
+):
+    session = await load_owned_session(
+        tenant_id=identity.tenant_id,
+        user_id=identity.user_id,
+        session_id=session_id,
+    )
+    if session is None:
+        raise HTTPException(404, "session not found")
+```
+
+No Redis key or session checkpoint should be read before that ownership check succeeds.
+
+## Stage 2: Persist execution intent in PostgreSQL
+
+For the system to rediscover a request after the API process exits, its `run_id` and input must live outside process memory.
+
+```sql
+INSERT INTO runs (
+    run_id, tenant_id, user_id, session_id,
+    status, input_json, created_at
+)
+VALUES ($1, $2, $3, $4, 'submitting', $5, now())
+RETURNING *;
+```
+
+`submitting` means the request is durable but queue handoff is not yet confirmed. Writing `queued` immediately makes it hard to distinguish a row whose subsequent `XADD` failed.
+
+```text
+submitting → queued → running → succeeded
+                           └──→ failed
+                           └──→ cancelled
+```
+
+The same transaction can enforce the one-active-run-per-session invariant.
+
+```python
+async with db.transaction():
+    run = await run_store.create_submitting(
+        identity=identity,
+        session_id=session_id,
+        payload=request.model_dump(),
+    )
+```
+
+PostgreSQL is the source of truth here. Redis current state is a fast UI projection, not the authority for whether a run exists.
+
+## Stage 3: Transfer execution ownership to the queue
+
+Do not copy the entire prompt, conversation, and secrets into the Stream. Publish identifiers and the minimum routing metadata that let a worker load authoritative data.
+
+```python
+entry_id = await redis.xadd(
+    "agent:jobs",
+    {
+        "run_id": str(run.run_id),
+        "session_id": str(run.session_id),
+        "priority": "normal",
+    },
+)
+
+await run_store.mark_queued(run.run_id, queue_entry_id=entry_id)
+```
+
+The API returns **safe acceptance**, not completion.
+
+```json
+{
+  "run_id": "7d5b...",
+  "status": "queued",
+  "events_url": "/sessions/9c2.../runs/7d5.../events"
+}
+```
+
+PostgreSQL commit and Redis `XADD` are writes to separate systems. The process can fail between them.
+
+```text
+DB commit succeeds
+  ↓ crash
+XADD never happens
+```
+
+A simple design periodically reconciles old `submitting` runs and republishes them. A stronger design writes a run row and outbox row in one database transaction; a relay later publishes the outbox record to Redis.
+
+```sql
+INSERT INTO run_outbox (event_id, run_id, topic, payload_json)
+VALUES ($1, $2, 'agent:jobs', $3);
+```
+
+An outbox does not create magical exactly-once publication. If the relay publishes and crashes before marking the row, it can publish twice. Consumers must remain idempotent.
+
+<AgentRequestTraceDiagrams
+  kind="ownership"
+  language="en"
+  caption="Figure 2. The ownership baton — admission, delivery, execution, and terminal truth belong to different actors."
+/>
+
+## Stage 4: The browser observes without waiting for completion
+
+After `202 Accepted`, the browser bootstraps the run screen. Opening an event stream without a snapshot can miss state and events created before the connection.
+
+```http
+GET /sessions/{session_id}/runs/{run_id}
+```
+
+A bootstrap response includes the durable run, current snapshot, recent events, and a cursor.
+
+```json
+{
+  "run": {"status": "queued"},
+  "snapshot": {"progress": 0, "current_step": null},
+  "recent_events": [],
+  "cursor": "0-0"
+}
+```
+
+The browser then opens SSE.
+
+```http
+GET /sessions/{session_id}/runs/{run_id}/events
+Last-Event-ID: 0-0
+```
+
+The SSE endpoint performs the same tenant/user/session/run authorization. Streaming does not weaken the object boundary.
+
+## Stage 5: The worker executes an attempt, not a queue entry
+
+One worker in the consumer group receives the entry.
+
+```python
+messages = await redis.xreadgroup(
+    groupname="agent-workers",
+    consumername=worker_id,
+    streams={"agent:jobs": ">"},
+    count=1,
+    block=5_000,
+)
+```
+
+Redis places that delivery in the PEL. The worker should not trust the payload and immediately invoke tools. It reloads the run from PostgreSQL to check terminal status, ownership, cancellation, and the active attempt.
+
+```python
+run = await run_store.get(run_id)
+
+if run.status in {"succeeded", "failed", "cancelled"}:
+    await queue.ack(entry_id)
+    return
+
+attempt = await run_store.start_attempt(
+    run_id=run.id,
+    worker_id=worker_id,
+)
+```
+
+An `attempt_id` and fencing token identify this delivery's right to execute. A reclaim after worker failure may create a new attempt under the same run.
+
+## Stage 6: Load session context separately from runtime state
+
+The worker assembles several kinds of context before execution.
+
+| Information | Authoritative store | Purpose |
+| --- | --- | --- |
+| Run input and ownership | PostgreSQL | Durable product record |
+| Earlier messages | PostgreSQL | Session context |
+| LangGraph checkpoint | Checkpointer | Runtime resume state |
+| Current cancellation request | Redis or durable flag | Fast coordination |
+| Tool policy and credential reference | Config/secret store | Execution authority |
+
+LangGraph's `thread_id` can connect runtime state across a session, but it is not this execution's `run_id`.
+
+```python
+config = {
+    "configurable": {
+        "thread_id": str(run.session_id),
+    },
+    "metadata": {
+        "run_id": str(run.id),
+        "attempt_id": str(attempt.id),
+    },
+}
+```
+
+A session persists across runs. An attempt belongs to one worker try.
+
+## Stage 7: Do not mirror LangGraph output directly into external state
+
+The worker runs `graph.astream()` and translates runtime output into the application's observation contract.
+
+```python
+async for part in graph.astream(
+    build_graph_input(run),
+    config=config,
+    stream_mode=["updates", "custom"],
+    version="v2",
+):
+    await project_stream_part(run, attempt, part)
+```
+
+`updates` contains graph-state changes. Map only the small subset required by the browser into current state.
+
+```python
+if part["type"] == "updates":
+    patch = map_to_ui_state(part["data"])
+    await redis.hset(f"run:{run.id}:state", mapping=patch)
+```
+
+`custom` works for chronological progress and approval events.
+
+```python
+if part["type"] == "custom":
+    event = normalize_event(run.id, part["data"])
+    await redis.xadd(
+        f"run:{run.id}:events",
+        {"payload": event.model_dump_json()},
+    )
+```
+
+Do not mirror large documents, full prompts, and every intermediate graph field into Redis. Runtime state, UI snapshot, and event history have different consumers and retention needs.
+
+<AgentRequestTraceDiagrams
+  kind="projection"
+  language="en"
+  caption="Figure 3. Runtime output is translated: updates become the current snapshot, while custom messages become event history."
+/>
+
+## Stage 8: SSE is an observation relay, not an executor
+
+The FastAPI SSE endpoint reads the run's event Stream after the browser cursor.
+
+```python
+from fastapi.responses import StreamingResponse
+
+async def event_source(run_id: UUID, cursor: str):
+    while True:
+        batches = await redis.xread(
+            {f"run:{run_id}:events": cursor},
+            block=15_000,
+            count=50,
+        )
+        if not batches:
+            yield ": keep-alive\n\n"
+            continue
+
+        for event_id, fields in unpack(batches):
+            cursor = event_id
+            yield encode_sse(event_id, fields[b"payload"])
+
+return StreamingResponse(event_source(run_id, cursor), media_type="text/event-stream")
+```
+
+Closing the browser or replacing the API Pod does not stop the worker. The SSE handler does not own execution.
+
+On reconnect, the browser supplies the last applied event ID. The server replays later entries. If retention removed that history, it sends `resync_required`, and the browser bootstraps again. Because replay can deliver duplicates, the UI upserts by `event_id`.
+
+## Stage 9: Completion is a commit protocol
+
+A graph result does not mean the queue job is complete. The worker follows an explicit order.
+
+```text
+1. Commit final result and terminal status to PostgreSQL
+2. Project completed state into Redis
+3. Append completion event
+4. XACK the queue entry
+```
+
+```python
+result = await execute_graph(run, attempt)
+
+await run_store.complete(
+    run_id=run.id,
+    attempt_id=attempt.id,
+    fence=attempt.fence,
+    result=result,
+)
+
+await redis.hset(
+    f"run:{run.id}:state",
+    mapping={"status": "succeeded", "progress": "100"},
+)
+await append_completion_event(run.id)
+await redis.xack("agent:jobs", "agent-workers", entry_id)
+```
+
+If the Redis projection or completion event fails, the PostgreSQL terminal row remains authoritative. The API should return the durable result on a Redis miss and schedule projection repair instead of returning a run-level 404.
+
+If the worker dies after result commit but before acknowledgement, Redis redelivers the entry. The next worker sees the terminal status and acknowledges without rerunning the graph. This is why **the durable result comes first and acknowledgement comes last**.
+
+## Four failure windows test the whole design
+
+The end-to-end trace becomes most useful when failure interrupts it.
+
+<AgentRequestTraceDiagrams
+  kind="failure"
+  language="en"
+  caption="Figure 4. Each critical failure window leaves a different durable residue and requires a specific recovery owner."
+/>
+
+| Failure | Fragile design | Recoverable design |
+| --- | --- | --- |
+| API exits after DB commit | Run waits forever | `submitting` reconciler or outbox |
+| Worker exits after tool succeeds | Side effect duplicates | Stable idempotency key and execution ledger |
+| Worker exits after result commit | Entire graph reruns | Terminal check, then `XACK` |
+| Redis state is lost | Run appears missing | PostgreSQL fallback and projection rebuild |
+| SSE disconnects | Run is cancelled | Execution continues; replay from cursor |
+
+Every hop does not need the same delivery guarantee. Every boundary does need an explicit recovery authority: a durable record, idempotency key, or replay cursor.
+
+## Trace connected IDs, not one universal ID
+
+Operational logs often need more than `run_id`.
+
+```python
+log.info(
+    "tool_call_completed",
+    tenant_id=str(run.tenant_id),
+    session_id=str(run.session_id),
+    run_id=str(run.id),
+    attempt_id=str(attempt.id),
+    queue_entry_id=entry_id,
+    tool_call_id=str(tool_call.id),
+)
+```
+
+Each identifier answers a different question.
+
+| ID | Question |
+| --- | --- |
+| `session_id` | Which persistent context owns this? |
+| `run_id` | Which user-requested execution is this? |
+| `attempt_id` | Which worker try performed it? |
+| `queue_entry_id` | Which delivery became pending or acknowledged? |
+| `event_id` | How far has the browser observed? |
+| `tool_call_id` | Can an external side effect be deduplicated? |
+
+That linkage lets operators answer, “The user did not see a result, but did the tool execute?”
+
+## End-to-end tests must cross real boundaries
+
+The minimum happy path connects the actual API, queue, worker, and stores.
+
+```python
+async def test_run_end_to_end(client, worker, event_reader):
+    response = await client.post(
+        "/sessions/S1/runs",
+        json={"query": "Analyze NVIDIA", "analysis_type": "quick"},
+    )
+    assert response.status_code == 202
+    run_id = response.json()["run_id"]
+
+    await worker.process_next()
+    events = await event_reader.until_terminal(run_id)
+    run = await client.get(f"/sessions/S1/runs/{run_id}")
+
+    assert run.json()["status"] == "succeeded"
+    assert events[-1]["type"] == "run_completed"
+    assert await queue.pending(run_id) is False
+```
+
+Then terminate processes at each boundary:
+
+- after run commit but before queue publish;
+- after `XREADGROUP` but before attempt creation;
+- after a tool side effect but before execution-ledger commit;
+- after result commit but before `XACK`; and
+- after SSE receipt but before UI application.
+
+The assertion is not merely that an error occurred. It is that **the run is not lost, the side effect is not duplicated, and the user eventually reads terminal truth**.
+
+## Implementation checklist
+
+- Does the API authorize session ownership from trusted identity?
+- Before `202`, is there a durable run and recoverable queue handoff?
+- Is the DB/queue dual-write gap handled by reconciliation or an outbox?
+- Does the queue carry small identifiers instead of the full context?
+- Does the browser bootstrap from snapshot, recent events, and cursor?
+- Does every worker delivery reload durable run and terminal state?
+- Are session, run, attempt, and queue entry separate IDs?
+- Is LangGraph output explicitly mapped into UI state and event contracts?
+- Does an SSE disconnect leave worker execution untouched?
+- Does result commit precede Redis projection and `XACK`?
+- Does a Redis miss fall back to the PostgreSQL terminal result?
+- Do failure-injection tests break each process boundary?
+
+## The complete trace reveals the next control problem
+
+Connecting one request end to end makes every system boundary visible. It also exposes the next unsolved problem.
+
+What happens when the user presses Cancel? If the API writes `cancelled` immediately, the worker and tools may still be running. Cancelling a Python task does not undo an external side effect. The cancellation intent must also survive while a queue entry is pending or a new worker reclaims it.
+
+The next article treats **cancellation as a protocol, not a status value**: cancellation requests, cooperative worker checks, tool boundaries, races between terminal states, and acknowledgement order.
