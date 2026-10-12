@@ -1,0 +1,453 @@
+---
+title: "Before Adding More Workers: Backpressure and Agent Admission Control"
+subtitle: "Control overload with bounded queues, tenant quotas, and downstream-aware concurrency"
+description: "Design admission control, bounded queues, tenant quotas, fair scheduling, and load shedding for agent backends that autoscaling alone cannot keep stable."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - backpressure
+  - admission-control
+  - rate-limiting
+  - load-shedding
+  - keda
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "backpressure-quotas-admission-control"
+series: "Agent Engineering"
+seriesOrder: 19
+seriesPart: "delivery"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "Handling Overload"
+    url: "https://sre.google/sre-book/handling-overload/"
+    publisher: "Google Site Reliability Engineering"
+  - title: "Addressing Cascading Failures"
+    url: "https://sre.google/sre-book/addressing-cascading-failures/"
+    publisher: "Google Site Reliability Engineering"
+  - title: "Using Load Shedding to Avoid Overload"
+    url: "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/"
+    publisher: "Amazon Builders' Library"
+  - title: "Redis XINFO GROUPS"
+    url: "https://redis.io/docs/latest/commands/xinfo-groups/"
+    publisher: "Redis Documentation"
+  - title: "KEDA ScaledObject Specification"
+    url: "https://keda.sh/docs/2.21/reference/scaledobject-spec/"
+    publisher: "KEDA Documentation"
+  - title: "RFC 6585 — Additional HTTP Status Codes"
+    url: "https://www.rfc-editor.org/rfc/rfc6585.html"
+    publisher: "RFC Editor"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AgentBackpressureDiagrams from '../../../../components/AgentBackpressureDiagrams.astro';
+
+<AnswerBlock question="Should you add more workers whenever the queue grows?">
+  <strong>No. Workers can scale only within the safe capacity of their database connections, model-provider quotas, and tool APIs.</strong> Scaling past those boundaries pushes backlog into downstream dependencies faster and amplifies failure. Admission control limits accepted work; bounded queues and tenant-aware quotas and concurrency process that work fairly.
+</AnswerBlock>
+
+The previous article, [Debugging Agent Systems](/en/ai/agents/agent-observability-trajectories/), connected queue wait, active runs, retries, and downstream latency into one trajectory. Imagine that dashboard showing:
+
+```text
+arrival rate       12 runs/s
+completion rate     8 runs/s
+queue depth       2,400 runs
+oldest queue age     11 min
+deadline miss rate   27%
+```
+
+The first reaction is to add worker replicas. But if the bottleneck is a model provider's token-per-minute limit or the PostgreSQL connection pool, more workers create more timeouts and retries. Completion stays flat while in-flight work and cost rise.
+
+Backpressure is not a monitoring signal that says “the system is slow.” It is a **control protocol that feeds safe consumer and downstream capacity back to producers**.
+
+<AgentBackpressureDiagrams
+  kind="collapse"
+  language="en"
+  caption="Figure 1. When arrivals continuously exceed service rate, an unbounded queue hides latency but creates no processing capacity."
+/>
+
+## A queue is time debt, not capacity
+
+A queue can absorb a short burst where arrival rate `λ` exceeds service rate `μ`. If `λ > μ` persists, backlog grows without bound.
+
+In a stable system, Little's Law relates the measurements:
+
+```text
+L = λW
+
+L: average work in the system
+λ: average throughput
+W: average time in the system
+```
+
+This is a relationship among observations, not a magic overload predictor. If stable completion is eight jobs per second and 800 jobs are ahead, even a rough estimate puts the wait near 100 seconds. Varying service times and priorities widen the real distribution.
+
+Do not size a queue from available storage. Work backward from maximum acceptable queue wait and useful deadlines.
+
+```python
+def queue_is_admissible(*, depth: int, service_rate: float, max_wait: float) -> bool:
+    if service_rate <= 0:
+        return False
+
+    estimated_wait = depth / service_rate
+    return estimated_wait < max_wait
+```
+
+This estimate is only one admission input. Production control also uses per-operation service-time histograms, priority lanes, and downstream saturation.
+
+## Capacity is a vector, not one number
+
+An agent run consumes several bounded resources.
+
+| Boundary | Representative units | Saturation symptom |
+| --- | --- | --- |
+| API admission | requests/s, burst | rising 429 and 503 responses |
+| Queue | depth, oldest age | work expires before execution |
+| Worker | active runs, CPU, memory | event-loop lag, OOM |
+| Database | connections, transactions/s | pool wait, lock timeout |
+| Model provider | requests/min, tokens/min | throttling, tail latency |
+| Tool provider | concurrency, requests/s | 429, timeout, open circuit |
+| Tenant budget | tokens/day, cost/month | one customer monopolizes spend |
+
+A global concurrency of 100 does not make 100 model-heavy runs equivalent to 100 cached lookups. Give each admission record a server-calculated `work_class` and conservative `estimated_cost_units`, then reconcile against actual usage.
+
+```python
+def estimate_units(request: RunRequest) -> int:
+    units = 1
+    units += min(request.max_steps, 12)
+    units += request.attachment_bytes // 1_000_000
+    if request.operation == "deep_research":
+        units += 8
+    return units
+```
+
+An imperfect estimate is better than treating every run as one identical unit. Do not trust only user-controlled estimates; server policy must cap them.
+
+## Rate, quota, and concurrency are different boundaries
+
+Collapsing the terms leaves holes in overload protection.
+
+| Control | What it limits | Example |
+| --- | --- | --- |
+| Rate limit | Short-window arrival speed | 10 runs/min per tenant |
+| Burst limit | Instantaneous spike | token-bucket capacity of 5 |
+| Concurrency limit | Work executing at once | 4 active runs per tenant |
+| Queue limit | Work waiting | 20 queued runs per tenant |
+| Usage quota | Cumulative consumption | 100M tokens or $1,000/month |
+| Deadline admission | Probability of useful completion | estimated wait fits remaining time |
+
+A token bucket refills at a stable rate and stores a bounded burst. When no token is available, reject at admission or explicitly move the request to a lower-priority lane instead of letting it wait invisibly.
+
+An in-memory limiter protects only one API process. Multiple Pods need a distributed authority—such as an atomic Redis script or locked database row—to share a tenant quota correctly.
+
+```python
+async def reserve_admission(request, tenant, limiter, quota_store):
+    units = estimate_units(request)
+
+    if not await limiter.take(
+        key=f"rate:{tenant.id}:{request.operation}",
+        tokens=units,
+    ):
+        raise QuotaExceeded(retry_after=limiter.retry_after)
+
+    return await quota_store.reserve(
+        tenant_id=tenant.id,
+        units=units,
+        idempotency_key=request.idempotency_key,
+    )
+```
+
+Settle a successful reservation into the usage ledger and release it if the admission transaction fails. Expiry and reconciliation must reclaim leaked reservations after process failure.
+
+## Decide admission before enqueueing
+
+Do not create a durable run, return `202 Accepted`, and later drop it silently because capacity was unavailable. A 202 response transfers ownership to the system until it produces a result or an explicit terminal failure.
+
+<AgentBackpressureDiagrams
+  kind="gates"
+  language="en"
+  caption="Figure 2. Only requests that pass identity, idempotency, quota, and capacity gates atomically commit a run, reservation, and outbox event."
+/>
+
+Use this order:
+
+1. Validate tenant, user, and operation authorization.
+2. Look up an already accepted idempotent request.
+3. Check rate, burst, and period quota, then reserve capacity.
+4. Evaluate queue age, active concurrency, and downstream health.
+5. Commit the run, quota reservation, and enqueue outbox in one transaction.
+6. Only then return `202 Accepted` and the `run_id`.
+
+```python
+async def admit_run(request: RunRequest, actor: Actor) -> AcceptedRun:
+    existing = await run_store.find_by_idempotency_key(
+        tenant_id=actor.tenant_id,
+        key=request.idempotency_key,
+    )
+    if existing:
+        return AcceptedRun.from_existing(existing)
+
+    decision = await admission_policy.evaluate(request, actor)
+    if not decision.accepted:
+        raise decision.as_http_error()
+
+    async with db.transaction():
+        reservation = await quota_store.reserve_for_update(decision)
+        run = await run_store.create(request, actor, reservation)
+        await outbox.append("run_queued", {"run_id": str(run.id)})
+
+    return AcceptedRun(run_id=run.id, status="queued")
+```
+
+A global load-balancer limit does not know tenant cost, operation deadlines, or dependency-specific concurrency. Edge limiting is the first defense; an application admission controller enforces product semantics.
+
+## A 429 and a 503 communicate different rejections
+
+Distinguish the cause so the client can choose the right next action.
+
+- `429 Too Many Requests`: this user, tenant, or API key exceeded a rate or quota.
+- `503 Service Unavailable`: the system or a required dependency temporarily lost safe capacity.
+- `202 Accepted`: a durable run exists and the system owns its lifecycle.
+
+Include `Retry-After` and a machine-readable reason when possible.
+
+```json
+{
+  "error": "admission_rejected",
+  "reason": "tenant_concurrency_exhausted",
+  "retryable": true,
+  "retry_after_seconds": 12,
+  "limit": 4,
+  "active": 4
+}
+```
+
+The client retains the same idempotency key and retries after the indicated delay with exponential backoff and jitter. If every rejected client retries on the same second, the recovery moment becomes another spike.
+
+Do not disguise authentication failures or invalid schemas as overload. Requests that cannot succeed on retry should fail fast with the appropriate 4xx response.
+
+## A semaphore protects one worker, not the global quota
+
+A bounded semaphore prevents fan-out inside one process.
+
+```python
+MODEL_LIMIT = asyncio.Semaphore(8)
+
+async def invoke_model(request):
+    async with MODEL_LIMIT:
+        return await model_client.invoke(request)
+```
+
+Ten Pods can now issue 80 calls. If the provider's safe limit is 40, a local limit of eight is insufficient. Add a global limiter or partitioned token leases, and verify the product of replica count and local limit.
+
+Tenant semaphores also need distributed counters or leases to mean anything across workers. Give each lease an owner, expiry, and fencing token so capacity does not remain locked after a crash.
+
+```python
+async with capacity_lease(
+    resource="model:provider-a",
+    tenant_id=run.tenant_id,
+    units=run.estimated_units,
+    ttl=30,
+) as lease:
+    result = await invoke_with_fence(run, lease.fence)
+```
+
+Use heartbeats and a maximum call timeout so a long-running call does not outlive its lease silently.
+
+## One FIFO is not fair
+
+If Tenant A enqueues 10,000 batch runs first, Tenant B's single interactive run waits behind them. FIFO is fair to arrival order, but not to tenants or user experience.
+
+<AgentBackpressureDiagrams
+  kind="fairness"
+  language="en"
+  caption="Figure 3. Tenant and work-class lanes allocate execution slots by weight, priority, aging, and estimated cost."
+/>
+
+A production scheduler considers:
+
+- active and queued limits plus weight per tenant;
+- interactive, scheduled, and batch work classes;
+- request age and deadline;
+- estimated cost units;
+- session serialization requirements; and
+- remaining capacity of the required dependency.
+
+Strict priority can starve batch work forever. Raise effective priority with age, or use weighted fair queuing or deficit round robin when job costs differ.
+
+Priority is not an arbitrary client-provided number. Derive it on the server from entitlement and operation policy.
+
+## Observe oldest age with lag and pending work
+
+A queue depth of 1,000 means something different for 50-millisecond jobs and five-minute jobs. Observe at least:
+
+- ready backlog and consumer lag;
+- pending or in-flight count and oldest pending age;
+- oldest ready-job age;
+- completion rate and service-time histograms;
+- slack until deadline; and
+- backlog by tenant and priority.
+
+For Redis Streams, `XINFO GROUPS` reports `lag` for entries not yet delivered to consumers and `pending` for delivered but unacknowledged PEL entries. Combining both into “queue depth” hides the distinction between ready backlog that may need scale-out and pending work held by slow or failed consumers.
+
+```python
+async def queue_health(redis, stream: str, group: str) -> dict:
+    groups = await redis.xinfo_groups(stream)
+    info = next(item for item in groups if item["name"] == group)
+
+    return {
+        "ready_lag": info.get("lag"),
+        "pending": info["pending"],
+        "consumers": info["consumers"],
+    }
+```
+
+Calculate oldest age from a separate timestamp or stream ID while accounting for clock skew and trimmed entries.
+
+## Load shedding chooses a smaller failure
+
+Rejecting some work quickly is better than accepting everything and missing every deadline. Shed at the cheapest boundary.
+
+1. Reject invalid, unauthorized, and expired work.
+2. Coalesce duplicate idempotency keys into the existing run.
+3. Stop low-priority batch admission.
+4. Enter a declared degraded mode with less retrieval, evaluation, or context.
+5. Explicitly reject new interactive work with 429 or 503.
+
+Do not arbitrarily drop a run after an external side effect started, an approval completed, or a commit protocol began. End it with cancellation, a partial result, or an explicit failed terminal state.
+
+Degradation is not silently lowering quality. Record which feature was omitted and how result confidence changed in the product contract and event stream.
+
+## Autoscaling is a bounded control loop
+
+Queue-lag-based KEDA scaling is useful for adding workers after a burst. But backlog grows during polling, Pod scheduling, image pull, and warm-up. More importantly, `maxReplicaCount` must come from the capacity model.
+
+```yaml
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: agent-worker
+spec:
+  scaleTargetRef:
+    name: agent-worker
+  minReplicaCount: 2
+  maxReplicaCount: 12
+  pollingInterval: 15
+  cooldownPeriod: 180
+  triggers:
+    - type: redis-streams
+      metadata:
+        stream: agent-runs
+        consumerGroup: workers
+        pendingEntriesCount: "8"
+```
+
+Verify scaler metadata and supported fields for the KEDA version you deploy. The architectural constraint remains:
+
+```text
+max replicas
+≤ min(
+    database safe connections / connections per pod,
+    provider safe concurrency / calls per pod,
+    cluster CPU and memory capacity / pod request,
+    cost burn limit / expected burn per pod
+  )
+```
+
+CPU may stay low while workers wait for model responses and consume all provider concurrency. Scale agent workers with ready lag, oldest age, active runs, and downstream saturation—not CPU alone.
+
+<AgentBackpressureDiagrams
+  kind="control"
+  language="en"
+  caption="Figure 4. Admission, degradation, shedding, and autoscaling form one feedback loop inside the downstream safe envelope."
+/>
+
+## Retries must honor backpressure
+
+If the client, worker, and SDK each retry three times during overload, one request can fan into 27 downstream attempts. Put one retry budget around the run and assign responsibility to one layer.
+
+```python
+async def call_with_budget(operation, budget):
+    while budget.can_retry():
+        try:
+            return await operation()
+        except RetryableOverload as exc:
+            delay = max(exc.retry_after, budget.next_backoff_with_jitter())
+            await budget.sleep(delay)
+
+    raise RetryBudgetExhausted()
+```
+
+Retries after the deadline, execution of expired queue entries, and retries for cancelled runs waste admission capacity. Recheck remaining deadline and cancellation state immediately before a call.
+
+## Failure tests must cross the capacity boundary
+
+Normal-traffic load tests cannot prove overload policy.
+
+- Raise arrival rate to 50%, 90%, 110%, and 200% of measured service rate.
+- Let one tenant burst and measure another tenant's p95 latency.
+- Saturate a model provider and database pool, then observe replica growth.
+- Test admission during KEDA polling and cold starts.
+- Reach `maxReplicaCount` and verify load shedding.
+- Simulate clients that ignore `Retry-After` and create retry storms.
+- Crash the API after capacity reservation and reclaim the leak.
+- Crash a worker and release semaphores and leases.
+- Sustain high-priority traffic and verify aging prevents batch starvation.
+- Expire queued work before execution.
+- Preserve explicit metadata on degraded results.
+- Define fail-open and fail-closed behavior when Redis or the quota store fails.
+
+Always failing open on quota-store failure can lose the whole system. Always failing closed blocks every customer. Define policy by operation risk and the freshness of cached entitlement.
+
+## Operational dashboard and alerts
+
+Use bounded tenant and work-class dimensions to monitor:
+
+- accepted, rejected, and degraded admission rate by reason;
+- rate-limit tokens and quota utilization;
+- ready lag, pending work, oldest age, and deadline slack;
+- active concurrency and capacity-lease utilization;
+- completion rate and service-time histograms;
+- dependency saturation, 429, timeouts, and circuit state;
+- current and desired replicas plus time at `maxReplicaCount`;
+- retry amplification and cost burn rate; and
+- fairness through tenant throughput share and wait-time distribution.
+
+Do not alert on queue depth alone. Combine `oldest_age / deadline`, falling completion rate, dependency saturation, and admission rejection to distinguish burst absorption from an unrecoverable backlog.
+
+## Implementation checklist
+
+- Has load testing measured safe throughput and dependency limits per operation?
+- Is the queue bounded by acceptable wait rather than storage capacity?
+- Are rate, burst, concurrency, queued work, and usage quota separate controls?
+- Does idempotency lookup happen before duplicate quota consumption?
+- Do run, reservation, and enqueue outbox commit atomically?
+- Does every accepted run reach an explicit terminal state?
+- Are 429 and 503 distinct, with useful `Retry-After` guidance?
+- Is the relationship between local semaphores and global limits calculated?
+- Is there fairness and starvation prevention across tenants and work classes?
+- Are ready lag, pending work, and oldest age observed separately?
+- Does load shedding happen before expensive work?
+- Are degraded results explicit in UI and events?
+- Does KEDA `maxReplicaCount` stay inside the downstream envelope?
+- Are retry budget, backoff, jitter, and deadline checks enforced?
+- Do expiry and reconciliation reclaim leaked reservations and leases?
+- Do load tests cross overload thresholds and include noisy neighbors?
+
+## Fair admission leads to structured parallel execution
+
+Backpressure decides how much work may execute. The next problem is ownership when one accepted run fans out into research, data, and risk child agents. If one admitted parent creates ten children, capacity accounting can break again.
+
+The next article, **Multi-Agent Is Not Multiple Agent Processes: Parent Runs, Fan-out, and Fan-in**, models parent-child run hierarchies, isolated context, partial failure, and cancellation and budget propagation.
