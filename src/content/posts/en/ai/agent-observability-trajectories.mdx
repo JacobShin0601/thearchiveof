@@ -1,0 +1,365 @@
+---
+title: "Debugging Agent Systems: Trajectories Matter More Than Log Lines"
+subtitle: "Connect causality, latency, and cost across workers, tools, pauses, and resumes"
+description: "Connect traces, metrics, structured logs, and product events to diagnose agent failures and attribute latency, tokens, and cost across a complete run trajectory."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - observability
+  - opentelemetry
+  - distributed-tracing
+  - agent-runtime
+  - llm-evaluation
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "agent-observability-trajectories"
+series: "Agent Engineering"
+seriesOrder: 18
+seriesPart: "delivery"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "OpenTelemetry Signals"
+    url: "https://opentelemetry.io/docs/concepts/signals/"
+    publisher: "OpenTelemetry Documentation"
+  - title: "OpenTelemetry Traces"
+    url: "https://opentelemetry.io/docs/concepts/signals/traces/"
+    publisher: "OpenTelemetry Documentation"
+  - title: "OpenTelemetry Logs"
+    url: "https://opentelemetry.io/docs/concepts/signals/logs/"
+    publisher: "OpenTelemetry Documentation"
+  - title: "OpenTelemetry Semantic Conventions"
+    url: "https://opentelemetry.io/docs/concepts/semantic-conventions/"
+    publisher: "OpenTelemetry Documentation"
+  - title: "Generative AI Semantic Conventions"
+    url: "https://opentelemetry.io/docs/specs/semconv/gen-ai/"
+    publisher: "OpenTelemetry Documentation"
+  - title: "Histograms and Summaries"
+    url: "https://prometheus.io/docs/practices/histograms/"
+    publisher: "Prometheus Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AgentObservabilityDiagrams from '../../../../components/AgentObservabilityDiagrams.astro';
+
+<AnswerBlock question="Can a few log lines explain an agent failure?">
+  <strong>Usually not. An agent result is produced by a trajectory across queue waits, worker attempts, model and tool calls, pauses, and resumes—not by one API request.</strong> Use `run_id` as the product anchor and correlate traces, metrics, structured logs, and durable events to explain where time went and which decision changed the result.
+</AnswerBlock>
+
+The previous article, [Where Does an Agent Resume?](/en/ai/agents/checkpoint-resume-durable-hitl/), made a run resumable across checkpoints, approvals, and new worker attempts. Production incidents now ask harder questions.
+
+> “The email was sent. Why did the user see a failure?”
+>
+> “This run took 45 minutes, but model execution took eight seconds.”
+>
+> “The retry succeeded. Why did the cost triple?”
+
+A `tool_completed` line says that a tool finished. It does not say which attempt owned the call, whether the result was reused, or how much of the user's 45-minute wait it explains.
+
+The unit of agent observability must be the **run trajectory**, not the process log.
+
+<AgentObservabilityDiagrams
+  kind="trajectory"
+  language="en"
+  caption="Figure 1. One run crosses processes, traces, and worker attempts but remains one product trajectory."
+/>
+
+## A trajectory is causality, not a transcript
+
+A trajectory is not a list of prompts and final answers. It is the ordered causal history from run acceptance to terminal result.
+
+```text
+run accepted
+  → queue published → worker claimed
+  → model planned → retrieval called → tool failed
+  → retry scheduled → checkpoint persisted
+  → approval requested → approval decided
+  → new attempt claimed → side effect committed
+  → result published
+```
+
+It must answer three questions.
+
+1. **What happened?** State transitions, model and tool calls, retries, and decisions.
+2. **Why did it happen?** Parent-child relationships, input versions, policies, and errors.
+3. **What did it cost?** Queue wait, wall time, active time, tokens, and money.
+
+Sorting timestamps from independent services does not create causality. Record which span published a message, which attempt consumed it, and which checkpoint and approval a resumed execution inherited.
+
+## Connect identifiers instead of collapsing them
+
+Each identifier answers a different question.
+
+| Identifier | What it identifies | Lifetime |
+| --- | --- | --- |
+| `session_id` | Persistent conversation context | Multiple runs |
+| `run_id` | One user-visible execution | Acceptance through terminal state |
+| `attempt_id` | One period of worker ownership | Claim through release |
+| `trace_id` | One telemetry causal tree | May split at propagation boundaries |
+| `span_id` | One operation | Model, tool, database, queue, and so on |
+| `tool_call_id` | One logical external action | Stable across retry and replay |
+| `event_id` | Position of a durable product event | Append-only timeline |
+
+`run_id` and `trace_id` do not need to be the same value. The run ID is a product identifier that must survive sampling and exporter failure. The trace ID connects spans inside the telemetry backend.
+
+A short synchronous request may fit in one trace. A run resumed hours later is often easier to operate as a new trace per attempt, with a **span link** to the earlier trace or checkpoint span. Put the same searchable `run_id` and `attempt_id` on every span.
+
+## Do not trap the root span inside the HTTP request
+
+`POST /runs` returns `202 Accepted` after admitting work. Treating its server span as the root of the entire agent execution makes queue wait and later worker activity disappear when the HTTP request ends.
+
+Model the boundaries as they exist.
+
+```text
+HTTP POST /runs
+  └─ queue publish
+
+queue consume
+  └─ agent.run attempt=1
+       ├─ graph.node plan
+       │    └─ gen_ai.invoke
+       ├─ retrieval.query
+       └─ tool.call weather
+
+queue consume
+  └─ agent.run attempt=2  -- linked to attempt=1
+       └─ tool.call send_email
+```
+
+Propagate trace context across queue producers and consumers. Use links when a long pause, resume job, or batch relay makes a single direct parent misleading. Always persist `run_id`, `attempt_id`, and `checkpoint_id` in the product database as well.
+
+```python
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+
+tracer = trace.get_tracer("agent-runtime")
+
+async def execute_attempt(run, attempt):
+    with tracer.start_as_current_span("agent.run") as span:
+        span.set_attribute("agent.run.id", str(run.id))
+        span.set_attribute("agent.attempt.id", str(attempt.id))
+        span.set_attribute("agent.graph.version", run.graph_version)
+        span.set_attribute("agent.operation", "resume" if attempt.is_resume else "start")
+
+        try:
+            return await graph.ainvoke(run.input, config=run.config)
+        except Exception as exc:
+            span.record_exception(exc)
+            span.set_status(Status(StatusCode.ERROR, type(exc).__name__))
+            raise
+```
+
+Version the team's attribute names as a semantic convention. When adopting OpenTelemetry's GenAI conventions, document how application-specific run and attempt fields map into them.
+
+## Traces, metrics, logs, and product events are not substitutes
+
+<AgentObservabilityDiagrams
+  kind="signals"
+  language="en"
+  caption="Figure 2. Traces, metrics, logs, and product events answer different questions about the same run."
+/>
+
+| Signal | What it does well | Why it is insufficient alone |
+| --- | --- | --- |
+| Trace | Path, parent-child relationships, critical path | May be sampled or fail to export |
+| Metric | Rates, distributions, trends, alerts | Loses detailed causality for one run |
+| Structured log | Error details and investigation clues | Ordering alone does not prove distributed causality |
+| Product event | Durable lifecycle, audit, UI restoration | Inefficient for stacks and high-resolution timing |
+
+A `run_succeeded` product event is committed product truth. Emitting a log with the same name does not prove the product transaction committed. Conversely, a telemetry exporter outage must not erase terminal run state or billable usage.
+
+Cross-reference observability signals, but do not merge their source-of-truth responsibilities.
+
+## A structured log is an event with join keys
+
+Human-readable sentences require a parser whenever an investigation begins.
+
+```python
+logger.info(
+    "tool_completed",
+    extra={
+        "run_id": str(run.id),
+        "attempt_id": str(attempt.id),
+        "tool_call_id": tool_call.id,
+        "tool": tool_call.name,
+        "outcome": "succeeded",
+        "latency_ms": elapsed_ms,
+        "retry_count": tool_call.retry_count,
+        "input_schema_version": tool_call.schema_version,
+    },
+)
+```
+
+Injecting the current `trace_id` and `span_id` in the log processor makes it easy to move from a trace to error detail. Manage event names and field types as schemas. Record a stable error class and retryability with exceptions.
+
+Raw prompts, model outputs, and tool payloads are not default log fields. They may contain credentials, personal data, or customer documents, and they are expensive to retain. Prefer allowlisted fields, digests, byte sizes, schema versions, and encrypted payload references with separate authorization.
+
+## Metrics describe distributions; they do not locate runs
+
+Metric labels should contain dimensions with a bounded set of values.
+
+```text
+agent_runs_total{operation, outcome, graph_version}
+agent_run_duration_seconds_bucket{operation, outcome}
+agent_queue_wait_seconds_bucket{queue, priority}
+agent_tool_duration_seconds_bucket{tool, outcome}
+agent_model_tokens_total{model_family, direction}
+agent_active_runs{operation}
+agent_pending_approvals{action_type}
+```
+
+Putting `run_id`, `session_id`, email, or raw URL in a label creates time series at the rate of runs or users. Search for unique IDs in traces and logs instead.
+
+Collect latency as histograms so p50, p95, p99, and bucket distributions remain visible. When percentiles must aggregate across service instances, choose an aggregatable histogram rather than instance-local quantiles.
+
+<AgentObservabilityDiagrams
+  kind="cardinality"
+  language="en"
+  caption="Figure 3. Aggregate dimensions, lookup identifiers, and sensitive payloads require different storage and retention policies."
+/>
+
+## Decompose end-to-end latency by stage
+
+User-perceived time is not the same as time spent actively using CPU or a network connection.
+
+```text
+end_to_end_elapsed
+  = admission_wait
+  + queue_wait
+  + active_compute
+  + external_service_wait
+  + approval_wait
+  + retry_backoff
+  + publication_settle
+```
+
+If a run took 45 minutes and its model invocation took eight seconds, model optimization is not the first answer. First distinguish a policy-compliant approval wait from queue saturation and a tool timeout that triggered retries.
+
+<AgentObservabilityDiagrams
+  kind="waterfall"
+  language="en"
+  caption="Figure 4. Stage decomposition reveals the real bottleneck behind user-perceived latency."
+/>
+
+A trace exposes the critical path for one run. Histograms show how frequently the same stage is slow across the fleet. You need both to connect incident scope with root cause.
+
+## Start token and cost attribution at the span, settle it in a ledger
+
+Each model span should carry at least:
+
+- provider and model identifiers;
+- input, cached-input, and output tokens;
+- latency and retry count;
+- request outcome and provider request ID;
+- graph node and child-agent role; and
+- pricing version or a usage reference sufficient to calculate cost.
+
+Do not bill from trace data alone. Traces may be sampled and exporters may fail. Commit billing and quota usage to a durable, unsampled ledger, then link the ledger entry ID from the trace.
+
+A successful answer can hide a failed model attempt. Quality dashboards remain green while cost rises. Attribute cost not only to the run total but also to attempts, graph nodes, model calls, and retry reasons.
+
+## A successful status and a good answer are different axes
+
+`succeeded` means the runtime contract completed. It does not mean the answer is accurate or well grounded.
+
+| Axis | Examples |
+| --- | --- |
+| Operational outcome | succeeded, partial, timed_out, cancelled, failed |
+| Tool correctness | valid schema, expected side effect, no duplicate |
+| Answer quality | groundedness, task completion, reviewer score |
+| Efficiency | latency, tokens, cost, retry count |
+
+Attach evaluator results to `run_id`, answer version, evaluator version, and dataset slice. This is how a team discovers that a new graph version is faster but less grounded for one class of questions.
+
+Online evaluation supports alerting and targeted sampling. Offline evaluation supports reproducible regression comparisons. In either case, connect user feedback to the trajectory that produced the answer, not only to the final text.
+
+## Sampling is a diagnostic cost policy, not a truth policy
+
+You do not need to retain every successful trace forever. You do need to keep rare errors, deadline misses, expensive runs, and retry storms visible.
+
+Separate policy by signal.
+
+- Metrics: observe all operations needed for aggregation.
+- Product events and usage ledger: durable and unsampled.
+- Traces: baseline sampling plus error, high-latency, and high-cost retention.
+- Logs: retention by severity and event type, with payload redaction.
+
+Tail sampling can decide after a trace completes, preserving errors or latency outliers at the cost of collecting complete traces before the decision. If head sampling is used, include sampled-state and possible trace loss in the incident procedure.
+
+Redaction belongs at the source SDK or collector boundary, not merely in a dashboard view. Apply tenant-aware access control, encryption, retention tiers, and deletion policy to telemetry stores.
+
+## Debugging is a narrowing workflow, not a line search
+
+A reproducible production investigation follows a sequence.
+
+1. Read `run_id`, terminal outcome, graph version, and attempts from the product database.
+2. Search traces by `run_id` and reconstruct the timeline and critical path.
+3. Open structured logs and provider request IDs for failed, slow, or expensive spans.
+4. Compare trace order with checkpoints, approvals, and the execution ledger.
+5. Use histograms and error rates for the same version and operation to separate one run from a fleet-wide problem.
+6. Reproduce the trajectory with a redacted fixture and the same evaluator version.
+
+When telemetry is missing, durable events and ledgers must still explain the product result. When product events lack diagnostic detail, traces and logs fill that gap.
+
+## Dashboards should show lifecycle and bottlenecks together
+
+A minimum dashboard should answer:
+
+- What are run acceptance and terminal success, partial, failure, cancellation, and timeout rates?
+- What are p50, p95, and p99 queue wait and end-to-end latency?
+- What are error and retry rates by operation, graph version, and model family?
+- How many runs, queued jobs, and pending approvals exist, and what is the oldest age?
+- What are the token and cost distributions per run, and where did they change abruptly?
+- What are latency, error, and circuit-open rates by tool?
+
+Alerts should connect a proximate cause with user impact. Pair rising `queue_wait_p95` with backlog and deadline-miss rate. Prefer a sustained error ratio at meaningful traffic over an isolated error count.
+
+## Observability needs failure tests too
+
+- Does trace context cross queue publish and consume?
+- Does a replacement attempt remain connected to the same run after worker failure?
+- Does the resumed trace link back to the attempt that paused?
+- Do tool retries retain one logical `tool_call_id`?
+- Can exporter failure occur without blocking the run commit or usage ledger?
+- Can durable product events restore lifecycle when no trace was sampled?
+- Do CI or collector rules reject unique IDs in metric labels?
+- Are secrets and personal data removed from prompts, outputs, headers, and tool payloads?
+- Can causal parents and event sequence resolve order under clock skew?
+- Are graph and evaluator versions retained for every comparison?
+
+Observability tested only on the golden path fails first during a real incident. Inject worker termination, duplicate delivery, exporter outage, and slow providers, then verify the signals that remain.
+
+## Implementation checklist
+
+- Is `run_id` a common lookup key across traces, logs, and durable events?
+- Are `attempt_id`, `tool_call_id`, and `checkpoint_id` distinct concepts?
+- Do asynchronous queue boundaries propagate context or create span links?
+- Are source-of-truth responsibilities separate across telemetry and product events?
+- Are structured-log fields and semantic conventions versioned?
+- Are metric labels limited to low-cardinality dimensions?
+- Are queue, active, external, approval, and retry latency separated?
+- Can tokens and cost be attributed to run, attempt, node, and retry?
+- Is billing usage stored durably and independently from trace sampling?
+- Are operational outcome and answer quality measured on separate axes?
+- Does sampling retain errors, latency outliers, and expensive runs?
+- Are sensitive payloads redacted at the source or collector?
+- Do dashboards and alerts connect user impact with saturation?
+- Do failure tests include the observability pipeline itself?
+
+## Once overload is visible, the system must control it
+
+A connected trajectory turns “it is slow” into queue wait, provider latency, approval wait, or a retry storm. But if backlog and active runs keep growing while every request is admitted, observability only explains the damage afterward.
+
+The next article, **Backpressure, Quotas, and Admission Control**, uses tenant and operation quotas, bounded queues, concurrency limits, and overload responses to keep an agent backend recoverable under pressure.

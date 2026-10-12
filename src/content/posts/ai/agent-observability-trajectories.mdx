@@ -1,0 +1,362 @@
+---
+title: "Agent를 디버깅하는 법: Logs보다 Trajectory가 중요하다"
+subtitle: "여러 Worker와 Tool을 건너는 실행의 원인, 지연, 비용을 하나의 궤적으로 연결하기"
+description: "Agent run의 trace, metric, structured log, product event를 연결해 오류 원인과 latency, token, cost를 실행 trajectory 단위로 분석하는 방법을 설명합니다."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - observability
+  - opentelemetry
+  - distributed-tracing
+  - agent-runtime
+  - llm-evaluation
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "ko"
+translationKey: "agent-observability-trajectories"
+series: "Agent Engineering"
+seriesOrder: 18
+seriesPart: "delivery"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "OpenTelemetry Signals"
+    url: "https://opentelemetry.io/docs/concepts/signals/"
+    publisher: "OpenTelemetry Documentation"
+  - title: "OpenTelemetry Traces"
+    url: "https://opentelemetry.io/docs/concepts/signals/traces/"
+    publisher: "OpenTelemetry Documentation"
+  - title: "OpenTelemetry Logs"
+    url: "https://opentelemetry.io/docs/concepts/signals/logs/"
+    publisher: "OpenTelemetry Documentation"
+  - title: "OpenTelemetry Semantic Conventions"
+    url: "https://opentelemetry.io/docs/concepts/semantic-conventions/"
+    publisher: "OpenTelemetry Documentation"
+  - title: "Generative AI Semantic Conventions"
+    url: "https://opentelemetry.io/docs/specs/semconv/gen-ai/"
+    publisher: "OpenTelemetry Documentation"
+  - title: "Histograms and Summaries"
+    url: "https://prometheus.io/docs/practices/histograms/"
+    publisher: "Prometheus Documentation"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import AgentObservabilityDiagrams from '../../../components/AgentObservabilityDiagrams.astro';
+
+<AnswerBlock question="Agent 장애는 로그 몇 줄만으로 원인을 찾을 수 있는가?">
+  <strong>대부분 찾을 수 없다. Agent의 결과는 API 요청 하나가 아니라 Queue 대기, 여러 Worker attempt, model·tool 호출, pause와 resume가 만든 전체 trajectory의 산물이다.</strong> `run_id`를 제품 기준점으로 삼고 trace, metric, structured log, durable event를 연결해야 어디서 시간이 쓰였고 어떤 decision이 결과를 바꿨는지 설명할 수 있다.
+</AnswerBlock>
+
+앞선 글 [Agent는 어디서 다시 시작하는가](/ai/agents/checkpoint-resume-durable-hitl/)에서는 하나의 run이 checkpoint, approval과 새 Worker attempt를 거쳐 재개되는 구조를 만들었다. 이제 production 장애가 들어온다.
+
+> “메일은 전송됐는데 왜 사용자는 실패로 봤나요?”
+>
+> “이 run은 45분 걸렸는데 model은 8초만 사용했습니다.”
+>
+> “재시도 뒤 답은 성공했지만 비용이 왜 세 배인가요?”
+
+`tool_completed` 한 줄은 tool이 끝났다는 사실만 말한다. 그 호출이 어느 run의 몇 번째 attempt였는지, 앞선 결과를 재사용했는지, 사용자가 기다린 45분 중 얼마를 차지했는지는 말하지 않는다.
+
+Agent observability의 분석 단위는 process log가 아니라 **run trajectory**여야 한다.
+
+<AgentObservabilityDiagrams
+  kind="trajectory"
+  language="ko"
+  caption="그림 1. 하나의 run은 여러 process, trace와 Worker attempt를 지나지만 제품 관점에서는 한 trajectory다."
+/>
+
+## Trajectory는 출력이 아니라 인과관계다
+
+Trajectory는 prompt와 최종 answer의 목록이 아니다. Run을 만든 요청부터 terminal result까지 이어지는 ordered causal history다.
+
+```text
+run accepted
+  → queue published → worker claimed
+  → model planned → retrieval called → tool failed
+  → retry scheduled → checkpoint persisted
+  → approval requested → approval decided
+  → new attempt claimed → side effect committed
+  → result published
+```
+
+이 궤적은 세 질문에 답해야 한다.
+
+1. **무엇이 일어났나?** 상태 전이, model·tool 호출, retry와 decision
+2. **왜 그렇게 됐나?** 부모-자식 관계, input version, policy와 error
+3. **얼마가 들었나?** queue wait, wall time, active time, token과 cost
+
+개별 서비스의 timestamp를 정렬한 것만으로는 인과관계가 생기지 않는다. 메시지가 어떤 span에서 publish됐고 어느 attempt가 consume했는지, resume이 어느 checkpoint와 approval을 이어받았는지를 기록해야 한다.
+
+## ID는 하나로 합치지 말고 연결한다
+
+관찰을 위한 ID도 서로 다른 질문에 답한다.
+
+| ID | 가리키는 대상 | 지속 범위 |
+| --- | --- | --- |
+| `session_id` | 지속 대화 context | 여러 run |
+| `run_id` | 사용자에게 보이는 하나의 실행 | accept부터 terminal까지 |
+| `attempt_id` | Worker가 ownership을 가진 한 번의 시도 | claim부터 release까지 |
+| `trace_id` | telemetry의 한 인과 트리 | process·전파 경계에 따라 분할 가능 |
+| `span_id` | 하나의 operation | model, tool, DB, queue 등 |
+| `tool_call_id` | 하나의 logical external action | retry와 replay를 넘어 안정적 |
+| `event_id` | durable product event의 위치 | append-only timeline |
+
+`run_id`와 `trace_id`를 같은 값으로 만들 필요는 없다. `run_id`는 sampling이나 exporter 장애가 있어도 남아야 하는 제품 식별자다. `trace_id`는 telemetry backend에서 span을 연결하는 식별자다.
+
+짧은 동기 요청은 하나의 trace로 충분할 수 있다. 그러나 몇 시간 뒤 resume되는 run은 attempt마다 새 trace를 만들고 이전 trace 또는 checkpoint span에 **span link**를 남기는 편이 운영하기 쉽다. 모든 span에는 searchable attribute로 같은 `run_id`와 `attempt_id`를 기록한다.
+
+## Root span을 HTTP request에 가두지 않는다
+
+`POST /runs`는 execution을 접수한 뒤 `202 Accepted`로 끝난다. 따라서 HTTP server span을 Agent 실행 전체의 root로 취급하면 API 응답 뒤의 queue wait와 Worker 실행이 사라진다.
+
+권장 모델은 경계를 그대로 드러낸다.
+
+```text
+HTTP POST /runs
+  └─ queue publish
+
+queue consume
+  └─ agent.run attempt=1
+       ├─ graph.node plan
+       │    └─ gen_ai.invoke
+       ├─ retrieval.query
+       └─ tool.call weather
+
+queue consume
+  └─ agent.run attempt=2  -- linked to attempt=1
+       └─ tool.call send_email
+```
+
+Queue producer와 consumer 사이에는 trace context를 전파한다. 오랜 pause, 별도 resume job, batch relay처럼 하나의 직접 부모를 고르기 어려운 경계에는 link를 사용한다. 동시에 product DB에는 항상 `run_id`, `attempt_id`, `checkpoint_id`를 남긴다.
+
+```python
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+
+tracer = trace.get_tracer("agent-runtime")
+
+async def execute_attempt(run, attempt):
+    with tracer.start_as_current_span("agent.run") as span:
+        span.set_attribute("agent.run.id", str(run.id))
+        span.set_attribute("agent.attempt.id", str(attempt.id))
+        span.set_attribute("agent.graph.version", run.graph_version)
+        span.set_attribute("agent.operation", "resume" if attempt.is_resume else "start")
+
+        try:
+            return await graph.ainvoke(run.input, config=run.config)
+        except Exception as exc:
+            span.record_exception(exc)
+            span.set_status(Status(StatusCode.ERROR, type(exc).__name__))
+            raise
+```
+
+Attribute 이름은 팀의 semantic convention으로 versioning한다. OpenTelemetry의 GenAI convention을 사용할 때도 application-specific run·attempt field와의 mapping을 문서화한다.
+
+## Trace, metric, log, product event는 서로 대체하지 않는다
+
+<AgentObservabilityDiagrams
+  kind="signals"
+  language="ko"
+  caption="그림 2. 같은 run을 보더라도 trace, metric, log와 product event가 답하는 질문은 다르다."
+/>
+
+| 신호 | 잘하는 일 | 단독으로 부족한 이유 |
+| --- | --- | --- |
+| Trace | 경로, parent-child, critical path | sampling되거나 export에 실패할 수 있음 |
+| Metric | 비율, 분포, 추세, alert | 개별 run의 상세 인과관계를 잃음 |
+| Structured log | 오류 detail과 조사 단서 | 순서만으로 분산 인과관계를 보장하지 않음 |
+| Product event | durable lifecycle, audit, UI 복원 | 진단용 stack과 고해상도 timing에는 비효율적 |
+
+`run_succeeded` product event는 사용자에게 확정된 사실이다. 같은 이름의 log가 전송됐다고 product transaction이 commit된 것은 아니다. 반대로 telemetry exporter가 잠시 실패해도 run의 terminal state와 billing usage는 사라져서는 안 된다.
+
+관찰 신호는 **cross-reference**하고, source of truth의 책임은 합치지 않는다.
+
+## Structured log는 문장이 아니라 join key를 가진 event다
+
+사람이 읽기 좋은 문장만 남기면 검색 때마다 parser가 필요하다.
+
+```python
+logger.info(
+    "tool_completed",
+    extra={
+        "run_id": str(run.id),
+        "attempt_id": str(attempt.id),
+        "tool_call_id": tool_call.id,
+        "tool": tool_call.name,
+        "outcome": "succeeded",
+        "latency_ms": elapsed_ms,
+        "retry_count": tool_call.retry_count,
+        "input_schema_version": tool_call.schema_version,
+    },
+)
+```
+
+Log processor가 현재 `trace_id`와 `span_id`를 자동 주입하면 trace에서 error detail로 이동하기 쉽다. Event name과 field type은 schema로 관리하고, exception에는 stable error class와 retryable 여부를 함께 기록한다.
+
+Raw prompt, model output와 tool payload는 기본 log field가 아니다. Credential, 개인정보, 고객 문서가 섞일 수 있고 payload 크기와 보존 비용도 크다. 필요한 경우 allowlist된 field, digest, byte size, schema version, 별도 권한이 있는 encrypted payload reference를 사용한다.
+
+## Metric은 run을 찾는 곳이 아니라 분포를 보는 곳이다
+
+Metric label에는 값의 종류가 제한된 dimension만 둔다.
+
+```text
+agent_runs_total{operation, outcome, graph_version}
+agent_run_duration_seconds_bucket{operation, outcome}
+agent_queue_wait_seconds_bucket{queue, priority}
+agent_tool_duration_seconds_bucket{tool, outcome}
+agent_model_tokens_total{model_family, direction}
+agent_active_runs{operation}
+agent_pending_approvals{action_type}
+```
+
+`run_id`, `session_id`, email, raw URL을 label로 넣으면 run이나 사용자 수만큼 time series가 늘어난다. 고유 ID는 trace와 log에서 검색하고 metric에는 넣지 않는다.
+
+Latency는 average 하나가 아니라 histogram으로 수집해 p50, p95, p99와 bucket 분포를 본다. 서비스 여러 instance의 percentile을 합쳐야 한다면 aggregation 가능한 histogram을 선택한다.
+
+<AgentObservabilityDiagrams
+  kind="cardinality"
+  language="ko"
+  caption="그림 3. 집계 dimension, 검색 ID, 민감 payload는 저장 위치와 보존 정책이 달라야 한다."
+/>
+
+## End-to-end latency를 구간별로 분해한다
+
+사용자가 경험한 시간과 Worker가 CPU·network를 사용한 시간은 다르다.
+
+```text
+end_to_end_elapsed
+  = admission_wait
+  + queue_wait
+  + active_compute
+  + external_service_wait
+  + approval_wait
+  + retry_backoff
+  + publication_settle
+```
+
+Run이 45분 걸렸지만 model invocation은 8초였다면 model 최적화가 답이 아니다. Approval wait이 정책상 정상인지, Queue가 포화됐는지, tool timeout이 retry를 만들었는지부터 구분한다.
+
+<AgentObservabilityDiagrams
+  kind="waterfall"
+  language="ko"
+  caption="그림 4. 전체 latency를 구간별로 나눠야 사용자가 느낀 지연의 실제 병목을 찾을 수 있다."
+/>
+
+Trace는 한 run의 critical path를 보여 주고 histogram은 같은 구간이 전체 fleet에서 얼마나 자주 느린지 보여 준다. 둘 중 하나만으로는 incident의 범위와 원인을 함께 알기 어렵다.
+
+## Token과 cost도 span에서 시작해 ledger로 확정한다
+
+Model span에는 최소한 다음 값을 남긴다.
+
+- provider와 model 식별자
+- input, cached input, output token
+- latency와 retry count
+- request outcome과 provider request ID
+- graph node와 child-agent role
+- pricing version 또는 cost 계산에 필요한 usage reference
+
+하지만 trace에 기록된 cost만으로 청구하지 않는다. Trace는 sampling될 수 있고 exporter가 실패할 수 있다. Billing과 quota에 쓰는 usage는 durable ledger에 unsampled record로 commit하고, trace에는 ledger entry ID를 연결한다.
+
+한 번의 model retry가 성공 답 뒤에 가려지면 품질 dashboard는 정상인데 비용만 오른다. 따라서 cost는 run total뿐 아니라 attempt, graph node, model call과 retry reason으로 귀속할 수 있어야 한다.
+
+## 성공 status와 좋은 답은 다른 축이다
+
+`succeeded`는 runtime contract가 완료됐다는 뜻이다. Answer가 정확하고 근거가 충분하다는 뜻은 아니다.
+
+| 축 | 예시 |
+| --- | --- |
+| Operational outcome | succeeded, partial, timed_out, cancelled, failed |
+| Tool correctness | schema valid, expected side effect, duplicate 없음 |
+| Answer quality | groundedness, task completion, reviewer score |
+| Efficiency | latency, token, cost, retry 수 |
+
+Evaluator 결과에는 `run_id`, answer version, evaluator version과 evaluation dataset slice를 연결한다. 그래야 “새 graph version이 빨라졌지만 특정 질문군의 groundedness가 떨어졌다”를 찾을 수 있다.
+
+Online evaluation은 alert와 sampling에 유용하고, offline evaluation은 회귀 비교와 재현에 유용하다. 어느 쪽이든 사용자 feedback을 최종 answer text에만 붙이지 말고 그 answer를 만든 trajectory와 연결한다.
+
+## Sampling은 진단 비용 정책이지 진실의 보존 정책이 아니다
+
+모든 성공 trace를 영구 보존할 필요는 없다. 반면 rare error, deadline 초과, 고비용 run과 retry storm을 놓치면 sampling의 목적이 무너진다.
+
+운영 정책은 신호별로 분리한다.
+
+- Metric: 집계에 필요한 모든 observation을 수집
+- Product event와 usage ledger: durable하고 unsampled하게 보존
+- Trace: 기본 sample rate + error·high-latency·high-cost 보존 정책
+- Log: severity와 event별 retention, payload redaction
+
+Tail sampling은 trace가 끝난 뒤 error나 latency 기준으로 보존 결정을 내릴 수 있지만 collector에 완전한 trace를 모으는 비용이 든다. Head sampling을 사용한다면 sampled flag와 trace 손실 가능성을 incident 절차에 반영한다.
+
+Redaction은 dashboard에서 숨기는 것이 아니라 source SDK 또는 collector 경계에서 수행한다. Tenant별 접근 제어, encryption, retention tier와 삭제 정책도 telemetry 저장소에 적용한다.
+
+## 디버깅은 한 줄 검색이 아니라 좁혀 가는 절차다
+
+Production incident에서는 다음 순서가 재현 가능하다.
+
+1. Product DB에서 `run_id`, terminal outcome, graph version과 active attempts를 확인한다.
+2. `run_id`로 trace를 찾아 전체 timeline과 critical path를 복원한다.
+3. 실패·장시간·고비용 span을 골라 structured log와 provider request ID를 연다.
+4. Checkpoint, approval, execution ledger와 trace의 순서가 일치하는지 대조한다.
+5. 같은 version·operation의 histogram과 error rate로 단일 run인지 fleet 문제인지 판별한다.
+6. Redacted fixture와 evaluator version으로 trajectory를 재현한다.
+
+Telemetry가 일부 유실돼도 durable event와 ledger에서 제품 결과를 설명할 수 있어야 한다. 반대로 product event만으로 원인을 알 수 없다면 trace와 log가 진단 detail을 보충한다.
+
+## Dashboard는 lifecycle과 병목을 함께 보여 준다
+
+최소 dashboard는 다음 질문에 바로 답해야 한다.
+
+- Run acceptance, terminal success·partial·failure·cancel·timeout 비율은?
+- Queue wait와 end-to-end latency의 p50·p95·p99는?
+- Operation, graph version, model family별 error와 retry 비율은?
+- Active run, queue backlog, pending approval과 oldest age는?
+- Run당 token·cost 분포와 급격한 변화는?
+- Tool별 latency, error, circuit-open 비율은?
+
+Alert도 원인에 가까운 신호와 사용자 영향을 연결한다. 예를 들어 `queue_wait_p95` 상승만 울리는 대신 backlog와 deadline miss 비율을 함께 본다. Error count 하나보다 충분한 traffic에서 error ratio가 지속되는지를 판단한다.
+
+## 관찰 가능성도 실패 테스트가 필요하다
+
+- Queue publish·consume 사이 trace context가 전파되는가?
+- Worker crash 뒤 새 attempt가 같은 run에 연결되는가?
+- Pause 뒤 resume trace가 이전 attempt에 link되는가?
+- 같은 tool retry가 하나의 logical `tool_call_id`로 보이는가?
+- Exporter 장애가 run commit과 usage ledger를 막지 않는가?
+- Sample되지 않은 trace도 product event로 lifecycle을 복원할 수 있는가?
+- Metric label에 고유 ID가 들어오면 CI나 collector가 거부하는가?
+- Prompt, output, header와 tool payload에서 secret·PII가 제거되는가?
+- Clock skew가 있어도 causal parent와 event sequence로 순서를 판단할 수 있는가?
+- Graph version과 evaluator version이 모든 비교에 남는가?
+
+Golden path screenshot만 확인하는 observability는 실제 장애에서 처음 깨진다. Worker kill, duplicate delivery, exporter outage와 slow provider를 fault injection해 신호가 어떻게 남는지 검증한다.
+
+## 구현 체크리스트
+
+- `run_id`를 모든 trace, log, durable event의 공통 검색 키로 남기는가?
+- `attempt_id`, `tool_call_id`, `checkpoint_id`의 의미가 분리되어 있는가?
+- Async queue 경계에서 context propagation 또는 span link를 사용하는가?
+- Trace, metric, log와 product event의 source-of-truth 책임이 분리됐는가?
+- Structured log field와 semantic convention을 versioning하는가?
+- Metric label이 low-cardinality dimension으로 제한되는가?
+- Queue, active, external, approval와 retry latency를 분리하는가?
+- Token과 cost를 run·attempt·node·retry에 귀속할 수 있는가?
+- Billing usage는 trace sampling과 독립적인 durable ledger인가?
+- Operational outcome과 answer quality를 별도 축으로 평가하는가?
+- Error·high-latency·high-cost run을 보존할 sampling 정책이 있는가?
+- 민감 payload가 source 또는 collector에서 redaction되는가?
+- Dashboard와 alert가 user impact와 saturation을 함께 보여 주는가?
+- Observability pipeline 장애를 포함한 failure test가 있는가?
+
+## 보이면 이제 부하를 제어할 수 있어야 한다
+
+Trajectory를 연결하면 “느리다”는 현상이 queue wait, provider latency, approval wait, retry storm 중 어디에서 생겼는지 보인다. 하지만 backlog와 active run이 계속 증가하는데도 모든 요청을 받는다면 관찰은 사후 설명에 그친다.
+
+다음 글에서는 **Backpressure, Quotas, Admission Control**을 통해 tenant와 operation별 quota, bounded queue, concurrency limit와 overload response로 Agent backend가 과부하에서도 회복 가능한 상태를 유지하는 방법을 다룬다.

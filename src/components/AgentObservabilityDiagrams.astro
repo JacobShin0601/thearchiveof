@@ -1,0 +1,117 @@
+---
+interface Props {
+  kind: 'trajectory' | 'signals' | 'waterfall' | 'cardinality';
+  language?: 'ko' | 'en';
+  caption: string;
+}
+
+const { kind, language = 'ko', caption } = Astro.props;
+const ko = language === 'ko';
+
+const trajectory = ko
+  ? [
+      ['API', 'run accepted', 'R18'],
+      ['Queue', 'wait 420 ms', 'publish → consume'],
+      ['Attempt 1', 'plan · model · tool', 'checkpoint'],
+      ['Pause', 'approval 42 min', 'ownership 없음'],
+      ['Attempt 2', 'resume · effect', 'fenced'],
+      ['Result', 'succeeded', 'event cursor 91'],
+    ]
+  : [
+      ['API', 'run accepted', 'R18'],
+      ['Queue', 'wait 420 ms', 'publish → consume'],
+      ['Attempt 1', 'plan · model · tool', 'checkpoint'],
+      ['Pause', 'approval 42 min', 'no owner'],
+      ['Attempt 2', 'resume · effect', 'fenced'],
+      ['Result', 'succeeded', 'event cursor 91'],
+    ];
+
+const signals = ko
+  ? [
+      ['Trace', '어디에서 왜 느렸나?', 'span · causality · critical path'],
+      ['Metric', '얼마나 자주, 얼마나 큰가?', 'rate · histogram · saturation'],
+      ['Log', '그 순간 무슨 일이 있었나?', 'structured event · error detail'],
+      ['Product event', '사용자에게 무엇이 확정됐나?', 'durable lifecycle · audit'],
+    ]
+  : [
+      ['Trace', 'Where and why was it slow?', 'span · causality · critical path'],
+      ['Metric', 'How often and how much?', 'rate · histogram · saturation'],
+      ['Log', 'What happened at that moment?', 'structured event · error detail'],
+      ['Product event', 'What became product truth?', 'durable lifecycle · audit'],
+    ];
+
+const waterfall = ko
+  ? [
+      ['Queue wait', '12%', 12],
+      ['Model', '26%', 26],
+      ['Tool', '18%', 18],
+      ['Approval wait', '34%', 34],
+      ['Retry · settle', '10%', 10],
+    ]
+  : [
+      ['Queue wait', '12%', 12],
+      ['Model', '26%', 26],
+      ['Tool', '18%', 18],
+      ['Approval wait', '34%', 34],
+      ['Retry · settle', '10%', 10],
+    ];
+---
+
+<figure class="observe-diagram" aria-label={caption}>
+  {kind === 'trajectory' && (
+    <div class="trajectory">
+      <header><code>run_id=R18</code><span>{ko ? '여러 process와 attempt를 잇는 제품 기준점' : 'Product anchor across processes and attempts'}</span></header>
+      <ol>
+        {trajectory.map(([owner, event, detail], index) => (
+          <li class:list={{ pause: owner === 'Pause' }}>
+            <span>0{index + 1}</span><strong>{owner}</strong><p>{event}</p><code>{detail}</code>
+          </li>
+        ))}
+      </ol>
+      <footer><code>trace A</code><i></i><code>span link</code><i></i><code>trace B</code></footer>
+    </div>
+  )}
+
+  {kind === 'signals' && (
+    <div class="signals">
+      {signals.map(([name, question, answer], index) => (
+        <section>
+          <span>0{index + 1}</span><strong>{name}</strong><p>{question}</p><code>{answer}</code>
+        </section>
+      ))}
+      <footer>{ko ? '네 신호는 서로 대체하지 않는다. 같은 run_id와 version으로 교차 탐색한다.' : 'The four signals do not replace one another; correlate them with the same run ID and version.'}</footer>
+    </div>
+  )}
+
+  {kind === 'waterfall' && (
+    <div class="waterfall">
+      <header><strong>{ko ? '사용자가 경험한 전체 시간' : 'User-perceived elapsed time'}</strong><code>T = queue + active + external + approval + retry</code></header>
+      <div class="bar">
+        {waterfall.map(([name, value, width], index) => <span style={`--w:${width};--i:${index}`}>{value}</span>)}
+      </div>
+      <ol>{waterfall.map(([name, value], index) => <li><i style={`--i:${index}`}></i><strong>{name}</strong><code>{value}</code></li>)}</ol>
+      <footer>{ko ? '평균 하나는 병목을 숨긴다. 구간별 histogram과 trace의 critical path를 함께 본다.' : 'One average hides the bottleneck. Pair stage histograms with the trace critical path.'}</footer>
+    </div>
+  )}
+
+  {kind === 'cardinality' && (
+    <div class="cardinality">
+      <section class="metric"><span>{ko ? 'Metric label' : 'Metric label'}</span><strong>{ko ? '작고 안정적인 집합' : 'Small, stable dimensions'}</strong><code>operation · outcome · model_family</code><p>{ko ? '집계와 경보' : 'Aggregation and alerts'}</p></section>
+      <section class="search"><span>{ko ? 'Trace / log attribute' : 'Trace / log attribute'}</span><strong>{ko ? '실행을 찾는 고유 식별자' : 'High-cardinality lookup IDs'}</strong><code>run_id · attempt_id · tool_call_id</code><p>{ko ? '검색과 원인 분석' : 'Search and diagnosis'}</p></section>
+      <section class="payload"><span>{ko ? 'Sensitive payload' : 'Sensitive payload'}</span><strong>{ko ? '기본 수집 금지' : 'Do not collect by default'}</strong><code>raw prompt · output · credential · PII</code><p>{ko ? '허용 목록 · redaction · 별도 보관' : 'Allowlist, redact, isolate'}</p></section>
+      <footer>{ko ? 'run_id를 metric label로 만들면 시계열이 run 수만큼 폭증한다.' : 'Using run IDs as metric labels creates a new time series for nearly every run.'}</footer>
+    </div>
+  )}
+
+  <figcaption>{caption}</figcaption>
+</figure>
+
+<style>
+  .observe-diagram{margin:2.5rem 0;padding:1.2rem;border:1px solid var(--line);border-radius:.9rem;background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.9rem;line-height:1.5}.observe-diagram figcaption{margin-top:1rem;color:var(--muted);font-size:.84rem;line-height:1.55}.observe-diagram code{overflow-wrap:anywhere;color:var(--ink);font-size:.71rem}.trajectory{display:grid;gap:.7rem}.trajectory header{display:flex;align-items:center;gap:.75rem;padding:.65rem;border-left:3px solid var(--accent);background:var(--paper)}.trajectory header span{color:var(--muted);font-size:.7rem}.trajectory ol{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.35rem;margin:0;padding:0;list-style:none}.trajectory li{position:relative;display:grid;gap:.2rem;padding:.65rem;border:1px solid var(--line);border-radius:.5rem;background:var(--paper)}.trajectory li:not(:last-child):after{content:'→';position:absolute;right:-.47rem;top:43%;z-index:1;color:var(--accent)}.trajectory li.pause{border-style:dashed}.trajectory li>span{color:var(--muted);font-size:.6rem}.trajectory li strong{font-size:.73rem}.trajectory li p{margin:0;color:var(--muted);font-size:.65rem}.trajectory footer{display:grid;grid-template-columns:auto 1fr auto 1fr auto;align-items:center;gap:.45rem;padding:.55rem;border:1px dashed var(--line);background:var(--paper)}.trajectory footer i{height:1px;background:var(--accent)}
+  .signals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}.signals section{display:grid;grid-template-columns:auto 1fr;gap:.2rem .55rem;padding:.75rem;border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:.5rem;background:var(--paper)}.signals section>span{grid-row:1/4;color:var(--accent);font-size:.62rem;font-weight:800}.signals strong{font-size:.78rem}.signals p{margin:0;color:var(--muted);font-size:.68rem}.signals footer{grid-column:1/-1;padding:.65rem;border:1px dashed var(--line);color:var(--muted);font-size:.71rem}
+  .waterfall{display:grid;gap:.7rem}.waterfall header{display:flex;justify-content:space-between;gap:.7rem;padding:.65rem;border-left:3px solid var(--accent);background:var(--paper)}.bar{display:flex;height:3.2rem;overflow:hidden;border:1px solid var(--line);border-radius:.5rem}.bar span{display:grid;place-items:center;width:calc(var(--w) * 1%);background:color-mix(in srgb,var(--accent) calc(28% + var(--i) * 10%),var(--paper));border-right:1px solid var(--paper-deep);font-size:.67rem;font-weight:700}.waterfall ol{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.35rem;margin:0;padding:0;list-style:none}.waterfall li{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:.25rem .45rem;padding:.5rem;border:1px solid var(--line);background:var(--paper)}.waterfall li i{grid-row:1/3;width:.55rem;height:.55rem;border-radius:50%;background:color-mix(in srgb,var(--accent) calc(35% + var(--i) * 10%),var(--paper))}.waterfall li strong{font-size:.67rem}.waterfall footer{padding:.65rem;border:1px dashed var(--line);color:var(--muted);font-size:.71rem}
+  .cardinality{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.55rem}.cardinality section{display:grid;gap:.3rem;padding:.8rem;border:1px solid var(--line);border-radius:.55rem;background:var(--paper)}.cardinality section>span{color:var(--accent);font-size:.64rem;font-weight:800;text-transform:uppercase}.cardinality section strong{font-size:.76rem}.cardinality section p{margin:.2rem 0 0;color:var(--muted);font-size:.68rem}.cardinality .search{border-top:3px solid var(--accent)}.cardinality .payload{border-style:dashed}.cardinality footer{grid-column:1/-1;padding:.65rem;border-left:3px solid var(--accent);background:var(--paper);color:var(--muted);font-size:.71rem}
+  @media(max-width:760px){.trajectory ol{grid-template-columns:repeat(2,minmax(0,1fr))}.trajectory li:after{display:none}.waterfall ol{grid-template-columns:repeat(2,minmax(0,1fr))}.cardinality{grid-template-columns:1fr}.cardinality footer{grid-column:1}.waterfall header{display:grid}}
+  @media(max-width:520px){.observe-diagram{padding:.8rem}.signals{grid-template-columns:1fr}.signals footer{grid-column:1}.trajectory ol,.waterfall ol{grid-template-columns:1fr}.trajectory footer{grid-template-columns:1fr}.trajectory footer i{width:1px;height:.7rem;margin:auto}.bar{height:5rem}.bar span{font-size:.56rem;writing-mode:vertical-rl}}
+  @media(prefers-color-scheme:dark){.observe-diagram{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
+</style>
