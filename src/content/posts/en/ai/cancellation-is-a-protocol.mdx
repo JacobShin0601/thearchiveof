@@ -1,0 +1,374 @@
+---
+title: "Cancellation Is a Protocol, Not a Status"
+subtitle: "From cancellation intent to cooperative stops, remote work, side effects, and terminal races"
+description: "Design agent cancellation as a distributed protocol using durable intent, worker checkpoints, asyncio cancellation, remote-operation contracts, side-effect policies, terminal races, and safe acknowledgement order."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - cancellation
+  - asyncio
+  - distributed-systems
+  - agent-runtime
+  - fault-tolerance
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "cancellation-is-a-protocol"
+series: "Agent Engineering"
+seriesOrder: 15
+seriesPart: "safety"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "Coroutines and Tasks — Task Cancellation"
+    url: "https://docs.python.org/3/library/asyncio-task.html#task-cancellation"
+    publisher: "Python Documentation"
+  - title: "asyncio Exceptions — CancelledError"
+    url: "https://docs.python.org/3/library/asyncio-exceptions.html#asyncio.CancelledError"
+    publisher: "Python Documentation"
+  - title: "PostgreSQL UPDATE"
+    url: "https://www.postgresql.org/docs/current/dml-update.html"
+    publisher: "PostgreSQL Documentation"
+  - title: "PostgreSQL RETURNING Data from Modified Rows"
+    url: "https://www.postgresql.org/docs/current/dml-returning.html"
+    publisher: "PostgreSQL Documentation"
+  - title: "Redis XREADGROUP"
+    url: "https://redis.io/docs/latest/commands/xreadgroup/"
+    publisher: "Redis Documentation"
+  - title: "Redis XACK"
+    url: "https://redis.io/docs/latest/commands/xack/"
+    publisher: "Redis Documentation"
+  - title: "FastAPI Request"
+    url: "https://fastapi.tiangolo.com/reference/request/"
+    publisher: "FastAPI Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AgentCancellationDiagrams from '../../../../components/AgentCancellationDiagrams.astro';
+
+<AnswerBlock question="What should an agent backend do when a user presses Cancel?">
+  <strong>The API should persist cancellation intent, not claim that cancellation has already finished.</strong> The active worker observes that intent at safe boundaries, stops local tasks and cancellable remote operations, performs cleanup, and fences out late writes. Only then can it commit `cancelled`. External side effects that already committed require idempotency or compensation, not coroutine cancellation.
+</AnswerBlock>
+
+The previous article, [An Agent Request, End to End](/en/ai/agents/agent-request-end-to-end/), connected the complete path: the API creates a run, the queue delivers it, a worker executes it, and the worker acknowledges only after committing the result.
+
+Now the user presses Cancel in the middle of that path. A tempting endpoint looks like this:
+
+```python
+@app.post("/runs/{run_id}/cancel")
+async def cancel_run(run_id: UUID):
+    await db.execute(
+        "UPDATE runs SET status = 'cancelled' WHERE run_id = $1",
+        run_id,
+    )
+```
+
+The response succeeds immediately, but the worker keeps invoking tools. An external API completes a charge, and the result may overwrite the row with `succeeded` a moment later. The screen changed; execution did not.
+
+Cancellation is not one write. It is a protocol that **persists intent, propagates it to the execution owner, stops at safe boundaries, and resolves the race for terminal state**.
+
+<AgentCancellationDiagrams
+  kind="protocol"
+  language="en"
+  caption="Figure 1. Cancellation continues beyond the API write through cooperative worker shutdown and terminal commit."
+/>
+
+## `cancel_requested` and `cancelled` describe different facts
+
+Each record answers a different question.
+
+| Record | Meaning |
+| --- | --- |
+| `cancel_requested_at` | Did the system durably receive the user's intent? |
+| `status = cancelling` | Is the execution owner performing shutdown? |
+| `status = cancelled` | Have execution and cleanup ended with a terminal commit? |
+
+The cancellation endpoint authorizes tenant and run ownership, then conditionally updates only an active run.
+
+```sql
+UPDATE runs
+SET cancel_requested_at = COALESCE(cancel_requested_at, now()),
+    cancel_requested_by = COALESCE(cancel_requested_by, $3),
+    status = 'cancelling'
+WHERE run_id = $1
+  AND tenant_id = $2
+  AND status IN ('queued', 'running')
+RETURNING run_id, status, cancel_requested_at;
+```
+
+A returned row means the request was accepted. If no row is returned, read the run again to distinguish an existing `cancelling` or `cancelled` state, a completion that won first, and an unauthorized or nonexistent run. Repeated requests should return the same outcome.
+
+```http
+POST /runs/7d5.../cancel
+
+HTTP/1.1 202 Accepted
+{
+  "run_id": "7d5...",
+  "status": "cancelling",
+  "cancel_requested_at": "2026-10-12T08:15:30Z"
+}
+```
+
+`202` means the system **safely accepted the cancellation request**, not that execution has stopped.
+
+<AgentCancellationDiagrams
+  kind="state-machine"
+  language="en"
+  caption="Figure 2. Cancelling represents real work between request and confirmation; succeeded and cancelled compete for one terminal slot."
+/>
+
+## PostgreSQL is truth; Redis is a fast signal
+
+Polling only the database is durable but can react slowly. Using only a Redis flag or Pub/Sub is fast, but intent can disappear after expiry, restart, or message loss. Give each mechanism one job.
+
+```python
+run = await run_store.request_cancel(
+    tenant_id=identity.tenant_id,
+    run_id=run_id,
+    requested_by=identity.user_id,
+)
+
+await redis.set(f"run:{run_id}:cancel", "1", ex=86_400)
+await redis.publish("agent:cancellations", str(run_id))
+```
+
+- PostgreSQL's `cancel_requested_at` survives restarts and queue redelivery.
+- A Redis flag is a cache that active workers can check between steps.
+- Pub/Sub is a wake-up hint for a worker blocked in a wait; it is not the durable delivery mechanism.
+
+The request remains accepted if the Redis write fails. A worker must eventually discover it by rereading the durable row. Conversely, a worker that sees only the Redis signal should verify durable truth before committing terminal state.
+
+## Workers stop cooperatively at safe boundaries
+
+A single check at the end of a long function is not enough. Place cancellation checkpoints after queue claim, before and after graph nodes, around remote calls, and before retries.
+
+```python
+class RunContext:
+    async def raise_if_cancel_requested(self) -> None:
+        cached = await redis.exists(f"run:{self.run_id}:cancel")
+        if cached or await run_store.is_cancel_requested(self.run_id):
+            raise asyncio.CancelledError
+
+async def run_step(ctx: RunContext):
+    await ctx.raise_if_cancel_requested()
+
+    result = await call_tool()
+
+    await ctx.raise_if_cancel_requested()
+    return result
+```
+
+Checking too often creates store load; checking too rarely makes Cancel feel unresponsive. Prioritize boundaries around slow calls and side effects. CPU-bound work never reaches an async checkpoint, so split it into chunks or run it in a separate process with a control channel.
+
+A queued run follows the same protocol. When a worker receives the entry, it reads the durable run before starting an attempt.
+
+```python
+run = await run_store.get(run_id)
+
+if run.cancel_requested_at is not None:
+    await run_store.mark_cancelled_before_start(run_id, entry_id)
+    await append_event(run_id, "run_cancelled")
+    await queue.ack(entry_id)
+    return
+```
+
+If a worker dies and the entry is reclaimed, the next worker sees the same record and does not start execution.
+
+## `Task.cancel()` is a request, not a kill switch
+
+Python's `asyncio.Task.cancel()` does not forcibly remove a task. It arranges for `CancelledError` to be raised at a later execution opportunity. A coroutine that swallows the exception or never reaches an await point can delay or defeat cancellation.
+
+```python
+async def execute_run(ctx: RunContext):
+    try:
+        return await graph.ainvoke(ctx.input, config=ctx.config)
+    except asyncio.CancelledError:
+        await append_event(ctx.run_id, "worker_cancellation_observed")
+        raise
+    finally:
+        await ctx.close_open_resources()
+```
+
+`CancelledError` is not an ordinary business failure. Catch it for cleanup if necessary, then normally re-raise it. Swallowing it can confuse structured concurrency while a parent waits for child shutdown or treats the operation as successful.
+
+```python
+async with asyncio.TaskGroup() as group:
+    search = group.create_task(search_sources(ctx))
+    extract = group.create_task(extract_documents(ctx))
+```
+
+Cancelling a parent run should propagate intent to child tasks. In-memory task handles alone do not survive a worker restart, however. Children should check the shared run's durable cancellation context; local task cancellation is a latency optimization.
+
+## Stopping a local task may leave remote work running
+
+Cancelling the coroutine waiting on an LLM request, browser session, or warehouse query does not prove that the remote server stopped computing.
+
+<AgentCancellationDiagrams
+  kind="boundaries"
+  language="en"
+  caption="Figure 3. Local coroutines, remote operations, and committed side effects have different cancellation contracts."
+/>
+
+If the provider exposes an asynchronous operation ID and cancellation endpoint, persist the ID first.
+
+```python
+operation = await provider.start(request, idempotency_key=tool_call_id)
+await tool_store.attach_remote_operation(
+    tool_call_id=tool_call_id,
+    operation_id=operation.id,
+)
+
+try:
+    return await provider.wait(operation.id)
+except asyncio.CancelledError:
+    await provider.cancel(operation.id)
+    raise
+```
+
+When cancellation is unsupported or arrives too late, the worker can only **stop waiting and refuse to adopt the late result**. That requires an attempt fence.
+
+```sql
+UPDATE tool_calls
+SET status = 'succeeded', output_json = $4
+WHERE tool_call_id = $1
+  AND attempt_id = $2
+  AND fence = $3
+  AND status = 'running';
+```
+
+After cancellation invalidates the fence, a late worker update affects zero rows. The remote call may continue, but stale output cannot enter product state.
+
+## A committed side effect is a compensation problem
+
+Cancellation can arrive after an email was sent, a ticket was created, or a payment was authorized. Unwinding the Python stack does not unwind the outside world.
+
+Classify tool steps before execution.
+
+| Type | Example | Cancellation policy |
+| --- | --- | --- |
+| Read | Search, document lookup | Stop waiting; discard late output |
+| Idempotent write | Save draft under a stable key | Retry with the same idempotency key |
+| Compensatable write | Temporary reservation | Issue a separate release or void command |
+| Irreversible write | Send or publish externally | Require approval before execution; audit afterward |
+
+Compensation is a new business command, not a transaction rollback. It may fail or require additional authority, so record the original run's `cancelled` state separately from compensation's `pending/succeeded/failed` state.
+
+## Completion and cancellation may arrive together
+
+A worker can be committing a result exactly when Cancel arrives. Code that reads first and writes later lets both paths believe they won. Make the terminal update itself conditional.
+
+<AgentCancellationDiagrams
+  kind="race"
+  language="en"
+  caption="Figure 4. Completion and cancellation conditionally update the same active-state set; only the first terminal commit is valid."
+/>
+
+```sql
+UPDATE runs
+SET status = 'cancelled',
+    cancelled_at = now(),
+    terminal_attempt_id = $2
+WHERE run_id = $1
+  AND status IN ('queued', 'running', 'cancelling')
+  AND active_fence = $3
+RETURNING *;
+```
+
+The completion path uses the same active-state set and fence. The first commit acquires the terminal slot; the later update affects zero rows. Product policy must be explicit rather than assuming every button press wins. A practical default is:
+
+- if the result committed durably first, keep `succeeded` and append `cancellation_arrived_too_late`;
+- if cancellation committed first, reject the late result with the fence; and
+- if an external side effect succeeded before cancellation but the result did not commit, expose both the execution ledger and compensation state.
+
+## An SSE disconnect is not a cancellation command
+
+A tab can close or a mobile connection can drop. Treating that SSE disconnect as cancellation turns a brief network failure into lost work.
+
+```text
+SSE disconnect  → observation channel closes → run continues
+POST /cancel    → durable intent is stored    → protocol begins
+```
+
+The UI can display progress through `cancellation_requested`, `step_cancelling`, and `run_cancelled` events. On reconnect, it restores state from the durable run and event cursor.
+
+## Acknowledge only after the cancellation commit
+
+As with successful execution, cancellation's durable terminal record must precede queue acknowledgement.
+
+```python
+try:
+    result = await execute_run(ctx)
+except asyncio.CancelledError:
+    won = await run_store.commit_cancelled(
+        run_id=run.id,
+        attempt_id=attempt.id,
+        fence=attempt.fence,
+    )
+    if won:
+        await append_event(run.id, "run_cancelled")
+finally:
+    if await run_store.is_terminal(run.id):
+        await queue.ack(entry_id)
+```
+
+If the worker dies after `XACK` but before the terminal commit, the queue forgets the job while the run remains `cancelling`. If it dies after terminal commit but before `XACK`, the entry is redelivered, and the next worker can observe terminal truth and acknowledge without executing.
+
+## Cancellation tests must disturb timing
+
+A happy path rarely exposes races. Control at least these points:
+
+- cancel while queued: does the worker avoid every tool call?
+- cancel immediately before a tool: does the checkpoint prevent execution?
+- cancel during a remote call: does the worker call provider cancellation or reject late output?
+- cancel after an irreversible side effect: are ledger and compensation states accurate?
+- race result commit against cancellation: is there exactly one terminal state?
+- crash the worker while cancelling: does the reclaimer avoid resuming work?
+- repeat the same request: is the outcome idempotent?
+- disconnect SSE: does the run continue?
+
+```python
+async def test_cancel_wins_terminal_race(run_store, worker):
+    gate = Barrier(2)
+
+    complete = worker.complete_after(gate)
+    cancel = run_store.cancel_after(gate)
+    await asyncio.gather(complete, cancel)
+
+    run = await run_store.get("R1")
+    assert run.status in {"succeeded", "cancelled"}
+    assert await run_store.terminal_transition_count("R1") == 1
+```
+
+The important assertion is not merely that one coroutine received an exception. It is that **no further valid writes occur, one terminal truth remains, and the queue eventually becomes clean**.
+
+## Implementation checklist
+
+- Does the endpoint authorize tenant and run ownership?
+- Is `cancel_requested_at` stored durably rather than only in Redis?
+- Do `cancelling` and `cancelled` separate accepted intent from confirmed stop?
+- Are there checkpoints around queue claim, nodes, remote calls, and retries?
+- Is `CancelledError` re-raised after cleanup?
+- Do parent and child tasks share durable cancellation context?
+- Are remote operation IDs and provider cancellation contracts recorded?
+- Does an attempt fence reject late result writes?
+- Are approval and idempotency policies in place before irreversible effects?
+- Do completion and cancellation compete through one conditional terminal update?
+- Are SSE disconnect and explicit Cancel separate operations?
+- Do terminal commit, cancellation event, and `XACK` occur in that order?
+
+## After cancellation, design the boundaries of time
+
+Cancellation is explicit user intent: “stop.” But an LLM call can wait forever without a button press, an entire run can exceed its cost limit, or a result can become worthless after its deadline.
+
+The next article connects per-hop timeouts, end-to-end deadlines, retry budgets, and cost budgets under one execution policy—and explains why **a timeout, a deadline, and a budget are not the same number**.
