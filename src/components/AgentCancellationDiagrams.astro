@@ -1,0 +1,125 @@
+---
+interface Props {
+  kind: 'protocol' | 'state-machine' | 'boundaries' | 'race';
+  language?: 'ko' | 'en';
+  caption: string;
+}
+
+const { kind, language = 'ko', caption } = Astro.props;
+const ko = language === 'ko';
+
+const protocol = ko
+  ? [
+      ['1', '요청', 'Browser → API', 'POST /runs/{id}/cancel', '소유권을 확인하고 취소 의도를 받는다'],
+      ['2', '기록', 'API → PostgreSQL', 'status = cancelling', '재시작과 재전달 뒤에도 남는 기준'],
+      ['3', '깨우기', 'API → Redis', 'SET cancel flag · publish', '실행 중 Worker가 빨리 알아차리게 한다'],
+      ['4', '협력 중단', 'Worker', 'checkpoint · cleanup', '안전 경계에서 멈추고 자원을 정리한다'],
+      ['5', '확정', 'Worker → PostgreSQL', 'cancelled → event → XACK', 'terminal commit 이후 queue를 확인한다'],
+    ]
+  : [
+      ['1', 'Request', 'Browser → API', 'POST /runs/{id}/cancel', 'Authorize ownership and accept intent'],
+      ['2', 'Persist', 'API → PostgreSQL', 'status = cancelling', 'Survives restarts and redelivery'],
+      ['3', 'Signal', 'API → Redis', 'SET cancel flag · publish', 'Wake an active worker quickly'],
+      ['4', 'Cooperate', 'Worker', 'checkpoint · cleanup', 'Stop at a safe boundary and release resources'],
+      ['5', 'Settle', 'Worker → PostgreSQL', 'cancelled → event → XACK', 'Acknowledge only after terminal commit'],
+    ];
+
+const states = ko
+  ? [
+      ['queued', '실행 전', 'Worker가 claim하기 전에 요청을 확인'],
+      ['running', '실행 중', 'step와 tool 경계에서 요청을 확인'],
+      ['cancelling', '중단 중', '원격 취소와 cleanup이 아직 진행 중'],
+      ['cancelled', '중단 확인', 'terminal record가 확정된 상태'],
+    ]
+  : [
+      ['queued', 'Not started', 'Worker checks before claiming execution'],
+      ['running', 'In progress', 'Check at step and tool boundaries'],
+      ['cancelling', 'Stopping', 'Remote cancel and cleanup are still active'],
+      ['cancelled', 'Stopped', 'Terminal record has been committed'],
+    ];
+
+const boundaries = ko
+  ? [
+      ['Local task', 'Task.cancel()', '다음 await에서 CancelledError 전달', '보장하지 않음', 'finally로 자원 정리'],
+      ['Remote operation', 'provider cancel API', 'operation_id가 있을 때 취소 요청', '제공자 계약에 따름', '늦은 결과를 fence로 거부'],
+      ['Committed side effect', 'compensation', '이미 보낸 메일·결제를 되돌릴 수 없음', '취소 불가', '멱등성·보상 작업·감사 기록'],
+    ]
+  : [
+      ['Local task', 'Task.cancel()', 'Raises CancelledError at a later await', 'Not guaranteed', 'Release resources in finally'],
+      ['Remote operation', 'provider cancel API', 'Request cancellation with operation_id', 'Provider contract', 'Fence out late results'],
+      ['Committed side effect', 'compensation', 'Cannot un-send mail or erase a charge', 'Not cancellable', 'Idempotency, compensation, audit'],
+    ];
+---
+
+<figure class="cancel-diagram" aria-label={caption}>
+  {kind === 'protocol' && (
+    <ol class="protocol">
+      {protocol.map(([number, phase, path, operation, detail]) => (
+        <li>
+          <span class="number">{number}</span>
+          <div><strong>{phase}</strong><small>{path}</small></div>
+          <code>{operation}</code>
+          <p>{detail}</p>
+        </li>
+      ))}
+    </ol>
+  )}
+
+  {kind === 'state-machine' && (
+    <div class="state-machine">
+      <header>
+        <strong>{ko ? 'cancel_requested_at은 사실, status는 진행 단계' : 'cancel_requested_at is a fact; status is a phase'}</strong>
+        <small>{ko ? '요청 수락과 실제 중단 완료를 같은 순간으로 만들지 않는다.' : 'Do not collapse accepted intent and confirmed stop into one moment.'}</small>
+      </header>
+      <div class="states">
+        {states.map(([state, label, detail], index) => (
+          <section class:list={{ active: state === 'cancelling', terminal: state === 'cancelled' }}>
+            <span>0{index + 1}</span><code>{state}</code><strong>{label}</strong><p>{detail}</p>
+          </section>
+        ))}
+      </div>
+      <footer>
+        <span><code>running</code> → <code>succeeded</code></span>
+        <b>{ko ? '완료와 취소가 경쟁하면 조건부 terminal commit 하나만 이긴다.' : 'If completion races cancellation, only one conditional terminal commit wins.'}</b>
+      </footer>
+    </div>
+  )}
+
+  {kind === 'boundaries' && (
+    <div class="boundaries">
+      <header><span>{ko ? '경계' : 'Boundary'}</span><span>{ko ? '중단 수단' : 'Stop mechanism'}</span><span>{ko ? '실제 의미' : 'What it means'}</span><span>{ko ? '다음 방어선' : 'Next defense'}</span></header>
+      {boundaries.map(([name, mechanism, meaning, guarantee, defense]) => (
+        <section>
+          <strong>{name}</strong><code>{mechanism}</code><p>{meaning}</p><span>{guarantee}</span><b>{defense}</b>
+        </section>
+      ))}
+    </div>
+  )}
+
+  {kind === 'race' && (
+    <div class="race">
+      <header><strong>{ko ? '하나의 terminal slot' : 'One terminal slot'}</strong><code>WHERE status IN ('queued', 'running', 'cancelling')</code></header>
+      <div class="contenders">
+        <section><span>A</span><strong>{ko ? '작업 완료' : 'Work completes'}</strong><code>status = 'succeeded'</code><p>{ko ? 'result + attempt fence를 함께 검증' : 'Validate result and attempt fence together'}</p></section>
+        <i aria-hidden="true">→</i>
+        <b>{ko ? '조건부 UPDATE' : 'Conditional UPDATE'}</b>
+        <i aria-hidden="true">←</i>
+        <section><span>B</span><strong>{ko ? '취소 완료' : 'Cancellation completes'}</strong><code>status = 'cancelled'</code><p>{ko ? 'cleanup과 원격 결과 차단 뒤 확정' : 'Commit after cleanup and fencing late output'}</p></section>
+      </div>
+      <footer>{ko ? '0 rows updated = 이미 다른 terminal 결과가 승리했다. 취소 요청이 늦었다는 event를 남긴다.' : '0 rows updated means another terminal outcome already won. Record that cancellation arrived too late.'}</footer>
+    </div>
+  )}
+
+  <figcaption>{caption}</figcaption>
+</figure>
+
+<style>
+  .cancel-diagram{margin:2.5rem 0;padding:1.2rem;border:1px solid var(--line);border-radius:.9rem;background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.9rem;line-height:1.5}.cancel-diagram figcaption{margin-top:1rem;color:var(--muted);font-size:.84rem;line-height:1.55}.cancel-diagram code{overflow-wrap:anywhere;color:var(--ink);font-size:.72rem}
+  .protocol{display:grid;gap:.4rem;margin:0;padding:0;list-style:none}.protocol li{display:grid;grid-template-columns:auto minmax(7rem,.65fr) minmax(10rem,1fr) minmax(0,1.25fr);gap:.55rem .8rem;align-items:center;padding:.7rem;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:.5rem;background:var(--paper)}.number{display:grid;place-items:center;width:1.65rem;height:1.65rem;border-radius:50%;background:var(--accent);color:var(--paper-deep);font-size:.72rem;font-weight:800}.protocol div{display:grid}.protocol small{color:var(--muted);font-size:.66rem}.protocol p{margin:0;color:var(--muted);font-size:.72rem}
+  .state-machine{display:grid;gap:.7rem}.state-machine>header{display:grid;gap:.15rem;padding:.7rem;border-left:3px solid var(--accent);background:var(--paper)}.state-machine>header small{color:var(--muted)}.states{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.45rem}.states section{position:relative;display:grid;gap:.3rem;padding:.75rem;border:1px solid var(--line);border-radius:.55rem;background:var(--paper)}.states section:not(:last-child):after{content:'→';position:absolute;z-index:1;right:-.72rem;top:50%;color:var(--accent)}.states section.active{border:2px solid var(--accent)}.states section.terminal{background:color-mix(in srgb,var(--accent) 10%,var(--paper))}.states span{color:var(--muted);font-size:.62rem}.states strong{font-size:.74rem}.states p{margin:0;color:var(--muted);font-size:.68rem}.state-machine>footer{display:grid;grid-template-columns:auto 1fr;gap:.65rem;padding:.65rem;border:1px dashed var(--line);background:var(--paper);font-size:.7rem}.state-machine>footer b{font-weight:600;color:var(--muted)}
+  .boundaries{display:grid;gap:.4rem}.boundaries>header,.boundaries>section{display:grid;grid-template-columns:minmax(7rem,.65fr) minmax(8rem,.75fr) minmax(12rem,1.2fr) minmax(10rem,1fr);gap:.55rem;align-items:center}.boundaries>header{padding:0 .7rem;color:var(--muted);font-size:.67rem;font-weight:800}.boundaries>section{padding:.75rem;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:.5rem;background:var(--paper)}.boundaries p{margin:0;color:var(--muted);font-size:.69rem}.boundaries section>span{display:none}.boundaries b{font-size:.69rem;font-weight:600}
+  .race{display:grid;gap:.8rem}.race>header{display:flex;justify-content:space-between;gap:.6rem;padding:.7rem;border:1px solid var(--line);background:var(--paper)}.contenders{display:grid;grid-template-columns:1fr auto auto auto 1fr;gap:.55rem;align-items:center}.contenders section{display:grid;gap:.35rem;padding:.8rem;border:1px solid var(--line);border-radius:.55rem;background:var(--paper)}.contenders section>span{display:grid;place-items:center;width:1.3rem;height:1.3rem;border-radius:50%;background:var(--accent);color:var(--paper-deep);font-size:.65rem;font-weight:800}.contenders p{margin:0;color:var(--muted);font-size:.69rem}.contenders i{color:var(--accent);font-style:normal}.contenders>b{padding:.4rem .55rem;border:1px dashed var(--accent);font-size:.7rem;text-align:center}.race>footer{padding:.65rem;border-left:3px solid var(--accent);background:var(--paper);color:var(--muted);font-size:.72rem}
+  @media(max-width:760px){.protocol li{grid-template-columns:auto 1fr}.protocol code,.protocol p{grid-column:2}.states{grid-template-columns:1fr 1fr}.states section:after{display:none}.boundaries>header{display:none}.boundaries>section{grid-template-columns:1fr}.contenders{grid-template-columns:1fr}.contenders i{transform:rotate(90deg);text-align:center}.race>header{display:grid}}
+  @media(max-width:520px){.cancel-diagram{padding:.8rem}.states{grid-template-columns:1fr}.state-machine>footer{grid-template-columns:1fr}.protocol li{align-items:start}}
+  @media(prefers-color-scheme:dark){.cancel-diagram{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
+</style>
