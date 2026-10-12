@@ -1,0 +1,434 @@
+---
+title: "Agent는 얼마나 오래 생각해야 하는가: Timeout, Deadline, Budget"
+subtitle: "한 번의 대기, 전체 실행의 유효 시간, token·cost·retry 한도를 분리해 설계하기"
+description: "Agent 실행을 bounded하게 만드는 timeout, deadline, token·cost·retry budget의 차이와 남은 자원의 전파, 재시도, 부분 결과 정책을 설명합니다."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - timeouts
+  - deadlines
+  - token-budget
+  - retry-policy
+  - graceful-degradation
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "ko"
+translationKey: "timeouts-deadlines-and-budgets"
+series: "Agent Engineering"
+seriesOrder: 16
+seriesPart: "safety"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "Coroutines and Tasks — Timeouts"
+    url: "https://docs.python.org/3/library/asyncio-task.html#timeouts"
+    publisher: "Python Documentation"
+  - title: "Deadlines"
+    url: "https://grpc.io/docs/guides/deadlines/"
+    publisher: "gRPC Documentation"
+  - title: "Timeouts, retries, and backoff with jitter"
+    url: "https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/"
+    publisher: "Amazon Builders' Library"
+  - title: "Control and limit retry calls"
+    url: "https://docs.aws.amazon.com/wellarchitected/latest/framework/rel_mitigate_interaction_failure_limit_retries.html"
+    publisher: "AWS Well-Architected Framework"
+  - title: "Jobs — activeDeadlineSeconds"
+    url: "https://kubernetes.io/docs/concepts/workloads/controllers/job/"
+    publisher: "Kubernetes Documentation"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import AgentBudgetDiagrams from '../../../components/AgentBudgetDiagrams.astro';
+
+<AnswerBlock question="Agent 실행에는 timeout 하나만 정하면 되는가?">
+  <strong>아니다. Timeout은 한 번의 호출을 얼마나 기다릴지, deadline은 전체 결과가 언제까지 유효한지, budget은 token·cost·retry처럼 얼마나 소비할 수 있는지를 정한다.</strong> API가 절대 deadline과 자원 한도를 durable하게 기록하고, Worker는 queue 대기까지 차감한 남은 값만 각 step과 child에 전달해야 한다.
+</AnswerBlock>
+
+앞선 글 [Agent를 멈춘다는 것: Cancellation은 버튼이 아니라 Protocol이다](/ai/agents/cancellation-is-a-protocol/)에서는 사용자의 명시적 중단 의도를 Worker와 remote operation까지 전파했다.
+
+하지만 사용자가 Cancel을 누르지 않아도 Agent는 스스로 멈출 수 있어야 한다. 검색 API가 응답하지 않을 수 있고, evaluator가 계속 수정을 요구할 수 있으며, 병렬 child agent가 각각 전체 token 한도를 소비할 수 있다.
+
+흔한 시작은 모든 호출에 같은 timeout을 넣는 것이다.
+
+```python
+async def call_tool_with_retry():
+    for _ in range(3):
+        try:
+            async with asyncio.timeout(30):
+                return await call_tool()
+        except TimeoutError:
+            pass
+```
+
+각 attempt는 30초 안에 끝나지만 전체 함수는 90초가 넘을 수 있다. Queue에서 기다린 시간, retry backoff, 결과 저장 시간도 포함되지 않는다. Token과 비용은 제한하지 못한다.
+
+Agent의 boundedness는 `max_steps`나 `timeout=30` 하나로 끝나지 않는다.
+
+<AgentBudgetDiagrams
+  kind="taxonomy"
+  language="ko"
+  caption="그림 1. Timeout은 기간, deadline은 시점, budget은 소비 가능한 잔액이다."
+/>
+
+## Timeout, Deadline, Budget은 답하는 질문이 다르다
+
+세 개념을 먼저 정확히 나눈다.
+
+| 경계 | 질문 | 표현 | 대표 범위 |
+| --- | --- | --- | --- |
+| Timeout | 이 한 번의 작업을 얼마나 기다릴까? | 상대 기간 | connect, read, tool attempt |
+| Deadline | 전체 결과는 언제까지 유효한가? | 절대 시점 | run, request, business expiry |
+| Budget | 무엇을 얼마나 소비할 수 있는가? | 감소하는 잔액 | token, cost, retry, step |
+
+Timeout은 local policy다. 같은 tool이라도 interactive request는 5초, overnight batch는 60초를 기다릴 수 있다.
+
+Deadline은 end-to-end contract다. `202 Accepted` 뒤 Queue에 들어간 순간에도 시계는 간다. Worker가 시작할 때 새 120초를 받으면 대기 시간이 사라져 전체 latency를 통제할 수 없다.
+
+Budget은 시간이 아닐 수도 있다. 20,000 input token, 4,000 output token, retry 3회, tool call 12회, 조직별 비용 한도가 각각 독립적으로 줄어든다.
+
+## API가 run의 절대 deadline을 한 번 정한다
+
+Client가 임의로 매우 긴 시간을 요구하도록 두지 않는다. 제품 tier와 작업 종류에 따라 server policy가 상한을 적용한다.
+
+```python
+from datetime import datetime, timedelta, timezone
+
+def choose_deadline(requested_seconds: int | None, tier: str) -> datetime:
+    maximum = 120 if tier == "interactive" else 900
+    duration = min(requested_seconds or maximum, maximum)
+    return datetime.now(timezone.utc) + timedelta(seconds=duration)
+```
+
+Run 생성 transaction에 함께 저장한다.
+
+```sql
+INSERT INTO runs (
+    run_id,
+    status,
+    deadline_at,
+    token_budget,
+    cost_budget_micros,
+    retry_budget
+)
+VALUES ($1, 'submitting', $2, $3, $4, $5);
+```
+
+`deadline_at`은 Worker memory가 아니라 durable run의 일부다. API crash, Queue redelivery, Worker reclaim 뒤에도 같은 시점을 사용한다.
+
+여기에는 두 종류의 시간이 등장한다.
+
+- 시스템 간 저장과 전달에는 UTC absolute timestamp를 사용한다.
+- 한 process 안에서 경과 시간을 재는 데는 wall clock 변화에 영향받지 않는 monotonic clock을 사용한다.
+
+Worker는 durable deadline을 읽어 현재 남은 시간을 계산한 뒤 local monotonic deadline으로 변환할 수 있다. Child RPC에는 절대 시각을 무작정 복사하기보다 남은 duration을 전달하면 machine 간 clock skew의 영향을 줄일 수 있다. gRPC도 deadline 전파 시 이미 지난 시간을 차감하는 방식을 사용한다.
+
+## Queue 대기도 전체 deadline을 소비한다
+
+Run이 18초 동안 Queue에 있었다면 Worker는 120초를 새로 받지 않는다.
+
+```python
+def remaining_seconds(deadline_at: datetime) -> float:
+    now = datetime.now(timezone.utc)
+    return max(0.0, (deadline_at - now).total_seconds())
+
+run = await run_store.get(run_id)
+remaining = remaining_seconds(run.deadline_at)
+
+if remaining <= 0:
+    await run_store.expire_before_start(run.id)
+    await append_event(run.id, "run_deadline_exceeded")
+    await queue.ack(entry_id)
+    return
+```
+
+이 검사는 Queue claim 직후와 reclaim 뒤에 모두 필요하다. 이미 가치가 사라진 실행을 새 Worker가 다시 시작하지 않게 한다.
+
+<AgentBudgetDiagrams
+  kind="propagation"
+  language="ko"
+  caption="그림 2. 하나의 deadline은 Queue부터 최종 commit까지 이어지고, 각 단계는 남은 값만 전달받는다."
+/>
+
+## 각 step timeout은 남은 run time보다 작아야 한다
+
+Tool의 기본 timeout이 30초여도 run에 11초만 남았다면 30초를 기다릴 수 없다. 최종 상태 저장과 event 발행을 위한 reserve도 남겨야 한다.
+
+```python
+def attempt_timeout(
+    *,
+    configured: float,
+    remaining: float,
+    settle_reserve: float = 2.0,
+) -> float:
+    available = remaining - settle_reserve
+    if available <= 0:
+        raise RunDeadlineExceeded
+    return min(configured, available)
+```
+
+Python `asyncio.timeout()`은 현재 task에 취소를 전달하고 context 바깥에서 잡을 수 있는 `TimeoutError`로 바꾼다.
+
+```python
+remaining = ctx.remaining_seconds()
+timeout = attempt_timeout(
+    configured=tool.default_timeout_seconds,
+    remaining=remaining,
+)
+
+try:
+    async with asyncio.timeout(timeout):
+        result = await tool.invoke(args)
+except TimeoutError:
+    raise StepTimedOut(tool=tool.name, timeout=timeout)
+```
+
+Timeout이 발생했다고 remote operation이 멈췄다고 가정해서는 안 된다. 이전 글의 cancellation contract처럼 provider cancel API를 호출하고, 지원하지 않는다면 attempt fence로 늦은 결과를 거부한다.
+
+`asyncio.timeout_at()`을 쓰면 process 안에서 absolute monotonic deadline을 공유할 수 있다.
+
+```python
+loop = asyncio.get_running_loop()
+local_deadline = loop.time() + remaining
+
+async with asyncio.timeout_at(local_deadline):
+    await execute_graph(ctx)
+```
+
+Nested timeout에서는 가장 가까운 경계가 먼저 발생한다. Step이 먼저 끝나지 않으면 step timeout이, 전체 run time이 먼저 소진되면 outer deadline이 실행을 중단한다. 오류 type과 event를 구분해야 운영자가 원인을 알 수 있다.
+
+## Child에는 원래 budget이 아니라 남은 budget을 위임한다
+
+Parallel agent 세 개에 각각 `token_budget=20_000`을 넘기면 실제 상한은 60,000이 된다. Deadline은 공유할 수 있지만 token과 cost는 allocation이 필요하다.
+
+```python
+@dataclass(frozen=True)
+class ChildAllocation:
+    deadline_at: datetime
+    max_input_tokens: int
+    max_output_tokens: int
+    max_cost_micros: int
+    max_attempts: int
+
+async def allocate_child(parent, weight: float) -> ChildAllocation:
+    return await budget_store.reserve(
+        run_id=parent.run_id,
+        deadline_at=parent.deadline_at,
+        input_tokens=int(parent.remaining_input_tokens * weight),
+        output_tokens=int(parent.remaining_output_tokens * weight),
+        cost_micros=int(parent.remaining_cost_micros * weight),
+        attempts=1,
+    )
+```
+
+`reserve`는 transaction 또는 atomic operation이어야 한다. 동시에 시작한 child들이 같은 잔액을 읽고 중복 할당하는 것을 막아야 한다.
+
+Budget ledger는 최소한 다음을 기록한다.
+
+```text
+reserved → consumed
+    └────→ released
+```
+
+Provider usage가 돌아오면 실제 token과 비용을 `consumed`로 확정하고, 사용하지 않은 reservation은 반환한다. 가격표는 변경될 수 있으므로 실행 시 적용한 provider/model price version도 함께 기록하는 편이 좋다.
+
+## Retry는 성공 확률을 높이지만 deadline을 먹는다
+
+Retry limit만 정하면 충분하지 않다. 각 attempt timeout과 backoff가 같은 전체 deadline을 소비한다.
+
+<AgentBudgetDiagrams
+  kind="retry"
+  language="ko"
+  caption="그림 3. 최대 3회라는 숫자보다 다음 attempt가 남은 deadline 안에 끝날 수 있는지가 먼저다."
+/>
+
+다음 retry를 시작하기 전에 세 가지를 동시에 확인한다.
+
+```python
+def can_retry(ctx, policy, next_backoff: float) -> bool:
+    if ctx.retries_used >= policy.max_retries:
+        return False
+
+    required = (
+        next_backoff
+        + policy.attempt_timeout_seconds
+        + policy.settle_reserve_seconds
+    )
+    return ctx.remaining_seconds() >= required
+```
+
+그리고 재시도 가능한 오류만 retry한다.
+
+```python
+RETRYABLE = (TimeoutError, ConnectionError, RateLimited)
+
+async def call_with_budget(ctx, operation, policy):
+    while True:
+        try:
+            return await operation(timeout=ctx.next_timeout(policy))
+        except RETRYABLE:
+            backoff = policy.jittered_backoff(ctx.retries_used)
+            if not can_retry(ctx, policy, backoff):
+                raise RetryBudgetExhausted
+            await ctx.consume_retry()
+            await asyncio.sleep(backoff)
+```
+
+Backoff에는 jitter를 넣어 여러 Worker가 동시에 재시도하는 retry storm을 피한다. 다만 jitter도 무료 시간이 아니다. Sleep 뒤 deadline을 다시 확인해야 한다.
+
+Side-effecting tool은 retry 전에 stable idempotency key가 필요하다. Timeout은 “실패했다”가 아니라 “응답을 제시간에 관측하지 못했다”일 수 있기 때문이다.
+
+## Token budget과 cost budget은 분리한다
+
+Token 수와 비용은 대체로 관련 있지만 같은 지표가 아니다. Model, cached input, batch pricing, tool charge가 다르면 같은 token도 비용이 달라진다.
+
+Run 시작 시 모든 token을 research에 쓰면 마지막 synthesis가 불가능하다. 역할별 reserve를 먼저 둔다.
+
+```python
+TOKEN_PLAN = {
+    "research": 8_000,
+    "analysis": 6_000,
+    "verification": 2_000,
+    "synthesis": 4_000,
+}
+
+assert sum(TOKEN_PLAN.values()) <= run.token_budget
+```
+
+실제 prompt를 보내기 전에는 input estimate, 예상 output 상한과 이미 소비한 usage를 함께 확인한다.
+
+```python
+required = estimated_input + reserved_output
+
+if required > ledger.remaining_tokens:
+    raise TokenBudgetExhausted(
+        required=required,
+        remaining=ledger.remaining_tokens,
+    )
+```
+
+Provider의 `max_output_tokens`는 한 call의 출력 상한이다. 전체 run ledger를 대신하지 않는다. Tool이 내부에서 또 LLM을 호출한다면 그 usage도 같은 run에 귀속시켜야 한다.
+
+## Budget이 줄면 품질 경로를 deterministic하게 바꾼다
+
+경계를 넘는 순간까지 full plan을 실행하다 갑자기 실패하는 것보다, 남은 자원에 따라 경로를 줄이는 편이 낫다.
+
+<AgentBudgetDiagrams
+  kind="degradation"
+  language="ko"
+  caption="그림 4. 남은 시간과 자원에 따라 full, reduced, partial, stop 경로를 미리 정의한다."
+/>
+
+```python
+def choose_mode(ctx) -> Literal["full", "reduced", "partial", "stop"]:
+    if ctx.expired or ctx.remaining_cost_micros <= 0:
+        return "stop"
+    if ctx.remaining_seconds < 8 or ctx.remaining_tokens < 1_000:
+        return "partial"
+    if ctx.remaining_seconds < 30 or ctx.remaining_tokens < 4_000:
+        return "reduced"
+    return "full"
+```
+
+이 threshold는 prompt에 맡기지 않는다. Product가 허용하는 품질과 latency를 바탕으로 code/config에 명시하고 테스트한다.
+
+Partial result는 실패를 성공처럼 포장하는 것이 아니다. 다음을 구분해 반환한다.
+
+```json
+{
+  "status": "partial",
+  "reason": "run_deadline_exceeded",
+  "completed_sections": ["earnings", "margin"],
+  "omitted_sections": ["peer_valuation"],
+  "result": "..."
+}
+```
+
+검증되지 않은 intermediate text를 내보내서는 안 된다. Partial로 반환할 수 있는 artifact와 폐기해야 할 scratch state를 미리 분리한다.
+
+## 오류와 terminal 상태를 한 종류로 뭉치지 않는다
+
+모든 경계를 `failed`로 기록하면 정책을 고치기 어렵다.
+
+| 결과 | 의미 | 일반적인 다음 행동 |
+| --- | --- | --- |
+| `step_timed_out` | 한 attempt가 local timeout을 넘음 | retry budget 확인 |
+| `run_deadline_exceeded` | 전체 결과 유효 시간이 끝남 | retry 금지, partial/expired 확정 |
+| `token_budget_exhausted` | token 잔액 부족 | reduced/partial 경로 |
+| `cost_budget_exhausted` | 비용 상한 도달 | 즉시 stop 또는 승인 요청 |
+| `retry_budget_exhausted` | 허용한 추가 시도 소진 | fallback 또는 terminal failure |
+
+이 구분은 사용자 메시지와 운영 지표에도 이어진다. “시스템 오류”와 “설계된 경계에서 정상적으로 멈춤”은 같은 사건이 아니다.
+
+## Kubernetes deadline은 product deadline의 대체물이 아니다
+
+Kubernetes Job의 `activeDeadlineSeconds`는 Job 전체 실행 시간을 제한하고 도달 시 Pod를 종료한다. 하지만 하나의 Worker Deployment가 여러 run을 처리하는 구조에서는 run별 product deadline을 대신할 수 없다.
+
+Infrastructure timeout은 마지막 safety net이다.
+
+```text
+Tool attempt timeout
+    < Run deadline
+    < Worker shutdown grace / infrastructure limit
+```
+
+Kubernetes가 process를 죽이기 전에 애플리케이션이 partial result, terminal reason, budget ledger를 durable하게 정리할 수 있어야 한다.
+
+## 테스트에서는 시간을 실제로 기다리지 않는다
+
+Clock과 usage meter를 주입하면 수 초씩 sleep하지 않고 경계를 테스트할 수 있다.
+
+```python
+async def test_queue_wait_consumes_run_deadline(fake_clock, worker):
+    run = await create_run(deadline_at=fake_clock.now() + seconds(30))
+
+    fake_clock.advance(seconds(31))
+    await worker.process(run.id)
+
+    stored = await run_store.get(run.id)
+    assert stored.status == "expired"
+    assert tool.calls == 0
+```
+
+최소 테스트 집합은 다음과 같다.
+
+- Queue 대기 중 deadline 만료
+- Step timeout 후 retry 성공
+- Backoff 중 전체 deadline 만료
+- 병렬 child의 atomic budget reservation
+- Provider usage가 estimate보다 큰 경우
+- Synthesis reserve를 침범하는 research call 거부
+- Full에서 reduced, partial로 전환
+- Result commit reserve가 남지 않은 경우 새 step 거부
+- Worker reclaim 뒤 원래 deadline 유지
+- Timeout 뒤 remote late result 차단
+
+## 구현 체크리스트
+
+- Timeout, deadline, budget을 서로 다른 field와 error로 표현하는가?
+- API가 server policy로 `deadline_at`을 한 번 정해 durable하게 저장하는가?
+- Queue 대기와 backoff가 전체 deadline을 소비하는가?
+- Process 내부 경과 시간에 monotonic clock을 사용하는가?
+- Step timeout이 `remaining − settle reserve`보다 작거나 같은가?
+- Child가 원래 한도가 아니라 남은 budget의 일부만 예약하는가?
+- Token, cost, retry, step budget을 독립적으로 추적하는가?
+- Retry 전에 오류 종류, retry 잔액, 남은 시간을 모두 확인하는가?
+- Backoff에 jitter가 있고 sleep 뒤 deadline을 다시 확인하는가?
+- Partial result에 완료·누락 범위와 중단 이유가 명시되는가?
+- Kubernetes limit을 product run deadline과 혼동하지 않는가?
+- Fake clock과 usage meter로 boundary test를 수행하는가?
+
+## 시간 제한 뒤에는 멈췄다가 이어가는 문제가 남는다
+
+Deadline이 지난 실행을 멈추는 것과 몇 시간 뒤 안전하게 재개하는 것은 반대 방향처럼 보인다. 그러나 둘 다 “어떤 state가 durable하며, 이미 끝난 side effect를 다시 실행하지 않을 것인가”라는 질문으로 만난다.
+
+특히 human approval을 기다리는 시간이 run deadline을 소비하는지, pause 동안 별도의 business expiry만 적용할지 정책이 필요하다.
+
+다음 글에서는 **Checkpoint, Resume, Durable HITL**을 통해 Worker가 죽거나 승인을 기다린 뒤에도 같은 run을 정확한 지점에서 이어가는 방법을 다룬다.
