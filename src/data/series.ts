@@ -21,8 +21,8 @@ export const SERIES = [
     name: 'Agent Engineering',
     mode: 'learning-path',
     description: {
-      ko: '에이전트 패턴에서 비동기 실행, 상태, 스트리밍, 런타임까지 프로덕션 시스템의 핵심을 순서대로 다룹니다.',
-      en: 'A practical path through agent patterns, asynchronous execution, state, streaming, and production runtimes.',
+      ko: 'Agent의 제어 흐름에서 시작해, 실패해도 복구되는 프로덕션 시스템까지 이어지는 5단계 학습 경로입니다.',
+      en: 'A five-stage path from agent control flow to production systems designed for recovery, delivery, and operation.',
     },
   },
   {
