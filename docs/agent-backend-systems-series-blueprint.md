@@ -6,6 +6,9 @@
 > Public series name: **Agent Engineering**  
 Internal blueprint theme: **에이전트 백엔드 시스템 / Agent Backend Systems**
 
+> Production IA source of truth: `src/lib/series-sections.ts` on `main`  
+> Numbering note: detailed briefs retain their original Blueprint IDs (`B1`–`B21`), while public `seriesOrder` follows the production crosswalk below.
+
 ---
 
 ## 0. Series thesis
@@ -64,213 +67,76 @@ Concurrency
     ↓
 Execution ownership
     ↓
-State
+State and session isolation
     ↓
-Events
+Recovery and correctness
     ↓
-Streaming
+Streaming and production delivery
     ↓
-Agent runtime
-    ↓
-Session isolation
-    ↓
-Queue reliability
-    ↓
-Kubernetes
-    ↓
-End-to-end architecture
+Operating multi-agent systems
 ```
 
-공개 시리즈는 **Agent Engineering** 하나로 유지하고, 그 안을 다섯 개의 Part로 나눈다. Part는 별도 시리즈가 아니라 하나의 긴 learning path 안의 chapter다.
+공개 시리즈는 **Agent Engineering** 하나로 유지한다. 사이트의 정보 구조는 `main`에 구현된 다섯 개의 learning stage를 기준으로 하며, 이 문서의 예전 Part I–V는 더 이상 공개 navigation 단위로 사용하지 않는다.
 
-## Part I — Agent Patterns & Execution · Articles 1–4
+상세 초안의 기존 번호는 대규모 본문 재작성을 피하기 위해 `B1`–`B21` Blueprint ID로 보존한다. 실제 글의 `seriesOrder`는 아래 production order를 따른다.
 
-1. Agent Pattern Design
-2. Why Agent Systems Need Async
-3. Async vs Thread vs Process
-4. A Worker Is Not a Thread
+## Current production stages
 
-질문:
+| Stage | `seriesPart` | 공개 제목 | 역할 |
+| --- | --- | --- | --- |
+| 1 | `design` | 설계와 전체 구조 | 제어 패턴과 backend 책임 경계를 먼저 그린다. |
+| 2 | `execution` | 실행과 동시성 | async, thread, process, worker와 multi-agent 실행을 다룬다. |
+| 3 | `state` | 상태와 내구성 | state, event, session/run isolation을 다룬다. |
+| 4 | `safety` | 안전한 실행과 복구 | 승인, 멱등성, worker failure, cancellation, budget, resume, security를 다룬다. |
+| 5 | `delivery` | 전달과 런타임 경계 | SSE, runtime, Kubernetes, observability, backpressure와 frontend contract를 다룬다. |
 
-> 에이전트는 어떤 control-flow pattern으로 구성되고, 그 실행을 backend에서 어떻게 효율적으로 소유할 것인가?
+별도의 **Inference Serving · vLLM**은 Agent Engineering 아래의 applied track으로 유지하며, 이 core roadmap의 `seriesOrder`에는 포함하지 않는다.
 
-Article 1은 `JacobShin0601/reflection-practice`의 `agent_design/` 실습 구조를 reference implementation으로 삼는다. 프레임워크보다 plain Python state machine을 먼저 보여준다.
+## Production order and blueprint crosswalk
 
-## Part II — State, Streaming & Runtime · Articles 5–8
+| Public order | Blueprint ID | Stage | Status / article |
+| ---: | ---: | --- | --- |
+| 1 | B1 | design | Published — Agent Pattern Design |
+| 2 | — | design | Published — Agent Backend Architecture Map |
+| 3 | B2 | execution | Published — Why Agent Systems Need Async |
+| 4 | B3 | execution | Published — Async vs Thread vs Process |
+| 5 | B4 | execution | Published — A Worker Is Not a Thread |
+| 6 | B5 | state | Published — Where Does Agent State Live? |
+| 7 | B6 | state | Published — State Is Not an Event |
+| 8 | B15 | safety | Published — Approval, Idempotency, and Retry |
+| 9 | B7 | delivery | Published — SSE, Generators, and Redis Streams |
+| 10 | B8 | delivery | Published — LangGraph Is the Runtime, Not the Architecture |
+| 11 | B9 | state | Next — A Conversation Is Not a Run |
+| 12 | B10 | safety | Planned — When Workers Die |
+| 13 | B11 | delivery | Planned — Running Agents on Kubernetes |
+| 14 | B12 | delivery | Planned — An Agent Request, End to End |
+| 15 | B13 | safety | Planned — Cancellation Is a Protocol |
+| 16 | B14 | safety | Planned — Timeouts, Deadlines, and Budgets |
+| 17 | B16 | safety | Planned — Checkpoint, Resume, and Durable HITL |
+| 18 | B17 | delivery | Planned — Observability for Agent Systems |
+| 19 | B18 | delivery | Planned — Backpressure, Quotas, and Admission Control |
+| 20 | B19 | execution | Planned — Multi-Agent Execution |
+| 21 | B20 | safety | Planned — Security Boundaries for Agent Systems |
+| 22 | B21 | delivery | Planned — Token Streaming Is Not Progress Streaming |
 
-5. Where Does Agent State Live?
-6. State Is Not an Event
-7. How an Agent Talks While It Works
-8. LangGraph Is the Runtime, Not the Architecture
+## How the five stages should appear on the site
 
-질문:
-
-> 실행 중인 Agent의 현재 상태와 이벤트를 어디에 저장하고, 어떻게 사용자에게 실시간으로 전달할 것인가?
-
-## Part III — Sessions, Reliability & Production · Articles 9–12
-
-9. A Conversation Is Not a Run
-10. When Workers Die
-11. Running Agents on Kubernetes
-12. An Agent Request, End to End
-
-질문:
-
-> 여러 사용자와 실행을 어떻게 격리하고, worker failure를 복구하며, production infrastructure에 올릴 것인가?
-
-## Part IV — Control, Recovery & Correctness · Articles 13–16
-
-13. Cancellation Is a Protocol
-14. Timeouts, Deadlines, and Budgets
-15. Idempotency and the Exactly-Once Illusion
-16. Checkpoint, Resume, and Durable HITL
-
-질문:
-
-> 오래 실행되는 Agent를 어떻게 멈추고, 제한하고, 중복 없이 복구할 것인가?
-
-## Part V — Operating Multi-Agent Systems · Articles 17–21
-
-17. Observability for Agent Systems
-18. Backpressure, Quotas, and Admission Control
-19. Multi-Agent Execution: Parent Runs, Fan-out, and Fan-in
-20. Security Boundaries for Agent Systems
-21. Token Streaming Is Not Progress Streaming
-
-질문:
-
-> Agent 시스템의 규모가 커졌을 때 어떻게 관찰하고, 과부하를 제어하고, multi-agent와 보안 경계를 운영할 것인가?
-
----
-
-## How the five Parts should appear on the site
-
-**Part 이름은 article title에도, tag에도 넣지 않는다.**
-
-권장 계층:
+Stage 이름은 article title이나 tag에 넣지 않는다. `seriesPart`는 navigation hierarchy이고, `tags`는 `asyncio`, `redis-streams`, `sse`, `kubernetes`, `idempotency`처럼 글을 가로지르는 기술 개념에 사용한다.
 
 ```text
 Series
 Agent Engineering
 
-  Part I
-  Agent Patterns & Execution
-    01 Agent Pattern Design
-    02 Why Agent Systems Need Async
-    03 Async vs Thread vs Process
-    04 A Worker Is Not a Thread
+  Stage 1 · 설계와 전체 구조
+  Stage 2 · 실행과 동시성
+  Stage 3 · 상태와 내구성
+  Stage 4 · 안전한 실행과 복구
+  Stage 5 · 전달과 런타임 경계
 
-  Part II
-  State, Streaming & Runtime
-    05 ...
+  Applied Track · Inference Serving · vLLM
 ```
 
-### Why not title?
-
-다음처럼 제목에 넣지 않는다.
-
-```text
-[Part II] State Is Not an Event
-Agent Engineering 06 — State Is Not an Event
-```
-
-이렇게 하면 article title이 navigation metadata를 떠안고, 검색 결과 / OG title / AI retrieval에서도 불필요하게 길어진다.
-
-### Why not tags?
-
-현재 The Archive의 `tags`는 글을 가로지르는 secondary descriptor이고 최대 5개다.
-
-Part label은:
-
-- 순서가 있음
-- 특정 series 안에서만 의미가 있음
-- navigation hierarchy 역할을 함
-
-반면 tag는:
-
-- 순서가 없음
-- 여러 series / topic을 가로지를 수 있음
-- `asyncio`, `redis-streams`, `sse`, `kubernetes`, `idempotency`처럼 검색/연결에 쓰는 것이 자연스럽다.
-
-따라서 Part를 tag로 소비하지 않는다.
-
-### Recommended frontmatter extension
-
-현재 schema의:
-
-```yaml
-series: Agent Engineering
-seriesOrder: 6
-```
-
-에 하나를 추가하는 방향을 권장한다.
-
-```yaml
-series: Agent Engineering
-seriesOrder: 6
-seriesPart: state-streaming-runtime
-```
-
-`seriesPartOrder`를 article마다 중복 저장하기보다, series registry에서 Part 순서를 정의하는 쪽이 낫다.
-
-예상 series definition:
-
-```typescript
-{
-  name: 'Agent Engineering',
-  description: {
-    ko: '에이전트의 실행 패턴에서 상태, 스트리밍, 복구와 운영까지 production agent engineering을 단계적으로 설명합니다.',
-    en: 'A structured path from agent control-flow patterns to state, streaming, recovery, and production operations.',
-  },
-  parts: [
-    {
-      slug: 'patterns-execution',
-      order: 1,
-      name: {
-        ko: 'Agent Patterns & Execution',
-        en: 'Agent Patterns & Execution',
-      },
-    },
-    {
-      slug: 'state-streaming-runtime',
-      order: 2,
-      name: {
-        ko: 'State, Streaming & Runtime',
-        en: 'State, Streaming & Runtime',
-      },
-    },
-    {
-      slug: 'sessions-reliability-production',
-      order: 3,
-      name: {
-        ko: 'Sessions, Reliability & Production',
-        en: 'Sessions, Reliability & Production',
-      },
-    },
-    {
-      slug: 'control-recovery-correctness',
-      order: 4,
-      name: {
-        ko: 'Control, Recovery & Correctness',
-        en: 'Control, Recovery & Correctness',
-      },
-    },
-    {
-      slug: 'operating-multi-agent-systems',
-      order: 5,
-      name: {
-        ko: 'Operating Multi-Agent Systems',
-        en: 'Operating Multi-Agent Systems',
-      },
-    },
-  ],
-}
-```
-
-series page에서는 `seriesOrder`로 전체 순서를 유지하되 `seriesPart` 기준으로 visual grouping한다.
-
-홈페이지에는 우선 **Agent Engineering**이라는 series 이름만 보여주고, series detail page 안에서 Part I~V를 펼치는 것이 가장 깔끔하다.
-
+series page에서는 stage 순서를 먼저 유지하고, 각 stage 안에서 `seriesOrder`로 글을 정렬한다. 홈페이지에는 **Agent Engineering**만 top-level series로 보여주고, stage와 applied track은 series detail page에서 펼친다.
 
 # 2. Shared mental model used across the series
 
@@ -3064,13 +2930,13 @@ Article 12 canonical diagram 사용.
 
 ---
 
-# 23. Articles 13–21 — Extended Agent Engineering
+# 23. Blueprint Articles B13–B21 — Extended Agent Engineering
 
-Article 1~12에서 backend의 기본 골격을 만든 뒤, 같은 **Agent Engineering** series 안에서 운영·정합성·확장 문제까지 이어간다. 별도 "2차 시리즈"로 분리하지 않는다.
+Blueprint B1~B12에서 backend의 기본 골격을 만든 뒤, 같은 **Agent Engineering** series 안에서 운영·정합성·확장 문제까지 이어간다. 별도 "2차 시리즈"로 분리하지 않는다.
 
 ---
 
-## Article 13 — Cancellation Is a Protocol
+## Blueprint Article B13 — Cancellation Is a Protocol
 
 ### Working title
 
@@ -3111,7 +2977,7 @@ async def run_step(ctx):
 
 ---
 
-## Article 14 — Timeouts, Deadlines, and Budgets
+## Blueprint Article B14 — Timeouts, Deadlines, and Budgets
 
 ### Working title
 
@@ -3147,7 +3013,7 @@ async with asyncio.timeout(5):
 
 ---
 
-## Article 15 — Idempotency and the Exactly-Once Illusion
+## Blueprint Article B15 — Idempotency and the Exactly-Once Illusion
 
 ### Working title
 
@@ -3186,7 +3052,7 @@ Article 10의 `XACK` / retry와 직접 연결한다.
 
 ---
 
-## Article 16 — Checkpoint, Resume, and Durable HITL
+## Blueprint Article B16 — Checkpoint, Resume, and Durable HITL
 
 ### Working title
 
@@ -3225,7 +3091,7 @@ checkpoint = {
 
 ---
 
-## Article 17 — Observability for Agent Systems
+## Blueprint Article B17 — Observability for Agent Systems
 
 ### Working title
 
@@ -3267,7 +3133,7 @@ logger.info(
 
 ---
 
-## Article 18 — Backpressure, Quotas, and Admission Control
+## Blueprint Article B18 — Backpressure, Quotas, and Admission Control
 
 ### Working title
 
@@ -3303,7 +3169,7 @@ async with tenant_semaphore(tenant_id, limit=4):
 
 ---
 
-## Article 19 — Multi-Agent Execution
+## Blueprint Article B19 — Multi-Agent Execution
 
 ### Working title
 
@@ -3352,7 +3218,7 @@ Article 1의 orchestrator pattern을 production runtime 관점으로 다시 확�
 
 ---
 
-## Article 20 — Security Boundaries for Agent Systems
+## Blueprint Article B20 — Security Boundaries for Agent Systems
 
 ### Working title
 
@@ -3392,7 +3258,7 @@ def authorize_tool(user, tool):
 
 ---
 
-## Article 21 — Token Streaming Is Not Progress Streaming
+## Blueprint Article B21 — Token Streaming Is Not Progress Streaming
 
 ### Working title
 
@@ -3438,90 +3304,55 @@ yield {
 ## Extended-series dependency map
 
 ```text
-Part I
-Patterns & Execution
-Articles 1–4
+Current foundation · public orders 1–10
       ↓
-Part II
-State, Streaming & Runtime
-Articles 5–8
+11 Session / Run Isolation
       ↓
-Part III
-Sessions, Reliability & Production
-Articles 9–12
+12 Worker Failure → 13 Kubernetes → 14 End-to-End
       ↓
-Part IV
-Control, Recovery & Correctness
-Articles 13–16
+15 Cancellation → 16 Deadlines / Budgets → 17 Checkpoint / Resume
       ↓
-Part V
-Operating Multi-Agent Systems
-Articles 17–21
+18 Observability → 19 Backpressure → 20 Multi-Agent
+      ↓
+21 Security → 22 Token vs Progress Streaming
 ```
 
 # 24. Drafting order recommendation
 
-공개 순서와 집필 순서는 모두 **1→21**을 기본으로 한다. 각 Part를 하나의 작은 learning arc로 완성한 뒤 다음 Part로 넘어간다.
+공개 순서와 집필 순서는 현재 production numbering의 **11→22**를 기본으로 한다. 사이트에서는 각 글이 주제에 맞는 기존 stage에 배치되므로, 새 Part를 만들지 않는다.
 
-## Part I — Agent Patterns & Execution
-
-```text
-1 Agent Pattern Design
-2 Async
-3 Thread / Process
-4 Worker
-```
-
-여기까지 쓰면 "Agent가 무엇을 하고, backend가 그 실행을 어떻게 소유하는가"가 완성된다.
-
-## Part II — State, Streaming & Runtime
+## Next article
 
 ```text
-5 State
-6 State vs Event
-7 SSE / Async Generator / Redis Streams
-8 LangGraph Runtime
+Public seriesOrder: 11
+Blueprint ID: B9
+seriesPart: state
+Title: Conversation은 Run이 아니다: Session Isolation 설계
 ```
 
-여기까지 쓰면 "실행 중인 Agent를 어떻게 기억하고 관찰하는가"가 완성된다.
+이 글은 기존 `State는 Event가 아니다` 다음에서 state model을 session/run hierarchy로 확장한다. 이후 worker failure와 deployment로 넘어가기 위한 기준 entity를 먼저 고정한다.
 
-## Part III — Sessions, Reliability & Production
+## Remaining drafting sequence
 
-```text
-9 Session / Run Isolation
-10 Worker Failure / Queue Reliability
-11 Kubernetes
-12 End-to-End Request Lifecycle
-```
+| Public order | Stage | Topic |
+| ---: | --- | --- |
+| 11 | state | Session / Run Isolation |
+| 12 | safety | Worker Failure / Queue Reliability |
+| 13 | delivery | Kubernetes |
+| 14 | delivery | End-to-End Request Lifecycle |
+| 15 | safety | Cancellation |
+| 16 | safety | Timeouts / Deadlines / Budgets |
+| 17 | safety | Checkpoint / Resume / Durable HITL |
+| 18 | delivery | Observability |
+| 19 | delivery | Backpressure / Quotas |
+| 20 | execution | Multi-Agent Execution |
+| 21 | safety | Security Boundaries |
+| 22 | delivery | Token vs Progress Streaming |
 
-여기까지 쓰면 production backend의 기본 골격이 완성된다.
+# 25. One-line takeaway for each blueprint article
 
-## Part IV — Control, Recovery & Correctness
+아래 번호는 상세 초안과 연결되는 Blueprint ID `B1`–`B21`이다. 공개 `seriesOrder`는 위 crosswalk를 따른다.
 
-```text
-13 Cancellation
-14 Timeouts / Deadlines / Budgets
-15 Idempotency
-16 Checkpoint / Resume / Durable HITL
-```
-
-여기까지 쓰면 long-running agent의 중단·재시도·복구 semantics가 완성된다.
-
-## Part V — Operating Multi-Agent Systems
-
-```text
-17 Observability
-18 Backpressure / Quotas
-19 Multi-Agent Execution
-20 Security
-21 Token vs Progress Streaming
-```
-
-마지막 Part는 실제 운영 단계에서 필요한 scale, tracing, multi-agent hierarchy, security, frontend streaming contract를 다룬다.
-
----
-
-# 25. One-line takeaway for each article
 
 1. **Agent Pattern Design** — Agent는 tool use, orchestration, planning, HITL, retry, reflection 같은 bounded control-flow pattern의 조합이다.
 2. **Async** — Agent는 계산보다 기다리는 시간이 길기 때문에 async가 중요하다.
@@ -3657,33 +3488,35 @@ LLM orchestration만 잘한다고 production agent backend가 완성되는 것�
 
 # 28. Canonical publication metadata
 
-모든 글의 public series metadata는 다음을 기본으로 한다.
+모든 글의 public series metadata는 현재 production schema를 따른다.
 
 ```yaml
 series: Agent Engineering
-seriesOrder: 1
-seriesPart: patterns-execution
+seriesOrder: 11
+seriesPart: state
 ```
 
-Article별 `seriesOrder`는 1~21의 canonical order를 따른다.
+`seriesPart`의 허용값과 표시 순서는 다음과 같다.
 
-`tags`는 Part 이름 대신 실제 기술 개념에 사용한다.
+```text
+design → execution → state → safety → delivery
+```
 
-예:
+새 글은 위 crosswalk의 public `seriesOrder`를 사용한다. 다음 글은 `seriesOrder: 11`, `seriesPart: state`다.
+
+`tags`는 stage 이름 대신 실제 기술 개념에 사용한다.
 
 ```yaml
 topics:
   - ai-agents
 primaryTopic: ai-agents
 tags:
-  - asyncio
-  - concurrency
-  - python
+  - session-isolation
+  - agent-state
+  - multi-tenancy
 ```
 
-Part label은 series detail page에서 navigation heading으로만 렌더링하는 것을 권장한다.
-
----
+Stage label은 series detail page의 navigation heading으로만 렌더링한다. `Internal LLM Serving`은 별도 detail series metadata를 유지하되, catalog에서는 Agent Engineering의 applied track으로 노출한다.
 
 # 29. Current preferred implementation baseline
 
