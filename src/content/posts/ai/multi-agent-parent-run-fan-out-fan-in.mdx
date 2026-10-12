@@ -1,0 +1,430 @@
+---
+title: "Multi-Agent는 Agent를 여러 개 띄우는 것이 아니다: Parent Run, Fan-out, Fan-in"
+subtitle: "Child run의 lifecycle, 격리된 state와 부분 실패를 하나의 실행 트리로 다루는 법"
+description: "Multi-agent 실행을 durable parent-child run hierarchy로 모델링하고 fan-out, fan-in, context isolation, 부분 실패와 budget·cancellation 전파를 설계합니다."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - multi-agent
+  - structured-concurrency
+  - orchestration
+  - fan-out-fan-in
+  - distributed-systems
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "ko"
+translationKey: "multi-agent-parent-run-fan-out-fan-in"
+series: "Agent Engineering"
+seriesOrder: 20
+seriesPart: "execution"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "Python asyncio — Coroutines and Tasks"
+    url: "https://docs.python.org/3/library/asyncio-task.html"
+    publisher: "Python Documentation"
+  - title: "AWS Step Functions — Parallel Workflow State"
+    url: "https://docs.aws.amazon.com/step-functions/latest/dg/state-parallel.html"
+    publisher: "AWS Documentation"
+  - title: "AWS Step Functions — Map Workflow State"
+    url: "https://docs.aws.amazon.com/step-functions/latest/dg/state-map.html"
+    publisher: "AWS Documentation"
+  - title: "Temporal Child Workflows"
+    url: "https://docs.temporal.io/child-workflows"
+    publisher: "Temporal Documentation"
+  - title: "LangGraph Durable Execution"
+    url: "https://langchain-ai.github.io/langgraph/concepts/durable_execution/"
+    publisher: "LangChain Documentation"
+  - title: "LangGraph Multi-Agent Tutorials"
+    url: "https://docs.langchain.com/oss/python/learn"
+    publisher: "LangChain Documentation"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import AgentMultiRunDiagrams from '../../../components/AgentMultiRunDiagrams.astro';
+
+<AnswerBlock question="Agent 세 개를 동시에 실행하면 Multi-Agent 시스템이 되는가?">
+  <strong>아니다. Production multi-agent는 여러 coroutine의 묶음이 아니라 parent와 child의 ownership, state, budget, failure와 cancellation을 연결한 실행 트리다.</strong> Child를 stable ID를 가진 durable run으로 만들고, bounded fan-out과 명시적인 fan-in policy로 결과를 합쳐야 Worker가 죽거나 일부 child가 실패해도 하나의 product result로 수렴한다.
+</AnswerBlock>
+
+앞선 글 [Worker를 더 늘리기 전에](/ai/agents/backpressure-quotas-admission-control/)에서는 admission controller가 안전한 capacity 안에서만 run을 수용하게 만들었다. 그런데 parent run 하나가 Worker 안에서 child agent 열 개를 생성하면 어떻게 될까?
+
+```python
+results = await asyncio.gather(
+    research_agent(task),
+    data_agent(task),
+    risk_agent(task),
+)
+```
+
+API에서는 run 한 건만 수용했지만 model call, tool concurrency와 token cost는 세 배 이상으로 fan-out한다. Worker가 중간에 죽으면 어떤 child가 끝났는지 사라진다. 하나가 실패했을 때 나머지를 취소할지, 성공 결과만 합성할지도 코드의 우연한 예외 처리에 맡겨진다.
+
+Multi-agent의 핵심은 agent 수가 아니다. **하나의 목표를 여러 실행 단위로 분해하고 다시 결정론적인 product state로 합치는 protocol**이다.
+
+<AgentMultiRunDiagrams
+  kind="hierarchy"
+  language="ko"
+  caption="그림 1. Parent와 child는 하나의 실행 트리지만 각자 durable lifecycle, attempt, result와 budget을 가진다."
+/>
+
+## 먼저 child를 node로 둘지 run으로 둘지 결정한다
+
+모든 전문 역할을 독립 run으로 만들 필요는 없다.
+
+| 실행 단위 | 적합한 경우 | 책임 |
+| --- | --- | --- |
+| 함수·tool call | 짧고 stateless하며 parent와 함께 retry | parent attempt 안의 span |
+| Graph node | 같은 checkpoint와 state machine 안의 단계 | parent graph state |
+| Subgraph | 복수 단계지만 parent lifecycle 안에서 재사용 | namespaced graph state |
+| Child run | 독립 retry·checkpoint·budget·권한·관찰이 필요 | 별도 durable lifecycle |
+
+“research agent”라는 이름이 붙었다고 child run인 것은 아니다. Worker crash 뒤 개별 재개가 필요하고, 몇 분 동안 병렬 실행되며, 사용자에게 진행 상태를 보여 주거나 별도 quota를 계산해야 할 때 child run이 유리하다.
+
+반대로 100ms짜리 deterministic lookup까지 child run으로 만들면 lifecycle row, event와 scheduling overhead만 늘어난다. Runtime boundary는 캐릭터나 prompt가 아니라 **독립적으로 관리해야 하는 실패 경계**로 정한다.
+
+## Parent-child 관계를 DB의 first-class entity로 만든다
+
+Child run은 최소한 다음 관계를 가진다.
+
+```sql
+CREATE TABLE agent_runs (
+    run_id UUID PRIMARY KEY,
+    root_run_id UUID NOT NULL,
+    parent_run_id UUID,
+    child_key TEXT,
+    role TEXT NOT NULL,
+    depth SMALLINT NOT NULL,
+    status TEXT NOT NULL,
+    input_digest TEXT NOT NULL,
+    policy_version TEXT NOT NULL,
+    deadline_at TIMESTAMPTZ NOT NULL,
+    reserved_tokens BIGINT NOT NULL,
+    result_ref TEXT,
+    error_code TEXT,
+    UNIQUE (parent_run_id, child_key)
+);
+```
+
+- `root_run_id`: 실행 트리 전체를 찾는 기준점
+- `parent_run_id`: 직접 생성한 parent
+- `child_key`: retry 뒤에도 같은 logical child를 가리키는 stable key
+- `role`: research, data, risk처럼 product semantics가 있는 역할
+- `depth`: recursive delegation 상한을 검사하는 값
+
+각 child는 자체 `attempt_id`, checkpoint, event cursor와 execution ledger를 가진다. Parent의 message history 안에 child 결과만 넣고 lifecycle을 숨기면 recovery와 cost attribution이 다시 불가능해진다.
+
+## Fan-out은 durable creation protocol이다
+
+Orchestrator가 child를 만든 직후 죽을 수 있다.
+
+```text
+child row 생성 전 crash
+child row 생성 후 queue publish 전 crash
+queue publish 후 parent checkpoint 전 crash
+같은 parent node가 replay되어 child를 다시 생성
+```
+
+Stable `child_key`와 unique constraint가 logical child의 중복 생성을 막는다. Parent state update, child rows와 enqueue outbox는 같은 transaction에서 기록한다.
+
+```python
+async def fan_out(parent, specs):
+    async with db.transaction():
+        await run_store.lock(parent.id)
+        await assert_can_spawn(parent, count=len(specs))
+
+        children = []
+        for spec in specs:
+            child = await run_store.upsert_child(
+                root_run_id=parent.root_run_id,
+                parent_run_id=parent.id,
+                child_key=f"{spec.role}:{spec.logical_task_id}",
+                role=spec.role,
+                input_digest=spec.input_digest,
+                deadline_at=min(parent.deadline_at, spec.deadline_at),
+            )
+            await outbox.append_once("child_queued", child.id)
+            children.append(child)
+
+        await run_store.mark_waiting_children(parent.id, len(children))
+    return children
+```
+
+Replay된 orchestrator는 새 UUID를 계속 만들지 않고 같은 `child_key`의 row를 재사용한다. 이미 terminal인 child는 다시 queue에 넣지 않는다.
+
+## Fan-out에도 admission control이 필요하다
+
+Parent 하나를 수용했다고 임의 개수의 child를 실행할 권리를 준 것은 아니다. 다음 상한을 parent policy에 둔다.
+
+```python
+async def assert_can_spawn(parent, count: int) -> None:
+    policy = await policy_store.for_operation(parent.operation)
+
+    if parent.depth + 1 > policy.max_depth:
+        raise FanoutRejected("max_depth")
+    if parent.child_count + count > policy.max_children:
+        raise FanoutRejected("max_children")
+    if not await capacity.reserve_children(parent.tenant_id, count):
+        raise FanoutRejected("tenant_child_concurrency")
+```
+
+고정된 역할 세 개라면 parent admission에서 capacity를 미리 reserve할 수 있다. LLM이 동적으로 task를 분해한다면 plan을 먼저 schema validation하고, 최대 child 수와 cost unit을 계산한 뒤 별도 admission decision을 한다.
+
+Child가 다시 child를 만드는 recursive delegation에는 `max_depth`, root 전체 `max_descendants`와 remaining budget을 적용한다. 그렇지 않으면 agent가 agent를 생성하는 exponential fan-out이 된다.
+
+## Context를 공유한다는 말부터 분해한다
+
+세 child가 같은 Python dict나 전체 conversation을 수정하게 두면 completion order에 따라 결과가 달라진다. 대신 context를 세 종류로 나눈다.
+
+1. **Immutable input snapshot**: 사용자 요청, tenant, deadline, policy version
+2. **Child-private state**: query, tool history, checkpoint와 scratch data
+3. **Typed result**: parent가 fan-in할 수 있는 검증된 output
+
+<AgentMultiRunDiagrams
+  kind="context"
+  language="ko"
+  caption="그림 2. Child는 공통 snapshot을 읽되 state는 격리하고, versioned result contract를 통해서만 parent에 합류한다."
+/>
+
+```python
+class ChildResult(BaseModel):
+    child_run_id: UUID
+    role: Literal["research", "data", "risk"]
+    status: Literal["succeeded", "partial", "failed", "cancelled"]
+    payload: dict
+    evidence_refs: list[str]
+    usage: Usage
+    schema_version: Literal["child-result.v1"]
+```
+
+전체 prompt나 raw document를 child마다 복제하지 않는다. Durable object reference와 content digest를 전달하고 child의 tool·credential scope에 맞는 view만 제공한다.
+
+Parent synthesis는 child의 private message history를 병합하지 않는다. 필요한 claim, data, evidence와 uncertainty만 typed result로 받는다. Completion order가 달라도 같은 입력이 되도록 role 또는 stable ordinal로 정렬한다.
+
+## `gather()`와 `TaskGroup`은 local concurrency를 다룬다
+
+같은 Worker attempt 안의 짧은 child task라면 Python structured concurrency가 적합하다.
+
+```python
+async def run_local_branches(specs):
+    tasks = {}
+    async with asyncio.TaskGroup() as group:
+        for spec in specs:
+            tasks[spec.role] = group.create_task(run_branch(spec))
+
+    return {role: task.result() for role, task in tasks.items()}
+```
+
+`TaskGroup` 안의 task 하나가 일반 예외로 실패하면 남은 task가 cancel되고, context를 빠져나갈 때 모두 기다린다. 이는 all-required, fail-fast policy에 잘 맞는다. Cleanup 뒤 `CancelledError`를 다시 전파해야 structured cancellation이 정상 작동한다.
+
+`asyncio.gather(..., return_exceptions=True)`는 best-effort 결과 수집에 사용할 수 있지만 exception을 result처럼 반환한다. 분류하지 않으면 실패가 성공 payload에 섞인다.
+
+```python
+raw = await asyncio.gather(*calls, return_exceptions=True)
+
+results = [normalize_child_result(item) for item in raw]
+decision = failure_policy.evaluate(results)
+if not decision.can_synthesize:
+    raise ChildSetFailed(decision.reason)
+```
+
+그러나 Worker process를 넘는 durable child는 Python task가 아니다. Parent coroutine cancellation만으로 다른 Worker의 child가 중단되지 않는다. DB lifecycle, queue message와 cancellation protocol이 필요하다.
+
+## 부분 실패 정책을 fan-out 전에 고정한다
+
+Child 하나가 실패했을 때의 정답은 use case마다 다르다.
+
+<AgentMultiRunDiagrams
+  kind="failure"
+  language="ko"
+  caption="그림 3. All-required, quorum, best-effort와 first-useful은 서로 다른 terminal 조건과 cancellation 정책을 가진다."
+/>
+
+```python
+@dataclass(frozen=True)
+class JoinPolicy:
+    mode: Literal["all", "quorum", "best_effort", "first_useful"]
+    required_roles: frozenset[str]
+    min_successes: int
+    accept_partial: bool
+    cancel_remaining_on_satisfied: bool
+```
+
+- **All required**: 핵심 검사 하나라도 실패하면 parent가 실패하거나 재시도
+- **Quorum**: 독립 evaluator N개 중 K개가 성공하거나 합의
+- **Best effort**: optional enrichment는 실패해도 성공 결과로 합성
+- **First useful**: 동일 목적의 hedged call 중 첫 valid result 뒤 나머지 취소
+
+Policy에는 retryable error, terminal error, partial result의 허용 여부와 deadline 시 fallback도 들어간다. “실패했으니 빈 문자열로 넣기”는 policy가 아니다. Synthesis가 누락을 알 수 있게 role별 status와 error class를 전달한다.
+
+## Fan-in은 durable barrier다
+
+Parent Worker가 `await children` 상태로 memory에 남아 있을 필요는 없다. Parent는 `waiting_children`으로 durable하게 전이하고 ownership을 반납한다.
+
+Child가 terminal state에 들어가면 outbox event를 발행한다. Coordinator는 row lock 또는 conditional update 아래에서 현재 child 집합을 다시 읽고 join policy를 평가한다.
+
+```python
+async def on_child_terminal(child_id: UUID):
+    child = await run_store.get(child_id)
+
+    async with db.transaction():
+        parent = await run_store.lock(child.parent_run_id)
+        if parent.status != "waiting_children":
+            return
+
+        children = await run_store.list_children(parent.id)
+        decision = join_policy(parent).evaluate(children)
+
+        if decision.ready:
+            await run_store.mark_synthesis_queued(parent.id, decision.snapshot_id)
+            await outbox.append_once("parent_synthesis_queued", parent.id)
+        elif decision.impossible:
+            await run_store.fail(parent.id, decision.error_code)
+```
+
+단순히 `completed_children += 1`만 하면 duplicate event에서 두 번 증가하거나 child set 변경과 경쟁한다. Terminal child rows를 source of truth로 재계산하거나, child별 completion marker를 unique하게 기록한다.
+
+Fan-in snapshot에는 어떤 child result version들을 사용했는지 고정한다. 늦게 도착한 stale attempt가 synthesis 입력을 바꾸지 못하게 active attempt와 fence를 검증한다.
+
+## Synthesis도 별도의 attempt다
+
+Child가 모두 끝난 순간 parent result가 완성되는 것은 아니다. 결과 schema validation, evidence deduplication, conflict resolution과 final model call이 남는다.
+
+```python
+async def synthesize(parent, snapshot):
+    inputs = sorted(snapshot.results, key=lambda item: item.role)
+    valid = [item for item in inputs if item.status in {"succeeded", "partial"}]
+
+    return await synthesis_graph.ainvoke({
+        "parent_run_id": str(parent.id),
+        "join_policy": parent.join_policy,
+        "child_results": [item.model_dump() for item in valid],
+        "missing_roles": snapshot.missing_roles,
+    })
+```
+
+Synthesis Worker가 죽어도 같은 snapshot ID로 재시도한다. 외부 publish나 side effect는 parent execution ledger와 idempotency key로 보호한다.
+
+## Budget은 복사하지 말고 할당한다
+
+Parent의 남은 token 60,000을 child 세 개 모두에게 60,000씩 전달하면 제한은 180,000이 된다. Budget은 hierarchy를 따라 reserve한다.
+
+<AgentMultiRunDiagrams
+  kind="budget"
+  language="ko"
+  caption="그림 4. Parent budget을 child별로 예약하고 실제 usage를 정산하며, 일부는 synthesis를 위해 남긴다."
+/>
+
+```python
+async def allocate_child_budget(parent, specs):
+    requested = sum(spec.token_budget for spec in specs)
+    synthesis_reserve = parent.remaining_tokens * 0.15
+
+    if requested + synthesis_reserve > parent.remaining_tokens:
+        raise BudgetExceeded("child allocation exceeds parent envelope")
+
+    return await budget_ledger.reserve_many(
+        parent_run_id=parent.id,
+        allocations={spec.child_key: spec.token_budget for spec in specs},
+    )
+```
+
+Child deadline은 항상 parent deadline 이하여야 한다. Child가 종료되면 actual usage를 settle하고 미사용 reservation을 parent pool로 반환할 수 있다. 하지만 실행 중인 sibling의 한도를 사후에 소급 변경하지 않는다.
+
+Cost, tool-call count와 retry budget도 같은 방식으로 전파한다. Hierarchy 전체 usage는 ledger에서 합산하며 trace sampling에 의존하지 않는다.
+
+## Cancellation은 tree를 따라 전파된다
+
+사용자가 root run을 cancel하면 다음 순서가 필요하다.
+
+1. Root와 parent를 `cancelling`으로 조건부 전이
+2. 새 child spawn 금지
+3. Non-terminal descendant에 cancel request 기록
+4. Queue에 있는 child는 실행 전 terminal cancel
+5. Running child는 cooperative cancellation과 tool-specific abort 시도
+6. 모든 required descendant 정리 뒤 parent를 `cancelled`로 확정
+
+```python
+async def cancel_tree(root_run_id: UUID, reason: str):
+    async with db.transaction():
+        runs = await run_store.lock_non_terminal_tree(root_run_id)
+        for run in runs:
+            await run_store.request_cancel(run.id, reason)
+            await outbox.append_once("run_cancel_requested", run.id)
+```
+
+Parent가 먼저 `cancelled`로 닫히고 child가 계속 비용을 쓰는 orphan을 허용하지 않는다. 정말 detached background work가 필요하다면 parent-close policy, 별도 owner와 budget을 명시한다.
+
+Process-local Task cancellation과 마찬가지로 remote Lambda나 이미 시작된 외부 side effect가 즉시 멈춘다고 가정하지 않는다. Child terminal 상태와 execution ledger로 최종 결과를 reconcile한다.
+
+## Event는 child detail과 parent progress를 분리한다
+
+UI가 모든 child의 token을 한 timeline에 섞으면 읽을 수 없다. Product event에는 hierarchy를 남긴다.
+
+```json
+{
+  "event": "child_progressed",
+  "root_run_id": "R20",
+  "parent_run_id": "R20",
+  "child_run_id": "R20-2",
+  "role": "data",
+  "status": "running",
+  "progress": 65,
+  "cursor": "1942-0"
+}
+```
+
+Parent stream은 `children_started`, role별 status, `join_satisfied`, `synthesis_started`처럼 집계된 progress를 제공한다. 상세 child stream은 drill-down할 때 구독한다. Event aggregator도 duplicate와 out-of-order event를 cursor와 version으로 처리한다.
+
+Observability에는 `root_run_id`, `parent_run_id`, `child_run_id`, role과 depth를 남긴다. Parent orchestration span과 다른 Worker의 child trace는 context propagation 또는 span link로 연결한다.
+
+## Multi-agent failure test
+
+- Fan-out transaction 전·중·후 parent Worker crash
+- 같은 orchestration node replay와 child unique key
+- Queue에 child event가 중복 delivery
+- Child 성공 후 terminal event publish 전 crash
+- Required child 한 개 실패와 sibling cancellation
+- Best-effort optional child 실패 뒤 partial synthesis
+- Quorum 충족과 동시에 늦은 failure 도착
+- Parent cancel과 새 child spawn 경쟁
+- Parent deadline보다 긴 child deadline 거부
+- Child budget over-allocation과 reservation leak 회수
+- Recursive delegation의 max depth·descendant 상한
+- Synthesis Worker crash와 같은 snapshot replay
+- Stale child attempt의 늦은 result 거부
+- Tenant A의 큰 fan-out이 Tenant B capacity를 침범하지 않는지
+
+테스트 assertion은 “세 agent가 실행됐다”가 아니다. **같은 logical child가 한 번만 생성되고, policy에 맞는 result set이 한 번 합성되며, 전체 tree가 terminal state와 bounded usage로 수렴하는가**다.
+
+## 구현 체크리스트
+
+- Function, node, subgraph와 child run의 선택 기준이 있는가?
+- `root_run_id`, `parent_run_id`, stable `child_key`를 저장하는가?
+- Child가 자체 lifecycle, attempt, checkpoint와 result를 갖는가?
+- Parent update, child rows와 enqueue outbox가 원자적인가?
+- Replay가 terminal child를 중복 생성·실행하지 않는가?
+- `max_children`, `max_depth`, `max_descendants`가 있는가?
+- Child fan-out이 tenant와 downstream admission을 다시 통과하는가?
+- Shared input은 immutable하고 child state는 격리되는가?
+- Typed·versioned child result contract가 있는가?
+- Join policy가 all, quorum, best-effort와 first-useful을 구분하는가?
+- Fan-in이 memory await가 아니라 durable barrier인가?
+- Synthesis input snapshot과 result ordering이 안정적인가?
+- Deadline, token, cost와 retry budget이 hierarchy를 따라 할당되는가?
+- Root cancellation이 descendant로 전파되고 orphan을 추적하는가?
+- Parent progress와 child detail event가 분리되는가?
+- Partial failure, replay, stale result와 cancellation race를 테스트하는가?
+
+## 다음 경계는 누가 무엇을 할 수 있는가다
+
+Parent-child lifecycle을 만들면 research child, data child와 risk child에 서로 다른 tool과 credential을 줄 수 있다. 동시에 prompt injection을 받은 한 child가 parent의 모든 권한을 상속하는 위험도 생긴다.
+
+다음 글에서는 **Agent Security는 Prompt 문제가 아니다: Permission, Credentials, Tool Boundary**를 통해 authentication, authorization, approval, tool allowlist, tenant isolation과 credential scope를 실행 경계에 배치하는 방법을 다룬다.
