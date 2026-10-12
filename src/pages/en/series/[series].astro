@@ -1,6 +1,7 @@
 ---
 import type { GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
+import AgentEngineeringLearningPath from '../../../components/AgentEngineeringLearningPath.astro';
 import AiValueChainMap from '../../../components/AiValueChainMap.astro';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SeriesAppliedTrackSection from '../../../components/SeriesAppliedTrackSection.astro';
@@ -70,7 +71,11 @@ const slug = seriesSlug(name);
         </>
       ) : seriesUsesParts(name) ? (
         <>
-          <SeriesSectionList seriesName={name} posts={posts} language="en" />
+          {isAgentEngineering ? (
+            <AgentEngineeringLearningPath seriesName={name} posts={posts} language="en" />
+          ) : (
+            <SeriesSectionList seriesName={name} posts={posts} language="en" />
+          )}
           {isAgentEngineering && AGENT_ENGINEERING_APPLIED_TRACKS.map((detailSeries) => (
             <SeriesAppliedTrackSection
               detailSeriesName={detailSeries}

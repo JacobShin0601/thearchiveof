@@ -1,0 +1,497 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { postPath } from '../consts';
+import {
+  partIdsForSeries,
+  partMeta,
+  postsInPart,
+} from '../lib/series-sections';
+
+interface Props {
+  seriesName: string;
+  posts: CollectionEntry<'posts'>[];
+  language: 'ko' | 'en';
+}
+
+const { seriesName, posts, language } = Astro.props;
+const isKo = language === 'ko';
+const partIds = partIdsForSeries(seriesName);
+
+const startPointDefinitions = [
+  {
+    translationKey: 'agent-pattern-design',
+    eyebrow: isKo ? '처음부터 읽기' : 'Start from the beginning',
+    description: isKo
+      ? 'Agent의 제어 흐름과 패턴부터 시작합니다.'
+      : 'Begin with agent control flow and bounded patterns.',
+  },
+  {
+    translationKey: 'agent-backend-architecture-map',
+    eyebrow: isKo ? '전체 구조 먼저 보기' : 'See the architecture first',
+    description: isKo
+      ? 'API, Queue, Worker, State와 SSE의 책임을 한 장에 봅니다.'
+      : 'See how APIs, queues, workers, state, and SSE fit together.',
+  },
+  {
+    translationKey: 'agent-request-end-to-end',
+    eyebrow: isKo ? '완성된 실행 따라가기' : 'Trace a complete run',
+    description: isKo
+      ? '하나의 요청이 생성되고 복구되는 전체 경로를 따라갑니다.'
+      : 'Follow one request through execution, delivery, and recovery.',
+  },
+];
+
+const startPoints = startPointDefinitions.flatMap((definition) => {
+  const post = posts.find((candidate) => candidate.data.translationKey === definition.translationKey);
+  return post ? [{ ...definition, post }] : [];
+});
+---
+
+<div class="agent-learning-path">
+  <section class="path-overview" aria-labelledby="learning-path-heading">
+    <div class="path-overview-copy">
+      <p class="eyebrow">{isKo ? 'Learning Path' : 'Learning Path'}</p>
+      <h2 id="learning-path-heading">
+        {isKo ? '제어 흐름에서 프로덕션 계약까지' : 'From control flow to production contracts'}
+      </h2>
+      <p>
+        {isKo
+          ? '현장에서 Agent backend를 만들며 부딪힌 문제를 설계 원칙과 구현 패턴으로 정리한 학습 경로입니다.'
+          : 'A field-tested learning path for designing agent backends that remain understandable and recoverable in production.'}
+      </p>
+    </div>
+    <dl class="path-stats" aria-label={isKo ? '시리즈 구성' : 'Series composition'}>
+      <div>
+        <dt>{String(partIds.length).padStart(2, '0')}</dt>
+        <dd>{isKo ? '학습 단계' : 'Learning stages'}</dd>
+      </div>
+      <div>
+        <dt>{String(posts.length).padStart(2, '0')}</dt>
+        <dd>{isKo ? '핵심 글' : 'Core articles'}</dd>
+      </div>
+      <div>
+        <dt>01→05</dt>
+        <dd>{isKo ? '설계에서 운영까지' : 'Design to operations'}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <nav class="stage-map" aria-label={isKo ? 'Agent Engineering 학습 단계' : 'Agent Engineering learning stages'}>
+    {partIds.map((partId) => {
+      const meta = partMeta(partId);
+      const sectionPosts = postsInPart(posts, partId);
+      return (
+        <a href={`#series-part-${partId}`} class="stage-map-item">
+          <span class="stage-map-index">{String(meta.index).padStart(2, '0')}</span>
+          <span class="stage-map-copy">
+            <strong>{meta.title[language]}</strong>
+            <small>{isKo ? `${sectionPosts.length}편` : `${sectionPosts.length} articles`}</small>
+          </span>
+        </a>
+      );
+    })}
+  </nav>
+
+  {startPoints.length > 0 && (
+    <section class="start-points" aria-labelledby="start-points-heading">
+      <header>
+        <p class="eyebrow">{isKo ? '어디서 시작할까요?' : 'Where should I start?'}</p>
+        <h2 id="start-points-heading">{isKo ? '목적에 맞는 시작점' : 'Choose your entry point'}</h2>
+      </header>
+      <div class="start-point-grid">
+        {startPoints.map(({ post, eyebrow, description }) => (
+          <a class="start-point-card" href={postPath(post)}>
+            <span>{eyebrow}</span>
+            <strong>{post.data.title}</strong>
+            <small>{description}</small>
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
+
+  <div class="learning-stage-list">
+    {partIds.map((partId) => {
+      const meta = partMeta(partId);
+      const sectionPosts = postsInPart(posts, partId);
+      const orders = sectionPosts
+        .map((post) => post.data.seriesOrder)
+        .filter((order): order is number => order != null);
+      const range = orders.length > 0
+        ? `${String(Math.min(...orders)).padStart(2, '0')}–${String(Math.max(...orders)).padStart(2, '0')}`
+        : '—';
+
+      return (
+        <section class="learning-stage" aria-labelledby={`series-part-${partId}`}>
+          <header class="learning-stage-header">
+            <div class="stage-number" aria-hidden="true">{String(meta.index).padStart(2, '0')}</div>
+            <div class="stage-heading-copy">
+              <p class="eyebrow">{isKo ? `Stage ${meta.index}` : `Stage ${meta.index}`}</p>
+              <h2 id={`series-part-${partId}`}>{meta.title[language]}</h2>
+              <p>{meta.description[language]}</p>
+              <p class="stage-question">{meta.question[language]}</p>
+            </div>
+            <div class="stage-range" aria-label={isKo ? `글 ${range}` : `Articles ${range}`}>
+              <span>{range}</span>
+              <small>{isKo ? `${sectionPosts.length}편` : `${sectionPosts.length} articles`}</small>
+            </div>
+          </header>
+
+          {sectionPosts.length > 0 ? (
+            <ol class="learning-article-list">
+              {sectionPosts.map((post) => (
+                <li>
+                  <span class="article-order">{String(post.data.seriesOrder).padStart(2, '0')}</span>
+                  <div class="article-copy">
+                    <p class="article-meta">
+                      <span>{post.data.contentType}</span>
+                      {post.data.draft && <span class="draft-label">{isKo ? '미리보기 초안' : 'Preview draft'}</span>}
+                    </p>
+                    <h3><a href={postPath(post)}>{post.data.title}</a></h3>
+                    {post.data.subtitle && <p>{post.data.subtitle}</p>}
+                  </div>
+                  <a class="article-arrow" href={postPath(post)} aria-label={`${post.data.title} ${isKo ? '읽기' : 'Read'}`}>→</a>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p class="empty-state">
+              {isKo ? '이 단계의 글이 준비 중입니다.' : 'Articles for this stage are being prepared.'}
+            </p>
+          )}
+        </section>
+      );
+    })}
+  </div>
+</div>
+
+<style>
+  .agent-learning-path {
+    display: grid;
+    gap: clamp(2.75rem, 7vw, 5rem);
+    margin-top: clamp(2rem, 5vw, 3.5rem);
+  }
+
+  .path-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.85fr);
+    gap: clamp(1.5rem, 5vw, 4rem);
+    align-items: end;
+    padding: clamp(1.4rem, 4vw, 2.5rem);
+    border: 1px solid var(--line);
+    background: linear-gradient(135deg, var(--paper-deep), var(--paper));
+  }
+
+  .path-overview-copy h2,
+  .start-points h2,
+  .learning-stage h2,
+  .learning-article-list h3 {
+    margin: 0;
+  }
+
+  .path-overview-copy > p:last-child {
+    max-width: 47rem;
+    margin: 0.8rem 0 0;
+    color: var(--muted);
+  }
+
+  .path-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    margin: 0;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+
+  .path-stats div {
+    padding: 0.9rem 0.75rem;
+    background: var(--paper);
+  }
+
+  .path-stats dt {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+
+  .path-stats dd {
+    margin: 0.25rem 0 0;
+    color: var(--muted);
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  .stage-map {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    border: 1px solid var(--line);
+  }
+
+  .stage-map-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.7rem;
+    min-width: 0;
+    padding: 1rem;
+    color: inherit;
+    text-decoration: none;
+    background: var(--paper);
+    border-right: 1px solid var(--line);
+  }
+
+  .stage-map-item:last-child {
+    border-right: 0;
+  }
+
+  .stage-map-item:hover {
+    background: var(--paper-deep);
+  }
+
+  .stage-map-index,
+  .article-order {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .stage-map-copy {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  .stage-map-copy strong {
+    font-size: 0.84rem;
+    line-height: 1.35;
+  }
+
+  .stage-map-copy small {
+    color: var(--muted);
+    font-size: 0.7rem;
+  }
+
+  .start-points {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .start-point-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .start-point-card {
+    display: grid;
+    align-content: start;
+    gap: 0.55rem;
+    min-height: 10rem;
+    padding: 1.15rem;
+    color: inherit;
+    text-decoration: none;
+    border: 1px solid var(--line);
+    background: var(--paper);
+  }
+
+  .start-point-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .start-point-card > span {
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .start-point-card strong {
+    line-height: 1.45;
+  }
+
+  .start-point-card small {
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .learning-stage-list {
+    display: grid;
+    gap: clamp(3.5rem, 8vw, 6rem);
+  }
+
+  .learning-stage {
+    scroll-margin-top: 2rem;
+  }
+
+  .learning-stage-header {
+    display: grid;
+    grid-template-columns: 4rem minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+    padding-bottom: 1.25rem;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .stage-number {
+    color: var(--accent);
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .stage-heading-copy > p:not(.eyebrow) {
+    margin: 0.45rem 0 0;
+    color: var(--muted);
+  }
+
+  .stage-heading-copy .stage-question {
+    color: var(--ink);
+    font-weight: 650;
+  }
+
+  .stage-range {
+    display: grid;
+    justify-items: end;
+    gap: 0.25rem;
+  }
+
+  .stage-range span {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .stage-range small {
+    color: var(--muted);
+  }
+
+  .learning-article-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .learning-article-list li {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr) 2rem;
+    gap: 1rem;
+    align-items: start;
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .article-order {
+    padding-top: 0.3rem;
+  }
+
+  .article-copy {
+    min-width: 0;
+  }
+
+  .article-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin: 0 0 0.35rem;
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .draft-label {
+    color: var(--accent);
+  }
+
+  .learning-article-list h3 {
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    line-height: 1.45;
+  }
+
+  .learning-article-list h3 a,
+  .article-arrow {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .learning-article-list h3 a:hover,
+  .article-arrow:hover {
+    color: var(--accent);
+  }
+
+  .article-copy > p:last-child {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
+
+  .article-arrow {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--line);
+  }
+
+  @media (max-width: 900px) {
+    .path-overview {
+      grid-template-columns: 1fr;
+    }
+
+    .stage-map {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .stage-map-item {
+      border-bottom: 1px solid var(--line);
+    }
+
+    .stage-map-item:nth-child(2n) {
+      border-right: 0;
+    }
+
+    .stage-map-item:last-child {
+      grid-column: 1 / -1;
+      border-bottom: 0;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .path-stats,
+    .start-point-grid,
+    .stage-map {
+      grid-template-columns: 1fr;
+    }
+
+    .stage-map-item,
+    .stage-map-item:nth-child(2n) {
+      border-right: 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .learning-stage-header {
+      grid-template-columns: 3rem minmax(0, 1fr);
+    }
+
+    .stage-range {
+      grid-column: 2;
+      justify-items: start;
+    }
+
+    .learning-article-list li {
+      grid-template-columns: 2.25rem minmax(0, 1fr);
+      gap: 0.75rem;
+    }
+
+    .article-arrow {
+      display: none;
+    }
+  }
+</style>
