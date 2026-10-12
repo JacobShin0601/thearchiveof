@@ -1,0 +1,430 @@
+---
+title: "Running Agents on Kubernetes: Separating API and Worker Pods"
+subtitle: "Operate one codebase with distinct Deployments, resource policies, shutdown protocols, and scaling signals"
+description: "How to run agent APIs and workers as separate Kubernetes Deployments with graceful shutdown, resource requests, probes, bounded concurrency, and queue-based autoscaling."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - kubernetes
+  - deployment
+  - autoscaling
+  - graceful-shutdown
+  - workers
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "running-agents-on-kubernetes"
+series: "Agent Engineering"
+seriesOrder: 13
+seriesPart: "safety"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "Kubernetes Deployments"
+    url: "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
+    publisher: "Kubernetes Documentation"
+  - title: "Kubernetes Pod Lifecycle"
+    url: "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+    publisher: "Kubernetes Documentation"
+  - title: "Liveness, Readiness, and Startup Probes"
+    url: "https://kubernetes.io/docs/concepts/workloads/pods/probes/"
+    publisher: "Kubernetes Documentation"
+  - title: "Resource Management for Pods and Containers"
+    url: "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/"
+    publisher: "Kubernetes Documentation"
+  - title: "Horizontal Pod Autoscaling"
+    url: "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+    publisher: "Kubernetes Documentation"
+  - title: "Kubernetes Jobs"
+    url: "https://kubernetes.io/docs/concepts/workloads/controllers/job/"
+    publisher: "Kubernetes Documentation"
+  - title: "KEDA Redis Streams Scaler"
+    url: "https://keda.sh/docs/latest/scalers/redis-streams/"
+    publisher: "KEDA Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="How should an agent API and its workers run on Kubernetes?">
+  <strong>A worker is not a special Kubernetes resource; it is the application role that owns attempts taken from a queue.</strong> The API and worker may share an image, but separate Deployments give them independent lifecycles, resources, credentials, and scaling signals. Scale the API for HTTP traffic and connections; scale workers for queue backlog, service time, and downstream capacity. During shutdown, workers must stop claiming jobs and leave unfinished work recoverable.
+</AnswerBlock>
+
+[A Worker Is Not a Thread](/en/ai/agents/worker-is-not-thread/) defined a worker as an execution-lifecycle ownership boundary. [When Workers Die](/en/ai/agents/when-workers-die/) then kept unacknowledged Redis Stream entries in the PEL so another consumer could reclaim them.
+
+Now place that worker on Kubernetes. A common misconception is that a “worker Pod” is a distinct Kubernetes object type. Kubernetes knows objects such as `Pod`, `Deployment`, and `Job`. **The application inside the container gives a Pod its worker role.**
+
+```text
+Same image: my-agent:1.0
+
+API Deployment                 Worker Deployment
+└─ uvicorn app.api:app         └─ python -m app.worker
+   HTTP lifecycle                 queue/job lifecycle
+```
+
+Both processes can share a repository and image while using different commands, replica counts, resources, secrets, rollout speeds, and scaling policies.
+
+## Separate by lifecycle, not by codebase
+
+The distinction between API and worker is operational rather than organizational.
+
+| Dimension | API Deployment | Worker Deployment |
+| --- | --- | --- |
+| Primary input | HTTP request, SSE connection | Queue entry |
+| Typical duration | Short and predictable | Seconds to minutes, high variance |
+| Scaling signal | Request rate, latency, connections | Queue lag, pending work, oldest age |
+| Shutdown concern | Remove traffic, drain requests | Stop claims, settle in-flight attempts |
+| Main bottleneck | Sockets, DB pool, authentication | LLM/tool quota, memory, CPU/GPU |
+| Credentials | User auth and read paths | Tool execution and result storage |
+
+Starting both roles in one process can be reasonable. The cost appears when one rollout interrupts API connections and long-running jobs together, or when both roles must use the same replica count and resource profile.
+
+```python
+# One image, two entry points.
+def api_main() -> None:
+    uvicorn.run("app.api:app", host="0.0.0.0", port=8000)
+
+def worker_main() -> None:
+    asyncio.run(run_worker())
+```
+
+## Two Deployments can share one image
+
+A minimal API Deployment might look like this:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: agent-api
+  template:
+    metadata:
+      labels:
+        app: agent-api
+    spec:
+      containers:
+        - name: api
+          image: registry.example.com/my-agent:1.0
+          command: ["uvicorn", "app.api:app"]
+          args: ["--host", "0.0.0.0", "--port", "8000"]
+          ports:
+            - containerPort: 8000
+```
+
+The worker can run a different command from the same image without exposing an external Service.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: agent-worker
+  template:
+    metadata:
+      labels:
+        app: agent-worker
+    spec:
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: worker
+          image: registry.example.com/my-agent:1.0
+          command: ["python", "-m", "app.worker"]
+```
+
+The replica counts and 120-second grace period are illustrations, not recommended defaults. Derive them from queue-wait objectives, run-duration distributions, reclaim thresholds, and downstream quotas.
+
+## Not every agent run needs a Kubernetes Job
+
+A Kubernetes `Job` is a workload controller that runs one or more Pods to completion. The shared word “job” does not mean every application `run_id` needs its own Kubernetes Job.
+
+```text
+One Kubernetes Job per request
+request → create API object → schedule → start image → execute → clean up
+
+Long-lived Worker Deployment
+request → queue → already-running worker consumes immediately
+```
+
+For frequent, relatively short runs, a long-lived Worker Deployment amortizes scheduling and container startup. Kubernetes Jobs fit better when runs last hours, require strong isolation, or need different images, GPUs, permissions, or resource shapes.
+
+Useful decision factors include:
+
+- frequency and startup overhead;
+- per-run resource and security isolation;
+- connections or model caches safely shared in a worker process;
+- Kubernetes object volume and cleanup;
+- overlap between queue retries and Kubernetes Job retries.
+
+If both retry layers act independently, one failure can multiply into queue redelivery and Job restarts. Make one layer the explicit owner of application attempts.
+
+## Bound concurrency inside each worker process
+
+Two Pods do not tell you how many runs can be in flight. An I/O-heavy worker may execute several coroutines in one process.
+
+```text
+2 Pods × 4 in-flight runs per Pod = at most 8 concurrent runs
+```
+
+```python
+class Worker:
+    def __init__(self, max_in_flight: int = 4):
+        self.accepting = True
+        self.limit = asyncio.Semaphore(max_in_flight)
+        self.tasks: set[asyncio.Task] = set()
+
+    async def dispatch(self, message) -> None:
+        await self.limit.acquire()
+        task = asyncio.create_task(self.handle(message))
+        self.tasks.add(task)
+        task.add_done_callback(self.tasks.discard)
+        task.add_done_callback(lambda _: self.limit.release())
+```
+
+Set the bound from more than CPU: include PostgreSQL pool size, Redis connections, LLM rate limits, tool quotas, and peak memory per run. Replica count and in-process concurrency are two controls over the same capacity.
+
+```text
+Total potential concurrency
+≈ worker replicas × max_in_flight per process
+```
+
+Scaling replicas without increasing an exhausted provider quota produces more 429s and retries, not more throughput.
+
+## SIGTERM tells a worker to begin draining
+
+During a rollout or scale-down, a Pod enters termination. Kubernetes applies its termination flow within the configured grace period; a process still running when the period expires can be forcefully terminated. The application must make that interval useful.
+
+A worker shutdown protocol should be explicit:
+
+```text
+SIGTERM
+  ↓
+Stop new XREADGROUP calls
+  ↓
+Signal shutdown intent to in-flight tasks
+  ↓
+Persist result and XACK work that can finish
+  ↓
+Leave unfinished entries unacknowledged and recoverable
+  ↓
+Exit process
+```
+
+```python
+import asyncio
+import signal
+
+stop = asyncio.Event()
+
+def request_shutdown() -> None:
+    stop.set()
+
+async def worker_main() -> None:
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGTERM, request_shutdown)
+    loop.add_signal_handler(signal.SIGINT, request_shutdown)
+
+    worker = Worker(max_in_flight=4)
+    await worker.consume_until(stop)
+    await worker.drain(timeout=100)
+```
+
+The drain timeout must be shorter than `terminationGracePeriodSeconds`, leaving time for cleanup and process exit. Do not acknowledge work that cannot finish. Leave it in the PEL for the recovery path from the previous article.
+
+A `preStop` hook can help, but hook execution also consumes the Pod's termination grace period. Adding a sleep does not make shutdown safe by itself. The application still has to stop queue consumption and settle attempt ownership.
+
+## Each probe answers a different question
+
+Copying identical probes to API and worker Pods blurs their meaning.
+
+| Probe | Question | Failure effect |
+| --- | --- | --- |
+| startup | Has initialization finished? | Delays liveness/readiness until success |
+| readiness | Can this instance accept traffic now? | Removes it from Service endpoints |
+| liveness | Is restart the only practical recovery? | Restarts the container |
+
+API readiness should indicate whether the Pod can accept new HTTP traffic. A queue worker may expose health endpoints, but Service readiness does not automatically stop `XREADGROUP`. The worker must gate consumption using dependency state and its own drain flag.
+
+```python
+@app.get("/ready")
+async def ready():
+    if draining.is_set():
+        raise HTTPException(503, "draining")
+    if not await critical_dependencies_available():
+        raise HTTPException(503, "dependency unavailable")
+    return {"ready": True}
+```
+
+Do not make liveness depend on every external LLM or transient database outage. That can restart all workers during a shared dependency incident. Reserve liveness for states, such as a deadlock, where restart is genuinely the recovery mechanism.
+
+## Begin requests and limits with measurements
+
+Kubernetes uses resource requests when scheduling Pods, while the runtime enforces limits. CPU can be throttled at its limit; exceeding a memory limit can terminate the process for out-of-memory use.
+
+```yaml
+containers:
+  - name: worker
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "2"
+        memory: "3Gi"
+```
+
+These values are illustrative. Measure and tune from:
+
+- idle and active CPU and memory working sets;
+- incremental peak memory per run;
+- CPU bursts from parsing, reranking, or local inference;
+- OOM and restart counts; and
+- the relationship between CPU throttling and run latency.
+
+The API and worker usually have different profiles. The API values connection stability and low latency. Workers see larger per-task memory peaks, and CPU-heavy nodes can monopolize an event loop.
+
+Split sufficiently different workloads:
+
+```text
+agent-worker Deployment
+└─ I/O-heavy orchestration, bounded async concurrency
+
+cpu-worker Deployment
+└─ parsing/reranking, lower concurrency, larger CPU request
+
+inference Deployment
+└─ GPU, batching, model-serving lifecycle
+```
+
+## Scale APIs and workers with different signals
+
+An API can scale on CPU, request rate, latency, or active connections. A worker queue may grow while CPU stays low because most time is spent awaiting an LLM. CPU-only HPA can miss that demand.
+
+Useful worker signals include:
+
+```text
+undelivered queue lag
++ reclaimable pending work
++ oldest job age
++ observed service time
+```
+
+A simplified target can look like this:
+
+```python
+import math
+
+def desired_replicas(outstanding: int, target_per_pod: int) -> int:
+    return max(1, math.ceil(outstanding / target_per_pod))
+```
+
+Downstream capacity still sets the real upper bound.
+
+```text
+desired replicas
+≤ DB connection budget / connections per Pod
+≤ LLM request budget / requests per Pod
+≤ tool API quota / calls per Pod
+```
+
+Kubernetes HPA supports custom and external metrics. KEDA adds event-source scalers, including Redis Streams. Verify exactly how the installed KEDA version defines lag and pending work, how scale-to-zero activates a consumer, and how authentication is supplied.
+
+```yaml
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: agent-worker
+spec:
+  scaleTargetRef:
+    name: agent-worker
+  minReplicaCount: 1
+  maxReplicaCount: 20
+  triggers:
+    - type: redis-streams
+      metadata:
+        address: redis.example:6379
+        stream: agent:jobs
+        consumerGroup: agent-workers
+        lagCount: "5"
+```
+
+This manifest is conceptual. In production, isolate credentials with `TriggerAuthentication`, workload identity, or the platform's equivalent, then configure TLS, Redis topology, polling, and cooldown behavior.
+
+## Deployment also sharpens security boundaries
+
+Sharing an image does not require sharing permissions.
+
+- The API ServiceAccount needs only session/run admission and read-path access.
+- The Worker ServiceAccount accesses tools and result storage required for execution.
+- User identity comes from the verified run record, not an arbitrary queue field.
+- NetworkPolicy can deny Worker ingress and restrict required egress.
+- Secrets stay out of images and diagnostic dumps and are scoped to the workload.
+
+Workers often hold stronger tool credentials. Restrict command schemas and queue-producer permissions so an API injection or SSRF weakness cannot become arbitrary privileged tool execution.
+
+## Treat rollouts and scale-downs as failure tests
+
+A valid manifest does not prove a safe deployment.
+
+| Test | Invariant to verify |
+| --- | --- |
+| `kubectl rollout restart` during a run | Other Pods take new jobs; old job finishes or remains recoverable |
+| Scale workers down to one or zero | Drain does not acknowledge unfinished entries |
+| Tool call exceeds grace period | Another worker reclaims after forced termination |
+| Deliberately exceed memory limit | OOM does not leave run permanently `running` |
+| Temporary Redis outage | Backoff without a liveness restart storm |
+| Rising LLM 429 rate | Scaling does not amplify a retry storm |
+| API rollout with active SSE | Client restores events from reconnect cursor |
+
+```python
+async def test_worker_rollout_preserves_job(k8s, run_store):
+    run_id = await submit_long_run()
+    old_pod = await wait_until_running(run_id)
+
+    await k8s.delete_pod(old_pod)
+
+    result = await wait_for_terminal(run_id, timeout=300)
+    assert result.status == "succeeded"
+    assert await run_store.active_attempt_count(run_id) <= 1
+```
+
+The goal is not to preserve a particular Pod. Pods are replaceable. The invariant is that the **durable run identity and recovery protocol survive replacement**.
+
+## Implementation checklist
+
+- Is a worker defined as an application role rather than a Kubernetes resource type?
+- Do API and worker have different lifecycles, resource profiles, credentials, and scaling signals?
+- Can one image run as separate Deployments with distinct commands?
+- If using Kubernetes Jobs, does per-run isolation outweigh startup cost?
+- Is in-flight concurrency explicitly bounded per Pod?
+- Does SIGTERM stop new queue claims?
+- Does unfinished work remain unacknowledged at the end of the grace period?
+- Are startup, readiness, and liveness meanings kept separate?
+- Are requests and limits tuned from workload measurements?
+- Does worker scaling include queue lag and oldest age, not only CPU?
+- Are replicas capped by database, LLM, and tool quotas?
+- Do integration tests include rollout, scale-down, OOM, and forced termination?
+
+## The system is ready for an end-to-end request trace
+
+The series has separated the API/worker boundary, PostgreSQL and Redis state, snapshots and events, SSE, the LangGraph runtime, session/run isolation, queue recovery, and Kubernetes deployment. Each component solves a particular failure, but a user's request crosses all of them.
+
+The next article follows `POST /sessions/{session_id}/runs` through durable run creation, queue publication, worker claim, LangGraph execution, state and event updates, result persistence, `XACK`, and SSE reconnection. Instead of listing components, it combines them into one sequence centered on **who owns what at each moment**.
