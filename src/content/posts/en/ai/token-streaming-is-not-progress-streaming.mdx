@@ -1,0 +1,419 @@
+---
+title: "Token Streaming Is Not Progress Streaming: A State Contract for Agent UIs"
+subtitle: "Separate text output, execution progress, and final results to build reconnectable agent experiences"
+description: "Separate token deltas, durable progress events, and terminal results, then use sequencing, replay, child aggregation, and UI reducers to represent agent state reliably."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - agent-streaming
+  - server-sent-events
+  - progress-events
+  - event-sourcing
+  - multi-agent
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "token-streaming-is-not-progress-streaming"
+series: "Agent Engineering"
+seriesOrder: 22
+seriesPart: "delivery"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "HTML Standard — Server-sent events"
+    url: "https://html.spec.whatwg.org/multipage/server-sent-events.html"
+    publisher: "WHATWG"
+  - title: "OpenTelemetry — Traces"
+    url: "https://opentelemetry.io/docs/concepts/signals/traces/"
+    publisher: "OpenTelemetry"
+  - title: "W3C Trace Context"
+    url: "https://www.w3.org/TR/trace-context/"
+    publisher: "W3C"
+  - title: "Google Cloud — Long-running operations"
+    url: "https://docs.cloud.google.com/storage/docs/using-long-running-operations"
+    publisher: "Google Cloud Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AgentProgressDiagrams from '../../../../components/AgentProgressDiagrams.astro';
+
+<AnswerBlock question="If an agent streams its answer in real time, does that reveal its progress?">
+  <strong>No. A token stream only shows that a model is emitting text; it proves neither the state nor the completion of the larger job.</strong> The execution system must expose token deltas, durable progress events, and committed results as separate contracts. The UI reduces those messages into run state and recovers from a snapshot plus an event cursor after reconnecting.
+</AnswerBlock>
+
+The previous article, [Agent Security Is Not a Prompt Problem](/en/ai/agents/agent-security-permissions-credentials-tool-boundaries/), treated model output as an unprivileged proposal. The delivery layer needs the same discipline. If the UI presents model prose as system state, it creates a dangerous illusion:
+
+```text
+"The data query is complete. I will now save the report..."
+```
+
+That sentence is not evidence that a database transaction committed or that a file was saved. Conversely, a model may emit no token for twenty seconds while a worker is correctly polling an API, executing code, or waiting for approval.
+
+Users need answers to three different questions:
+
+1. Which **execution stage** is active now?
+2. Which completion or failure **facts** have been committed?
+3. Can the client **recover the same state** after losing its connection?
+
+<AgentProgressDiagrams
+  kind="planes"
+  language="en"
+  caption="Figure 1. Token streams, progress events, and final results are three delivery planes with different meaning and durability."
+/>
+
+## Separate the three delivery planes
+
+| Plane | Example | Meaning | Durability | UI purpose |
+| --- | --- | --- | --- | --- |
+| Token stream | `token.delta` | Partial text emitted by a model | Usually ephemeral | Let the user read early |
+| Progress event | `step.started`, `tool.completed` | A fact about execution state | Durable and replayable | Show stages, approvals, and failures |
+| Result | `run.completed` + `result_ref` | The committed final artifact | Canonical | Make the answer reloadable and queryable |
+
+All three may share one SSE connection. Sharing a connection does not mean sharing a data model.
+
+- Token deltas are small and frequent; they may be coalesced or partially dropped.
+- Progress events have identity and order; they must support deduplication and replay.
+- A final result is a stored source of truth, not an accidental concatenation of tokens.
+- A heartbeat demonstrates transport liveness, not work progress.
+
+Streaming is a transport property. Progress is a domain-state property.
+
+## An event is a fact, not a sentence
+
+Progress event names should describe domain facts that have already occurred, not copy displayed prose.
+
+```python
+from datetime import datetime
+from typing import Any, Literal
+from pydantic import BaseModel
+
+class ProgressEvent(BaseModel):
+    schema_version: Literal[1] = 1
+    event_id: str
+    run_id: str
+    child_run_id: str | None = None
+    attempt: int
+    seq: int
+    type: str
+    stage: str | None = None
+    status: str | None = None
+    visibility: Literal["user", "operator", "private"]
+    occurred_at: datetime
+    payload: dict[str, Any]
+```
+
+Storing only `message: "Almost done"` gives machines no stable meaning, order, or exposure boundary to validate. Version the event type and payload schema, then generate localized copy in the UI projection.
+
+```json
+{
+  "schema_version": 1,
+  "event_id": "01K7...Q9",
+  "run_id": "R22",
+  "child_run_id": "R22-data",
+  "attempt": 2,
+  "seq": 43,
+  "type": "tool.completed",
+  "stage": "evidence_collection",
+  "status": "succeeded",
+  "visibility": "user",
+  "occurred_at": "2026-10-12T12:40:13Z",
+  "payload": {"tool": "warehouse.query", "rows": 184}
+}
+```
+
+<AgentProgressDiagrams
+  kind="contract"
+  language="en"
+  caption="Figure 2. Only an allowed user-facing projection of the internal event envelope reaches the UI state."
+/>
+
+Each field has one job:
+
+- `event_id` is the idempotency key for retries and reconnects.
+- `run_id` and `child_run_id` express ownership between parent and child executions.
+- `attempt` separates execution epochs before and after a worker retry.
+- `seq` provides a monotonically increasing order within a run.
+- `type` is the versioned contract interpreted by reducers.
+- `visibility` separates user, operator, and private data.
+- `occurred_at` is event time for analysis, not the sole ordering authority.
+
+Wall clocks across workers are not perfectly synchronized. Do not sort solely by timestamp; retain a server-issued cursor and a per-run sequence as well.
+
+## Keep the event taxonomy small
+
+Do not turn dozens of pieces of UI copy into event types. Define the minimum vocabulary needed to express state transitions.
+
+| Category | Event | Core payload |
+| --- | --- | --- |
+| Run | `run.started` | input version, plan version |
+| Step | `step.started`, `step.completed`, `step.failed` | stage, attempt, error code |
+| Tool | `tool.started`, `tool.completed`, `tool.failed` | safe tool name, duration |
+| Human | `approval.required`, `approval.resolved` | approval ID, summary, expiry |
+| Child | `child.started`, `child.completed`, `child.failed` | child ID, role, weight |
+| Plan | `plan.rebased` | old/new milestone count, reason |
+| Terminal | `run.completed`, `run.failed`, `run.cancelled` | result or error reference |
+
+Keep tokens in a separate namespace.
+
+```python
+StreamMessage = (
+    TokenDelta          # ephemeral presentation data
+    | ProgressEvent     # durable domain fact
+    | StreamControl     # heartbeat, reconnect hint
+)
+```
+
+Do not define `thinking.delta` or chain-of-thought as a public progress event. Exposing private reasoning as status weakens security boundaries and makes it difficult for users to separate verified facts from model speculation. Emit verifiable milestones such as “four documents analyzed” or “waiting for approval.”
+
+## Commit state before publishing its event
+
+One of the worst failure modes is a UI receiving `run.completed` before the result row exists—or the database reaching completed while its event is lost. Write run state and an outbox record in the same transaction, then let a relay publish the event.
+
+```python
+async def complete_run(tx, run_id: str, result: dict):
+    result_ref = await tx.results.insert(run_id=run_id, body=result)
+    await tx.runs.transition(
+        run_id,
+        expected="running",
+        target="completed",
+        result_ref=result_ref,
+    )
+    await tx.outbox.append(
+        aggregate_id=run_id,
+        event_type="run.completed",
+        payload={"result_ref": result_ref},
+    )
+    # The transaction commits all three or none.
+```
+
+An outbox relay may publish the same event more than once, so consumers must be idempotent by `event_id`. Rather than assume an “exactly once visible UI” across arbitrary network failures, design for **at-least-once delivery plus idempotent reduction**.
+
+The terminal sequence is itself a contract:
+
+1. Store the result.
+2. Transition the run into a terminal state.
+3. Record the terminal event in the same transaction.
+4. Let the client retrieve the source of truth through `result_ref`.
+5. Ignore tokens and stale-attempt events that arrive after terminal state.
+
+## SSE reconnects clients; it does not store events
+
+The HTML Server-Sent Events standard lets a client remember an event `id` and send `Last-Event-ID` when it reconnects. A browser supplying a cursor does not complete recovery by itself. The server must retain and replay durable events after that cursor.
+
+```python
+async def sse(run_id: str, last_event_id: str | None):
+    async for event in event_store.read_after(
+        run_id=run_id,
+        cursor=last_event_id,
+    ):
+        yield f"id: {event.event_id}\n"
+        yield f"event: {event.type}\n"
+        yield f"data: {event.model_dump_json()}\n\n"
+
+    while True:
+        event = await live_bus.next(run_id, timeout=15)
+        if event is None:
+            yield ": heartbeat\n\n"
+        else:
+            yield encode_sse(event)
+```
+
+Heartbeat comments help avoid proxy idle timeouts and detect connection health. A hundred heartbeats still do not mean that a business milestone advanced.
+
+<AgentProgressDiagrams
+  kind="reconnect"
+  language="en"
+  caption="Figure 3. Replay durable events after Last-Event-ID while the reducer removes duplicates and events arriving after terminal state."
+/>
+
+If a cursor has fallen outside retention, do not pretend that a partial replay is complete.
+
+```python
+if not event_store.can_resume(last_event_id):
+    snapshot = await run_store.get_public_snapshot(run_id)
+    yield encode_control("stream.reset", {
+        "snapshot_version": snapshot.version,
+        "next_cursor": snapshot.event_cursor,
+    })
+```
+
+The client replaces its state with that snapshot and continues after the new cursor. If token deltas are not retained forever, do not attempt to reconstruct every old token on reconnect. Use the latest persisted answer snapshot or the final result.
+
+## Reduce state; do not append strings
+
+When event handlers mutate the DOM ad hoc, duplicate, retried, and out-of-order delivery becomes dangerous. A pure reducer should project events into a run view model.
+
+```typescript
+function reduceRun(state: RunView, event: ProgressEvent): RunView {
+  if (state.seen.has(event.event_id)) return state;
+  if (state.terminal && event.type !== "stream.reset") return state;
+  if (event.seq > state.nextSeq) return { ...state, gapAfter: state.nextSeq - 1 };
+  if (event.seq < state.nextSeq) return state;
+
+  const next = applyTypedEvent(state, event);
+  next.seen.add(event.event_id);
+  next.nextSeq = event.seq + 1;
+  return next;
+}
+```
+
+A production reducer must not merely flag a gap and then apply the next event. Buffer briefly, request the missing range, and fall back to snapshot reset when repair fails. Do not let `seen` grow forever either; combine a durable cursor with a bounded cache.
+
+The token renderer remains separate.
+
+```typescript
+function onToken(delta: TokenDelta) {
+  if (run.terminal || delta.attempt !== run.activeAttempt) return;
+  tokenBuffer.push(delta.text);
+  scheduleAnimationFrameFlush(); // coalesce UI updates
+}
+```
+
+Rendering every token independently on a slow browser creates backpressure on both client and server. Tokens may be coalesced per animation frame or short time window. Approval and terminal events may not be coalesced or dropped.
+
+## Show a percentage only when it can be calculated
+
+Agents discover documents, tool calls, and child tasks while they work. Displaying `73%` when total work is unknown looks precise but communicates fiction.
+
+Prefer progress representations in this order:
+
+1. **Current phase**: planning, collecting, analyzing, reviewing
+2. **Completed milestones**: three of four documents analyzed
+3. **Current state**: running, waiting for approval, retrying
+4. **Estimated range**: historical p50–p90 or an SLA deadline
+5. **Percentage**: only when the denominator is stable
+
+A fixed work graph can support weighted progress.
+
+```python
+def weighted_progress(tasks) -> float | None:
+    if any(task.weight is None for task in tasks):
+        return None
+    total = sum(task.weight for task in tasks)
+    if total <= 0:
+        return None
+    earned = sum(task.weight * task.fraction for task in tasks)
+    return min(earned / total, 1.0)
+```
+
+Even `fraction` should move only at real milestones. A bar that advances with elapsed time to 90% and then stalls is a wait animation, not a progress measurement.
+
+If discovering new tasks increases the denominator, do not silently rewrite history. Emit `plan.rebased` to explain that scope changed, or display “3/5 milestones” alongside “2 new tasks discovered” from the beginning.
+
+## Let the parent project multi-agent progress
+
+Mixing every child's tokens into one channel destroys provenance and may expose private tool output. Each child records its own durable events; a parent projector aggregates only the state allowed for the user.
+
+```python
+async def project_child_event(parent, event):
+    child = parent.children[event.child_run_id]
+    child.apply(event)
+
+    public = aggregate_children(parent.children)
+    await emit_progress(
+        run_id=parent.run_id,
+        type="parent.progressed",
+        payload=public,
+        visibility="user",
+    )
+```
+
+<AgentProgressDiagrams
+  kind="aggregation"
+  language="en"
+  caption="Figure 4. The parent aggregates committed child milestones and waiting states—not child tokens—into user-facing progress."
+/>
+
+Parent state is not a simple average.
+
+- If one child requires approval, the parent may become `waiting_for_approval`.
+- An optional child failure may leave a warning while the parent continues.
+- A required child failure follows the parent's terminal or compensation policy.
+- A cancelled parent's late child event remains auditable but cannot resurrect user progress.
+- Private child events and raw tool payloads are never copied into the public parent stream.
+
+## Do not confuse product events with telemetry
+
+An OpenTelemetry trace connects a root span to child spans and can record meaningful points in time as span events. W3C Trace Context carries trace continuity across services through `traceparent`. These mechanisms help operators analyze latency and failure, but they serve a different purpose from a UI progress ledger.
+
+| Product progress | Observability telemetry |
+| --- | --- |
+| User-facing state contract | Operational diagnostic signal |
+| May require long retention and replay | May be sampled |
+| Requires access control and localization | Oriented toward backends and operators |
+| Business terminal state is canonical | Span status is a diagnostic representation |
+
+Generate both from the same execution, but do not use either as the other's only store. Correlating `run_id`, `trace_id`, and `event_id` lets support find a product event and drill into the corresponding trace.
+
+```python
+event = ProgressEvent(
+    event_id=new_ulid(),
+    run_id=run.id,
+    type="step.completed",
+    payload={"step": "analysis"},
+    # trace_id is correlation, not authorization.
+)
+span.add_event("step.completed", {"agent.run_id": run.id})
+```
+
+Never treat a trace ID as an access token. Correlation identifiers do not grant permission, and externally visible IDs still require protection against enumeration and cross-tenant lookup.
+
+## Test the contract through failure
+
+- Tokens keep flowing after a tool has already failed.
+- A tool is progressing while the model emits no tokens.
+- SSE disconnects after event 42 and reconnects from 43.
+- A relay publishes the same event twice.
+- Event 45 arrives before event 44.
+- A client reconnects with a cursor older than retention.
+- Tokens from an old attempt arrive after a worker retry.
+- A producer tries to emit `run.completed` before storing the result.
+- A child sends progress after the parent reached terminal state.
+- An approval wait is misrepresented as running percentage.
+- Dynamic fan-out increases the denominator.
+- A slow client cannot consume token rate.
+- A private child payload enters the public stream.
+- Heartbeat loss and a business timeout occur together.
+- A refreshed client receives an overlapping snapshot and event replay.
+
+Success is not a stream that merely looks smooth. Under every disconnect, duplicate, and retry, the UI must **converge to the durable run state**.
+
+## Implementation checklist
+
+- Are token, progress, and result separate message types?
+- Does every progress event have a versioned schema and stable `event_id`?
+- Is there a per-run `seq` and per-retry `attempt`?
+- Are the state transition and outbox append in one transaction?
+- Is the result committed before its terminal event?
+- Can SSE `id` and `Last-Event-ID` drive durable replay?
+- Is there a snapshot-reset protocol for expired cursors?
+- Does the reducer handle duplicates, gaps, stale attempts, and late events?
+- Are tokens coalesced while critical events are preserved?
+- Are heartbeats excluded from progress calculations?
+- Does the UI avoid fabricated percentages when the denominator is unknown?
+- Is plan expansion explicit through `plan.rebased`?
+- Does the parent aggregate only public child milestones?
+- Are approval, retry, cancellation, and partial failure visible to users?
+- Are product events and traces joined through correlation IDs?
+- Are raw prompts, private reasoning, credentials, and sensitive tool output excluded from streams?
+
+## The final boundary of Agent Engineering
+
+An agent system begins with a prompt, but reliability is built outside it. We separated conversations from runs, absorbed worker failure with leases and idempotency, assigned distinct jobs to Kubernetes and queues, and designed request tracing, cancellation, deadlines, checkpoints, observability, backpressure, multi-agent execution, and security boundaries.
+
+The final responsibility is to communicate those execution facts honestly to the user.
+
+> Tokens show what the model is writing. Progress events prove what actually happened in the system. Results preserve what was finally committed.
+
+Once those three are separate, streaming stops being a visual effect and becomes a product contract that survives interruption and retry. That is the final principle of the Agent Engineering series.
