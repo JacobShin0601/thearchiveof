@@ -1,0 +1,501 @@
+---
+title: "Agent Request 하나를 끝까지 따라가 보기"
+subtitle: "POST 요청부터 Queue, Worker, LangGraph, Redis, SSE와 XACK까지 하나의 실행이 통과하는 전체 경로"
+description: "하나의 Agent 요청이 인증·run 생성·queue 전달·LangGraph 실행·state/event 투영·SSE·결과 저장·XACK을 거치는 전체 lifecycle과 장애 복구 기준을 설명합니다."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - agent-backend
+  - fastapi
+  - redis-streams
+  - langgraph
+  - sse
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "ko"
+translationKey: "agent-request-end-to-end"
+series: "Agent Engineering"
+seriesOrder: 14
+seriesPart: "delivery"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "FastAPI Dependencies"
+    url: "https://fastapi.tiangolo.com/reference/dependencies/"
+    publisher: "FastAPI Documentation"
+  - title: "FastAPI StreamingResponse"
+    url: "https://fastapi.tiangolo.com/advanced/custom-response/"
+    publisher: "FastAPI Documentation"
+  - title: "LangGraph Streaming"
+    url: "https://docs.langchain.com/oss/python/langgraph/streaming"
+    publisher: "LangChain Documentation"
+  - title: "LangGraph Persistence"
+    url: "https://docs.langchain.com/oss/python/langgraph/persistence"
+    publisher: "LangChain Documentation"
+  - title: "Redis Streams"
+    url: "https://redis.io/docs/latest/develop/data-types/streams/"
+    publisher: "Redis Documentation"
+  - title: "Redis XREADGROUP"
+    url: "https://redis.io/docs/latest/commands/xreadgroup/"
+    publisher: "Redis Documentation"
+  - title: "Redis XACK"
+    url: "https://redis.io/docs/latest/commands/xack/"
+    publisher: "Redis Documentation"
+  - title: "PostgreSQL Transactions"
+    url: "https://www.postgresql.org/docs/current/tutorial-transactions.html"
+    publisher: "PostgreSQL Documentation"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import AgentRequestTraceDiagrams from '../../../components/AgentRequestTraceDiagrams.astro';
+
+<AnswerBlock question="하나의 Agent 요청은 backend를 어떤 순서로 통과하는가?">
+  <strong>API가 요청을 인증·검증하고 durable run을 만든 뒤 queue에 실행 의도를 넘기면, Worker가 별도 attempt로 LangGraph와 tool을 실행한다.</strong> Worker의 runtime output은 현재 state와 시간순 event로 나뉘어 Redis에 투영되고 SSE가 이를 브라우저에 전달한다. 최종 결과는 PostgreSQL에 먼저 commit하며, queue의 `XACK`은 가장 마지막에 수행한다.
+</AnswerBlock>
+
+앞선 글들은 시스템을 일부러 쪼개서 설명했다. [Conversation은 Run이 아니다](/ai/agents/conversation-is-not-a-run/)에서는 session과 실행을 분리했고, [Worker가 죽으면 어떻게 되는가](/ai/agents/when-workers-die/)에서는 delivery와 completion을 분리했다. [Kubernetes에서 Agent를 돌리는 법](/ai/agents/running-agents-on-kubernetes/)에서는 API와 Worker의 배포 수명주기를 분리했다.
+
+이번에는 다시 합친다. 사용자가 다음 요청을 보낸 순간부터 시작한다.
+
+> NVIDIA의 최근 실적과 valuation을 분석해줘.
+
+좋은 architecture diagram은 box를 많이 그리는 그림이 아니다. 각 순간에 **누가 실행을 소유하고, 어떤 기록이 장애 뒤에도 남으며, 사용자는 무엇을 관측하는지** 답할 수 있어야 한다.
+
+<AgentRequestTraceDiagrams
+  kind="sequence"
+  language="ko"
+  caption="그림 1. 하나의 Agent request가 접수·기록·전달·실행·관측·종료를 통과하는 전체 순서"
+/>
+
+## 1단계: API는 실행하지 않고 안전하게 접수한다
+
+브라우저는 대화 session 아래에 새 run을 요청한다.
+
+```http
+POST /sessions/9c2.../runs
+Content-Type: application/json
+
+{
+  "query": "NVIDIA의 최근 실적과 valuation을 분석해줘",
+  "analysis_type": "deep"
+}
+```
+
+Ingress나 SSO proxy가 사용자를 인증했다면 FastAPI는 검증된 identity를 받아야 한다. 클라이언트가 보낸 `X-User-ID` 같은 임의 header를 그대로 신뢰해서는 안 되고, API가 auth proxy를 우회해 직접 노출되지 않게 해야 한다.
+
+요청 body는 업무 입력만 담는다.
+
+```python
+from typing import Literal
+from pydantic import BaseModel, Field
+
+class AnalysisRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=4_000)
+    analysis_type: Literal["quick", "deep"]
+```
+
+Endpoint의 첫 책임은 실행이 아니라 검증이다.
+
+```python
+@app.post("/sessions/{session_id}/runs", status_code=202)
+async def create_run(
+    session_id: UUID,
+    request: AnalysisRequest,
+    identity: Annotated[Identity, Depends(current_identity)],
+):
+    session = await load_owned_session(
+        tenant_id=identity.tenant_id,
+        user_id=identity.user_id,
+        session_id=session_id,
+    )
+    if session is None:
+        raise HTTPException(404, "session not found")
+```
+
+여기까지 통과해야 어떤 Redis key나 session checkpoint에도 접근할 수 있다.
+
+## 2단계: PostgreSQL에 실행 의도를 먼저 남긴다
+
+API process가 응답 직후 죽더라도 시스템이 요청을 다시 발견하려면 `run_id`와 입력이 process 밖에 있어야 한다.
+
+```sql
+INSERT INTO runs (
+    run_id, tenant_id, user_id, session_id,
+    status, input_json, created_at
+)
+VALUES ($1, $2, $3, $4, 'submitting', $5, now())
+RETURNING *;
+```
+
+`submitting`은 “사용자의 요청은 durable하게 받았지만 아직 queue handoff를 확인하지 못했다”는 상태다. 바로 `queued`로 쓰면 DB row만 생성되고 `XADD`가 실패한 경우를 표현하기 어렵다.
+
+```text
+submitting → queued → running → succeeded
+                           └──→ failed
+                           └──→ cancelled
+```
+
+같은 session에 active run 하나만 허용하는 정책도 이 transaction에서 강제한다. Redis lock만으로 admission invariant를 맡기지 않는다.
+
+```python
+async with db.transaction():
+    run = await run_store.create_submitting(
+        identity=identity,
+        session_id=session_id,
+        payload=request.model_dump(),
+    )
+```
+
+이 시점의 source of truth는 PostgreSQL이다. Redis current state는 화면을 빠르게 복원하기 위한 projection이지 run 존재 여부를 결정하는 기준이 아니다.
+
+## 3단계: Queue로 실행 ownership을 넘긴다
+
+API는 큰 prompt와 session history 전체를 Stream에 복제하지 않는다. Worker가 durable store에서 읽을 식별자와 queue routing에 필요한 최소 정보만 보낸다.
+
+```python
+entry_id = await redis.xadd(
+    "agent:jobs",
+    {
+        "run_id": str(run.run_id),
+        "session_id": str(run.session_id),
+        "priority": "normal",
+    },
+)
+
+await run_store.mark_queued(run.run_id, queue_entry_id=entry_id)
+```
+
+그리고 API는 완료가 아니라 **안전한 접수 결과**를 반환한다.
+
+```json
+{
+  "run_id": "7d5b...",
+  "status": "queued",
+  "events_url": "/sessions/9c2.../runs/7d5.../events"
+}
+```
+
+하지만 PostgreSQL commit과 Redis `XADD`는 서로 다른 시스템의 write다. 그 사이에 process가 죽을 수 있다.
+
+```text
+DB commit 성공
+  ↓ crash
+XADD 실행 안 됨
+```
+
+간단한 버전은 `submitting` 상태를 주기적으로 찾아 재게시하는 reconciler를 둔다. 더 강한 방식은 run row와 outbox row를 같은 DB transaction에 쓰고, relay가 outbox를 Redis에 게시한 뒤 완료 표시하는 transactional outbox다.
+
+```sql
+INSERT INTO run_outbox (event_id, run_id, topic, payload_json)
+VALUES ($1, $2, 'agent:jobs', $3);
+```
+
+Outbox도 exactly-once publish를 마법처럼 만들지는 않는다. Relay가 publish 후 표시 전에 죽으면 중복 게시할 수 있으므로 consumer는 여전히 멱등해야 한다.
+
+<AgentRequestTraceDiagrams
+  kind="ownership"
+  language="ko"
+  caption="그림 2. 요청의 ownership baton — 접수, 전달, 실행, 최종 결과는 서로 다른 주체가 책임진다."
+/>
+
+## 4단계: 브라우저는 결과를 기다리지 않고 관측을 시작한다
+
+`202 Accepted`를 받은 브라우저는 run 화면을 bootstrap한다. 처음부터 SSE event만 기다리면 연결 전에 발생한 상태와 event를 놓칠 수 있다.
+
+```http
+GET /sessions/{session_id}/runs/{run_id}
+```
+
+Bootstrap 응답은 최소한 durable run, 현재 snapshot, 최근 event와 이어 읽을 cursor를 함께 제공한다.
+
+```json
+{
+  "run": {"status": "queued"},
+  "snapshot": {"progress": 0, "current_step": null},
+  "recent_events": [],
+  "cursor": "0-0"
+}
+```
+
+그 뒤 SSE connection을 연다.
+
+```http
+GET /sessions/{session_id}/runs/{run_id}/events
+Last-Event-ID: 0-0
+```
+
+SSE endpoint도 동일한 tenant/user/session/run ownership 검사를 거쳐야 한다. 연결이 streaming이라는 이유로 authorization 경계가 사라지지 않는다.
+
+## 5단계: Worker는 Queue entry가 아니라 attempt를 실행한다
+
+Worker replica 중 하나가 consumer group에서 새 entry를 가져간다.
+
+```python
+messages = await redis.xreadgroup(
+    groupname="agent-workers",
+    consumername=worker_id,
+    streams={"agent:jobs": ">"},
+    count=1,
+    block=5_000,
+)
+```
+
+전달된 entry는 PEL에 들어간다. Worker는 payload만 믿고 바로 tool을 호출하지 않는다. PostgreSQL에서 run을 다시 읽어 terminal 상태, ownership, cancellation, 현재 active attempt를 확인한다.
+
+```python
+run = await run_store.get(run_id)
+
+if run.status in {"succeeded", "failed", "cancelled"}:
+    await queue.ack(entry_id)
+    return
+
+attempt = await run_store.start_attempt(
+    run_id=run.id,
+    worker_id=worker_id,
+)
+```
+
+`attempt_id`와 fencing token은 이번 delivery가 가진 실행 권한을 식별한다. Worker crash 뒤 다른 Worker가 reclaim하면 같은 run 아래 새 attempt가 시작될 수 있다.
+
+## 6단계: Session context와 runtime state를 구분해 읽는다
+
+Worker는 실행 전에 여러 종류의 context를 모은다.
+
+| 읽는 정보 | 기준 저장소 | 이유 |
+| --- | --- | --- |
+| run input와 ownership | PostgreSQL | durable product record |
+| 이전 대화와 message | PostgreSQL | session context |
+| LangGraph checkpoint | checkpointer | runtime resume state |
+| 현재 취소 요청 | Redis 또는 durable flag | 빠른 coordination |
+| tool policy와 credential reference | config/secret store | 실행 권한 |
+
+LangGraph의 `thread_id`는 session context를 잇는 runtime key로 쓸 수 있지만 이번 실행의 `run_id`와 같지 않다.
+
+```python
+config = {
+    "configurable": {
+        "thread_id": str(run.session_id),
+    },
+    "metadata": {
+        "run_id": str(run.id),
+        "attempt_id": str(attempt.id),
+    },
+}
+```
+
+Session은 여러 run에 걸쳐 지속되고 attempt는 한 worker의 한 번의 시도에만 속한다.
+
+## 7단계: LangGraph output을 그대로 외부 state로 복제하지 않는다
+
+Worker는 `graph.astream()`을 실행하며 runtime output을 애플리케이션의 관측 contract로 번역한다.
+
+```python
+async for part in graph.astream(
+    build_graph_input(run),
+    config=config,
+    stream_mode=["updates", "custom"],
+    version="v2",
+):
+    await project_stream_part(run, attempt, part)
+```
+
+`updates`는 graph state의 변경분이다. Worker는 그중 브라우저가 필요한 작은 projection만 current state로 쓴다.
+
+```python
+if part["type"] == "updates":
+    patch = map_to_ui_state(part["data"])
+    await redis.hset(f"run:{run.id}:state", mapping=patch)
+```
+
+`custom`은 진행 사건이나 승인 요청처럼 시간순으로 남길 event에 적합하다.
+
+```python
+if part["type"] == "custom":
+    event = normalize_event(run.id, part["data"])
+    await redis.xadd(
+        f"run:{run.id}:events",
+        {"payload": event.model_dump_json()},
+    )
+```
+
+큰 document, full prompt, intermediate chain state 전체를 Redis에 mirror하지 않는다. Runtime state, UI snapshot, event history는 서로 다른 소비자와 보존 요구를 가진다.
+
+<AgentRequestTraceDiagrams
+  kind="projection"
+  language="ko"
+  caption="그림 3. LangGraph stream을 그대로 노출하지 않고 updates는 snapshot, custom은 event contract로 번역한다."
+/>
+
+## 8단계: SSE는 실행자가 아니라 관측 relay다
+
+FastAPI SSE endpoint는 Redis event Stream을 cursor 이후부터 읽어 브라우저에 전달한다.
+
+```python
+from fastapi.responses import StreamingResponse
+
+async def event_source(run_id: UUID, cursor: str):
+    while True:
+        batches = await redis.xread(
+            {f"run:{run_id}:events": cursor},
+            block=15_000,
+            count=50,
+        )
+        if not batches:
+            yield ": keep-alive\n\n"
+            continue
+
+        for event_id, fields in unpack(batches):
+            cursor = event_id
+            yield encode_sse(event_id, fields[b"payload"])
+
+return StreamingResponse(event_source(run_id, cursor), media_type="text/event-stream")
+```
+
+Browser가 닫히거나 API Pod가 교체되어도 Worker run은 계속된다. SSE handler는 실행 lifecycle을 소유하지 않기 때문이다.
+
+재연결 시 브라우저는 마지막으로 적용한 event ID를 보낸다. Server는 이후 event를 replay하고, retention 범위 밖이라면 `resync_required`를 알려 bootstrap을 다시 읽게 한다. At-least-once replay에서 중복 event가 올 수 있으므로 UI는 `event_id`로 upsert한다.
+
+## 9단계: 완료는 하나의 순서가 아니라 commit protocol이다
+
+Graph가 최종 결과를 반환했다고 queue 작업이 끝난 것은 아니다. Worker는 다음 순서를 지킨다.
+
+```text
+1. final result와 terminal status를 PostgreSQL에 commit
+2. Redis current state를 completed로 투영
+3. completion event를 Stream에 append
+4. queue entry를 XACK
+```
+
+```python
+result = await execute_graph(run, attempt)
+
+await run_store.complete(
+    run_id=run.id,
+    attempt_id=attempt.id,
+    fence=attempt.fence,
+    result=result,
+)
+
+await redis.hset(
+    f"run:{run.id}:state",
+    mapping={"status": "succeeded", "progress": "100"},
+)
+await append_completion_event(run.id)
+await redis.xack("agent:jobs", "agent-workers", entry_id)
+```
+
+Redis projection이나 completion event 쓰기가 실패해도 PostgreSQL terminal row가 최종 기준이다. API는 Redis miss를 run 404로 바꾸지 않고 durable result를 반환하며 projection 복구를 시도할 수 있다.
+
+Result commit 뒤 ack 전에 Worker가 죽으면 entry가 재전달된다. 새 Worker는 terminal status를 확인하고 graph를 다시 실행하지 않은 채 ack한다. 그래서 **최종 결과를 먼저 저장하고 ack를 마지막에 하는 순서**가 복구 가능하다.
+
+## 네 개의 장애 창이 전체 설계를 시험한다
+
+End-to-end trace는 정상 경로보다 장애가 들어간 순간 더 유용하다.
+
+<AgentRequestTraceDiagrams
+  kind="failure"
+  language="ko"
+  caption="그림 4. 핵심 장애 창마다 남는 durable 상태와 복구 주체가 달라진다."
+/>
+
+| 장애 | 잘못된 설계 | 복구 가능한 설계 |
+| --- | --- | --- |
+| API가 DB commit 후 종료 | run 영구 대기 | `submitting` reconciler 또는 outbox |
+| Worker가 tool 성공 후 종료 | 부수 효과 중복 | stable idempotency key와 execution ledger |
+| Worker가 result commit 후 종료 | 전체 graph 재실행 | terminal check 후 `XACK` |
+| Redis state 유실 | run이 사라진 것으로 표시 | PostgreSQL fallback + projection rebuild |
+| SSE 연결 종료 | run 취소 | 실행 지속, cursor로 replay |
+
+시스템의 각 hop이 동일한 delivery guarantee를 가질 필요는 없다. 대신 경계마다 durable record, idempotency key, replay cursor 중 무엇이 복구 근거인지 명시해야 한다.
+
+## 하나의 ID가 아니라 연결된 ID로 추적한다
+
+운영 로그에서 `run_id` 하나만으로는 부족할 때가 많다.
+
+```python
+log.info(
+    "tool_call_completed",
+    tenant_id=str(run.tenant_id),
+    session_id=str(run.session_id),
+    run_id=str(run.id),
+    attempt_id=str(attempt.id),
+    queue_entry_id=entry_id,
+    tool_call_id=str(tool_call.id),
+)
+```
+
+각 ID는 다른 질문에 답한다.
+
+| ID | 답하는 질문 |
+| --- | --- |
+| `session_id` | 어떤 지속 context에 속하는가? |
+| `run_id` | 사용자가 요청한 실행은 무엇인가? |
+| `attempt_id` | 어떤 Worker 시도가 수행했는가? |
+| `queue_entry_id` | 어떤 delivery가 pending/ack 되었는가? |
+| `event_id` | 브라우저가 어디까지 관측했는가? |
+| `tool_call_id` | 외부 부수 효과를 중복 없이 식별하는가? |
+
+이 연결이 있어야 “사용자는 결과를 못 봤는데 tool은 실행됐는가?” 같은 질문에 답할 수 있다.
+
+## End-to-end 테스트는 경계 전체를 통과해야 한다
+
+최소 happy path는 실제 API, queue, Worker와 store를 연결한다.
+
+```python
+async def test_run_end_to_end(client, worker, event_reader):
+    response = await client.post(
+        "/sessions/S1/runs",
+        json={"query": "Analyze NVIDIA", "analysis_type": "quick"},
+    )
+    assert response.status_code == 202
+    run_id = response.json()["run_id"]
+
+    await worker.process_next()
+    events = await event_reader.until_terminal(run_id)
+    run = await client.get(f"/sessions/S1/runs/{run_id}")
+
+    assert run.json()["status"] == "succeeded"
+    assert events[-1]["type"] == "run_completed"
+    assert await queue.pending(run_id) is False
+```
+
+그다음 각 경계에서 process를 죽인다.
+
+- Run commit 후 queue publish 전
+- `XREADGROUP` 후 attempt 생성 전
+- Tool side effect 후 execution ledger commit 전
+- Result commit 후 `XACK` 전
+- SSE event 수신 후 UI 적용 전
+
+각 테스트의 assertion은 “에러가 발생했다”가 아니라 **run이 유실되지 않고, 부수 효과가 중복되지 않으며, 사용자가 결국 terminal truth를 읽는다**여야 한다.
+
+## 구현 체크리스트
+
+- API가 trusted identity로 session ownership을 검증하는가?
+- `202` 전에 durable run과 recoverable queue handoff가 존재하는가?
+- DB와 Queue 사이 dual-write failure를 reconciler 또는 outbox로 다루는가?
+- Queue payload를 작은 identifier 중심으로 유지하는가?
+- Browser가 snapshot + recent events + cursor로 bootstrap하는가?
+- Worker가 매 delivery마다 durable run과 terminal status를 다시 확인하는가?
+- Session, run, attempt, queue entry를 별도 ID로 추적하는가?
+- LangGraph output을 UI state와 event contract로 명시적으로 mapping하는가?
+- SSE disconnect가 Worker 실행을 취소하지 않는가?
+- Result commit이 Redis projection과 `XACK`보다 먼저인가?
+- Redis miss에서 PostgreSQL terminal result로 fallback하는가?
+- 장애 주입 테스트가 각 process boundary를 실제로 끊는가?
+
+## 전체 경로를 그리면 다음 문제가 보인다
+
+하나의 request를 끝까지 연결하면 system boundary는 선명해진다. 동시에 아직 해결하지 않은 제어 문제가 드러난다.
+
+사용자가 실행 중 취소 버튼을 누르면 어떻게 되는가? API가 `cancelled`라고 먼저 써도 Worker와 tool이 계속 실행될 수 있다. Python task를 취소했다고 외부 API의 부수 효과가 자동으로 되돌아가지도 않는다. Queue entry가 pending이고 새 Worker가 reclaim하는 순간에도 취소 의도는 유지되어야 한다.
+
+다음 글에서는 **Cancellation은 상태값이 아니라 protocol**이라는 관점에서 취소 요청, Worker의 cooperative check, tool boundary, terminal state 경쟁과 ack 순서를 설계한다.
