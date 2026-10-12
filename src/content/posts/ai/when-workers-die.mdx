@@ -1,0 +1,343 @@
+---
+title: "Worker가 죽으면 어떻게 되는가: Queue, XREADGROUP, XACK, Retry"
+subtitle: "전달된 작업과 완료된 작업을 구분하고, 죽은 consumer의 pending job을 안전하게 회수하는 법"
+description: "Redis Streams consumer group으로 Agent job을 분배하고, PEL·XACK·XAUTOCLAIM·재시도 정책을 연결해 worker 장애 뒤에도 작업을 안전하게 복구하는 방법을 설명합니다."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - redis-streams
+  - consumer-groups
+  - retry
+  - fault-tolerance
+  - idempotency
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "ko"
+translationKey: "when-workers-die"
+series: "Agent Engineering"
+seriesOrder: 12
+seriesPart: "safety"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "Redis Streams"
+    url: "https://redis.io/docs/latest/develop/data-types/streams/"
+    publisher: "Redis Documentation"
+  - title: "XREADGROUP"
+    url: "https://redis.io/docs/latest/commands/xreadgroup/"
+    publisher: "Redis Documentation"
+  - title: "XACK"
+    url: "https://redis.io/docs/latest/commands/xack/"
+    publisher: "Redis Documentation"
+  - title: "XPENDING"
+    url: "https://redis.io/docs/latest/commands/xpending/"
+    publisher: "Redis Documentation"
+  - title: "XAUTOCLAIM"
+    url: "https://redis.io/docs/latest/commands/xautoclaim/"
+    publisher: "Redis Documentation"
+  - title: "XINFO GROUPS"
+    url: "https://redis.io/docs/latest/commands/xinfo-groups/"
+    publisher: "Redis Documentation"
+  - title: "Redis Persistence"
+    url: "https://redis.io/docs/latest/management/persistence/"
+    publisher: "Redis Documentation"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="Worker가 job 실행 중 죽으면 그 작업은 어떻게 되는가?">
+  <strong>Consumer group으로 전달됐지만 아직 `XACK`되지 않은 job은 Pending Entries List에 남고, 충분히 오래 idle 상태인 entry를 정상 worker가 회수해 다시 실행할 수 있다.</strong> 다만 재전달은 중복 실행 가능성을 뜻한다. 따라서 결과를 durable store에 먼저 기록한 뒤 ack하고, 각 시도를 별도로 추적하며, tool의 부수 효과는 멱등하게 만들고, 최대 시도 횟수를 넘은 job은 격리해야 한다.
+</AnswerBlock>
+
+[Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/)에서는 worker를 concurrency primitive가 아니라 **실행 시도의 수명주기를 소유하는 역할**로 정의했다. 바로 앞의 [Conversation은 Run이 아니다](/ai/agents/conversation-is-not-a-run/)에서는 session 안의 각 실행을 별도 `run_id`로 식별했다.
+
+이제 가장 중요한 실패를 넣어보자. Worker가 job을 가져간 뒤 Pod가 종료된다. Queue에는 이미 전달된 것으로 보이지만 PostgreSQL에는 최종 결과가 없다. 이때 시스템은 작업을 잃어도, 성공한 것으로 오해해도, 무한히 재실행해도 안 된다.
+
+```text
+queued → delivered → running → result persisted → acknowledged
+              │             │
+              └── crash ────┘
+                    ↓
+                  pending
+```
+
+핵심은 한 문장이다.
+
+> **전달(delivery)은 완료(completion)가 아니다.**
+
+## Consumer group은 일을 나누고 미완료 전달을 기억한다
+
+API는 durable run row를 만든 뒤 Redis Stream에 작은 실행 지시를 추가한다. Queue payload에 전체 대화와 비밀 정보를 복제하기보다 worker가 authoritative store에서 읽을 `run_id`를 중심으로 전달하는 편이 낫다.
+
+```python
+message_id = await redis.xadd(
+    "agent:jobs",
+    {
+        "run_id": str(run_id),
+        "session_id": str(session_id),
+    },
+)
+```
+
+Consumer group을 한 번 생성한다. `0`은 기존 entry부터, `$`는 생성 시점 이후 entry부터 읽겠다는 의미이므로 배포 정책에 맞게 선택해야 한다.
+
+```python
+try:
+    await redis.xgroup_create(
+        "agent:jobs",
+        "agent-workers",
+        id="0",
+        mkstream=True,
+    )
+except ResponseError as error:
+    if "BUSYGROUP" not in str(error):
+        raise
+```
+
+여러 worker가 같은 group에서 `XREADGROUP`과 `>`를 사용하면 아직 그 group에 전달되지 않은 새 entry를 나눠 받는다.
+
+```python
+messages = await redis.xreadgroup(
+    groupname="agent-workers",
+    consumername=worker_id,
+    streams={"agent:jobs": ">"},
+    count=4,
+    block=5_000,
+)
+```
+
+Redis는 전달된 entry의 ID와 consumer를 group의 Pending Entries List, 즉 PEL에 기록한다. PEL은 “실행이 끝났다”는 기록이 아니라 **누군가에게 전달됐지만 아직 확인되지 않았다**는 기록이다.
+
+| 상태 | Stream/consumer group에서 보이는 의미 | 애플리케이션이 확인할 것 |
+| --- | --- | --- |
+| 아직 전달되지 않음 | group cursor 뒤의 새 entry | queue lag |
+| 전달됐지만 ack 전 | PEL의 pending entry | run/attempt 상태, idle time |
+| `XACK` 완료 | PEL에서 제거 | durable terminal result |
+| stream에서 삭제/trim | 원본 payload가 없을 수 있음 | 보존 정책과 PEL 참조 |
+
+## Ack는 결과 저장 뒤에만 한다
+
+안전한 기본 순서는 다음과 같다.
+
+```text
+1. job 수신
+2. durable attempt 생성
+3. Agent와 tool 실행
+4. 최종 결과 또는 최종 실패 저장
+5. XACK
+```
+
+```python
+async def handle_entry(entry_id: str, fields: dict[bytes, bytes]) -> None:
+    run_id = fields[b"run_id"].decode()
+    attempt = await run_store.start_attempt(run_id, worker_id)
+
+    try:
+        result = await execute_agent(run_id, attempt.id)
+        await run_store.complete_attempt(
+            run_id=run_id,
+            attempt_id=attempt.id,
+            result=result,
+        )
+    except RetryableError as error:
+        await run_store.mark_retryable_failure(attempt.id, error)
+        return  # ack하지 않는다. recovery loop가 나중에 회수한다.
+    except Exception as error:
+        await run_store.fail_run(run_id, attempt.id, error)
+
+    await redis.xack("agent:jobs", "agent-workers", entry_id)
+```
+
+먼저 ack하고 결과 저장에 실패하면 job은 PEL에서 사라졌는데 사용자는 결과를 찾을 수 없다. 반대로 결과 저장에 성공한 직후 process가 죽으면 ack되지 않은 entry가 재전달될 수 있다. 후자는 복구할 수 있지만 중복 실행을 받아들여야 한다.
+
+또한 `XACK`은 PEL의 참조를 제거하지, Stream entry 자체를 삭제하지 않는다. 메모리 보존과 삭제는 `XTRIM`, `XDEL` 또는 별도 retention 정책의 책임이다.
+
+## Worker crash는 pending entry를 남긴다
+
+Worker A가 entry를 받은 뒤 종료되면 그 entry는 A의 pending 항목으로 남는다. 다른 worker가 단순히 `>`로 새 메시지만 읽어서는 가져오지 못한다. 별도의 recovery loop가 오래 idle 상태인 pending 항목을 회수해야 한다.
+
+```python
+async def reclaim_stale_jobs() -> None:
+    cursor = "0-0"
+
+    while True:
+        cursor, entries, deleted = await redis.xautoclaim(
+            "agent:jobs",
+            "agent-workers",
+            worker_id,
+            min_idle_time=120_000,
+            start_id=cursor,
+            count=20,
+        )
+
+        for entry_id, fields in entries:
+            await handle_entry(entry_id, fields)
+
+        if cursor == "0-0":
+            break
+```
+
+`XAUTOCLAIM`의 `min_idle_time`은 “이 시간이 지나면 원래 worker가 반드시 죽었다”는 증명이 아니다. 일시적인 네트워크 지연이나 긴 tool call 때문에 살아 있는 worker가 여전히 실행 중일 수 있다. 너무 짧으면 같은 run을 두 worker가 동시에 실행하고, 너무 길면 복구가 늦어진다.
+
+따라서 timeout은 관측한 실행 시간 분포를 바탕으로 정하고, 긴 작업에는 heartbeat나 lease 갱신을 추가한다. Queue의 idle time만으로 실행 소유권을 완전히 판단하지 말고 durable attempt에도 ownership을 둔다.
+
+## Attempt와 fencing으로 늦게 돌아온 worker를 막는다
+
+Run은 사용자 관점의 실행이고 attempt는 worker가 맡은 한 번의 시도다.
+
+```text
+Run R1
+├─ Attempt 1 / Worker A / lease 41 / timed_out
+└─ Attempt 2 / Worker B / lease 42 / running
+```
+
+Worker A가 멈춘 것으로 판단해 B가 회수했는데 A가 늦게 다시 응답할 수 있다. “마지막 write가 이긴다”에 맡기면 오래된 A가 B의 결과를 덮어쓴다. 새 attempt마다 증가하는 fencing token을 발급하고, 현재 token과 일치하는 write만 허용할 수 있다.
+
+```sql
+UPDATE runs
+SET status = 'succeeded',
+    result_json = $1,
+    finished_at = now()
+WHERE run_id = $2
+  AND active_fence = $3
+  AND status = 'running';
+```
+
+영향받은 row가 0개면 해당 worker는 실행 권한을 잃은 오래된 attempt다. 결과를 버리고 queue 처리 상태를 다시 확인해야 한다.
+
+## At-least-once는 부수 효과를 중복시킬 수 있다
+
+재전달 가능한 queue에서 “코드가 한 번만 실행된다”고 가정하면 안 된다.
+
+| Crash 시점 | 재전달 뒤 가능한 결과 | 필요한 방어 |
+| --- | --- | --- |
+| job 수신 전 | 다른 worker가 정상 수신 | 없음 |
+| tool 호출 전 | Agent 계산 재실행 | 비용/시도 제한 |
+| 외부 API 성공 후 기록 전 | 외부 부수 효과 중복 | idempotency key, execution ledger |
+| 결과 DB commit 후 ack 전 | 완료 run 재실행 | terminal 상태 확인, 멱등 완료 |
+| ack 후 | queue 기준 완료 | durable 결과가 이미 있어야 함 |
+
+Worker는 실행을 시작하기 전에 terminal 상태를 확인해야 한다.
+
+```python
+run = await run_store.get(run_id)
+if run.status in {"succeeded", "failed", "cancelled"}:
+    await redis.xack("agent:jobs", "agent-workers", entry_id)
+    return
+```
+
+하지만 status 확인만으로 외부 부수 효과의 중복을 막을 수는 없다. 이메일 전송, 결제, 티켓 생성처럼 process 밖에서 일어나는 tool은 `(run_id, tool_call_id)` 같은 안정적인 멱등성 키를 사용해야 한다. 이 경계는 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)에서 다룬 원칙과 같다.
+
+## Retry는 예외를 다시 던지는 기능이 아니라 정책이다
+
+모든 오류를 같은 방식으로 재시도하면 장애를 증폭시킨다.
+
+```python
+def classify(error: Exception) -> str:
+    if isinstance(error, (RateLimitError, TemporaryNetworkError)):
+        return "retryable"
+    if isinstance(error, (InvalidInputError, PermissionDenied)):
+        return "terminal"
+    return "unknown"
+```
+
+정책에는 최소한 다음 항목이 필요하다.
+
+- 최대 attempt 수와 전체 elapsed-time budget
+- exponential backoff와 jitter
+- 오류 분류와 provider별 제한
+- replay 가능한 checkpoint
+- 부수 효과의 멱등성
+- 최대 횟수 이후 dead-letter 또는 quarantine 경로
+
+Poison job을 PEL에 영원히 남겨두면 recovery loop가 같은 실패를 반복한다. 최대 횟수를 넘으면 durable run을 최종 실패로 기록하고, 원본 entry ID·오류 분류·attempt history를 조사 가능한 저장소에 남긴 뒤 ack한다.
+
+```python
+if attempt.number >= MAX_ATTEMPTS:
+    await run_store.fail_permanently(run_id, attempt.id, error)
+    await redis.xadd(
+        "agent:jobs:dead",
+        {"run_id": run_id, "source_id": entry_id, "reason": error.code},
+    )
+    await redis.xack("agent:jobs", "agent-workers", entry_id)
+```
+
+Dead-letter stream은 자동 재실행 목록이 아니라 **격리와 조사 경계**다. 재투입은 원인을 고친 뒤 명시적으로 수행해야 한다.
+
+## Queue 자체의 durability도 설정해야 한다
+
+Redis Stream을 사용한다고 모든 서버 장애에서 job이 자동 보존되는 것은 아니다. Redis persistence, replication, failover와 백업 정책이 실제 요구 수준에 맞아야 한다. RDB snapshot과 AOF는 서로 다른 durability·성능 trade-off를 갖는다.
+
+또한 Stream retention을 PEL과 무관하게 공격적으로 줄이면 pending ID는 남았지만 원본 entry가 이미 trim된 상태가 생길 수 있다. 버전별 명령 semantics를 확인하고, 최소한 최대 복구 시간보다 긴 보존 기간을 둔다. Queue를 유일한 업무 기록으로 삼지 않고 PostgreSQL의 run과 attempt를 durable source of truth로 두는 이유이기도 하다.
+
+## 운영에서는 새 job과 pending job을 함께 본다
+
+Queue length 하나만 보면 장애를 놓친다. 새 entry가 모두 전달되어 queue lag는 0인데, 죽은 consumer 아래 pending job 수백 개가 남을 수 있다.
+
+```text
+새 작업 대기: group lag
+전달 후 미완료: PEL count
+복구 지연: oldest pending idle time
+작업 건강도: attempt count / retry rate / terminal failure rate
+처리 성능: queue wait / run duration / end-to-end latency
+```
+
+`XINFO GROUPS`, `XINFO CONSUMERS`, `XPENDING`을 애플리케이션의 run 지표와 함께 관찰한다. Consumer 이름도 Pod의 임의 hostname만 쓰기보다 배포와 instance를 추적할 수 있게 정한다.
+
+## 장애 테스트는 process를 실제로 죽여야 한다
+
+정상 처리 unit test만으로 recovery path를 검증할 수 없다.
+
+| Test | Expected result |
+| --- | --- |
+| job 수신 직후 worker 종료 | entry가 pending으로 남고 다른 worker가 회수 |
+| 결과 commit 직후, ack 전 종료 | 재전달되지만 terminal run은 재실행하지 않고 ack |
+| tool 부수 효과 직후 종료 | 같은 idempotency key로 중복 효과 방지 |
+| 살아 있는 긴 작업을 너무 일찍 reclaim | fencing이 오래된 attempt의 write를 거부 |
+| retryable 오류 반복 | backoff 후 최대 횟수에서 격리 |
+| terminal 입력 오류 | 불필요한 retry 없이 실패 기록 후 ack |
+| stream 원본이 trim된 pending ID | 탐지·경보하고 durable run으로 복구 판단 |
+
+```python
+async def test_crash_after_commit_does_not_repeat_tool(worker, queue, store):
+    job = await queue.publish(run_id="R1")
+    await worker.run_until_result_committed(job)
+    await worker.kill_before_ack()
+
+    await recovery_worker.reclaim(job)
+
+    assert await store.run_status("R1") == "succeeded"
+    assert await store.tool_execution_count("R1") == 1
+    assert await queue.is_pending(job) is False
+```
+
+이 테스트는 mock exception 하나보다 시스템의 실제 보장을 더 잘 드러낸다. 별도 process나 container로 worker를 실행하고 강제 종료해 PEL과 DB 상태를 함께 확인하는 통합 테스트가 필요하다.
+
+## 구현 체크리스트
+
+- `XREADGROUP`의 새 entry 읽기와 pending recovery loop가 모두 있는가?
+- PEL을 완료 목록이 아니라 미확인 전달 목록으로 이해하는가?
+- 최종 상태를 durable하게 저장한 뒤에만 `XACK`하는가?
+- `XACK`과 stream entry 삭제를 구분하는가?
+- Run과 attempt를 분리하고 stale worker write를 거부하는가?
+- reclaim timeout이 실제 작업 시간과 heartbeat 정책에 근거하는가?
+- terminal run이 재전달되면 안전하게 ack하는가?
+- 모든 외부 부수 효과에 안정적인 idempotency key가 있는가?
+- retry budget과 poison-job 격리 경로가 있는가?
+- Redis persistence와 Stream retention이 복구 요구를 만족하는가?
+- queue lag뿐 아니라 pending count와 oldest idle time을 경보하는가?
+- ack 전후에 worker를 실제로 죽이는 통합 테스트가 있는가?
+
+## 복구 가능한 queue 다음에는 배포 수명주기가 온다
+
+Consumer group은 worker process가 사라져도 실행 의도를 남기고 다른 worker가 가져갈 수 있게 한다. 그러나 실제 운영에서는 Pod가 왜 종료되는지, 종료 신호를 받은 worker가 언제 새 job 수신을 멈춰야 하는지, 몇 개의 replica를 둘지, queue depth로 어떻게 확장할지도 정해야 한다.
+
+다음 글에서는 API와 worker를 Kubernetes의 서로 다른 Deployment로 운영하고, graceful shutdown·resource request·bounded concurrency·queue 기반 scaling을 연결한다. Worker가 특별한 Kubernetes 객체가 아니라는 사실에서 출발해 **복구 가능한 실행 역할을 어떻게 배포 단위로 만드는지** 살펴본다.
