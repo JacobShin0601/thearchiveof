@@ -26,13 +26,19 @@ references:
 ---
 
 import AnswerBlock from '../../../components/AnswerBlock.astro';
+import EquityDecisionChart from '../../../components/interactive/EquityDecisionChart.astro';
 import ApldValuationLab from '../../../components/interactive/ApldValuationLab.astro';
+import decision from '../../../data/equity-decisions/apld-2026-10-13.json';
+
+<EquityDecisionChart decision={decision} language="ko" />
 
 <AnswerBlock question="이 Lab이 무엇을 계산하고 무엇을 계산하지 않는가?">
   공개된 계약·기본 임대료·NOI는 사실로 고정한다. 잔여 CAPEX, 재임대, 자본비용과 추가 MW는 사용자가 바꾸는 가정이다. 프로젝트별 현금분배가 완전히 공개되지 않았으므로 결과는 매수·매도 가격목표가 아니라 Equity Bridge의 민감도 신호다.
 </AnswerBlock>
 
 이 도구는 [Applied Digital Corporation 분석](/investing/markets/applied-digital-corporation-ai-data-center-value/)의 핵심 질문을 양방향으로 움직인다. 계약 1.41GW를 그대로 가치로 읽지 않고, 임대료·NOI·개발 CAPEX·자본청구권 순서로 본다.
+
+의사결정은 **매도**다. 이는 사업이 나쁘다는 단정이 아니라, 현재 가격이 예비 Base Case보다 훨씬 더 좋은 실행과 추가 NAV를 이미 요구한다는 판단이다. 위 차트는 이 판단 이후의 종가만 갱신한다.
 
 <ApldValuationLab language="ko" />
 

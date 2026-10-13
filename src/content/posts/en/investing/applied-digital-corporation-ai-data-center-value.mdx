@@ -27,6 +27,7 @@ references:
 ---
 
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import ApldResearchDiagrams from '../../../../components/ApldResearchDiagrams.astro';
 import ValuationLabLinkCard from '../../../../components/ValuationLabLinkCard.astro';
 
 <AnswerBlock question="How much of APLD's contracted value reaches common equity?">
@@ -41,6 +42,8 @@ $$ Contracted\ MW \rightarrow Operational\ MW \rightarrow Base\ Rent \rightarrow
 
 <ValuationLabLinkCard href="/en/coding/experiments/applied-digital-corporation-valuation-lab/" company="Applied Digital Corporation" tone="navy" focusKo="" focusEn="Change NOI margin, residual CAPEX per MW, discount rate, re-letting value, and additional MW to test the incremental NAV required by the market." />
 
+<ApldResearchDiagrams variant="business" language="en" />
+
 ## 1. What APLD actually sells
 
 HPC Hosting is closer to developing and leasing AI-ready real estate than to renting GPUs. APLD supplies dense power, buildings, liquid cooling, and site operations; tenants operate their own computing infrastructure. Base rent, tenant cost recoveries, and tenant build services therefore have different economics. ChronoScale and legacy hosting also require separate SOTP treatment rather than being folded into an HPC real-estate multiple.
@@ -50,6 +53,8 @@ HPC Hosting is closer to developing and leasing AI-ready real estate than to ren
 FY2027 Q1 consolidated revenue was \$341.9M and HPC Hosting revenue was \$262.6M. But base rent was \$65.8M, tenant build services were \$183.5M, and tenant cost recoveries were \$13.3M. HPC NOI was \$58.8M.
 
 The \$183.5M is build-service revenue, not the year-over-year increase of \$157.2M. It can be important, but it should not receive the same recurring-revenue multiple as a lease payment. The most useful starting point for recurring asset economics is base rent and its conversion as delivered MW grows.
+
+<ApldResearchDiagrams variant="revenue" language="en" />
 
 ## 3. Contracted capacity is not planned capacity
 
@@ -64,6 +69,8 @@ The \$183.5M is build-service revenue, not the year-over-year increase of \$157.
 
 The 100MW difference matters: planned capacity is not contracted cash flow. Note 17 disclosed \$468.0M of minimum lease payments in FY2027, \$1,579.5M in FY2028, \$2,360.6M in FY2029, \$2,371.4M in FY2030 and FY2031, and \$26,580.2M thereafter—\$35.731B in total. These are minimum-payment commitments, not a complete annual cash-flow forecast.
 
+<ApldResearchDiagrams variant="delivery" language="en" />
+
 ## 4. Contracted MW must become operational MW
 
 Polaris Forge 1 had 175MW in operation at August-end; a further 75MW was delivered on October 1, taking operating capacity to 250MW. A contract should be tracked through construction, ready-for-service, tenant delivery, and rent commencement. In a capital-intensive data center, delivery dates can matter more than contract announcements.
@@ -77,6 +84,8 @@ Grid-connected power, substations, liquid cooling, appropriate land, and constru
 $$ NOI\ Margin=NOI/Base\ Rent,\qquad Yield\ on\ Cost=Stabilized\ NOI/Total\ Development\ Cost $$
 
 The quarter's \$58.8M NOI on \$65.8M of base rent is a positive operating datapoint. NOI is still before corporate cash cost, maintenance CAPEX, cash taxes, financing cost, and development CAPEX. A consistent DCF must not subtract interest twice: discount FCFF and deduct debt once, or discount FCFE and do not deduct debt again.
+
+<ApldResearchDiagrams variant="claims" language="en" />
 
 ## 7. Residual CAPEX and capital claims determine common value
 

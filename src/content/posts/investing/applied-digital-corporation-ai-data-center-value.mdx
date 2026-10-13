@@ -29,6 +29,7 @@ references:
 ---
 
 import AnswerBlock from '../../../components/AnswerBlock.astro';
+import ApldResearchDiagrams from '../../../components/ApldResearchDiagrams.astro';
 import ValuationLabLinkCard from '../../../components/ValuationLabLinkCard.astro';
 
 <AnswerBlock question="360억 달러의 장기 임대계약은 APLD 보통주에 얼마의 가치를 만들까?">
@@ -45,6 +46,8 @@ $$
 
 <ValuationLabLinkCard href="/coding/experiments/applied-digital-corporation-valuation-lab/" company="Applied Digital Corporation" tone="navy" focusKo="NOI 마진·MW당 잔여 CAPEX·할인율·재임대 가치와 추가 MW를 바꾸며, 현재 가격에 필요한 추가 NAV를 점검합니다." focusEn="Change NOI margin, residual CAPEX per MW, discount rate, re-letting value, and additional MW to test the incremental NAV required by the market." />
 
+<ApldResearchDiagrams variant="business" />
+
 ## 1. APLD는 무엇을 파는 회사인가?
 
 APLD의 HPC Hosting은 GPU를 직접 임대하는 사업이라기보다 고밀도 전력, 건물, 액체냉각과 현장 운영 인프라를 장기 임차인에게 제공하는 AI 데이터센터 개발·임대 사업이다. 임차인은 그 시설 위에서 자체 AI 컴퓨팅을 운영한다.
@@ -56,6 +59,8 @@ APLD의 HPC Hosting은 GPU를 직접 임대하는 사업이라기보다 고밀�
 FY2027 Q1 연결 매출은 \$341.9M, HPC Hosting 매출은 \$262.6M이었다. 그러나 HPC 기본 임대료는 \$65.8M, 테넌트 구축 서비스는 \$183.5M, 비용 회수는 \$13.3M이었다. HPC NOI는 \$58.8M, Adjusted EBITDA는 \$64.4M이다.
 
 특히 \$183.5M은 구축 서비스 매출이다. 전년 동기 대비 증가분 \$157.2M와도 다르다. 구축 서비스가 가치가 없다는 뜻은 아니다. 다만 전통적 데이터센터 리츠의 반복 매출 배수를 전체 매출에 적용하면 경제적 성격이 다른 항목을 섞게 된다.
+
+<ApldResearchDiagrams variant="revenue" />
 
 ## 3. 1.41GW의 계약은 확정된 현금흐름인가?
 
@@ -82,6 +87,8 @@ FY2027 Q1 연결 매출은 \$341.9M, HPC Hosting 매출은 \$262.6M이었다. �
 
 수주잔고가 아니라 최소 임대료 약정의 시간표라는 표현이 더 정확하다. 비용 회수·변동 임대료·해지 및 보증 조건은 별도로 확인해야 한다.
 
+<ApldResearchDiagrams variant="delivery" />
+
 ## 4. 계약된 MW와 가동 MW는 다르다
 
 2026년 8월 말 Polaris Forge 1 가동 용량은 175MW였고, 10월 1일 추가 75MW 인도로 250MW가 됐다. 계약 1.41GW와 실제 인도 250MW 사이에는 전력 인도, 공사, 시운전, 테넌트 인수와 임대 개시라는 실행 단계가 남아 있다.
@@ -103,6 +110,8 @@ $$ NOI\ Margin=\frac{NOI}{Base\ Rent},\qquad Yield\ on\ Cost=\frac{Stabilized\ N
 `기본 임대료 → 부동산 운영비 → NOI → 본사 비용·유지 CAPEX·세금 → 금융 제공자 지급 → 보통주 잔여현금흐름`
 
 FCFF를 할인했다면 부채를 뒤에서 한 번만 차감해야 한다. FCFE를 할인했다면 이자·부채를 다시 빼면 안 된다. 이 일관성이 APLD처럼 자본집약적이고 복잡한 구조에서 특히 중요하다.
+
+<ApldResearchDiagrams variant="claims" />
 
 ## 7. 잔여 CAPEX와 자본청구권이 주당 가치를 결정한다
 

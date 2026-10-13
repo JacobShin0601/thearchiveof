@@ -27,13 +27,19 @@ references:
 ---
 
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import EquityDecisionChart from '../../../../components/interactive/EquityDecisionChart.astro';
 import ApldValuationLab from '../../../../components/interactive/ApldValuationLab.astro';
+import decision from '../../../../data/equity-decisions/apld-2026-10-13.json';
+
+<EquityDecisionChart decision={decision} language="en" />
 
 <AnswerBlock question="What does this Lab calculate—and what does it deliberately leave open?">
   Disclosed contracts, base rent, and NOI stay separate from user assumptions about residual CAPEX, re-letting, cost of capital, and incremental MW. Project-level cash distributions are not fully public, so the output is an Equity Bridge sensitivity—not a buy or sell target.
 </AnswerBlock>
 
 This Lab turns the central question in the [Applied Digital Corporation research](/en/investing/markets/applied-digital-corporation-ai-data-center-value/) in both directions. It does not treat 1.41GW as value; it follows the route through rent, NOI, construction cost, capital claims, and common equity.
+
+The decision is **Sell**. This is not a claim that the underlying business is poor; it is a judgment that the market price already requires substantially better execution and additional NAV than the preliminary Base case. The chart above updates only with closes after this decision.
 
 <ApldValuationLab language="en" />
 
