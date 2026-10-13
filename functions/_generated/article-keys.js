@@ -8,6 +8,7 @@ export const ARTICLE_KEYS = [
   "ax-is-transformation",
   "ax-should-start-narrow",
   "bayesian-statistics-dog-walk",
+  "build-with-gemini-gcp-agent-era",
   "efficient-markets-bayesian-lens",
   "exponential-distribution-ai-handoff",
   "fde-economics-wonderful-reflection",

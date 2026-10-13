@@ -1052,6 +1052,24 @@ export const ARTICLE_CATALOG = {
     "title": "What is optimization?",
     "path": "/en/math/optimization/what-is-optimization-dinner-with-friends/"
   },
+  "/en/misc/notes/build-with-gemini-gcp-agent-era/": {
+    "key": "build-with-gemini-gcp-agent-era",
+    "slug": "build-with-gemini-gcp-agent-era",
+    "language": "en",
+    "section": "Perspectives",
+    "subsection": "Short Notes",
+    "contentType": "perspective",
+    "topics": [
+      "enterprise-ai",
+      "ai-agents"
+    ],
+    "primaryTopic": "enterprise-ai",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-13",
+    "nextReviewDate": "2027-01-13",
+    "title": "Build with Gemini Notes: Google Cloud Is Taking the Agent Era Seriously",
+    "path": "/en/misc/notes/build-with-gemini-gcp-agent-era/"
+  },
   "/en/misc/essays/why-this-archive-is-open/": {
     "key": "why-this-archive-is-open",
     "slug": "why-this-archive-is-open",
@@ -1273,6 +1291,24 @@ export const ARTICLE_CATALOG = {
     "nextReviewDate": null,
     "title": "최적화란 무엇인가?",
     "path": "/math/optimization/what-is-optimization-dinner-with-friends/"
+  },
+  "/misc/notes/build-with-gemini-gcp-agent-era/": {
+    "key": "build-with-gemini-gcp-agent-era",
+    "slug": "build-with-gemini-gcp-agent-era",
+    "language": "ko",
+    "section": "Perspectives",
+    "subsection": "Short Notes",
+    "contentType": "perspective",
+    "topics": [
+      "enterprise-ai",
+      "ai-agents"
+    ],
+    "primaryTopic": "enterprise-ai",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-13",
+    "nextReviewDate": "2027-01-13",
+    "title": "Build with Gemini 후기: GCP는 에이전트 시대를 진지하게 준비하고 있었다",
+    "path": "/misc/notes/build-with-gemini-gcp-agent-era/"
   },
   "/misc/essays/why-this-archive-is-open/": {
     "key": "why-this-archive-is-open",
