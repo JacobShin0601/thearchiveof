@@ -371,6 +371,24 @@ export const ARTICLE_CATALOG = {
     "title": "푸아송 수요·재고 시뮬레이터",
     "path": "/coding/experiments/poisson-demand-inventory-lab/"
   },
+  "/coding/experiments/salesforce-agentforce-fcf-valuation-lab/": {
+    "key": "salesforce-agentforce-fcf-valuation-lab",
+    "slug": "salesforce-agentforce-fcf-valuation-lab",
+    "language": "ko",
+    "section": "Lab",
+    "subsection": "Experiments",
+    "contentType": "implementation",
+    "topics": [
+      "portfolio",
+      "enterprise-ai"
+    ],
+    "primaryTopic": "portfolio",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-08",
+    "nextReviewDate": "2026-12-05",
+    "title": "Salesforce Valuation Lab: 현재 주가가 요구하는 FCF 성장률",
+    "path": "/coding/experiments/salesforce-agentforce-fcf-valuation-lab/"
+  },
   "/coding/experiments/samsung-earnings-event-lab/": {
     "key": "samsung-earnings-event-lab",
     "slug": "samsung-earnings-event-lab",
@@ -776,6 +794,24 @@ export const ARTICLE_CATALOG = {
     "title": "Poisson Demand and Inventory Simulator",
     "path": "/en/coding/experiments/poisson-demand-inventory-lab/"
   },
+  "/en/coding/experiments/salesforce-agentforce-fcf-valuation-lab/": {
+    "key": "salesforce-agentforce-fcf-valuation-lab",
+    "slug": "salesforce-agentforce-fcf-valuation-lab",
+    "language": "en",
+    "section": "Lab",
+    "subsection": "Experiments",
+    "contentType": "implementation",
+    "topics": [
+      "portfolio",
+      "enterprise-ai"
+    ],
+    "primaryTopic": "portfolio",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-08",
+    "nextReviewDate": "2026-12-05",
+    "title": "Salesforce Valuation Lab: The FCF Growth Implied by Today’s Price",
+    "path": "/en/coding/experiments/salesforce-agentforce-fcf-valuation-lab/"
+  },
   "/en/coding/experiments/samsung-earnings-event-lab/": {
     "key": "samsung-earnings-event-lab",
     "slug": "samsung-earnings-event-lab",
@@ -871,6 +907,24 @@ export const ARTICLE_CATALOG = {
     "nextReviewDate": "2026-11-16",
     "title": "Huntington Ingalls Industries: Why Does a Monopoly Shipbuilder With $57 Billion of Orders Trade at 14×?",
     "path": "/en/investing/markets/huntington-ingalls-industries-valuation/"
+  },
+  "/en/investing/markets/salesforce-agentforce-fcf-valuation/": {
+    "key": "salesforce-agentforce-fcf-valuation",
+    "slug": "salesforce-agentforce-fcf-valuation",
+    "language": "en",
+    "section": "Investing",
+    "subsection": "Markets",
+    "contentType": "research",
+    "topics": [
+      "portfolio",
+      "enterprise-ai"
+    ],
+    "primaryTopic": "portfolio",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-08",
+    "nextReviewDate": "2026-12-05",
+    "title": "Salesforce, Inc.: Can Agentforce Reaccelerate CRM Growth?",
+    "path": "/en/investing/markets/salesforce-agentforce-fcf-valuation/"
   },
   "/en/investing/markets/sterling-infrastructure-fair-value/": {
     "key": "sterling-infrastructure-fair-value",
@@ -1075,6 +1129,24 @@ export const ARTICLE_CATALOG = {
     "nextReviewDate": "2026-11-16",
     "title": "Huntington Ingalls Industries: 570억 달러의 주문을 가진 독점 조선소는 왜 14배에 거래될까?",
     "path": "/investing/markets/huntington-ingalls-industries-valuation/"
+  },
+  "/investing/markets/salesforce-agentforce-fcf-valuation/": {
+    "key": "salesforce-agentforce-fcf-valuation",
+    "slug": "salesforce-agentforce-fcf-valuation",
+    "language": "ko",
+    "section": "Investing",
+    "subsection": "Markets",
+    "contentType": "research",
+    "topics": [
+      "portfolio",
+      "enterprise-ai"
+    ],
+    "primaryTopic": "portfolio",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-08",
+    "nextReviewDate": "2026-12-05",
+    "title": "Salesforce, Inc.: Agentforce는 CRM의 성장률을 다시 끌어올릴 수 있을까?",
+    "path": "/investing/markets/salesforce-agentforce-fcf-valuation/"
   },
   "/investing/markets/sterling-infrastructure-fair-value/": {
     "key": "sterling-infrastructure-fair-value",
