@@ -1,0 +1,129 @@
+---
+title: "Applied Digital Corporation: 360억 달러의 AI 데이터센터 계약, 그런데 주주에게 남는 돈은 얼마일까?"
+subtitle: "1.41GW의 장기계약, 89% NOI 마진, 수십억 달러의 건설비. 성장과 보통주 가치가 일치하는지 검증한다."
+description: "Applied Digital Corporation의 장기 AI 데이터센터 계약이 건설비와 자본청구권을 거쳐 보통주 가치로 얼마나 전환되는지 분석한다."
+publishedDate: 2026-10-13
+section: "Investing"
+subsection: "Markets"
+contentType: "research"
+topics: [portfolio, enterprise-ai]
+primaryTopic: portfolio
+tags: [valuation, ai, data-center, infrastructure, research]
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "ko"
+translationKey: "applied-digital-corporation-ai-data-center-value"
+freshness: time-sensitive
+lastReviewed: 2026-10-13
+nextReviewDate: 2026-11-20
+dataThrough: 2026-10-13
+methodology: "공시된 최소 임대료와 계약 MW를 출발점으로 하되, 개별 캠퍼스 잔여 CAPEX와 프로젝트 현금배분이 완전히 공개되지 않았음을 명시한다. Bear/Base/Bull은 경영진 가이던스가 아닌 저자의 예비 모델이다."
+references:
+  - title: "Applied Digital SEC filings"
+    url: "https://ir.applieddigital.com/sec-filings"
+    publisher: "Applied Digital"
+  - title: "Applied Digital investor relations"
+    url: "https://ir.applieddigital.com/"
+    publisher: "Applied Digital"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import ValuationLabLinkCard from '../../../components/ValuationLabLinkCard.astro';
+
+<AnswerBlock question="360억 달러의 장기 임대계약은 APLD 보통주에 얼마의 가치를 만들까?">
+  계약의 질은 강하다. 그러나 예비 모델에서 계약 자산만으로 나온 Base 주당 가치는 \$5.02이고, 2026년 10월 13일 종가 \$22.44는 추가 개발가치·더 낮은 자본비용·더 적은 건설비를 요구한다. 이 숫자는 가격목표가 아니라 검증해야 할 가설의 목록이다.
+</AnswerBlock>
+
+AI 데이터센터는 부족하다. GPU보다 전력이 부족하다는 말이 나올 정도로 고객들은 몇 년 뒤에 사용할 시설을 지금 계약한다. <strong>Applied Digital Corporation (NASDAQ: APLD)</strong>은 1.41GW의 계약 IT 용량과 약 \$35.731B의 최소 계약 임대료를 공시했다.
+
+그것은 인상적인 상업적 성과다. 하지만 그것만으로 보통주 가치가 되지는 않는다.
+
+$$
+Contracted\ MW \rightarrow Operational\ MW \rightarrow Base\ Rent \rightarrow NOI \rightarrow Project\ Cash\ Flow \rightarrow Capital\ Providers \rightarrow Common\ Equity\ Value\ per\ Share
+$$
+
+<ValuationLabLinkCard href="/coding/experiments/applied-digital-corporation-valuation-lab/" company="Applied Digital Corporation" tone="navy" focusKo="NOI 마진·MW당 잔여 CAPEX·할인율·재임대 가치와 추가 MW를 바꾸며, 현재 가격에 필요한 추가 NAV를 점검합니다." focusEn="Change NOI margin, residual CAPEX per MW, discount rate, re-letting value, and additional MW to test the incremental NAV required by the market." />
+
+## 1. APLD는 무엇을 파는 회사인가?
+
+APLD의 HPC Hosting은 GPU를 직접 임대하는 사업이라기보다 고밀도 전력, 건물, 액체냉각과 현장 운영 인프라를 장기 임차인에게 제공하는 AI 데이터센터 개발·임대 사업이다. 임차인은 그 시설 위에서 자체 AI 컴퓨팅을 운영한다.
+
+수입원도 분리해야 한다. 기본 임대료는 반복적 자산 현금흐름의 출발점이다. 테넌트 비용 회수는 대응 비용과 함께 읽어야 한다. 구축 서비스는 경제적으로 중요할 수 있지만 같은 반복성을 갖지 않는다. ChronoScale과 Legacy Data Center Hosting도 HPC 부동산과 동일하게 평가하면 안 되는 별도 영역이다.
+
+## 2. 3억4,190만 달러의 매출 중 반복 임대료는 얼마인가?
+
+FY2027 Q1 연결 매출은 \$341.9M, HPC Hosting 매출은 \$262.6M이었다. 그러나 HPC 기본 임대료는 \$65.8M, 테넌트 구축 서비스는 \$183.5M, 비용 회수는 \$13.3M이었다. HPC NOI는 \$58.8M, Adjusted EBITDA는 \$64.4M이다.
+
+특히 \$183.5M은 구축 서비스 매출이다. 전년 동기 대비 증가분 \$157.2M와도 다르다. 구축 서비스가 가치가 없다는 뜻은 아니다. 다만 전통적 데이터센터 리츠의 반복 매출 배수를 전체 매출에 적용하면 경제적 성격이 다른 항목을 섞게 된다.
+
+## 3. 1.41GW의 계약은 확정된 현금흐름인가?
+
+| 캠퍼스 | 계약 MW | 계획 MW | 공시상 임차인 |
+| --- | ---: | ---: | --- |
+| Polaris Forge 1 | 400 | 400 | CoreWeave |
+| Polaris Forge 2 | 200 | 300 | 투자등급 hyperscaler |
+| Polaris Forge 3 | 300 | 300 | 투자등급 hyperscaler |
+| Delta Forge 1 | 300 | 300 | 투자등급 hyperscaler |
+| Delta Forge 2 | 210 | 210 | 투자등급 hyperscaler |
+| **합계** | **1,410** | **1,510** | |
+
+계약 MW와 계획 MW의 차이 100MW는 작지 않다. 계약이 없는 계획 용량은 아직 계약 현금흐름이 아니다. Note 17의 최소 계약 임대료도 명확하다.
+
+| 회계연도 | 최소 계약 임대료 |
+| --- | ---: |
+| FY2027 | \$468.0M |
+| FY2028 | \$1,579.5M |
+| FY2029 | \$2,360.6M |
+| FY2030 | \$2,371.4M |
+| FY2031 | \$2,371.4M |
+| Thereafter | \$26,580.2M |
+| **합계** | **\$35,731.0M** |
+
+수주잔고가 아니라 최소 임대료 약정의 시간표라는 표현이 더 정확하다. 비용 회수·변동 임대료·해지 및 보증 조건은 별도로 확인해야 한다.
+
+## 4. 계약된 MW와 가동 MW는 다르다
+
+2026년 8월 말 Polaris Forge 1 가동 용량은 175MW였고, 10월 1일 추가 75MW 인도로 250MW가 됐다. 계약 1.41GW와 실제 인도 250MW 사이에는 전력 인도, 공사, 시운전, 테넌트 인수와 임대 개시라는 실행 단계가 남아 있다.
+
+투자자는 계획·계약·건설·Ready for Service·임차인 인도·임대료 발생을 한 숫자로 합쳐서는 안 된다. HII의 backlog가 throughput을 거쳐야 현금이 되듯, APLD의 계약 MW도 실제 가동 MW를 거쳐야만 임대료가 된다.
+
+## 5. 전력과 시간이 해자일 수 있지만 영구 수익률은 아니다
+
+계통 연결 전력, 변전소, 냉각, 부지와 공사 속도는 동시에 확보하기 어렵다. 이는 Sterling Infrastructure에서 본 데이터센터 인프라 병목과 닮았다. 고객에게는 예정된 시점에 가동 가능한 시설 자체가 가치다.
+
+그러나 확인해야 할 질문도 남는다. 전력은 단순 구매계약인가 실제 송전·인도가 가능한가? 추가 발전·송전 개발 위험은 누가 부담하는가? 현재 고객 계약이 끝난 뒤에도 부지는 경쟁력이 있는가? 전력 관련 특수관계자 거래가 있는가? 전력 접근권이 해자일 수는 있어도 영구 초과수익률의 증명은 아니다.
+
+## 6. 89% NOI 마진은 좋은 사업을 뜻하지만 높은 ROIC를 뜻하지는 않는다
+
+$$ NOI\ Margin=\frac{NOI}{Base\ Rent},\qquad Yield\ on\ Cost=\frac{Stabilized\ NOI}{Total\ Development\ Cost} $$
+
+\$58.8M NOI와 \$65.8M 기본 임대료는 부동산 수준에서 강한 경제성을 보여 준다. 하지만 NOI는 본사 현금비용, 유지 CAPEX, 현금세금, 금융비용과 신규 개발 CAPEX 전의 지표다.
+
+`기본 임대료 → 부동산 운영비 → NOI → 본사 비용·유지 CAPEX·세금 → 금융 제공자 지급 → 보통주 잔여현금흐름`
+
+FCFF를 할인했다면 부채를 뒤에서 한 번만 차감해야 한다. FCFE를 할인했다면 이자·부채를 다시 빼면 안 된다. 이 일관성이 APLD처럼 자본집약적이고 복잡한 구조에서 특히 중요하다.
+
+## 7. 잔여 CAPEX와 자본청구권이 주당 가치를 결정한다
+
+FY2027 Q1 CAPEX는 약 \$2.07B였다. 일부 캠퍼스 자료의 \$11M–\$13M/MW는 유용한 범위지만, 1.41GW 전체의 공식 총개발비가 아니다. 예비 모델은 `MW당 가정 × 1,410MW − 기존 장부자산`으로 잔여 CAPEX를 근사했다. 이는 프로젝트별 잔여 CAPEX가 아니다.
+
+또한 2026년 8월 말 상환청구 가능 비지배지분은 약 \$2.01B였고, Series G 우선주는 약 \$124.9M에서 분기 후 약 5.2M 보통주로 전환됐다. 전환 후에는 우선청구권을 남겨두면서 희석주식도 더하면 같은 청구권을 두 번 반영하게 된다. 부채, 제한현금, 전환사채, 워런트, Macquarie 프로젝트 권리와 NCI의 실제 현금분배를 하나의 Equity Bridge에서 일관되게 처리해야 한다.
+
+## 8. 예비 적정가와 Reverse Valuation
+
+| 시나리오 | 할인율 | NOI 마진 | 총건설비/MW | 예비 주당가치 |
+| --- | ---: | ---: | ---: | ---: |
+| Bear | 11.0% | 80% | \$13M | \$0.00 |
+| Base | 8.5% | 86% | \$12M | \$5.02 |
+| Bull | 7.0% | 89% | \$11M | \$26.18 |
+
+이 표는 최종 목표가가 아니다. 기존 장부자산의 범위, 임차인 부담분, 프로젝트 금융청구권, Thereafter 임대료 배분, 재임대 CAPEX와 공실을 감사하기 전의 예비 산출이다.
+
+그럼에도 Reverse Valuation의 메시지는 유용하다. \$22.44는 단지 1.41GW 계약의 실행만이 아니라 더 낮은 CAPEX, 더 싼 자본, 더 높은 재임대 가치, 추가 양(+) NPV MW, 또는 더 낮은 희석을 요구한다. 좋은 기업과 좋은 가격은 같은 문장이 아니다.
+
+## 결론
+
+APLD의 사업은 매력적일 수 있다. 전력과 시간을 확보한 AI 인프라는 희소하며, 최소 임대료 약정은 수요의 실재를 보여 준다. 그러나 보통주 판단은 다른 질문이다. 모든 건설비와 자본 제공자 청구권을 지불한 뒤 주당 얼마가 남는가?
+
+AI 인프라를 소유하는 것과 AI 인프라의 경제적 이익을 소유하는 것은 다르다. APLD의 가치는 확보한 전력과 계약 규모보다, 모든 비용을 지불한 뒤에도 보통주주에게 남는 현금흐름에 달려 있다.

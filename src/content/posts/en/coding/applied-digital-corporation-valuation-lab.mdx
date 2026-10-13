@@ -1,0 +1,50 @@
+---
+title: "Applied Digital Corporation Valuation Lab: What Is 1.41GW of Contracted Capacity Worth Per Share?"
+subtitle: "Change NOI, residual CAPEX, discount rate, re-letting value, and incremental MW to test the additional NAV implied by the market."
+description: "An interactive sensitivity tool connecting Applied Digital Corporation's contracted capacity, development cost, and capital claims to common-equity value."
+publishedDate: 2026-10-13
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, enterprise-ai]
+primaryTopic: portfolio
+tags: [applied-digital, valuation, data-center, ai, scenario-analysis]
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "en"
+translationKey: "applied-digital-corporation-valuation-lab"
+localization: { locale: "en-US", strategy: "localized-adaptation" }
+freshness: time-sensitive
+lastReviewed: 2026-10-13
+nextReviewDate: 2026-11-20
+dataThrough: 2026-10-13
+methodology: "Holds disclosed 1,410MW contracted capacity and $35.731B in minimum lease payments fixed. Residual CAPEX and capital claims not disclosed at project level remain explicit assumptions; reverse valuation is a sensitivity tool, not a price target."
+references:
+  - title: "Applied Digital SEC filings"
+    url: "https://ir.applieddigital.com/sec-filings"
+    publisher: "Applied Digital"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import ApldValuationLab from '../../../../components/interactive/ApldValuationLab.astro';
+
+<AnswerBlock question="What does this Lab calculate—and what does it deliberately leave open?">
+  Disclosed contracts, base rent, and NOI stay separate from user assumptions about residual CAPEX, re-letting, cost of capital, and incremental MW. Project-level cash distributions are not fully public, so the output is an Equity Bridge sensitivity—not a buy or sell target.
+</AnswerBlock>
+
+This Lab turns the central question in the [Applied Digital Corporation research](/en/investing/markets/applied-digital-corporation-ai-data-center-value/) in both directions. It does not treat 1.41GW as value; it follows the route through rent, NOI, construction cost, capital claims, and common equity.
+
+<ApldValuationLab language="en" />
+
+## How to use it
+
+In Simple mode, move one variable at a time. Raising residual CAPEX from \$12M/MW to \$13M/MW is often more informative than changing a terminal multiple: a small shift across a large development footprint can erase much of the residual common-equity claim.
+
+In Advanced / Reverse mode, additional contracted MW represents an assumed positive-NPV project, not announced capacity. Explaining a market price with one variable is different from explaining it with a combination of lower CAPEX, lower discount rates, stronger re-letting, and incremental MW.
+
+## The model boundary
+
+The Lab does not present an arbitrary annual allocation of the disclosed “thereafter” rent as fact. Nor does it claim to have reconstructed every contractual cash distribution for Macquarie rights, NCI, convertibles, warrants, and other senior claims. False precision would be worse than an explicit uncertainty.
+
+Its practical purpose is narrow: make visible what must improve beyond contract size for value to reach common shareholders.

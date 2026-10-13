@@ -338,6 +338,24 @@ export const ARTICLE_CATALOG = {
     "title": "AI 이관 대기열 시뮬레이터",
     "path": "/coding/experiments/ai-handoff-queue-lab/"
   },
+  "/coding/experiments/applied-digital-corporation-valuation-lab/": {
+    "key": "applied-digital-corporation-valuation-lab",
+    "slug": "applied-digital-corporation-valuation-lab",
+    "language": "ko",
+    "section": "Lab",
+    "subsection": "Experiments",
+    "contentType": "implementation",
+    "topics": [
+      "portfolio",
+      "enterprise-ai"
+    ],
+    "primaryTopic": "portfolio",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-13",
+    "nextReviewDate": "2026-11-20",
+    "title": "Applied Digital Corporation Valuation Lab: 1.41GW의 계약은 주당 얼마의 가치가 될까?",
+    "path": "/coding/experiments/applied-digital-corporation-valuation-lab/"
+  },
   "/coding/experiments/huntington-ingalls-industries-valuation-lab/": {
     "key": "huntington-ingalls-industries-valuation-lab",
     "slug": "huntington-ingalls-industries-valuation-lab",
@@ -761,6 +779,24 @@ export const ARTICLE_CATALOG = {
     "title": "AI Handoff Queue Simulator",
     "path": "/en/coding/experiments/ai-handoff-queue-lab/"
   },
+  "/en/coding/experiments/applied-digital-corporation-valuation-lab/": {
+    "key": "applied-digital-corporation-valuation-lab",
+    "slug": "applied-digital-corporation-valuation-lab",
+    "language": "en",
+    "section": "Lab",
+    "subsection": "Experiments",
+    "contentType": "implementation",
+    "topics": [
+      "portfolio",
+      "enterprise-ai"
+    ],
+    "primaryTopic": "portfolio",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-13",
+    "nextReviewDate": "2026-11-20",
+    "title": "Applied Digital Corporation Valuation Lab: What Is 1.41GW of Contracted Capacity Worth Per Share?",
+    "path": "/en/coding/experiments/applied-digital-corporation-valuation-lab/"
+  },
   "/en/coding/experiments/huntington-ingalls-industries-valuation-lab/": {
     "key": "huntington-ingalls-industries-valuation-lab",
     "slug": "huntington-ingalls-industries-valuation-lab",
@@ -844,6 +880,24 @@ export const ARTICLE_CATALOG = {
     "nextReviewDate": "2026-11-16",
     "title": "Sterling Infrastructure Valuation Lab: The Growth Implied by Today’s Price",
     "path": "/en/coding/experiments/sterling-infrastructure-valuation-lab/"
+  },
+  "/en/investing/markets/applied-digital-corporation-ai-data-center-value/": {
+    "key": "applied-digital-corporation-ai-data-center-value",
+    "slug": "applied-digital-corporation-ai-data-center-value",
+    "language": "en",
+    "section": "Investing",
+    "subsection": "Markets",
+    "contentType": "research",
+    "topics": [
+      "portfolio",
+      "enterprise-ai"
+    ],
+    "primaryTopic": "portfolio",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-13",
+    "nextReviewDate": "2026-11-20",
+    "title": "Applied Digital Corporation: $36 Billion in AI Data Center Leases, but How Much Value Reaches Shareholders?",
+    "path": "/en/investing/markets/applied-digital-corporation-ai-data-center-value/"
   },
   "/en/investing/markets/efficient-markets-bayesian-lens/": {
     "key": "efficient-markets-bayesian-lens",
@@ -1084,6 +1138,24 @@ export const ARTICLE_CATALOG = {
     "nextReviewDate": "2027-03-01",
     "title": "Why I Keep Research as an Archive, Not a Feed",
     "path": "/en/misc/essays/why-this-archive-is-open/"
+  },
+  "/investing/markets/applied-digital-corporation-ai-data-center-value/": {
+    "key": "applied-digital-corporation-ai-data-center-value",
+    "slug": "applied-digital-corporation-ai-data-center-value",
+    "language": "ko",
+    "section": "Investing",
+    "subsection": "Markets",
+    "contentType": "research",
+    "topics": [
+      "portfolio",
+      "enterprise-ai"
+    ],
+    "primaryTopic": "portfolio",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-13",
+    "nextReviewDate": "2026-11-20",
+    "title": "Applied Digital Corporation: 360억 달러의 AI 데이터센터 계약, 그런데 주주에게 남는 돈은 얼마일까?",
+    "path": "/investing/markets/applied-digital-corporation-ai-data-center-value/"
   },
   "/investing/markets/efficient-markets-bayesian-lens/": {
     "key": "efficient-markets-bayesian-lens",
