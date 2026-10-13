@@ -1,0 +1,126 @@
+---
+title: "Build with Gemini Notes: Google Cloud Is Taking the Agent Era Seriously"
+subtitle: "How the number-three cloud is using agents as its next enterprise entry point"
+description: "Notes from Build with Gemini on Google Cloud's agent governance, Gemini Enterprise as a sticky entry point, and its distribution challenge in Korea."
+publishedDate: 2026-10-13
+section: "Perspectives"
+subsection: "Short Notes"
+contentType: "perspective"
+topics: [enterprise-ai, ai-agents]
+primaryTopic: enterprise-ai
+tags: [google-cloud, gemini-enterprise, agent-platform, cloud, governance]
+author: "Jacob Shin"
+featured: false
+draft: false
+comments: true
+language: "en"
+translationKey: "build-with-gemini-gcp-agent-era"
+localization:
+  locale: en-US
+  strategy: localized-adaptation
+freshness: time-sensitive
+lastReviewed: 2026-10-13
+nextReviewDate: 2027-01-13
+dataThrough: 2026-10-13
+methodology: "This is a personal account of a customer-invitation Build with Gemini event held at Lotte Hotel World on October 13, 2026. Market figures come from public sources. The global figures measure Q2 2026 cloud-infrastructure revenue share; the Korean figures are IDC's 2024 revenue shares for public cloud services across IaaS, PaaS, and SaaS. Public reporting on the Korean data did not include an individual share for Google Cloud."
+references:
+  - title: "Build with Gemini"
+    url: "https://cloud.google.com/events/build-with-gemini-2026"
+    publisher: "Google Cloud"
+  - title: "Govern your agents"
+    url: "https://docs.cloud.google.com/gemini-enterprise-agent-platform/govern"
+    publisher: "Google Cloud"
+  - title: "Q2 Cloud Market Passes $143 Billion; Highest Growth Rate in Eight Years"
+    url: "https://www.srgresearch.com/articles/q2-cloud-market-passes-143-billion-highest-growth-rate-in-eight-years"
+    publisher: "Synergy Research Group"
+  - title: "Samsung SDS Overtakes Microsoft for No. 2 in Korean Cloud Market"
+    url: "https://www.digitaltoday.co.kr/en/view/47333/samsung-sds-ranks-no-2-in-south-korea-public-cloud-market-overtakes-microsoft-idc"
+    publisher: "Digital Today"
+---
+
+On October 13, I attended a customer-invitation **Build with Gemini** event at Lotte Hotel World in Seoul. My afternoon session focused on security and governance for Gemini Enterprise.
+
+My company has evaluated Gemini Enterprise, and our development environment already combines on-premises infrastructure with Google Cloud. I was therefore less interested in another model demo than in a more practical question: how does Google plan to operate enterprise agents once they move beyond a pilot?
+
+My short answer after the event is this:
+
+> **Google Cloud is taking the agent era seriously. It is not merely selling a model. It is trying to own the system through which enterprises build, deploy, and govern agents.**
+
+## Global number three, but harder to see in Korea
+
+Google Cloud remains smaller than AWS and Microsoft. Synergy Research Group's Q2 2026 cloud-infrastructure revenue figures make its global position clear.
+
+| Measure | AWS | Microsoft | Google Cloud |
+|---|---:|---:|---:|
+| Q2 2026 global cloud-infrastructure revenue share | 28% | 20% | 15% |
+
+There is no similarly current public source that places all three providers side by side in Korea. The most recent public reporting I found instead covers IDC's 2024 revenue shares for the Korean public-cloud-services market.
+
+| Korea rank | Provider | 2024 revenue share |
+|---:|---|---:|
+| 1 | AWS | 22.0% |
+| 2 | Samsung SDS | 11.3% |
+| 3 | Microsoft | 9.6% |
+| 4 | Naver | 5.0% |
+| 5 | KT | 2.0% |
+| — | Google Cloud | Individual share not included in public reporting |
+
+The global table measures cloud-infrastructure revenue, while the Korean table combines IaaS, PaaS, and SaaS revenue and covers a different year. The figures therefore should not be compared directly. Still, showing the newest disclosed Korean revenue data—and its limits—is more accurate than presenting a 2023 usage survey as if it were a current market-share estimate.
+
+Google Cloud is not small globally, but it is clearly third. In Korea, its individual share is not even visible in the latest publicly reported leading group, which fits the sense that its technical profile is larger than its presence as a default enterprise choice.
+
+Agents may be one of the few opportunities to reset that hierarchy. It is difficult to overturn years of accumulated compute and storage share. The enterprise control point for connecting agents to data, tools, identities, and policies, however, has not yet been settled.
+
+## The operating system mattered more than the model
+
+What stood out in the session was that the story did not stop with Gemini's model capabilities. Agent Identity, Agent Registry, Agent Gateway, governance policies, and auditability were presented as parts of one operating model.
+
+Anyone who has built an agent inside a company quickly runs into questions that have little to do with model quality.
+
+- What data may this agent access?
+- Whose authority does it use when it calls a tool?
+- Where do we manage approved agents and tools?
+- Where do we block prompt injection or sensitive-data leakage?
+- Can we reconstruct who called what when something goes wrong?
+
+Many teams have been solving these problems through developer craftsmanship. We assemble service accounts and permissions, build registries, define logging conventions, and wrap tools with custom guardrails. The conceptual design may be sound, but implementation quality still depends heavily on the team's experience and available time.
+
+Google Cloud appears to be moving more of that work into platform defaults. This does not eliminate application-level responsibility. It does, however, let developers spend less time rebuilding the governance foundation and more time on functionality, deployment, and usability.
+
+One question remains open for me: is there a platform-level way to make repeated tool calls idempotent? Services such as Cloud Tasks and Workflows can suppress duplicates within defined boundaries, but I did not see a unified feature for arbitrary tool calls. For now, that still appears to belong in the application's state and event layer, usually backed by a relational or in-memory database.
+
+## Gemini Enterprise looks more like a sticky entrance than a subscription product
+
+The most interesting business point may not be Gemini Enterprise subscription revenue. Google does not disclose that revenue separately. Based on the pricing structure and product position I encountered, its contribution to total Google Cloud revenue is likely still modest, while the initial subscription cost is relatively accessible.
+
+Put more bluntly, getting an enterprise AI workload to run on Google Cloud and continuously consume even one GPU instance may generate far more revenue than selling a handful of Gemini Enterprise seats. The subscription matters less than the infrastructure consumption that follows it.
+
+That does not make the product strategically small.
+
+Once an organization connects search, internal data, permissions, agents, and workflows through Gemini Enterprise, replacing it becomes difficult. As usage expands, workloads can naturally flow into Vertex AI, Agent Platform, BigQuery, Cloud Run, IAM, and Logging.
+
+> **My interpretation is that Gemini Enterprise is less a revenue product than a sticky front door to Google Cloud consumption.**
+
+Models can be replaced. Moving enterprise data connections, permissions, approval paths, and workflows is much harder. The stickiness comes less from the Gemini model itself than from the operating structure that accumulates around it.
+
+## The distribution barrier is higher than it looks
+
+Even with a strong product, moving deeper into Korean enterprises will not be easy for Google Cloud. I would not frame this as a lack of effort from the local distribution organization. The people meeting customers and supporting adoption appear to be working as hard as anyone.
+
+The larger problem is the starting position. AWS is already embedded in the infrastructure and data environments of a large number of companies. Its Professional Services organization, ProServe, and partner ecosystem have also accumulated many migration and implementation successes. Customers can extend familiar technology, operating experience, and proven references. That installed-base and reference flywheel is a major AWS advantage.
+
+Microsoft has a different advantage through Office, Teams, Entra, and GitHub. Google Cloud, by contrast, often has to prove not only that its product is better, but also that changing an existing system is worthwhile and that similar deployments have already succeeded. That is a structural barrier a hardworking local team cannot reverse quickly.
+
+Google has a major surface of its own in Workspace. Even so, product completeness may not translate directly into Korean enterprise adoption. The key will be how quickly Google Cloud can turn its technical position in agents into repeatable local success stories. A well-designed platform does not automatically become the standard.
+
+## This time, the opportunity looks credible
+
+One event is not enough to predict a market winner. There will also be distance between a polished session and operating the same platform at scale.
+
+Still, Google Cloud's direction was clear. It sees agents not merely as a model feature but as a **new cloud entry point and operating layer**. If it can combine its strengths in data and AI infrastructure with identity, registries, gateways, and governance in one developer experience, it has a credible position.
+
+Google Cloud is still third in global infrastructure share, and its distribution in Korea remains a question. But it seems to be defining the shape of an enterprise agent platform early and systematically.
+
+The most memorable part of the event was not a new demo. It was the attempt to move the tedious, difficult work required to operate agents inside a company **from individual developer craftsmanship into platform defaults**.
+
+If Google can match that product direction with distribution, it has a real chance to take more initiative in the agent era than its current cloud share would suggest.

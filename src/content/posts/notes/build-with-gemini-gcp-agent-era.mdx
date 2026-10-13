@@ -1,0 +1,123 @@
+---
+title: "Build with Gemini 후기: GCP는 에이전트 시대를 진지하게 준비하고 있었다"
+subtitle: "시장점유율 3위의 클라우드가 에이전트를 다음 진입점으로 삼는 방식"
+description: "고객사 초청 Build with Gemini 행사에서 본 GCP의 에이전트 보안·거버넌스, Gemini Enterprise의 stickiness와 한국 시장의 distribution 과제."
+publishedDate: 2026-10-13
+section: "Perspectives"
+subsection: "Short Notes"
+contentType: "perspective"
+topics: [enterprise-ai, ai-agents]
+primaryTopic: enterprise-ai
+tags: [google-cloud, gemini-enterprise, agent-platform, cloud, governance]
+author: "Jacob Shin"
+featured: false
+draft: false
+comments: true
+language: "ko"
+translationKey: "build-with-gemini-gcp-agent-era"
+freshness: time-sensitive
+lastReviewed: 2026-10-13
+nextReviewDate: 2027-01-13
+dataThrough: 2026-10-13
+methodology: "2026년 10월 13일 롯데호텔 월드에서 열린 고객사 초청 Build with Gemini 행사에 참석한 경험을 바탕으로 쓴 개인적 관찰이다. 시장 수치는 공개 자료를 사용했다. 전세계 수치는 2026년 2분기 클라우드 인프라 매출 점유율이고, 한국 수치는 IDC가 집계한 2024년 퍼블릭 클라우드 서비스(IaaS·PaaS·SaaS) 매출 점유율이다. 국내 공개 보도에 Google Cloud의 개별 점유율은 포함되지 않았다."
+references:
+  - title: "Build with Gemini"
+    url: "https://cloud.google.com/events/build-with-gemini-2026"
+    publisher: "Google Cloud"
+  - title: "Govern your agents"
+    url: "https://docs.cloud.google.com/gemini-enterprise-agent-platform/govern"
+    publisher: "Google Cloud"
+  - title: "Q2 Cloud Market Passes $143 Billion; Highest Growth Rate in Eight Years"
+    url: "https://www.srgresearch.com/articles/q2-cloud-market-passes-143-billion-highest-growth-rate-in-eight-years"
+    publisher: "Synergy Research Group"
+  - title: "클라우드 판도 변화…삼성SDS, MS 제치고 2위"
+    url: "https://www.yna.co.kr/view/AKR20260410169600017"
+    publisher: "연합뉴스"
+---
+
+10월 13일 롯데호텔 월드에서 열린 고객사 초청 **Build with Gemini** 행사에 다녀왔다. 오후에는 Gemini Enterprise의 보안과 거버넌스를 다루는 세션을 들었다.
+
+회사에서 Gemini Enterprise 도입을 검토한 적이 있고, 현재 개발 환경도 온프레미스와 GCP를 함께 쓰는 하이브리드 구조다. 그래서 이번 행사는 새로운 모델의 기능을 구경하는 자리라기보다, Google Cloud가 기업의 에이전트를 실제로 어떻게 운영하려는지 확인하는 자리에 가까웠다.
+
+짧게 남기면 인상은 하나다.
+
+> **GCP는 에이전트 시대에 꽤 진지하다. 모델 하나를 파는 것이 아니라, 기업이 에이전트를 만들고 배포하고 통제하는 전체 체계를 잡으려는 것처럼 보였다.**
+
+## 글로벌 3위, 한국에서는 수치가 잘 보이지 않는다
+
+Google Cloud는 여전히 AWS와 Microsoft보다 작다. Synergy Research Group이 집계한 2026년 2분기 전세계 클라우드 인프라 매출 점유율을 보면 위치가 분명하다.
+
+| 기준 | AWS | Microsoft | Google Cloud |
+|---|---:|---:|---:|
+| 2026년 2분기 전세계 클라우드 인프라 매출 점유율 | 28% | 20% | 15% |
+
+국내는 같은 세 사업자를 최신 기준으로 나란히 비교할 만한 공개 자료가 마땅치 않다. 대신 2026년 4월 보도된 IDC의 2024년 국내 퍼블릭 클라우드 서비스 매출 점유율은 다음과 같다.
+
+| 국내 순위 | 사업자 | 2024년 매출 점유율 |
+|---:|---|---:|
+| 1 | AWS | 22.0% |
+| 2 | 삼성SDS | 11.3% |
+| 3 | Microsoft | 9.6% |
+| 4 | 네이버 | 5.0% |
+| 5 | KT | 2.0% |
+| — | Google Cloud | 공개 보도에 개별 수치 미포함 |
+
+글로벌 표는 클라우드 인프라 매출, 국내 표는 IaaS·PaaS·SaaS를 합친 퍼블릭 클라우드 서비스 매출이며 기준 시점도 다르다. 따라서 두 표의 숫자를 직접 비교할 수는 없다. 다만 2023년 이용률을 최신 시장점유율처럼 놓는 것보다는, 공개된 최신 국내 매출 자료와 그 한계를 함께 적는 편이 정확하다.
+
+GCP는 글로벌에서는 작지 않지만 확실한 3위다. 한국에서는 최신 공개 상위권 집계에서 개별 수치조차 잘 드러나지 않을 만큼, 제품의 기술적 존재감에 비해 기업 현장의 기본 선택지로 자리 잡은 정도가 아직 약하게 느껴진다.
+
+그런데 역으로 생각하면, 에이전트는 이 순서를 다시 흔들 수 있는 드문 기회다. 기존 컴퓨팅과 스토리지의 점유율을 단기간에 뒤집기는 어렵다. 반면 기업이 앞으로 어떤 에이전트 플랫폼에서 데이터와 Tool을 연결하고 권한을 관리할지는 아직 굳어지지 않았다.
+
+## 모델보다 운영체계가 더 눈에 들어왔다
+
+이번 세션에서 인상적이었던 것은 Gemini 모델의 성능을 강조하는 데서 멈추지 않았다는 점이다. Agent Identity, Agent Registry, Agent Gateway, 정책과 감사 로그처럼 에이전트를 조직 안에서 운영하는 데 필요한 요소가 하나의 체계로 정리돼 있었다.
+
+에이전트를 직접 개발하면 모델보다 먼저 현실적인 질문을 만나게 된다.
+
+- 이 에이전트는 어떤 데이터에 접근할 수 있는가?
+- 사용자를 대신해 Tool을 호출할 때 누구의 권한을 사용해야 하는가?
+- 승인된 Agent와 Tool은 어디에서 관리하는가?
+- 프롬프트 인젝션이나 민감정보 유출은 어느 단계에서 차단하는가?
+- 문제가 생겼을 때 누가 무엇을 호출했는지 추적할 수 있는가?
+
+그동안 이런 문제는 개발자의 개인기에 기대는 부분이 컸다. 서비스 계정과 권한을 조합하고, 별도의 Registry를 만들고, 로그 형식을 정하고, 호출 전후에 Guardrail을 붙였다. 개념적으로는 맞는 설계를 해도 실제 구현의 완성도는 팀의 경험과 시간에 따라 크게 달라졌다.
+
+GCP는 이 영역을 플랫폼의 기본 기능으로 끌어올리려는 것처럼 보였다. 모든 문제가 자동으로 해결된다는 뜻은 아니다. 다만 개발자가 보안과 거버넌스의 기반부터 매번 새로 만들지 않고, 실제 기능과 배포, 사용성에 더 집중할 수 있게 한다는 점은 분명 매력적이었다.
+
+한 가지는 여전히 궁금했다. 에이전트가 같은 Tool을 재호출했을 때 멱등성을 플랫폼 차원에서 관리하는 기능이 있는가? Cloud Tasks나 Workflows처럼 제한된 범위에서 중복 실행을 줄이는 기능은 있지만, 임의의 Tool 호출을 통합적으로 처리해주는 기능은 지금으로서는 없어 보였다. 이 부분은 여전히 RDB나 In-memory DB의 State와 Event를 이용해 애플리케이션에서 구현해야 할 것 같다.
+
+## Gemini Enterprise는 구독 상품보다 sticky한 입구에 가깝다
+
+여기서 중요한 것은 Gemini Enterprise의 구독 매출 자체가 아닐지도 모른다. Google은 Gemini Enterprise의 매출을 별도로 공개하지 않는다. 다만 내가 접한 가격 구조와 제품의 위치를 보면, GCP 전체에서 구독료가 차지하는 비중은 아직 크지 않을 가능성이 높고 도입 가격도 상대적으로 부담이 낮다.
+
+극단적으로 말하면 Gemini Enterprise 구독 좌석 몇 개를 판매하는 것보다, 이를 계기로 기업의 AI 워크로드가 GCP 위에서 돌아가며 GPU 인스턴스 하나를 지속적으로 사용하게 만드는 편이 훨씬 큰 매출로 이어질 수 있다. 구독료 자체보다 그 뒤에 따라오는 인프라 소비가 더 중요하다는 뜻이다.
+
+그럼에도 Google이 이 제품을 강하게 미는 이유는 이해하기 어렵지 않다.
+
+조직의 검색, 데이터 연결, 권한, 에이전트와 업무 흐름이 Gemini Enterprise 위에 한번 올라가면 쉽게 바꾸기 어렵다. 그리고 사용이 늘어날수록 실제 워크로드는 Vertex AI, Agent Platform, BigQuery, Cloud Run, IAM과 Logging 같은 GCP 서비스로 자연스럽게 확장된다.
+
+> **내 해석으로 Gemini Enterprise는 매출 상품이라기보다 GCP 소비를 여는 sticky한 입구에 가깝다.**
+
+모델은 바꿀 수 있다. 하지만 사내 데이터 연결, 권한, 승인 절차와 업무 흐름까지 옮기는 일은 훨씬 어렵다. 이 제품의 stickiness는 Gemini 모델 하나에서 나오기보다, 그 주변에 쌓이는 조직의 운영 구조에서 나온다.
+
+## distribution의 벽은 생각보다 높다
+
+제품의 완성도와 별개로, GCP가 한국 기업 안으로 더 깊이 들어가는 일은 쉽지 않아 보인다. 그렇다고 이를 현지 distribution 조직의 노력 부족이라고 말하고 싶지는 않다. 실제로 현장에서 고객을 만나고 도입을 지원하는 분들은 누구보다 열심히 움직이고 있다는 인상을 받았다.
+
+더 큰 문제는 출발점이다. AWS는 이미 너무 많은 기업의 인프라와 데이터 환경에 들어가 있다. 여기에 Professional Services인 ProServe와 파트너 생태계를 통해 쌓은 전환·구축 성공사례가 많다. 고객 입장에서는 익숙한 기술과 운영 경험, 검증된 레퍼런스를 그대로 이어갈 수 있다. 이 설치 기반과 성공사례의 선순환이 AWS의 강점이다.
+
+Microsoft 역시 Office, Teams, Entra와 GitHub라는 강력한 배포 표면을 갖고 있다. 반면 GCP가 새로운 고객에게 들어가려면 제품의 우수성뿐 아니라 기존 시스템을 바꿀 이유와 구축 레퍼런스까지 함께 증명해야 한다. 현지 팀이 열심히 움직여도 단기간에 뒤집기 어려운 구조다.
+
+그래서 Google에도 Workspace라는 강력한 표면이 있지만, 한국 기업 시장에서 제품의 완성도가 곧바로 도입으로 이어지기는 어려울 수 있다. 좋은 플랫폼이 자동으로 표준이 되지는 않는다. GCP가 에이전트 분야에서 만든 기술적 우위를 실제 성공사례로 얼마나 빠르게 바꾸느냐가 중요할 것 같다.
+
+## 그래도 이번에는 가능성이 있어 보였다
+
+행사 하나를 보고 시장의 승자를 판단할 수는 없다. 발표에서 본 기능과 실제 대규모 운영 사이에도 거리가 있을 것이다.
+
+그래도 GCP가 에이전트를 단순한 모델 기능이 아니라 **새로운 클라우드 진입점이자 운영 계층**으로 보고 있다는 방향은 선명했다. 데이터와 AI 인프라에 강한 GCP가 보안, 권한, Registry와 Gateway까지 하나의 개발 경험으로 묶는다면 충분히 경쟁력이 있다.
+
+전세계 시장점유율은 아직 3위다. 한국에서의 distribution도 아쉽다. 하지만 에이전트 시대에 필요한 플랫폼의 모양을 꽤 일찍, 그리고 꽤 체계적으로 만들고 있다는 느낌을 받았다.
+
+이번 행사에서 가장 기억에 남은 것은 새로운 데모가 아니었다. **에이전트를 기업 안에서 실제로 운영하기 위해 필요한 귀찮고 어려운 문제들을, 개발자의 개인기에서 플랫폼의 기본값으로 옮기려는 모습**이었다.
+
+그 방향이라면 GCP가 에이전트 시대에 지금보다 더 큰 이니셔티브를 가져갈 가능성은 충분히 있어 보인다.
