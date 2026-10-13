@@ -80,6 +80,8 @@ Many teams have been solving these problems through developer craftsmanship. We 
 
 Google Cloud appears to be moving more of that work into platform defaults. This does not eliminate application-level responsibility. It does, however, let developers spend less time rebuilding the governance foundation and more time on functionality, deployment, and usability.
 
+One question remains open for me: is there a platform-level way to make repeated tool calls idempotent? Services such as Cloud Tasks and Workflows can suppress duplicates within defined boundaries, but I did not see a unified feature for arbitrary tool calls. For now, that still appears to belong in the application's state and event layer, usually backed by a relational or in-memory database.
+
 ## Gemini Enterprise looks more like a sticky entrance than a subscription product
 
 The most interesting business point may not be Gemini Enterprise subscription revenue. Google does not disclose that revenue separately. Based on the pricing structure and product position I encountered, its contribution to total Google Cloud revenue is likely still modest, while the initial subscription cost is relatively accessible.
@@ -92,15 +94,15 @@ Once an organization connects search, internal data, permissions, agents, and wo
 
 Models can be replaced. Moving enterprise data connections, permissions, approval paths, and workflows is much harder. The stickiness comes less from the Gemini model itself than from the operating structure that accumulates around it.
 
-## Distribution remains the weak point
+## The distribution barrier is higher than it looks
 
-The part that still feels less convincing is distribution rather than technology.
+Even with a strong product, moving deeper into Korean enterprises will not be easy for Google Cloud. I would not frame this as a lack of effort from the local distribution organization. The people meeting customers and supporting adoption appear to be working as hard as anyone.
 
-Microsoft already has Office, Teams, Entra, GitHub, and a long-established enterprise sales network. It can place a new AI capability directly inside surfaces that employees and IT organizations already use. In Korea, it also has broad routes to executives, technology buyers, partners, and implementation teams.
+The larger problem is the starting position. AWS is already embedded in the infrastructure and data environments of a large number of companies. Its Professional Services organization, ProServe, and partner ecosystem have also accumulated many migration and implementation successes. Customers can extend familiar technology, operating experience, and proven references. That installed-base and reference flywheel is a major AWS advantage.
 
-Google has a major surface of its own in Workspace. Even so, there still appears to be a gap between Google Cloud's product completeness and its adoption footprint in the Korean enterprise market. Local sales coverage, partners, customer education, and implementation support will have to keep pace with the product.
+Microsoft has a different advantage through Office, Teams, Entra, and GitHub. Google Cloud, by contrast, often has to prove not only that its product is better, but also that changing an existing system is worthwhile and that similar deployments have already succeeded. That is a structural barrier a hardworking local team cannot reverse quickly.
 
-A well-designed platform does not automatically become the standard. The winner may be the company that gets its agents into more enterprise data and workflows first.
+Google has a major surface of its own in Workspace. Even so, product completeness may not translate directly into Korean enterprise adoption. The key will be how quickly Google Cloud can turn its technical position in agents into repeatable local success stories. A well-designed platform does not automatically become the standard.
 
 ## This time, the opportunity looks credible
 
