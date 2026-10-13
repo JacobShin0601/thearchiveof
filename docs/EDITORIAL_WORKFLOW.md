@@ -55,7 +55,15 @@ Use this when an article states what to do with a listed stock. An industry essa
 
 The essay opens with the decision: buy, hold, reduce, or sell, together with the ticker, the decision date, and the close used that day. Render it with `EquityStance` before the argument. Keep the reason in HTML. Do not leave the only statement of the trade inside a chart.
 
-The paired Lab opens with `EquityDecisionChart`, then the rest of the lab below it. The HTML states the decision and the decision close. The path after that close loads when the page opens, through the previous completed session, from `/api/equity-decisions/<id>`. Do not commit each new close into the decision file.
+Every paired listed-equity Lab has two distinct jobs, in this order:
+
+1. **Record the investment decision.** Open the Lab with `EquityDecisionChart`, backed by the same decision file as the essay. Its static HTML must state the stance, decision date, and decision close before JavaScript runs. A Lab is not complete if it has sliders but no explicit buy/hold/reduce/sell record.
+2. **Track what happened after the decision.** The interactive chart shows completed closes after that date and explains the move in the language appropriate to the stance. It is an accountability record, not proof that the original thesis was right or wrong. Do not manually append daily prices to the decision JSON.
+3. **Let the reader test the decision thesis.** Put the valuation or scenario controls below the chart. Label reported facts, author assumptions, and model outputs separately. Changing a slider tests an assumption; it must not rewrite the historical decision or its price path.
+
+The chart's HTML states the decision and the decision close. The path after that close loads when the page opens, through the previous completed session, from `/api/equity-decisions/<id>`. Do not commit each new close into the decision file.
+
+For a new Lab, use this reader-facing sequence: **decision record → interactive price path → decision rationale and limits → assumption controls → result/bridge → reverse or sensitivity test → disclosure**. Keep the decision chart visually self-contained above the controls, and ensure the controls, result cards, and tables collapse to one readable column on a narrow mobile screen. Do not put a horizontal slider panel, dense result grid, or desktop-only hover instruction between a mobile reader and the decision record.
 
 The percent is the price change. The words say what that change means: after a sale, a lower price is 피한 하락 and a higher price is 놓친 상승. Do not flip the sign into an account profit.
 

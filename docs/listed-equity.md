@@ -13,6 +13,37 @@ An industry essay that does not say buy, hold, reduce, or sell does not get a de
 
 Both import the same JSON file. The chart is not a second copy of the essay, and the essay is not the place that tracks the price every day.
 
+## Lab authoring standard
+
+A listed-equity Lab is both a model and a dated decision record. It must not start with sliders alone. Build it in this order:
+
+1. `EquityDecisionChart` as the first body component.
+2. A short HTML paragraph stating the stance, decision date, decision close, and the claim being tested. The chart's static decision card is necessary, but this paragraph connects the price record to the research argument.
+3. The interactive valuation, scenario, or reverse-valuation controls.
+4. A clear bridge from the controls to the output: valuation range, safety margin, implied expectation, or other decision-relevant result.
+5. Limits and disclosure. State that later price movement is feedback, not a mechanical score of the decision.
+
+Use the same decision JSON in the investing essay and in both language versions of the Lab. A “buy decision” here means an explicit investment decision category, not a requirement that every article be bullish: valid stances remain `buy`, `hold`, `reduce`, and `sell`.
+
+The chart and the model answer different questions:
+
+| Element | Question it answers | Must not do |
+| --- | --- | --- |
+| Decision record | What was the author prepared to do, at what close, on what date? | Be hidden inside client-only code or model output |
+| Interactive price chart | What have completed market closes done since then? | Flip a sale's negative price move into a positive “profit” percentage |
+| Valuation controls | Which assumption changes the thesis and decision range? | Alter the dated decision or rewrite price history |
+
+### Mobile acceptance criteria
+
+- The decision and latest-price readout are visible before any sliders.
+- Result cards use one or two columns only; no essential number is clipped or requires horizontal scrolling.
+- Controls, labels, current values, and reset action fit in a single column at narrow widths.
+- A chart has a textual latest-close/return summary and does not depend on hover alone; keyboard interaction remains available.
+- Sensitivity tables either become a readable stacked presentation or are explicitly labelled as horizontally scrollable. Never silently compress their numbers into illegible cells.
+- Korean and English Labs use the same decision data and calculation engine.
+
+Review the Lab on a narrow viewport before publishing. A passing desktop build does not satisfy this requirement.
+
 The published figure is the change from the decision close to the latest close:
 
 ```text
