@@ -1,35 +1,45 @@
 ---
-interface Props { kind: 'debt' | 'matrix' | 'federated' | 'scale'; id: string; caption: string; }
-const { kind, id, caption } = Astro.props;
+interface Props { kind: 'debt' | 'matrix' | 'federated' | 'scale'; id: string; caption: string; language?: 'ko' | 'en'; }
+const { kind, id, caption, language = 'ko' } = Astro.props;
+const en = language === 'en';
+const copy = en ? {
+  debtAria: 'Three conceptual paths for total technical-debt maintenance cost', maintenance: 'Cumulative maintenance cost', time: 'Time →', debtNote: 'Conceptual model: AI may lower the unit cost of remediation, while faster generation can increase total complexity and lift total cost again. This is not observed data.',
+  matrixAria: 'AX execution matrix by decision autonomy and system and organizational dependencies', high: 'High', low: 'Low', autonomyAxis: 'Decision autonomy', dependencyAxis: 'System / organizational dependencies', autonomous: 'High autonomy · low dependencies', autonomousDetail: 'A small team can discover, build, and test', distributed: 'High autonomy · high dependencies', distributedDetail: 'Autonomy exists, but interfaces and coordination matter', approval: 'Low autonomy · low dependencies', approvalDetail: 'The approval path, not technology, is the bottleneck', coordination: 'Low autonomy · high dependencies', coordinationDetail: 'Shared standards and multi-party coordination come first', matrixNote: 'Dependencies and decision autonomy can explain AX speed better than headcount.',
+  platform: 'Shared foundation and safe boundaries', federatedNote: 'The center does not build every application. It provides reusable foundations and control boundaries; business teams own the problem, operations, and outcomes.', scaleSmall: 'Short decision distance\nLimited people and security resources', scaleMid: 'Business scale, data, and investment capacity\nRelatively short coordination distance', scaleLarge: 'Strength in shared platforms and controls\nComplex dependencies and approval bottlenecks'
+} : {
+  debtAria: '기술부채 총유지보수 비용의 세 가지 가정 경로', maintenance: '누적 유지보수 비용', time: '시간 →', debtNote: '개념 모델: AI는 단위 해결 비용을 낮출 수 있지만, 더 빠른 생성이 복잡성 총량을 키우면 총비용은 다시 상승할 수 있다. 관측 데이터가 아니다.',
+  matrixAria: '의사결정 자율성과 시스템·조직 의존성에 따른 AX 실행 매트릭스', high: '높음', low: '낮음', autonomyAxis: '의사결정 자율성', dependencyAxis: '시스템·조직 의존성', autonomous: '높은 자율성 · 낮은 의존성', autonomousDetail: '작은 팀이 발견·구현·검증', distributed: '높은 자율성 · 높은 의존성', distributedDetail: '자율성은 있으나 연결·조율이 필요', approval: '낮은 자율성 · 낮은 의존성', approvalDetail: '기술보다 승인 흐름이 병목', coordination: '낮은 자율성 · 높은 의존성', coordinationDetail: '공통 표준과 다자 조정이 선행', matrixNote: '직원 수보다 의존성과 자율성이 AX의 속도를 더 잘 설명할 수 있다.',
+  platform: '공통 기반과 안전한 경계', federatedNote: '중앙은 모든 애플리케이션을 대신 만들지 않는다. 재사용 가능한 기반과 통제 경계를 제공하고, 현업은 문제·운영·성과를 소유한다.', scaleSmall: '짧은 결정 거리\n인력·보안 자원 제약', scaleMid: '사업 규모·데이터·투자 여력\n상대적으로 짧은 조정 거리', scaleLarge: '공통 플랫폼·통제 강점\n복잡한 의존성·승인 병목'
+};
 ---
 
 <figure class={`ax-future ${kind}`} aria-labelledby={id}>
   <figcaption id={id}>{caption}</figcaption>
   {kind === 'debt' && <>
     <div class="legend"><span class="traditional">Traditional software</span><span class="assisted">AI-assisted maintenance</span><span class="complex">AI-assisted + complexity growth</span></div>
-    <div class="debt-chart" role="img" aria-label="기술부채 총유지보수 비용의 세 가지 가정 경로">
-      <span class="axis y">누적 유지보수 비용</span><span class="axis x">시간 →</span><i class="grid g1"></i><i class="grid g2"></i><i class="grid g3"></i><svg viewBox="0 0 560 250" preserveAspectRatio="none" aria-hidden="true"><path class="line traditional" d="M25 215 C120 195 190 155 275 112 S425 45 535 25"/><path class="line assisted" d="M25 215 C120 204 195 183 285 161 S435 130 535 110"/><path class="line complex" d="M25 215 C125 203 205 174 290 145 S430 90 535 74"/></svg>
+    <div class="debt-chart" role="img" aria-label={copy.debtAria}>
+      <span class="axis y">{copy.maintenance}</span><span class="axis x">{copy.time}</span><i class="grid g1"></i><i class="grid g2"></i><i class="grid g3"></i><svg viewBox="0 0 560 250" preserveAspectRatio="none" aria-hidden="true"><path class="line traditional" d="M25 215 C120 195 190 155 275 112 S425 45 535 25"/><path class="line assisted" d="M25 215 C120 204 195 183 285 161 S435 130 535 110"/><path class="line complex" d="M25 215 C125 203 205 174 290 145 S430 90 535 74"/></svg>
     </div>
-    <p class="note">개념 모델: AI는 <em>단위 해결 비용</em>을 낮출 수 있지만, 더 빠른 생성이 <em>복잡성 총량</em>을 키우면 총비용은 다시 상승할 수 있다. 관측 데이터가 아니다.</p>
+    <p class="note">{copy.debtNote}</p>
   </>}
   {kind === 'matrix' && <>
-    <div class="matrix-chart" role="img" aria-label="의사결정 자율성과 시스템·조직 의존성에 따른 AX 실행 매트릭스">
-      <div class="matrix-y-axis"><span>높음</span><b>의사결정 자율성</b><span>낮음</span></div>
+    <div class="matrix-chart" role="img" aria-label={copy.matrixAria}>
+      <div class="matrix-y-axis"><span>{copy.high}</span><b>{copy.autonomyAxis}</b><span>{copy.low}</span></div>
       <div class="matrix-plot">
-        <div class="cell autonomy"><em>높은 자율성 · 낮은 의존성</em><b>Autonomous<br/>Execution</b><small>작은 팀이 발견·구현·검증</small></div>
-        <div class="cell distributed"><em>높은 자율성 · 높은 의존성</em><b>Distributed<br/>Integration</b><small>자율성은 있으나 연결·조율이 필요</small></div>
-        <div class="cell approval"><em>낮은 자율성 · 낮은 의존성</em><b>Approval<br/>Bottleneck</b><small>기술보다 승인 흐름이 병목</small></div>
-        <div class="cell coordination"><em>낮은 자율성 · 높은 의존성</em><b>Complex<br/>Coordination</b><small>공통 표준과 다자 조정이 선행</small></div>
+        <div class="cell autonomy"><em>{copy.autonomous}</em><b>Autonomous<br/>Execution</b><small>{copy.autonomousDetail}</small></div>
+        <div class="cell distributed"><em>{copy.distributed}</em><b>Distributed<br/>Integration</b><small>{copy.distributedDetail}</small></div>
+        <div class="cell approval"><em>{copy.approval}</em><b>Approval<br/>Bottleneck</b><small>{copy.approvalDetail}</small></div>
+        <div class="cell coordination"><em>{copy.coordination}</em><b>Complex<br/>Coordination</b><small>{copy.coordinationDetail}</small></div>
       </div>
-      <div class="matrix-x-axis"><span>낮음</span><b>시스템·조직 의존성</b><span>높음</span></div>
+      <div class="matrix-x-axis"><span>{copy.low}</span><b>{copy.dependencyAxis}</b><span>{copy.high}</span></div>
     </div>
-    <p class="note">직원 수보다 의존성과 자율성이 AX의 속도를 더 잘 설명할 수 있다.</p>
+    <p class="note">{copy.matrixNote}</p>
   </>}
   {kind === 'federated' && <>
-    <div class="federated"><section class="platform"><p>Central AI Platform</p><strong>공통 기반과 안전한 경계</strong><div><span>Data contracts / APIs</span><span>Security / IAM</span><span>Agent infrastructure</span><span>Deployment / observability</span><span>Evaluation / governance</span></div></section><div class="arrows" aria-hidden="true">↕&nbsp; ↕&nbsp; ↕</div><section class="cells"><article><b>Procurement AX Cell</b><span>Domain expert · Workflow ownership · KPI</span></article><article><b>Service AX Cell</b><span>Domain expert · Agent development · KPI</span></article><article><b>Finance AX Cell</b><span>Domain expert · Workflow ownership · KPI</span></article></section></div>
-    <p class="note">중앙은 모든 애플리케이션을 대신 만들지 않는다. 재사용 가능한 기반과 통제 경계를 제공하고, 현업은 문제·운영·성과를 소유한다.</p>
+    <div class="federated"><section class="platform"><p>Central AI Platform</p><strong>{copy.platform}</strong><div><span>Data contracts / APIs</span><span>Security / IAM</span><span>Agent infrastructure</span><span>Deployment / observability</span><span>Evaluation / governance</span></div></section><div class="arrows" aria-hidden="true">↕&nbsp; ↕&nbsp; ↕</div><section class="cells"><article><b>Procurement AX Cell</b><span>Domain expert · Workflow ownership · KPI</span></article><article><b>Service AX Cell</b><span>Domain expert · Agent development · KPI</span></article><article><b>Finance AX Cell</b><span>Domain expert · Workflow ownership · KPI</span></article></section></div>
+    <p class="note">{copy.federatedNote}</p>
   </>}
-  {kind === 'scale' && <div class="scales"><article><p>Small business</p><b>Owner-builder</b><span>짧은 결정 거리<br/>인력·보안 자원 제약</span></article><article><p>Mid-market</p><b>AX sweet spot?</b><span>사업 규모·데이터·투자 여력<br/>상대적으로 짧은 조정 거리</span></article><article><p>Large enterprise</p><b>Federated cells</b><span>공통 플랫폼·통제 강점<br/>복잡한 의존성·승인 병목</span></article></div>}
+  {kind === 'scale' && <div class="scales"><article><p>Small business</p><b>Owner-builder</b><span>{copy.scaleSmall.split('\n').map((line) => <>{line}<br /></>)}</span></article><article><p>Mid-market</p><b>AX sweet spot?</b><span>{copy.scaleMid.split('\n').map((line) => <>{line}<br /></>)}</span></article><article><p>Large enterprise</p><b>Federated cells</b><span>{copy.scaleLarge.split('\n').map((line) => <>{line}<br /></>)}</span></article></div>}
 </figure>
 
 <style>
