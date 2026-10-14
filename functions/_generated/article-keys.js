@@ -17,6 +17,7 @@ export const ARTICLE_KEYS = [
   "huntington-ingalls-industries-valuation",
   "huntington-ingalls-industries-valuation-lab",
   "langgraph-runtime-not-architecture",
+  "multi-agent-parent-run-fan-out-fan-in",
   "multi-objective-optimization-battery-supply-chain",
   "pareto-optimization-dinner-with-friends",
   "poisson-demand-inventory",

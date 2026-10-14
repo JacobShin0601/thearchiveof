@@ -1,0 +1,86 @@
+---
+interface Props {
+  kind: 'hierarchy' | 'context' | 'failure' | 'budget';
+  language?: 'ko' | 'en';
+  caption: string;
+}
+
+const { kind, language = 'ko', caption } = Astro.props;
+const ko = language === 'ko';
+
+const children = ko
+  ? [
+      ['Research', 'child=R20-1', 'sources · claims'],
+      ['Data', 'child=R20-2', 'metrics · tables'],
+      ['Risk', 'child=R20-3', 'risks · caveats'],
+    ]
+  : [
+      ['Research', 'child=R20-1', 'sources · claims'],
+      ['Data', 'child=R20-2', 'metrics · tables'],
+      ['Risk', 'child=R20-3', 'risks · caveats'],
+    ];
+
+const policies = ko
+  ? [
+      ['All required', '하나 실패 → parent 실패', '재무 승인 · 규제 검사'],
+      ['Quorum', 'N개 중 K개 성공', '복수 평가자 · consensus'],
+      ['Best effort', '성공 결과만 합성', '보조 검색 · enrichment'],
+      ['First useful', '첫 유효 결과 뒤 나머지 취소', 'hedged provider call'],
+    ]
+  : [
+      ['All required', 'one failure → parent fails', 'financial approval · compliance'],
+      ['Quorum', 'K successes out of N', 'multiple evaluators · consensus'],
+      ['Best effort', 'synthesize successful results', 'optional search · enrichment'],
+      ['First useful', 'cancel after first valid result', 'hedged provider call'],
+    ];
+---
+
+<figure class="multi-run-diagram" aria-label={caption}>
+  {kind === 'hierarchy' && (
+    <div class="hierarchy">
+      <header><span>{ko ? 'Parent Run' : 'Parent Run'}</span><strong>root_run_id=R20</strong><code>status=waiting_children</code></header>
+      <div class="fork"><i></i><i></i><i></i></div>
+      <div class="children">{children.map(([role, id, output]) => <section><strong>{role}</strong><code>{id}</code><small>{output}</small></section>)}</div>
+      <div class="join"><i></i><strong>{ko ? 'Fan-in barrier' : 'Fan-in barrier'}</strong><code>required=3 · terminal=3</code></div>
+      <footer><strong>Synthesis</strong><span>{ko ? 'versioned child outputs만 입력' : 'versioned child outputs only'}</span></footer>
+    </div>
+  )}
+
+  {kind === 'context' && (
+    <div class="context">
+      <section class="shared"><span>01</span><strong>{ko ? '공통 immutable snapshot' : 'Shared immutable snapshot'}</strong><code>task · tenant · deadline · policy_version</code></section>
+      <div class="arrows"><i>↙</i><i>↓</i><i>↘</i></div>
+      <div class="isolated"><section><strong>Research state</strong><code>query · sources</code></section><section><strong>Data state</strong><code>dataset · calculations</code></section><section><strong>Risk state</strong><code>policy · findings</code></section></div>
+      <div class="contract"><strong>{ko ? 'Typed result contract' : 'Typed result contract'}</strong><code>status · payload · evidence · usage · error</code></div>
+      <footer>{ko ? '공유 memory를 동시에 수정하지 않고 명시적인 결과 계약으로 합친다.' : 'Do not mutate shared memory concurrently; merge through an explicit result contract.'}</footer>
+    </div>
+  )}
+
+  {kind === 'failure' && (
+    <div class="failure">
+      {policies.map(([name, rule, use], index) => <section><span>0{index + 1}</span><strong>{name}</strong><code>{rule}</code><p>{use}</p></section>)}
+      <footer>{ko ? '부분 실패 정책은 코드의 우연한 예외 처리 방식이 아니라 parent run의 제품 계약이다.' : 'Partial-failure policy is a parent-run product contract, not an accidental exception-handling behavior.'}</footer>
+    </div>
+  )}
+
+  {kind === 'budget' && (
+    <div class="budget">
+      <header><strong>{ko ? 'Parent envelope' : 'Parent envelope'}</strong><code>deadline=120s · tokens=60k · cost=$3 · children≤4</code></header>
+      <div class="allocations"><section><span>35%</span><strong>Research</strong><code>21k · 70s</code></section><section><span>30%</span><strong>Data</strong><code>18k · 60s</code></section><section><span>20%</span><strong>Risk</strong><code>12k · 50s</code></section><section><span>15%</span><strong>Reserve</strong><code>9k · synthesis</code></section></div>
+      <div class="signals"><span>{ko ? '부모 cancel' : 'parent cancel'} ↓</span><span>{ko ? 'child terminal·usage' : 'child terminal · usage'} ↑</span><span>{ko ? '미사용 budget 반환' : 'return unused budget'} ↑</span></div>
+      <footer>{ko ? 'Child는 parent보다 긴 deadline이나 더 큰 총 budget을 만들 수 없다.' : 'Children cannot create a later deadline or a larger aggregate budget than the parent.'}</footer>
+    </div>
+  )}
+
+  <figcaption>{caption}</figcaption>
+</figure>
+
+<style>
+  .multi-run-diagram{margin:2.5rem 0;padding:1.2rem;border:1px solid var(--line);border-radius:.9rem;background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.9rem;line-height:1.5}.multi-run-diagram figcaption{margin-top:1rem;color:var(--muted);font-size:.84rem;line-height:1.55}.multi-run-diagram code{overflow-wrap:anywhere;color:var(--ink);font-size:.7rem}.hierarchy{display:grid;gap:.35rem}.hierarchy header{display:grid;grid-template-columns:auto 1fr auto;gap:.6rem;align-items:center;padding:.7rem;border:2px solid var(--accent);border-radius:.55rem;background:var(--paper)}.hierarchy header span{color:var(--accent);font-size:.66rem;font-weight:800;text-transform:uppercase}.fork{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem}.fork i{width:1px;height:1rem;margin:auto;background:var(--accent)}.children{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem}.children section{display:grid;gap:.25rem;padding:.7rem;border:1px solid var(--line);border-radius:.5rem;background:var(--paper);text-align:center}.children small{color:var(--muted);font-size:.64rem}.join{display:grid;grid-template-columns:1fr auto auto 1fr;gap:.5rem;align-items:center;padding:.6rem;border:1px dashed var(--line);background:var(--paper)}.join i{height:1px;background:var(--accent)}.join strong{font-size:.7rem}.hierarchy footer{display:flex;justify-content:center;gap:.6rem;padding:.65rem;border-left:3px solid var(--accent);background:var(--paper)}.hierarchy footer span{color:var(--muted);font-size:.68rem}
+  .context{display:grid;gap:.5rem}.shared,.contract{display:grid;grid-template-columns:auto 1fr auto;gap:.55rem;align-items:center;padding:.7rem;border:1px solid var(--line);background:var(--paper)}.shared span{color:var(--accent);font-size:.65rem;font-weight:800}.arrows{display:grid;grid-template-columns:repeat(3,1fr);color:var(--accent);text-align:center}.arrows i{font-style:normal}.isolated{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem}.isolated section{display:grid;gap:.25rem;padding:.7rem;border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:.5rem;background:var(--paper)}.isolated strong{font-size:.72rem}.contract{border:2px solid var(--accent);border-radius:.5rem}.context footer{padding:.65rem;border:1px dashed var(--line);color:var(--muted);font-size:.71rem}
+  .failure{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem}.failure section{display:grid;grid-template-columns:auto 1fr;gap:.2rem .55rem;padding:.75rem;border:1px solid var(--line);border-radius:.5rem;background:var(--paper)}.failure section>span{grid-row:1/4;color:var(--accent);font-size:.62rem;font-weight:800}.failure strong{font-size:.75rem}.failure p{margin:0;color:var(--muted);font-size:.66rem}.failure footer{grid-column:1/-1;padding:.65rem;border-left:3px solid var(--accent);background:var(--paper);color:var(--muted);font-size:.71rem}
+  .budget{display:grid;gap:.6rem}.budget header{display:flex;justify-content:space-between;gap:.7rem;padding:.7rem;border:2px solid var(--accent);border-radius:.55rem;background:var(--paper)}.allocations{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem}.allocations section{display:grid;gap:.2rem;padding:.65rem;border:1px solid var(--line);background:var(--paper)}.allocations span{color:var(--accent);font-size:1rem;font-weight:800}.allocations strong{font-size:.7rem}.signals{display:flex;flex-wrap:wrap;justify-content:center;gap:.4rem}.signals span{padding:.35rem .55rem;border:1px dashed var(--line);background:var(--paper);color:var(--muted);font-size:.67rem}.budget footer{padding:.65rem;border-left:3px solid var(--accent);background:var(--paper);color:var(--muted);font-size:.71rem}
+  @media(max-width:700px){.hierarchy header{grid-template-columns:1fr}.children,.isolated{grid-template-columns:1fr}.fork,.arrows{display:none}.failure{grid-template-columns:1fr}.failure footer{grid-column:1}.allocations{grid-template-columns:repeat(2,1fr)}.shared,.contract{grid-template-columns:1fr}.budget header{display:grid}}
+  @media(max-width:480px){.multi-run-diagram{padding:.8rem}.join{grid-template-columns:1fr;text-align:center}.join i{width:1px;height:.7rem;margin:auto}.allocations{grid-template-columns:1fr}.hierarchy footer{display:grid;text-align:center}}
+  @media(prefers-color-scheme:dark){.multi-run-diagram{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
+</style>
