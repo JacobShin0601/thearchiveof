@@ -34,7 +34,11 @@ references:
 
 import AnswerBlock from '../../../components/AnswerBlock.astro';
 import ApldResearchDiagrams from '../../../components/ApldResearchDiagrams.astro';
+import EquityStance from '../../../components/EquityStance.astro';
 import ValuationLabLinkCard from '../../../components/ValuationLabLinkCard.astro';
+import decision from '../../../data/equity-decisions/apld-2026-10-13.json';
+
+<EquityStance decision={decision} language="ko" labHref="/coding/experiments/applied-digital-corporation-valuation-lab/" />
 
 <AnswerBlock question="360억 달러의 장기 임대계약은 APLD 보통주에 얼마의 가치를 만들까?">
   계약의 질은 강하다. 그러나 예비 모델에서 계약 자산만으로 나온 Base 주당 가치는 \$5.02이고, 2026년 10월 13일 종가 \$22.44는 추가 개발가치·더 낮은 자본비용·더 적은 건설비를 요구한다. 이 숫자는 가격목표가 아니라 검증해야 할 가설의 목록이다.
