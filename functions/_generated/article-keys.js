@@ -39,6 +39,7 @@ export const ARTICLE_KEYS = [
   "state-is-not-event",
   "sterling-infrastructure-fair-value",
   "sterling-infrastructure-valuation-lab",
+  "the-future-of-ax-domain-experts-software-owners",
   "timeouts-deadlines-and-budgets",
   "token-streaming-is-not-progress-streaming",
   "v-ic-clobe-ai-series-a-valuation",
