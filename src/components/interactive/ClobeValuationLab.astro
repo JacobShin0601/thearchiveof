@@ -1,11 +1,16 @@
-<section class="clobe-lab" data-clobe-lab aria-labelledby="clobe-lab-title">
+---
+interface Props { language?: 'ko' | 'en'; }
+const { language = 'ko' } = Astro.props;
+const en = language === 'en';
+---
+<section class="clobe-lab" data-clobe-lab data-language={language} aria-labelledby="clobe-lab-title">
   <header>
     <div>
       <p class="kicker">THE ARCHIVE / PRIVATE MARKETS LAB</p>
       <h3 id="clobe-lab-title">Clobe AI Series A Return Simulator</h3>
-      <p>사업의 가치와 투자자의 진입 가격을 분리합니다. 투자금·희석·Exit 이익·멀티플을 바꾸면 최대 허용 Pre-money와 예상 IRR이 함께 갱신됩니다.</p>
+      <p>{en ? 'Separate business value from an investor’s entry price. Change investment, dilution, exit earnings, and the multiple to update the maximum acceptable pre-money and expected IRR.' : '사업의 가치와 투자자의 진입 가격을 분리합니다. 투자금·희석·Exit 이익·멀티플을 바꾸면 최대 허용 Pre-money와 예상 IRR이 함께 갱신됩니다.'}</p>
     </div>
-    <span class="badge">가정 기반</span>
+    <span class="badge">{en ? 'Assumption-based' : '가정 기반'}</span>
   </header>
 
   <div class="presets" role="group" aria-label="시나리오 프리셋">
@@ -65,20 +70,24 @@
     const input = (name: string) => root.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
     const value = (name: string) => Number(input(name).value);
     const write = (name: string, text: string) => { const target = root.querySelector<HTMLElement>(`[data-out="${name}"]`); if (target) target.textContent = text; };
-    const won = (amount: number) => `${Math.round(amount).toLocaleString('ko-KR')}억`;
+    const en = root.dataset.language === 'en';
+    const won = (amount: number) => en ? `KRW ${(amount / 10).toFixed(amount % 10 === 0 ? 0 : 1)}bn` : `${Math.round(amount).toLocaleString('ko-KR')}억`;
     const pct = (amount: number) => `${(amount * 100).toFixed(1)}%`;
     const assumptions = () => ({ entryPreMoney: value('entryPreMoney'), investment: value('investment'), cumulativeDilution: value('cumulativeDilution') / 100, revenue2027: value('revenue2027'), revenueGrowth: value('revenueGrowth') / 100, operatingMargin: value('operatingMargin') / 100, taxRate: .25, exitPe: value('exitPe'), requiredIrr: value('requiredIrr') / 100, yearsToExit: value('yearsToExit') });
-    const labels: Record<string, (n:number)=>string> = { entryPreMoney: won, investment: won, cumulativeDilution: pct, requiredIrr: pct, revenue2027: won, revenueGrowth: pct, operatingMargin: pct, exitPe: (n) => `${n.toFixed(1)}×`, yearsToExit: (n) => `${n}년` };
+    // Sliders keep percentage-point inputs (for example, 30 for 30%).
+    // Convert only at the display boundary; model assumptions convert them to decimals separately.
+    const inputPct = (percentagePoints: number) => pct(percentagePoints / 100);
+    const labels: Record<string, (n:number)=>string> = { entryPreMoney: won, investment: won, cumulativeDilution: inputPct, requiredIrr: inputPct, revenue2027: won, revenueGrowth: inputPct, operatingMargin: inputPct, exitPe: (n) => `${n.toFixed(1)}×`, yearsToExit: (n) => en ? `${n} yr` : `${n}년` };
     const render = () => {
       const model = calculateClobeValuation(assumptions());
       root.querySelectorAll<HTMLInputElement>('input').forEach((node) => { const out = root.querySelector<HTMLOutputElement>(`[data-value="${node.name}"]`); if (out) out.value = labels[node.name](Number(node.value)); });
-      write('maxPreMoney', won(Math.max(0, model.maximumPreMoney))); write('irr', pct(model.irr)); write('moic', `${model.moic.toFixed(1)}× MOIC`); write('exitEquityValue', won(model.exitEquityValue)); write('netIncome', `순이익 ${won(model.netIncome2031)}`); write('ownershipAtExit', pct(model.ownershipAtExit)); write('proceeds', `회수금 ${won(model.exitProceeds)}`);
+      write('maxPreMoney', won(Math.max(0, model.maximumPreMoney))); write('irr', pct(model.irr)); write('moic', `${model.moic.toFixed(1)}× MOIC`); write('exitEquityValue', won(model.exitEquityValue)); write('netIncome', `${en ? 'Net income ' : '순이익 '}${won(model.netIncome2031)}`); write('ownershipAtExit', pct(model.ownershipAtExit)); write('proceeds', `${en ? 'Proceeds ' : '회수금 '}${won(model.exitProceeds)}`);
       write('revenue2031', won(model.revenue2031)); write('operatingIncome2031', won(model.operatingIncome2031)); write('netIncomeBridge', won(model.netIncome2031)); write('exitEquityValueBridge', won(model.exitEquityValue)); write('ownershipAtEntry', pct(model.ownershipAtEntry)); write('proceedsBridge', won(model.exitProceeds));
       const candidates = [1000, 2000, 3000, 5000, 8000, 10000]; const tbody = root.querySelector<HTMLTableSectionElement>('[data-returns]')!; tbody.replaceChildren(...candidates.map((entryPreMoney) => { const item = calculateClobeValuation({ ...assumptions(), entryPreMoney }); const tr = document.createElement('tr'); if (entryPreMoney === value('entryPreMoney')) tr.className = 'selected'; tr.innerHTML = `<th scope="row">${won(entryPreMoney)}</th><td>${won(item.exitProceeds)}</td><td>${item.moic.toFixed(1)}×</td><td class="${item.irr >= item.requiredIrr ? 'pass' : 'fail'}">${pct(item.irr)}</td>`; return tr; }));
     };
     const setPreset = (name: keyof typeof clobeScenarios) => { const source = clobeScenarios[name]; Object.entries(source).forEach(([key, item]) => { if (key === 'taxRate') return; const node = input(key); node.value = String(['cumulativeDilution','revenueGrowth','operatingMargin','requiredIrr'].includes(key) ? item * 100 : item); }); root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => { const active = button.dataset.preset === name; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); }); render(); };
     let tracked = false;
-    root.querySelectorAll<HTMLInputElement>('input').forEach((node) => node.addEventListener('input', () => { root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => { button.classList.remove('active'); button.setAttribute('aria-pressed', 'false'); }); render(); if (!tracked) { track('code_run', { articleSlug: 'v-ic-clobe-ai-series-a-valuation-lab', language: 'ko', component: 'clobe-valuation-lab-v1' }); tracked = true; } }));
+      root.querySelectorAll<HTMLInputElement>('input').forEach((node) => node.addEventListener('input', () => { root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => { button.classList.remove('active'); button.setAttribute('aria-pressed', 'false'); }); render(); if (!tracked) { track('code_run', { articleSlug: 'v-ic-clobe-ai-series-a-valuation-lab', language: en ? 'en' : 'ko', component: 'clobe-valuation-lab-v1' }); tracked = true; } }));
     root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => button.addEventListener('click', () => setPreset(button.dataset.preset as keyof typeof clobeScenarios)));
     render();
   });
