@@ -1,0 +1,62 @@
+---
+title: "V-IC (Clobe AI) Valuation Lab: Series A에서 얼마에 투자해야 하는가"
+subtitle: "진입가·희석·매출 성장·마진·Exit 배수를 바꿔 VC 투자자의 MOIC와 IRR을 계산한다."
+description: "비상장 클로브AI의 가상 Series A 투자에 대해 진입 Pre-money, 희석과 Exit 가정을 조절하며 최대 투자 가능 가격을 역산한다."
+publishedDate: 2026-10-14
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio]
+primaryTopic: portfolio
+tags: [valuation, fintech, private-markets, credit, research]
+author: "Jacob Shin"
+draft: true
+comments: true
+language: "ko"
+translationKey: "v-ic-clobe-ai-series-a-valuation-lab"
+freshness: time-sensitive
+lastReviewed: 2026-10-14
+nextReviewDate: 2026-11-14
+dataThrough: 2026-10-14
+methodology: "2027년 매출, 2031년 영업이익률, 세율 25%, Exit P/E, 투자금과 후속 희석을 바탕으로 2031년 지분가치와 투자자 회수금을 계산한다. 모든 운영·재무 가정은 공개 재무제표가 없는 상태의 저자 추정이며 실제 투자 제안 가격이나 권리조건이 아니다."
+references:
+  - title: "클로브금융"
+    url: "https://clobe.ai/product/clobe-finance"
+    publisher: "Clobe"
+  - title: "브이원씨 Pre-A 투자 발표"
+    url: "https://www.mt.co.kr/industry/2026/04/01/2026040111134555581"
+    publisher: "머니투데이"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import ClobeValuationLab from '../../../components/interactive/ClobeValuationLab.astro';
+
+<AnswerBlock question="V-IC (Clobe AI)의 Series A에서 최대 얼마까지 투자할 수 있을까?">
+  Base case에서 2031년 지분가치가 약 1.1조 원이고 투자금 200억 원, 누적 희석 20%, 4년 보유를 가정하면 30% IRR을 만족하는 최대 Pre-money는 약 2,900억 원이다. 40% IRR 기준은 약 2,100억 원이다.
+</AnswerBlock>
+
+이 도구는 [V-IC (Clobe AI) 투자심사 글](/investing/markets/v-ic-clobe-ai-series-a-valuation/)의 계산을 직접 바꿔 보는 Lab이다. 사업이 좋은가와 투자 가격이 좋은가는 다른 질문이다. 같은 Exit 가치를 두고도 진입 가격과 후속 희석이 달라지면 투자자 수익률은 크게 바뀐다.
+
+<ClobeValuationLab />
+
+## 계산식
+
+2031년 지분가치는 2031년 순이익과 Exit P/E의 곱으로 둔다.
+
+$$
+Exit\ equity\ value = Revenue_{2031} \times Operating\ margin \times (1-Tax) \times Exit\ P/E
+$$
+
+투자자 회수금은 Exit 가치에 진입 시 지분율과 후속 희석 후 지분율을 곱한다.
+
+$$
+Exit\ proceeds = Exit\ equity\ value \times \frac{Investment}{Pre-money + Investment} \times (1-Dilution)
+$$
+
+최대 Pre-money는 목표 IRR을 충족하도록 위 식을 역산한다. 실제 계약에는 청산우선권, 참여형 우선주, 상환권, Drag-along, 후속 라운드 우선권이 들어갈 수 있다. 이 도구는 그 권리들을 0으로 둔 Common-equivalent 단순 모델이다.
+
+## 이 Lab의 가장 중요한 용도
+
+Bull 시나리오의 미래 가치가 얼마나 커 보이는지를 보는 것이 아니다. 현재 제안받은 가격을 넣었을 때 Base case에서도 요구수익률이 남는지 확인하는 것이다. 손실률·자금조달 비용·회계상 매출 인식이 확인되면 2027년 매출과 마진 가정을 먼저 고쳐야 한다.
+
+Disclosure: 개인적인 투자 리서치 도구이며 투자 권유가 아니다. 비상장 투자에는 유동성, 희석, 우선주 권리 및 Exit 시점에 관한 큰 불확실성이 있다.
