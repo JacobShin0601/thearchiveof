@@ -1,0 +1,224 @@
+---
+title: "V-IC (Clobe AI): What Is a 30-Person Financial Platform Targeting KRW 100bn of Revenue Worth?"
+subtitle: "Can customers acquired through a free ERP convert into high-margin financial transactions? A framework for reverse-engineering Clobe AI’s business model and a hypothetical Series A entry price."
+description: "A research framework for V-IC (Clobe AI): its free ERP, future-receivables financing model, the volume required for KRW 100bn of 2027 revenue, and a maximum Series A pre-money."
+publishedDate: 2026-10-14
+section: "Investing"
+subsection: "Markets"
+contentType: "research"
+topics: [portfolio]
+primaryTopic: portfolio
+tags: [valuation, fintech, private-markets, credit, research]
+author: "Jacob Shin"
+draft: true
+comments: true
+language: "en"
+translationKey: "v-ic-clobe-ai-series-a-valuation"
+localization: { locale: en-US, strategy: localized-adaptation }
+freshness: time-sensitive
+lastReviewed: 2026-10-14
+nextReviewDate: 2026-11-14
+dataThrough: 2026-10-14
+methodology: "The analysis uses publicly available information on customers, funding, investments, and the company’s product descriptions. It starts from CEO Do Eun-uk’s stated target of KRW 100bn of 2027 revenue, a 30-person organization, and KRW 1.5bn per person, then treats 2027–2031 revenue, margin, financing structure, loss rate, and valuation as author assumptions. As neither financial statements, fund agreements, nor the cap table are public, this is a pricing framework for diligence rather than a definitive valuation."
+references:
+  - title: "Clobe Finance"
+    url: "https://clobe.ai/product/clobe-finance"
+    publisher: "Clobe"
+  - title: "Clobe pricing"
+    url: "https://clobe.ai/price"
+    publisher: "Clobe"
+  - title: "Clobe AI"
+    url: "https://clobe.ai/product/clobe-ai"
+    publisher: "Clobe"
+  - title: "Turning future revenue into capital"
+    url: "https://clobe.ai/blog/revenue-based-financing-and-future-receivables"
+    publisher: "Clobe"
+  - title: "V-IC raises KRW 13.4bn Pre-A financing"
+    url: "https://www.mt.co.kr/industry/2026/04/01/2026040111134555581"
+    publisher: "MoneyToday"
+  - title: "V-IC company profile"
+    url: "https://thevc.kr/v-ic"
+    publisher: "THE VC"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import ValuationLabLinkCard from '../../../../components/ValuationLabLinkCard.astro';
+
+<AnswerBlock question="Is Clobe AI a good business—and what Series A price would make it a good investment?">
+  The idea of using a free ERP as financial distribution is powerful. Yet public information does not establish Clobe’s accounting revenue, the ultimate bearer of credit loss, or its capital requirement. In this note’s Base case, 2031 equity value is about KRW 1.1tn. Assuming a KRW 20bn investment and a four-year required return of 30%, the maximum pre-money is roughly KRW 290bn; with an added margin of safety, the attractive range is below about KRW 200bn.
+</AnswerBlock>
+
+This valuation begins with CEO Do Eun-uk’s stated ambition: **KRW 100bn of 2027 revenue, a 30-person organization, and a structure that could distribute roughly KRW 1.5bn per person.** I do not treat that statement as audited revenue or profit. Instead, I work backward: what funding volume, net revenue yield retained by Clobe, and cost structure would have to exist for the target to hold?
+
+## Bottom line: potentially a strong business; the right price is still unknown
+
+V-IC, a private company operating Clobe AI, Clobe Connect for tax agents, and Clobe Finance, raised KRW 13.4bn in a Pre-A round in April 2026. THE VC also identifies Pre-A as the latest disclosed stage. A definitive Series A valuation is not publicly verifiable. [Funding announcement](https://www.mt.co.kr/industry/2026/04/01/2026040111134555581), [THE VC](https://thevc.kr/v-ic)
+
+The exercise is therefore not whether an already-fixed price is expensive. It is a reverse calculation of the price at which a next-round investor could enter.
+
+My view is conditional. Clobe can have economics much larger than a conventional ERP vendor: the ERP brings customers in, connected cash-flow data may improve underwriting, and repeat financial use can create a financial platform with lower customer-acquisition cost. Public information does not yet prove that loop—especially the distinction between total funding volume and revenue retained by Clobe.
+
+<ValuationLabLinkCard
+  href="/en/coding/experiments/v-ic-clobe-ai-series-a-valuation-lab/"
+  company="V-IC (Clobe AI)"
+  language="en"
+  focusKo="진입 Pre-money·투자금·후속 희석·2031년 매출 성장과 Exit P/E를 바꾸고, 최대 투자 가능 가격과 IRR을 함께 계산합니다."
+  focusEn="Change entry pre-money, investment, follow-on dilution, revenue growth, and exit P/E to calculate the maximum acceptable price and IRR."
+/>
+
+## Is the ERP really a financial distribution network?
+
+Clobe AI and Clobe Connect are free. They aggregate bank, card, tax-invoice, and sales data to display cash position and P&L; Clobe Connect adds client management and voucher-processing automation for tax agents. The free product is not primarily a direct revenue line. It is an entry point for continuously collecting operating data from businesses. [Pricing](https://clobe.ai/price), [Clobe AI](https://clobe.ai/product/clobe-ai)
+
+This differs from the typical SaaS funnel of free users into paid subscriptions. If a free ERP user becomes a financial-services customer, the ERP cost is CAC for financial distribution. Repeated use spreads the initial data-collection and onboarding cost across more transactions and extends the data history used in underwriting.
+
+The company’s published figures are meaningful starting points, not a full diligence data set. In April 2026 it cited more than 10,000 corporate customers after about a year and a half, KRW 110bn of cumulative financing supplied, and average repeat use of 3.7 times. Those are respectively registered corporates, cumulative funded volume, and repeat usage among financial-service users—not monthly active corporates, financial conversion, average ticket size, or vintage loss rates. [Funding announcement](https://www.mt.co.kr/industry/2026/04/01/2026040111134555581), [Clobe Finance](https://clobe.ai/product/clobe-finance)
+
+There is another boundary: free ERP users may include sole proprietors, but the official financing-product applicant is a Korean incorporated business with at least six months of incorporation history. Rising sole-proprietor adoption should not automatically be added to the finance addressable market. [Clobe Finance](https://clobe.ai/product/clobe-finance)
+
+## What does Clobe Finance actually sell?
+
+Clobe Finance describes a future-receivables securitization product that monetizes future receivables estimated from past sales data. The customer receives an advance without equity dilution; collections are described as being made evenly from monthly sales over the term. A company-blog example uses a 12-month term, a 12% discount rate, and a limit of 33% of expected monthly revenue. It is an explanatory example, not an observed average price. [Product description](https://clobe.ai/product/clobe-finance), [Structure example](https://clobe.ai/blog/revenue-based-financing-vs-accounts-receivable-factoring)
+
+The legal phrase “assignment rather than loan” should not become an economic conclusion. Who bears the loss if future revenue misses plan? The answer can change materially with receivable-replacement rights, guarantees, subordinated capital, and credit enhancement.
+
+| Structure | Clobe’s main revenue | Capital required | Core diligence risk |
+| :-- | :-- | :-- | :-- |
+| Capital-light brokerage / management | Arrangement, management, performance fees | Low | Net fee yield and durability of partner funding |
+| Direct holding | Discount income | High | Funding cost, credit loss, equity capital |
+| Hybrid | Fee plus some retained risk | Medium | Loss allocation, seniority, consolidation |
+
+Public materials mention financial-institution funding and operating capability, but do not settle Clobe’s GP/co-GP role, the economics of external capital providers, or any subordinated burden. The model below therefore separates a more capital-light Base case from a Bear case with greater direct risk retention.
+
+## Reverse-engineering KRW 100bn of 2027 revenue
+
+Do Eun-uk’s reference to “approximately KRW 100bn of expected 2027 revenue, about 30 people, and KRW 1.5bn per person” is not available to me as a formal plan or audited financial statement. It is also unclear whether the number means accounting revenue or annual financing volume. I first take the stronger interpretation: **KRW 100bn of accounting revenue.**
+
+$$
+Revenue = Annual\ finance\ volume \times Clobe\ net\ revenue\ yield
+$$
+
+Here, net revenue yield is the share retained by Clobe and recognized as accounting revenue after external capital providers’ economics and direct transaction costs. If the entire customer discount is recognized as gross revenue, the required volume below mechanically falls, but capital cost, credit loss, and third-party economics also grow. A SaaS-style revenue multiple should not be applied to gross financial volume.
+
+| Clobe net revenue yield | Annual finance volume needed for KRW 100bn of 2027 revenue |
+| :-- | --: |
+| 1.5% | KRW 6.7tn |
+| 3.0% | KRW 3.3tn |
+| 5.0% | KRW 2.0tn |
+| 8.0% | KRW 1.25tn |
+
+Against the KRW 110bn of cumulative volume disclosed in April 2026, KRW 3.3tn at a 3% yield is a very large jump. The cumulative figure covers an early period and 2027 may bring many more financial users and repeat transactions. But this table makes the point: the KRW 100bn target requires funding capacity, transaction frequency, and net yield to expand together—not merely more registered users.
+
+For a customer-level check, 10,000 finance-using corporations making four annual transactions of KRW 80m each would generate KRW 3.2tn of annual volume, or KRW 96bn of revenue at a 3% yield. For that combination to work, the 10,000 must be actual finance users rather than general sign-ups, and the average ticket must remain substantial. Public information does not verify either condition.
+
+## KRW 1.5bn per person does not imply a 50% operating margin
+
+At KRW 100bn of revenue and 30 people, revenue per person is KRW 3.33bn. If “KRW 1.5bn per person to share” literally meant KRW 45bn of distributable after-tax profit, operating profit would need to be higher. But the phrase may refer to compensation, operating profit, or long-run value creation; public information does not establish which.
+
+| At KRW 100bn of 2027 revenue | 20% margin | 30% | 40% | 50% | 60% |
+| :-- | --: | --: | --: | --: | --: |
+| Operating income | KRW 20bn | KRW 30bn | KRW 40bn | KRW 50bn | KRW 60bn |
+| After-tax income* | KRW 15bn | KRW 22.5bn | KRW 30bn | KRW 37.5bn | KRW 45bn |
+| After-tax income / 30 people | KRW 0.5bn | KRW 0.75bn | KRW 1.0bn | KRW 1.25bn | KRW 1.5bn |
+
+\*Simple 25% tax rate; net interest and preferred-stock cost are excluded.
+
+If that expression was close to distributable after-tax profit, it requires a 60% operating margin. Even a 50% operating margin is not automatic: all costs must fit inside the remaining 50% of revenue. If payroll, outsourcing, cloud, compliance, marketing, and G&A consume 18%, financial direct cost—including funding cost and expected credit loss—must stay at or below 32% of revenue. A structure retaining risk directly offers no guarantee that those costs decline with volume.
+
+## Unit economics: what remains from a KRW 100m transaction?
+
+This is not Clobe’s observed pricing. It uses the company blog’s illustrative 12-month structure and 12% customer discount. Assume a customer assigns KRW 100m of future receivables and a capital provider purchases them for KRW 88m.
+
+| Item | Assumption | Amount |
+| :-- | :-- | --: |
+| Total customer financing cost | 12% discount | KRW 12.0m |
+| External capital-provider return | 8% annual funding / required return | KRW 7.04m |
+| Expected credit loss | 2% of EAD | KRW 2.0m |
+| Operating / collection cost | 0.8% of EAD | KRW 0.8m |
+| Residual profit retained by Clobe | Residual under these assumptions | KRW 2.16m |
+
+Under this illustration, Clobe retains 2.16% of EAD per transaction. At a 4% loss rate, the residual falls to 0.16%, near break-even. Conversely, if Clobe earns a pure arrangement or management fee and bears no loss, funding cost and loss in this table can accrue to the external provider. That is why loss allocation and revenue recognition should be among the first diligence questions.
+
+## 2027–2031 Bear / Base / Bull
+
+The following are author assumptions, not reported results. The stated KRW 100bn 2027 ambition sits near the middle rather than the top of the model. The Base case grows from KRW 80bn in 2027 to KRW 270bn in 2031 and expands operating margin from 25% to 30%. It assumes conversion, repeat usage, and funding capacity work without Clobe retaining an outsized share of credit risk.
+
+|  | Bear | Base | Bull |
+| :-- | --: | --: | --: |
+| 2027 revenue | KRW 40bn | KRW 80bn | KRW 120bn |
+| 2027 operating margin | 10% | 25% | 45% |
+| 2031 revenue | KRW 90bn | KRW 270bn | KRW 400bn |
+| 2031 operating margin | 12% | 30% | 45% |
+| 2031 net income* | KRW 8.1bn | KRW 60.8bn | KRW 135bn |
+| Exit P/E | 12× | 18× | 22× |
+| 2031 equity value | KRW 97bn | KRW 1.09tn | KRW 2.97tn |
+
+\*Simple 25% tax rate on operating income; net interest, preferred terms, and non-recurring items are not separately modeled.
+
+The Bear case has low finance conversion and economics eroded by capital providers or credit loss. The Bull case exceeds the 2027 revenue ambition and reproduces a 45% accounting operating margin. I would not use the Bull case as the basis for an entry price.
+
+## What can a VC investor pay?
+
+Now separate business value from investment price. The following are analytical standard conditions:
+
+- Series A investment: KRW 20bn
+- Exit: 2031, four-year hold
+- Cumulative dilution from follow-on rounds and ESOP: 20%
+- Base exit equity value: KRW 1.092tn
+- Participating preferred stock and liquidation-preference premium: excluded
+
+At the Base exit, investor proceeds are:
+
+$$
+Exit\ proceeds = Exit\ equity\ value \times \frac{Investment}{Pre-money + Investment} \times (1-Dilution)
+$$
+
+| Series A pre-money | Post-money ownership | Ownership after dilution | Expected proceeds | MOIC | 4-year IRR |
+| :-- | --: | --: | --: | --: | --: |
+| KRW 200bn | 9.1% | 7.3% | KRW 79.5bn | 4.0× | 41% |
+| KRW 300bn | 6.3% | 5.0% | KRW 54.7bn | 2.7× | 29% |
+| KRW 500bn | 3.8% | 3.1% | KRW 33.7bn | 1.7× | 14% |
+| KRW 800bn | 2.4% | 2.0% | KRW 21.3bn | 1.1× | 2% |
+| KRW 1tn | 2.0% | 1.6% | KRW 17.2bn | 0.9× | -4% |
+
+In the Base case, the maximum pre-money for a 30% IRR is about **KRW 290bn**; for 40%, about **KRW 210bn**. Given unverified credit risk, preferred terms, follow-on dilution, and illiquidity, I would not pay the mechanical 30% IRR ceiling. Applying a further 30% margin of safety puts an attractive entry range at **KRW 180–210bn pre-money**.
+
+This does not mean the company is worth no more than KRW 210bn. A higher price requires execution closer to the Bull case and a favorable exit market. A good founder and a good business are not good investments at every price.
+
+## The strongest counter-thesis
+
+The strongest reason this analysis may be too conservative is that Clobe’s ERP data could produce materially faster and more accurate credit decisions than banks—and that advantage could persist. Clobe might then combine a higher approval rate with a lower loss rate, becoming more than a conventional financial intermediary. Its collaboration with Hana Financial Group includes research on AI-based credit assessment and post-loan management. But research collaboration is not evidence of validated predictive performance or loss rates. [Collaboration and funding announcement](https://www.mt.co.kr/industry/2026/04/01/2026040111134555581)
+
+The more important failure paths are straightforward:
+
+- free ERP users grow, but financial conversion remains low;
+- “KRW 100bn” describes funding volume or annualized transaction value rather than accounting revenue;
+- customer discount is high, but Clobe’s net retained yield after capital-provider economics and credit loss is low;
+- a downturn brings revenue contraction and collections delay to small businesses at the same time;
+- institutional capital providers reduce risk appetite and funding limits; or
+- the cost avoided by a 30-person organization merely reappears as outsourced underwriting, legal, collections, and compliance expense.
+
+## Ten things to request before investing
+
+The largest missing information preventing a decision today is **actual vintage-by-vintage loss and who ultimately bears that loss**. I would request:
+
+1. 2024–2026 financial statements and revenue-recognition policy.
+2. A monthly bridge from finance volume and average balance to revenue retained by Clobe.
+3. Finance conversion from active ERP customers and cohort-level repeat usage.
+4. Vintage delinquency, charge-off, and post-recovery net-loss rates.
+5. Capital-provider agreements, seniority, credit enhancement, and loss-sharing provisions.
+6. A bottom-up build for the KRW 100bn 2027 target.
+7. Change in average limit, ticket size, and collection period per customer.
+8. Headcount, outsourcing, and compliance-cost plan.
+9. Cap table, existing preferred rights, and ESOP pool.
+10. Proposed next-round raise and pre-money valuation.
+
+## Conclusion
+
+The central question is not the free ERP. It is whether accumulated data lets Clobe acquire customers more cheaply and provide financing with better pricing and loss rates. If that loop is proved, it can be a very good business.
+
+But KRW 100bn of 2027 revenue requires at least KRW 1.25tn to KRW 6.7tn of annual finance volume—or equivalently a very high net retained yield. Against disclosed cumulative funding, it is a large execution step. And a 50% operating margin depends not merely on having 30 people, but on holding direct financial cost, including funding, loss, and outsourced work, at roughly 32% of revenue or less.
+
+My current judgment is **Conditional**. The public record shows promising early signals but does not establish the economic bearer of credit risk. Around KRW 200bn pre-money, the Base case can support a 40% IRR and meaningful margin of safety. Above KRW 300bn, the investment requires much stronger evidence on conversion, net yield, and loss management. At KRW 500bn or more, I am close to Pass on the public information available.
+
+Disclosure: This is personal investment research, not investment advice. Private-company shares are illiquid, and actual preferred terms and follow-on dilution can differ materially from this simplified model.
