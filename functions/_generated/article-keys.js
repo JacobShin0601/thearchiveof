@@ -41,6 +41,8 @@ export const ARTICLE_KEYS = [
   "sterling-infrastructure-valuation-lab",
   "timeouts-deadlines-and-budgets",
   "token-streaming-is-not-progress-streaming",
+  "v-ic-clobe-ai-series-a-valuation",
+  "v-ic-clobe-ai-series-a-valuation-lab",
   "vllm-troubleshooting-metrics",
   "vllm-tuning-limited-gpus",
   "we-built-the-agent-platform-too-early",
