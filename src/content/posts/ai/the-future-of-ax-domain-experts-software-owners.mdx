@@ -1,0 +1,150 @@
+---
+title: 'The Future of AX: When Domain Experts Become Software Owners'
+subtitle: 'From a Dentist’s AI Stack to the Reinvention of Enterprises and Private Equity'
+description: 'AI가 소프트웨어·기술부채의 경제성을 바꿀 때, 도메인 전문가·조직 구조·중견기업·PE의 가치 창출 모델은 어떻게 달라질까.'
+publishedDate: 2026-10-14
+section: 'AI & AX'
+subsection: 'AX'
+contentType: perspective
+topics: [ax, enterprise-ai, ai-agents, evaluation]
+primaryTopic: ax
+tags: [ax, enterprise-ai, operating-model, private-equity, technical-debt]
+author: 'Jacob Shin'
+language: ko
+translationKey: the-future-of-ax-domain-experts-software-owners
+draft: true
+comments: true
+freshness: periodic
+lastReviewed: 2026-10-14
+nextReviewDate: 2027-04-14
+dataThrough: 2026-10-14
+series: 'Enterprise AX'
+seriesOrder: 3
+methodology: '치과 사례는 공개 커뮤니티 게시물의 주장으로만 취급한다. 외부 연구의 관측 결과와 저자의 조직·투자 가설을 구분했으며, 모든 Lab 수치는 실제 거래 예측이 아닌 가정 기반 교육 모델이다.'
+references:
+  - title: 'AI Adoption by Small and Medium-sized Enterprises'
+    url: 'https://www.oecd.org/content/dam/oecd/en/publications/reports/2025/12/ai-adoption-by-small-and-medium-sized-enterprises_9c48eae6/426399c1-en.pdf'
+    publisher: OECD
+  - title: 'State of AI-assisted Software Development 2025'
+    url: 'https://dora.dev/research/2025/dora-report/'
+    publisher: Google DORA
+  - title: 'We are Changing our Developer Productivity Experiment Design'
+    url: 'https://metr.org/blog/2026-02-24-uplift-update/'
+    publisher: METR
+  - title: '5 data-driven trends to unlock PE portcos’ AI-enabled potential'
+    url: 'https://www.pwc.com/us/en/industries/financial-services/private-equity/data-ai-pe-portcos.html'
+    publisher: PwC
+  - title: 'Beyond productivity: How AI creates value in private equity'
+    url: 'https://www.mckinsey.com/capabilities/business-building/our-insights/beyond-productivity-how-ai-creates-value-in-private-equity'
+    publisher: McKinsey
+  - title: 'AI Home Lab community discussion'
+    url: 'https://arca.live/b/aihomelab/185810092?p=1'
+    publisher: Arca Live
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import AxFutureDiagrams from '../../../components/AxFutureDiagrams.astro';
+import PeAxValueCreationLab from '../../../components/interactive/PeAxValueCreationLab.astro';
+
+<AnswerBlock question="AI가 바꾸는 것은 개발 생산성뿐일까, 아니면 기업을 조직하는 경제학 자체일까?">
+  내 가설은 후자에 가깝다. AI가 구현과 변경의 비용을 낮추면 도메인 전문가가 직접 소프트웨어를 소유할 범위가 넓어진다. 그때 병목은 코드 작성보다 문제를 정의하고, 권한을 갖고, 현금흐름으로 성과를 연결하는 능력이 된다. 이는 중견기업에는 실행상의 기회가, 대기업에는 연합형 운영모델의 과제가, PE에는 반복 가능한 운영 개선의 가능성을 만든다. 다만 생산성은 자동으로 EBITDA나 멀티플이 되지 않는다.
+</AnswerBlock>
+
+## A Dentist Built His Own AI Stack
+
+최근 한 AI 커뮤니티에서 치과 원장이 코딩 에이전트와 자체 인프라를 활용해 병원 운영 시스템을 직접 구축했다는 사례를 봤다. 게시물은 전화 응대, 보험서류 검토, 내부 지식 검색, 예약·운영 관리와 경영 분석을 포함한다고 설명한다. 원문은 독립적인 실증 자료가 아니며, 공개된 기능 범위·성능·비용 절감은 모두 게시자의 주장으로만 읽어야 한다. [원문](https://arca.live/b/aihomelab/185810092?p=1)
+
+그럼에도 이 사례는 흥미롭다. 핵심은 한 사람이 많은 기능을 만들었다는 것이 아니다. 문제를 발견하는 사람, 우선순위를 정하는 사람, 구현하는 사람, 운영 결과를 감당하는 사람, 그리고 경제적 성과를 누리는 사람이 거의 한곳에 있었기 때문이다. 일반 기업에서는 이 다섯 역할이 현업·기획·IT·보안·외주·경영진에 흩어져 있다.
+
+이 글은 그 간격이 AI로 줄어들 때 생길 수 있는 변화를 다룬다. **AI가 바꾸는 것은 소프트웨어의 생산성이 아니라 기업을 조직하는 경제적 이유일 수 있다.**
+
+## The Changing Economics of Technical Debt
+
+기술부채는 빠른 구현이 미래의 복잡성과 변경 비용을 앞당겨 쓰는 선택이다. 그래서 좋은 아키텍처, 테스트, 문서화에 선투자하는 것이 합리적일 때가 많다. 그러나 AI가 코드 탐색·테스트 작성·리팩터링·장애 분석을 더 잘한다면, 오늘 만들어진 부채를 내일 정리하는 **단위 비용**의 현재가치는 낮아질 수 있다.
+
+의사결정은 “깨끗한 코드 대 지저분한 코드”의 도덕적 비교가 아니다. 빠른 출시로 먼저 확보하는 절감액·매출·학습의 현재가치와, 미래 유지보수 비용의 현재가치를 비교하는 문제다. 12개월을 들여 완성도를 높이는 선택과 2개월에 작동하는 시스템을 내고 반복 개선하는 선택 사이에서, 10개월의 사업적 기회이익이 미래 수정비보다 크면 후자가 경제적으로 맞을 수 있다.
+
+<AxFutureDiagrams kind="debt" id="technical-debt-economics" caption="AI가 기술부채의 ‘총량’을 자동으로 없앤다는 그림이 아니다. 단위 해결 비용, 코드·시스템 복잡성, 그리고 시간가치가 함께 움직인다." />
+
+이 가설은 아직 결론이 아니다. METR의 2026년 업데이트는 초기 실험에서 숙련 오픈소스 개발자의 과제 완료 시간이 AI 사용 시 더 길었다는 결과와, 후속 실험의 강한 선택편향을 함께 보고한다. 즉 AI 효과의 방향과 크기는 도구·과제·사용자·측정 방식에 따라 아직 불확실하다. [METR](https://metr.org/blog/2026-02-24-uplift-update/)
+
+더 중요한 경계도 있다. 지저분한 코드를 고치는 일과 개인정보 유출, 잘못된 금융거래, 오류 의료기록을 되돌리는 일은 다르다. 가역적인 기술적 문제와 비가역적인 사업·규제 위험을 같은 기술부채로 취급하면 안 된다. 이 논지는 “일단 만들고 나중에 고치자”가 아니라, AI가 바뀌면 **속도와 완성도의 최적점도 달라질 수 있다**는 주장이다.
+
+## Domain Knowledge Is the New Bottleneck
+
+AI가 구현 능력을 넓힌다고 해서 좋은 소프트웨어가 자동으로 생기지는 않는다. 어떤 업무가 반복되는지, 어느 예외가 고객 경험을 망치는지, 어떤 판단을 시스템에 맡겨도 되는지, 무엇이 실제 손익과 연결되는지를 아는 사람은 대개 현업이다.
+
+치과 사례의 본질은 코딩 실력이 아니라 `도메인 지식 × 실행 권한 × 빠른 피드백`이다. AI가 이 사람이 직접 구현할 수 있는 범위를 넓힌다면 경쟁우위는 “무엇을 만들 수 있는가”보다 “무엇을 만들어야 하는지 아는가”로 일부 이동한다. 이는 [AX는 좁고 날카로워야 한다](/ai/ax/ax-should-start-narrow/)에서 말한 주장과도 연결된다. 좋은 AX는 범용 챗봇을 하나 더 만드는 일이 아니라, 한 업무의 데이터·논리·예외·책임을 깊게 재설계하는 일이다.
+
+다만 현업이 혼자 모든 것을 결정한다는 뜻은 아니다. 고객 영향이 큰 결정, 권한 설계, 모델 평가, 보안과 감사는 반대 관점과 독립적인 통제가 필요하다. 도메인 전문가가 Owner가 될수록, 안전장치와 책임 경계는 더 선명해야 한다.
+
+## Why Size Matters — and Why It May Matter Less
+
+AX의 속도를 직원 수 하나로 설명하면 중요한 차이를 놓친다. 직원 50명의 기업도 ERP 벤더·고객사·보안 승인에 묶이면 느릴 수 있다. 반대로 수만 명 기업의 특정 사업 단위도 필요한 데이터와 권한을 갖고 있다면 빠르게 변할 수 있다. 핵심 변수는 시스템·조직 간 의존성과 실행 조직의 자율성이다.
+
+<AxFutureDiagrams kind="matrix" id="ax-execution-matrix" caption="AX 실행 매트릭스: ‘작다/크다’보다 의존성과 의사결정 자율성을 먼저 본다." />
+
+OECD의 2025년 보고서는 2024년 또는 최신 가용연도 기준으로 AI를 쓰는 비율이 250명 이상 기업 약 40%, 50–249명 20.4%, 10–49명 11.9%라고 제시한다. 이는 대기업의 도입 여력 우위를 보여주지만, 도입률이 업무 전환의 속도나 ROI를 뜻하지는 않는다. [OECD](https://www.oecd.org/content/dam/oecd/en/publications/reports/2025/12/ai-adoption-by-small-and-medium-sized-enterprises_9c48eae6/426399c1-en.pdf)
+
+그래서 중견기업은 흥미로운 대상이다. 일정한 데이터·자본·사업 규모를 가지면서도 의사결정 거리가 짧을 수 있다. 반대로 레거시가 복잡하고 데이터 품질이 낮으며 IT 역량이 비어 있다면 오히려 어렵다. 중견기업이 언제나 유리하다는 결론이 아니라, **자원과 자율성의 조합이 유난히 좋은 구간이 존재할 수 있다**는 가설이다.
+
+<AxFutureDiagrams kind="scale" id="company-scale-ax" caption="기업 규모별 AX 운영 모델: 절대적 우열이 아니라, 각 규모가 가진 실행 자산과 병목의 차이다." />
+
+## The Federated AI-Native Enterprise
+
+대기업 전체를 한 명의 Owner-builder처럼 운영할 수는 없다. 대신 구매, 고객서비스, 재무, 영업운영처럼 사업 능력(Business Capability) 단위에서 수직적 통합을 재현할 수 있다. 현업은 문제 정의·워크플로우·KPI를 책임지고, 중앙 조직은 공통 플랫폼과 통제 경계를 제공한다.
+
+<AxFutureDiagrams kind="federated" id="federated-ai-native-enterprise" caption="Federated AI-Native Enterprise: 중앙의 공통 플랫폼과 현업 AX Cell의 책임을 분리한다." />
+
+이 모델에서 중앙 AX 조직의 역할은 줄어들지 않는다. Data Contract와 API, IAM·보안, 에이전트 인프라, 배포·관측, 평가·거버넌스는 각 셀이 개별적으로 재발명하면 안 된다. 반면 현업의 모든 요구사항을 중앙 티켓으로 접수해 구현하는 모델도 병목이 된다. 표준화해야 할 것과 자율성을 줄 것을 구분하는 것이 설계의 핵심이다.
+
+Google DORA 2025는 AI를 조직의 기존 강점과 약점을 증폭하는 도구로 요약한다. 따라서 좋은 모델을 사는 것만으로 좋은 운영모델이 생기지 않는다. [DORA](https://dora.dev/research/2025/dora-report/)가 말하는 이 관점은, AX의 병목이 기술보다 조직 설계·피드백·책임에 있을 수 있음을 지지한다.
+
+## AI and the Minimum Efficient Scale of Firms
+
+기업은 회계, 개발, 분석, 법무, 고객지원 같은 전문 기능의 고정비를 분산하기 위해 일정 규모를 필요로 했다. AI가 이들 기능 중 일부의 제공 단가를 낮춘다면, 지식노동·소프트웨어 중심 업무에서 최소 효율 규모(Minimum Efficient Scale)는 낮아질 수 있다.
+
+이는 규모의 경제가 사라진다는 뜻이 아니다. 설비, 유통망, 저렴한 자본, 브랜드, 규제, 네트워크 효과는 여전히 강력하다. 달라질 수 있는 것은 작은 조직이 외부 공급자에 의존하거나 큰 내부 전문조직을 유지해야 했던 일부 기능의 비용이다. 작은 기업은 더 복잡한 사업을 운영할 수 있고, 대기업은 작은 자율 단위를 내부에 재현하려 할 수 있다. 두 변화는 동시에 일어날 수 있다.
+
+## Private Equity: Turning AX into Enterprise Value
+
+나는 이 논지가 PE에서 가장 매력적이라고 본다. 경쟁력 있는 제품·고객·유통망이 있지만 반복 업무와 데이터가 비효율적인 기업을 인수하고, AX로 잠재적 현금흐름을 현실화하는 모델이다. PE의 강점은 도구 구매가 아니다. 지배권을 통한 실행력, 경영진 인센티브, Operating Partner, 그리고 포트폴리오 사이의 학습 재사용이다.
+
+PwC는 중견 PE 포트폴리오 기업이 분절된 시스템, 비일관적 데이터, 수작업 때문에 AI 가치를 실현하기 어렵다고 지적한다. 동시에 작은 고경제성 영역에서 시작해 반복적으로 확장하는 접근을 제시한다. [PwC](https://www.pwc.com/us/en/industries/financial-services/private-equity/data-ai-pe-portcos.html) 이는 치과 사례의 수직 통합을 포트폴리오 기업 안에서 재현할 수 있다는 내 가설과 맞닿아 있다.
+
+### From productivity to EBITDA
+
+보고서 작성 시간이 절반이 되어도 EBITDA가 자동으로 늘지는 않는다. 남은 시간을 추가 매출, 외주 축소, 채용 회피, 수금 개선, 재고 감축으로 **실현**해야 한다. AI 투자로 절감된 비용과 EBITDA 개선을 이중으로 세면 안 되며, 지속 비용·변화관리·통제 비용도 포함해야 한다.
+
+간단히 EBITDA 100억 원 기업을 8배에 인수했다고 하자. EV는 800억 원이다. AX를 통해 지속 가능한 EBITDA가 125억 원이 되고 Exit Multiple도 8배면 EV는 1,000억 원이다. 멀티플 상승 없이 200억 원의 EV 개선이 생긴다. 반면 Exit Multiple이 6배가 되면 EV는 750억 원으로, EBITDA가 좋아져도 시작점보다 낮을 수 있다. 실제 수익률은 순차입금, 투자비, 보유기간, FCF와 세금을 거쳐서만 판단할 수 있다.
+
+McKinsey의 2026년 분석은 471개 PE 투자기업 표본에서 AI를 제품·사업모델까지 깊게 통합한 기업이 더 높은 **매출 배수**를 보였다고 보고한다. 표본은 2023년 이후 거래, 매출 100만~2.5억 달러, 매출배수 5~300배로 제한된다. 이 상관관계를 일반적 중견 Buyout의 EV/EBITDA나 AX의 인과 효과로 해석하면 안 된다. [McKinsey](https://www.mckinsey.com/capabilities/business-building/our-insights/beyond-productivity-how-ai-creates-value-in-private-equity)
+
+<PeAxValueCreationLab />
+
+Lab의 목적은 정확한 투자수익률을 예측하는 것이 아니다. AX가 만들어내는 EBITDA 개선, AI의 일회성·반복 비용, FCF를 통한 부채상환, Exit Multiple 변화가 서로 다른 경로임을 드러내는 것이다. 특히 No-AX 대비 지분가치가 개선돼도, 비싼 Entry Price나 Exit Multiple 하락이 그 효과를 상쇄할 수 있다는 점을 확인해야 한다.
+
+### What makes an attractive AX buyout target?
+
+좋은 AX 인수 대상은 단지 기술적으로 낙후된 회사가 아니다.
+
+- 제품과 서비스의 경쟁력이 이미 있어야 한다. AI는 수요가 없는 제품을 고치지 못한다.
+- 반복적이고 측정 가능한 업무가 있어야 한다. 그래야 절감·성장·현금흐름의 연결을 검증할 수 있다.
+- 데이터 접근, 책임자, 실행 권한이 있어야 한다. 시범 프로젝트가 경영성과로 이어지는 통로다.
+- 개선 효과가 가격 경쟁으로 즉시 고객에게 이전되지 않아야 한다. 그래야 이익이 기업에 남는다.
+
+나는 PE가 중앙 플랫폼과 실행 역량을 제공하되, 각 포트폴리오의 도메인 전문가가 업무·KPI를 소유하게 하는 모델에 상당한 매력을 느낀다. 이는 확정된 초과수익 전략이 아니라, 실사와 실행을 통해 검증할 가치가 있는 투자 가설이다.
+
+## What Could Break This Thesis?
+
+가설을 깨뜨릴 수 있는 경로도 분명하다. 첫째, AI가 부채를 정리하는 속도보다 소프트웨어 복잡성이 빨리 늘 수 있다. 둘째, 기술적 생산성이 인력·가격·프로세스 변화로 이어지지 않으면 EBITDA와 FCF는 움직이지 않는다. 셋째, AI 역량이 빠르게 보편화되면 이익의 일부는 고객 가격으로 이전될 수 있다.
+
+넷째, 권한과 책임의 문제다. AI는 선택지를 만들 수 있어도, 두 사업부 사이의 목표 충돌이나 허용 가능한 위험을 결정하지 않는다. 마지막으로 PE의 인수가격이다. 매도자가 AX 잠재력을 이미 가격에 반영하면, 실행에 성공해도 IRR은 평범할 수 있다. 기술의 가능성과 투자수익은 다른 명제다.
+
+## Conclusion: AI Is Changing the Economics of Firms
+
+치과 원장의 사례가 던지는 질문은 “한 사람이 얼마나 많은 코드를 썼는가”가 아니다. 도메인 지식, 실행 권한, 구현 능력, 운영 피드백, 경제적 인센티브를 한 흐름으로 묶을 수 있는가다.
+
+AI가 구현·변경의 비용을 낮춘다면, 작은 조직은 과거보다 더 복잡한 일을 할 수 있다. 중견기업은 자원과 결정 속도의 조합을 활용할 수 있다. 대기업은 중앙 플랫폼 위의 자율적인 AX Cell 네트워크로 진화할 수 있다. 그리고 PE는 경쟁력은 있으나 운영이 비효율적인 기업을 찾아, 이 구조를 반복적으로 설계할 수 있다.
+
+성패를 가르는 것은 AI를 많이 도입했는지가 아니다. 어떤 업무에서 도메인 지식과 실행 권한이 결합하고, 그 변화가 실제 EBITDA와 FCF로 전환되는지 판단하는 능력이다. 그것이야말로 AX가 소프트웨어 프로젝트를 넘어 기업가치 창출 역량이 될 수 있는 조건이다.
