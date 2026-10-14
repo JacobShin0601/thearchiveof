@@ -1,0 +1,14 @@
+{
+  "id": "apld-2026-10-13",
+  "ticker": "APLD",
+  "name": { "ko": "Applied Digital Corporation", "en": "Applied Digital Corporation" },
+  "venue": "NASDAQ",
+  "currency": "USD",
+  "stance": "sell",
+  "decisionDate": "2026-10-13",
+  "decisionClose": 22.44,
+  "priceField": "adjclose",
+  "feed": { "kind": "yahoo", "symbol": "APLD" },
+  "source": { "name": "Yahoo Finance", "url": "https://finance.yahoo.com/quote/APLD/history/" },
+  "closes": [{ "date": "2026-10-13", "close": 22.44 }]
+}

@@ -1,0 +1,55 @@
+---
+title: "Applied Digital Corporation Valuation Lab: 1.41GW의 계약은 주당 얼마의 가치가 될까?"
+subtitle: "NOI·잔여 CAPEX·할인율·재임대 가치와 추가 MW를 움직이며 시장가격이 요구하는 추가 NAV를 확인한다."
+description: "Applied Digital Corporation의 계약 MW, 개발비와 자본청구권을 보통주 가치로 연결하는 인터랙티브 민감도 도구."
+publishedDate: 2026-10-13
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, enterprise-ai]
+primaryTopic: portfolio
+tags: [applied-digital, valuation, data-center, ai, scenario-analysis]
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "ko"
+translationKey: "applied-digital-corporation-valuation-lab"
+freshness: time-sensitive
+lastReviewed: 2026-10-13
+nextReviewDate: 2026-11-20
+dataThrough: 2026-10-13
+methodology: "공시된 1,410MW 계약 용량과 $35.731B 최소 임대료를 고정하고, 공개되지 않은 프로젝트별 잔여 CAPEX·자본청구권은 명시적 가정으로 분리한다. 역산은 시장가격에 필요한 추가 경제적 가치를 설명하는 민감도 도구다."
+references:
+  - title: "Applied Digital SEC filings"
+    url: "https://ir.applieddigital.com/sec-filings"
+    publisher: "Applied Digital"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import EquityDecisionChart from '../../../components/interactive/EquityDecisionChart.astro';
+import ApldValuationLab from '../../../components/interactive/ApldValuationLab.astro';
+import decision from '../../../data/equity-decisions/apld-2026-10-13.json';
+
+<EquityDecisionChart decision={decision} language="ko" />
+
+<AnswerBlock question="이 Lab이 무엇을 계산하고 무엇을 계산하지 않는가?">
+  공개된 계약·기본 임대료·NOI는 사실로 고정한다. 잔여 CAPEX, 재임대, 자본비용과 추가 MW는 사용자가 바꾸는 가정이다. 프로젝트별 현금분배가 완전히 공개되지 않았으므로 결과는 매수·매도 가격목표가 아니라 Equity Bridge의 민감도 신호다.
+</AnswerBlock>
+
+이 도구는 [Applied Digital Corporation 분석](/investing/markets/applied-digital-corporation-ai-data-center-value/)의 핵심 질문을 양방향으로 움직인다. 계약 1.41GW를 그대로 가치로 읽지 않고, 임대료·NOI·개발 CAPEX·자본청구권 순서로 본다.
+
+의사결정은 **매도**다. 이는 사업이 나쁘다는 단정이 아니라, 현재 가격이 예비 Base Case보다 훨씬 더 좋은 실행과 추가 NAV를 이미 요구한다는 판단이다. 위 차트는 이 판단 이후의 종가만 갱신한다.
+
+<ApldValuationLab language="ko" />
+
+## 읽는 순서
+
+Simple에서는 NOI 마진, MW당 잔여 CAPEX, 할인율, 재임대 NOI 유지율을 한 번에 하나씩 바꾼다. 먼저 CAPEX를 \$12M/MW에서 \$13M/MW로 올려 보자. 개발형 자산은 마진이 조금 좋아도 초기 투자액이 크면 보통주 가치가 빠르게 사라질 수 있다.
+
+Advanced / Reverse에서는 추가 계약 MW를 더한다. 여기서 추가 MW는 발표된 계약이 아니라 사용자가 가정하는 양(+) NPV 프로젝트다. 시장가격을 하나의 입력으로 설명하는 것과 CAPEX·할인율·추가 MW의 조합으로 설명하는 것은 다르다.
+
+## 모델의 경계
+
+이 Lab은 FY2032 이후 임대료를 공시 사실처럼 연도별로 배분하지 않는다. 또한 Macquarie 프로젝트 권리, NCI, 전환사채, 워런트와 모든 우선 청구권의 정확한 계약상 현금배분을 추정하지 않는다. 그 불확실성을 숨긴 정밀한 가격은 오히려 오도할 수 있다.
+
+따라서 이 도구의 실용적인 목적은 단순하다. 시장가격을 보려면 계약 규모 외에 어떤 조건이 얼마나 더 좋아져야 하는지 명시하는 것이다. 모든 비용을 내고 나서 주당 가치가 남는지부터 확인한다.

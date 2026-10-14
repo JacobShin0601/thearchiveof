@@ -1,4 +1,13 @@
 export const EQUITY_DECISIONS = {
+  "apld-2026-10-13": {
+    "decisionDate": "2026-10-13",
+    "decisionClose": 22.44,
+    "priceField": "adjclose",
+    "feed": {
+      "kind": "yahoo",
+      "symbol": "APLD"
+    }
+  },
   "crm-2026-10-07": {
     "decisionDate": "2026-10-07",
     "decisionClose": 224.56,

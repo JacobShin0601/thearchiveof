@@ -4,6 +4,8 @@ export const ARTICLE_KEYS = [
   "agent-sse-streaming",
   "agent-tool-idempotency-approval-retry",
   "ai-handoff-queue-lab",
+  "applied-digital-corporation-ai-data-center-value",
+  "applied-digital-corporation-valuation-lab",
   "async-thread-process-agent-backends",
   "ax-is-transformation",
   "ax-should-start-narrow",

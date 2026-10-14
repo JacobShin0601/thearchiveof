@@ -1,0 +1,116 @@
+---
+title: "Applied Digital Corporation: $36 Billion in AI Data Center Leases, but How Much Value Reaches Shareholders?"
+subtitle: "1.41GW of contracted capacity, an 89% NOI margin, and billions of dollars of construction spending."
+description: "A contract-to-common-equity analysis of Applied Digital Corporation's AI data-center portfolio."
+publishedDate: 2026-10-13
+section: "Investing"
+subsection: "Markets"
+contentType: "research"
+topics: [portfolio, enterprise-ai]
+primaryTopic: portfolio
+tags: [valuation, ai, data-center, infrastructure, research]
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "en"
+translationKey: "applied-digital-corporation-ai-data-center-value"
+series: "AI Value Chain"
+seriesOrder: 2
+seriesAxis: compute-infrastructure
+seriesQuestion: "How much of contracted power and AI data-center rent remains for common equity after construction cost and capital claims?"
+localization: { locale: "en-US", strategy: "localized-adaptation" }
+freshness: time-sensitive
+lastReviewed: 2026-10-13
+nextReviewDate: 2026-11-20
+dataThrough: 2026-10-13
+methodology: "Uses disclosed minimum lease payments and contracted MW as a starting point. Project-level residual CAPEX and cash distributions are not fully public; scenarios are author assumptions, not guidance."
+references:
+  - title: "Applied Digital SEC filings"
+    url: "https://ir.applieddigital.com/sec-filings"
+    publisher: "Applied Digital"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import ApldResearchDiagrams from '../../../../components/ApldResearchDiagrams.astro';
+import ValuationLabLinkCard from '../../../../components/ValuationLabLinkCard.astro';
+
+<AnswerBlock question="How much of APLD's contracted value reaches common equity?">
+  The contracts appear real and commercially meaningful. Yet a preliminary Base case produces \$5.02 per share versus a \$22.44 close on October 13, 2026. That is not a price target. It is a statement of what still needs to be true about construction cost, financing, re-letting, and incremental projects.
+</AnswerBlock>
+
+AI data centers are scarce. In many markets, power—not GPUs—is the binding constraint, and customers are leasing capacity years before they need it. <strong>Applied Digital Corporation (NASDAQ: APLD)</strong> has disclosed 1.41GW of contracted IT capacity and \$35.731B of minimum lease payments.
+
+That is an impressive commercial result. It is not, by itself, an equity valuation.
+
+$$ Contracted\ MW \rightarrow Operational\ MW \rightarrow Base\ Rent \rightarrow NOI \rightarrow Project\ Cash\ Flow \rightarrow Capital\ Providers \rightarrow Common\ Equity\ Value\ per\ Share $$
+
+[Sterling Infrastructure](/en/investing/markets/sterling-infrastructure-fair-value/) examined the scarcity of land, power, and construction capacity that lets a data center open on time. This article asks a different question: once that capacity is owned and developed as an asset, who ultimately captures its economics?
+
+<ValuationLabLinkCard href="/en/coding/experiments/applied-digital-corporation-valuation-lab/" company="Applied Digital Corporation" tone="navy" focusKo="" focusEn="Change NOI margin, residual CAPEX per MW, discount rate, re-letting value, and additional MW to test the incremental NAV required by the market." />
+
+<ApldResearchDiagrams variant="business" language="en" />
+
+## 1. What APLD actually sells
+
+HPC Hosting is closer to developing and leasing AI-ready real estate than to renting GPUs. APLD supplies dense power, buildings, liquid cooling, and site operations; tenants operate their own computing infrastructure. Base rent, tenant cost recoveries, and tenant build services therefore have different economics. ChronoScale and legacy hosting also require separate SOTP treatment rather than being folded into an HPC real-estate multiple.
+
+## 2. Revenue quality: \$341.9M is not all recurring rent
+
+FY2027 Q1 consolidated revenue was \$341.9M and HPC Hosting revenue was \$262.6M. But base rent was \$65.8M, tenant build services were \$183.5M, and tenant cost recoveries were \$13.3M. HPC NOI was \$58.8M.
+
+The \$183.5M is build-service revenue, not the year-over-year increase of \$157.2M. It can be important, but it should not receive the same recurring-revenue multiple as a lease payment. The most useful starting point for recurring asset economics is base rent and its conversion as delivered MW grows.
+
+<ApldResearchDiagrams variant="revenue" language="en" />
+
+## 3. Contracted capacity is not planned capacity
+
+| Campus | Contracted MW | Planned MW |
+| --- | ---: | ---: |
+| Polaris Forge 1 | 400 | 400 |
+| Polaris Forge 2 | 200 | 300 |
+| Polaris Forge 3 | 300 | 300 |
+| Delta Forge 1 | 300 | 300 |
+| Delta Forge 2 | 210 | 210 |
+| **Total** | **1,410** | **1,510** |
+
+The 100MW difference matters: planned capacity is not contracted cash flow. Note 17 disclosed \$468.0M of minimum lease payments in FY2027, \$1,579.5M in FY2028, \$2,360.6M in FY2029, \$2,371.4M in FY2030 and FY2031, and \$26,580.2M thereafter—\$35.731B in total. These are minimum-payment commitments, not a complete annual cash-flow forecast.
+
+<ApldResearchDiagrams variant="delivery" language="en" />
+
+## 4. Contracted MW must become operational MW
+
+Polaris Forge 1 had 175MW in operation at August-end; a further 75MW was delivered on October 1, taking operating capacity to 250MW. A contract should be tracked through construction, ready-for-service, tenant delivery, and rent commencement. In a capital-intensive data center, delivery dates can matter more than contract announcements.
+
+## 5. Power and time may be the moat
+
+Grid-connected power, substations, liquid cooling, appropriate land, and construction speed are scarce together. That scarcity can create genuine customer value. It does not prove permanent excess returns. Investors should distinguish a power purchase agreement from deliverable power, ask who bears incremental generation and transmission risk, and test whether a campus remains competitive after the first tenant's contract expires.
+
+## 6. An 89% NOI margin is not an ROIC
+
+$$ NOI\ Margin=NOI/Base\ Rent,\qquad Yield\ on\ Cost=Stabilized\ NOI/Total\ Development\ Cost $$
+
+The quarter's \$58.8M NOI on \$65.8M of base rent is a positive operating datapoint. NOI is still before corporate cash cost, maintenance CAPEX, cash taxes, financing cost, and development CAPEX. A consistent DCF must not subtract interest twice: discount FCFF and deduct debt once, or discount FCFE and do not deduct debt again.
+
+<ApldResearchDiagrams variant="claims" language="en" />
+
+## 7. Residual CAPEX and capital claims determine common value
+
+Q1 CAPEX was about \$2.07B. Company materials cite approximately \$11M–\$13M per MW for selected campuses, but multiplying that range across 1.41GW does not create an official total project cost. The preliminary model used a proxy for residual construction cost, not disclosed project-level residual CAPEX.
+
+At August-end, redeemable non-controlling interests were about \$2.01B. Series G preferred stock was about \$124.9M and subsequently converted into about 5.2M common shares. A model must remove the preferred claim when it adds the conversion shares, otherwise it double counts one claim. Debt, restricted cash, convertibles, warrants, Macquarie rights, and NCI must be handled in one equity bridge.
+
+## 8. Preliminary valuation and reverse valuation
+
+| Scenario | Discount rate | NOI margin | Cost/MW | Preliminary value/share |
+| --- | ---: | ---: | ---: | ---: |
+| Bear | 11.0% | 80% | \$13M | \$0.00 |
+| Base | 8.5% | 86% | \$12M | \$5.02 |
+| Bull | 7.0% | 89% | \$11M | \$26.18 |
+
+These are provisional outputs, not price targets. The book-asset proxy, tenant-funded construction, capital claims, post-2031 rent allocation, re-letting cost, and vacancy risk all need further audit.
+
+Still, the reverse-valuation message is useful: \$22.44 appears to require some combination of lower residual CAPEX, cheaper capital, higher re-letting value, additional positive-NPV MW, and less dilution. A good business and a good price are different propositions.
+
+## Conclusion
+
+APLD may own scarce and valuable AI-infrastructure capability. But owning AI infrastructure is not the same as owning its economic profits. The relevant question is not contracted power alone; it is the cash flow per share remaining after every construction and capital-provider claim is paid.
