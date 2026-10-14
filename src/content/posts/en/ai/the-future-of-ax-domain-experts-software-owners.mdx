@@ -1,0 +1,151 @@
+---
+title: 'The Future of AX: When Domain Experts Become Software Owners'
+subtitle: 'From a Dentist’s AI Stack to the Reinvention of Enterprises and Private Equity'
+description: 'If AI changes the economics of software and technical debt, how might domain expertise, organizational design, mid-market firms, and private-equity value creation change with it?'
+publishedDate: 2026-10-14
+section: 'AI & AX'
+subsection: 'AX'
+contentType: perspective
+topics: [ax, enterprise-ai, ai-agents, evaluation]
+primaryTopic: ax
+tags: [ax, enterprise-ai, operating-model, private-equity, technical-debt]
+author: 'Jacob Shin'
+language: en
+translationKey: the-future-of-ax-domain-experts-software-owners
+localization: { locale: en-US, strategy: localized-adaptation }
+draft: false
+comments: true
+freshness: periodic
+lastReviewed: 2026-10-14
+nextReviewDate: 2027-04-14
+dataThrough: 2026-10-14
+series: 'Enterprise AX'
+seriesOrder: 3
+methodology: 'The dental-practice example is treated only as a claim in a public community post. This essay distinguishes observed findings in outside research from the author’s organizational and investment hypotheses; all Lab figures are educational, assumption-based outputs rather than forecasts of an actual transaction.'
+references:
+  - title: 'AI Adoption by Small and Medium-sized Enterprises'
+    url: 'https://www.oecd.org/content/dam/oecd/en/publications/reports/2025/12/ai-adoption-by-small-and-medium-sized-enterprises_9c48eae6/426399c1-en.pdf'
+    publisher: OECD
+  - title: 'State of AI-assisted Software Development 2025'
+    url: 'https://dora.dev/research/2025/dora-report/'
+    publisher: Google DORA
+  - title: 'We are Changing our Developer Productivity Experiment Design'
+    url: 'https://metr.org/blog/2026-02-24-uplift-update/'
+    publisher: METR
+  - title: '5 data-driven trends to unlock PE portcos’ AI-enabled potential'
+    url: 'https://www.pwc.com/us/en/industries/financial-services/private-equity/data-ai-pe-portcos.html'
+    publisher: PwC
+  - title: 'Beyond productivity: How AI creates value in private equity'
+    url: 'https://www.mckinsey.com/capabilities/business-building/our-insights/beyond-productivity-how-ai-creates-value-in-private-equity'
+    publisher: McKinsey
+  - title: 'AI Home Lab community discussion'
+    url: 'https://arca.live/b/aihomelab/185810092?p=1'
+    publisher: Arca Live
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AxFutureDiagrams from '../../../../components/AxFutureDiagrams.astro';
+import PeAxValueCreationLab from '../../../../components/interactive/PeAxValueCreationLab.astro';
+
+<AnswerBlock question="Is AI changing only development productivity—or the economics of organizing a firm?">
+  My hypothesis is closer to the latter. If AI lowers the cost of implementing and changing software, domain experts can directly own a wider range of software. The bottleneck then shifts from writing code toward defining the right problem, having the authority to act, and converting the result into cash flow. That creates an execution opportunity for some mid-market firms, an operating-model challenge for large enterprises, and a possible repeatable improvement playbook for private equity. Productivity, however, does not automatically become EBITDA or a higher multiple.
+</AnswerBlock>
+
+## A Dentist Built His Own AI Stack
+
+I recently came across a community post by a dentist who said he had built operating systems for his practice with coding agents and his own infrastructure. The post describes phone handling, insurance-document review, internal knowledge search, scheduling and operations management, and management analytics. It is hard not to find that remarkable. He says he relied only on coding assistants, and identifies his academic background as biology. It looks very close to a complete AX success. Why?
+
+The interesting part is not simply that one person built many features. It is that discovering the problem, setting priorities, implementing a solution, bearing the operating result, and receiving the economic upside were almost vertically integrated in one person. In a typical company, those five roles are divided across business teams, planning, IT, security, vendors, and management.
+
+This essay asks what might happen as AI narrows that gap. **What AI may change is not merely software productivity, but the economic reason firms are organized as they are.**
+
+## The Changing Economics of Technical Debt
+
+Technical debt is the choice to bring implementation forward while bringing forward future complexity and change cost as well. That is why early investment in architecture, tests, and documentation is often rational. But if AI becomes better at code exploration, test writing, refactoring, and incident analysis, the present value of the *unit cost* of cleaning up today’s debt may fall.
+
+The decision is not a moral contest between clean and messy code. It compares the present value of savings, revenue, and learning captured through an earlier launch with the present value of future maintenance. Between spending twelve months perfecting a system and releasing a workable version in two months, the latter can be economically sound if ten months of business opportunity outweighs the later repair bill.
+
+<AxFutureDiagrams kind="debt" language="en" id="technical-debt-economics-en" caption="AI does not automatically eliminate the total stock of technical debt. Unit remediation cost, code and system complexity, and the value of time can all move together." />
+
+This is not yet a conclusion. METR’s 2026 update reports both an initial result in which experienced open-source developers took longer with AI and strong selection bias in the follow-up experiment. The direction and magnitude of AI’s effect remain sensitive to the tool, task, user, and measurement design. [METR](https://metr.org/blog/2026-02-24-uplift-update/)
+
+There is also an important boundary. Cleaning up messy code is not the same as unwinding a privacy breach, an incorrect financial transaction, or an erroneous medical record. Reversible technical problems and irreversible business or regulatory risks should not be treated as the same kind of debt. The argument is not “build first and fix it later.” It is that AI can change the economic optimum between speed and completeness.
+
+## Domain Knowledge Becomes the New Bottleneck
+
+Broader implementation capability does not make good software appear automatically. The people who know which work repeats, which exception damages customer experience, which judgment can be delegated safely, and which change reaches the P&L are usually in the operating domain.
+
+The dental-practice example is fundamentally `domain knowledge × execution authority × rapid feedback`, not coding skill in isolation. If AI expands what that person can implement directly, advantage shifts in part from “what can we build?” to “what should we build?” This connects to [why Enterprise AX should start narrow](/en/ai/ax/ax-should-start-narrow/): good AX is not one more generic chatbot; it is a deep redesign of one workflow’s data, logic, exceptions, and accountability.
+
+That does not mean a business expert should decide everything alone. Decisions with high customer impact, access design, model evaluation, security, and auditability need independent challenge and clear controls. The more a domain expert becomes an owner, the clearer those safety and responsibility boundaries must be.
+
+## Why Size Matters—and Why It May Matter Less
+
+Headcount alone misses what determines AX speed. A 50-person firm can be slow if a change depends on an ERP vendor, customers, and security approvals. A business unit inside a firm of tens of thousands can move quickly if it has the necessary data and authority. System and organizational dependencies, together with the autonomy of the execution team, are the more useful variables.
+
+<AxFutureDiagrams kind="matrix" language="en" id="ax-execution-matrix-en" caption="AX execution matrix: before asking whether a company is small or large, examine dependencies and decision autonomy." />
+
+OECD’s 2025 report puts the share of firms using AI in 2024 or the latest available year at roughly 40% for firms with 250 or more employees, 20.4% for those with 50–249, and 11.9% for those with 10–49. That shows the resource advantage of large firms in adoption; it does not show the speed of workflow change or ROI. [OECD](https://www.oecd.org/content/dam/oecd/en/publications/reports/2025/12/ai-adoption-by-small-and-medium-sized-enterprises_9c48eae6/426399c1-en.pdf)
+
+That makes the mid-market interesting. It may combine real data, capital, and operating scale with a shorter decision distance. The opposite can also be true when legacy systems are tangled, data quality is poor, and internal IT capacity is missing. The claim is not that the mid-market is always advantaged; it is that a particularly attractive combination of resources and autonomy may exist there.
+
+<AxFutureDiagrams kind="scale" language="en" id="company-scale-ax-en" caption="AX operating models by company scale: not a ranking, but different execution assets and bottlenecks." />
+
+## The Federated AI-Native Enterprise
+
+A large enterprise cannot operate as one owner-builder. It can, however, recreate vertical integration at the level of a business capability—procurement, customer service, finance, or sales operations. Business teams own the problem definition, workflows, and KPIs; a central organization supplies the common platform and control boundaries.
+
+<AxFutureDiagrams kind="federated" language="en" id="federated-ai-native-enterprise-en" caption="The federated AI-native enterprise separates the central platform’s responsibilities from the domain AX cell’s responsibilities." />
+
+The central AX team does not become less important in this model. Data contracts and APIs, IAM and security, agent infrastructure, deployment and observability, and evaluation and governance should not be reinvented cell by cell. But a model in which every business request enters a central implementation queue is also a bottleneck. The essential design task is to distinguish what should be standardized from what should be delegated.
+
+Google DORA’s 2025 research describes AI as a tool that can amplify an organization’s existing strengths and weaknesses. Buying a strong model therefore does not by itself create a strong operating model. [DORA](https://dora.dev/research/2025/dora-report/) The limiting factor in AX may be organizational design, feedback, and accountability more often than model capability.
+
+## AI and the Minimum Efficient Scale of Firms
+
+Firms traditionally needed a certain scale to spread the fixed cost of specialist functions such as accounting, development, analytics, legal work, and customer support. If AI lowers the cost of supplying some of those functions, the minimum efficient scale of knowledge-work and software-heavy operations may fall.
+
+This does not mean economies of scale disappear. Plant, distribution, cheap capital, brand, regulation, and network effects remain powerful. What may change is the cost of functions for which a small firm once had to rely on a vendor or maintain a large internal specialist organization. Smaller firms can run more complex operations; large firms can try to reproduce smaller autonomous units internally. Both can happen at once.
+
+## Private Equity: Turning AX into Enterprise Value
+
+This is where I find the thesis most compelling. Consider acquiring a company with competitive products, customers, and distribution but inefficient repetitive work and data operations, then using AX to convert potential cash flow into realized cash flow. Private equity’s advantage is not simply buying tools. It is execution authority through control, management incentives, operating partners, and reusable learning across the portfolio.
+
+PwC identifies fragmented systems, inconsistent data, and manual work as barriers to realizing AI value in mid-market PE portfolio companies. It also proposes starting in economically meaningful small areas and expanding repeatedly. [PwC](https://www.pwc.com/us/en/industries/financial-services/private-equity/data-ai-pe-portcos.html) That is consistent with my hypothesis that the vertical integration visible in the dental-practice example can be recreated within a portfolio company.
+
+### From Productivity to EBITDA
+
+Cutting report-writing time in half does not automatically raise EBITDA. The released time must be *realized* through additional revenue, lower outsourcing, avoided hiring, improved collections, or leaner inventory. Savings and EBITDA improvement should not be double counted, and recurring costs, change management, and control costs also belong in the calculation.
+
+Take a company with KRW 10bn of EBITDA acquired at 8×: enterprise value is KRW 80bn. If AX makes EBITDA sustainably KRW 12.5bn and the exit multiple remains 8×, enterprise value rises to KRW 100bn—KRW 20bn of improvement without multiple expansion. If the exit multiple falls to 6×, however, enterprise value is KRW 75bn: EBITDA improves but value is still below the entry point. Actual investor returns must run through net debt, implementation cost, holding period, FCF, and tax.
+
+McKinsey’s 2026 analysis reports higher **revenue multiples** among 471 PE-backed companies that had integrated AI deeply into products and business models. The sample is restricted to post-2023 deals with revenue between $1m and $250m and revenue multiples from 5× to 300×. This correlation should not be read as the EV/EBITDA of a typical mid-market buyout, or as causal evidence for AX. [McKinsey](https://www.mckinsey.com/capabilities/business-building/our-insights/beyond-productivity-how-ai-creates-value-in-private-equity)
+
+<PeAxValueCreationLab language="en" />
+
+The Lab is not intended to forecast an exact investment return. It makes the separate paths visible: AX-driven EBITDA improvement, one-time and recurring AI cost, debt paydown through FCF, and exit-multiple change. Even if equity value improves relative to No-AX, an expensive entry price or lower exit multiple can offset it.
+
+### What makes an AX buyout target attractive?
+
+An attractive AX target is not merely a technologically outdated company.
+
+- Its product or service must already be competitive. AI cannot repair a product with no demand.
+- It needs sufficiently repetitive and measurable work, so the link to savings, growth, and cash flow can be tested.
+- It needs data access, a responsible owner, and execution authority—the path from pilot to operating result.
+- The improvement cannot immediately pass through to customers via price competition; otherwise, the benefit does not remain with the firm.
+
+I find a model attractive in which PE provides a central platform and execution capability while the domain experts in each portfolio company own the workflow and KPI. It is not a proven excess-return strategy; it is an investment hypothesis worth testing through diligence and execution.
+
+## What Could Break This Thesis?
+
+The failure paths are clear. First, software complexity could grow faster than AI improves at cleaning up debt. Second, technical productivity may not change staffing, prices, or processes, leaving EBITDA and FCF unchanged. Third, if AI capability diffuses quickly, some of the gain may pass through to customers in the form of lower prices.
+
+Fourth is the problem of authority and responsibility. AI can generate options, but it cannot decide whose objective wins when two business units conflict or what risk a firm should accept. Finally, PE entry price matters. If sellers already price in AX potential, even successful execution can produce ordinary IRRs. Technological possibility and investment return are different propositions.
+
+## Conclusion: AI Is Changing the Economics of Firms
+
+The question raised by the dentist’s example is not, “How much code did one person write?” It is whether domain knowledge, execution authority, implementation capability, operating feedback, and economic incentives can be joined in one continuous flow.
+
+If AI lowers the cost of implementation and change, small organizations can do more complex work than before. Mid-market firms can combine resources with decision speed. Large enterprises can evolve into networks of autonomous AX cells on a shared platform. And PE can repeatedly design that structure within companies that are competitive but operationally inefficient.
+
+The dividing line is not how much AI a company adopts. It is the ability to judge where domain knowledge and execution authority can combine—and where the resulting change can become real EBITDA and FCF. That is the condition under which AX can become a value-creation capability rather than merely a software project.
