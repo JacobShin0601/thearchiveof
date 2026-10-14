@@ -148,6 +148,21 @@ export const ARTICLE_CATALOG = {
     "title": "LangGraph는 Architecture가 아니다: Runtime의 정확한 위치",
     "path": "/ai/agents/langgraph-runtime-not-architecture/"
   },
+  "/ai/agents/multi-agent-parent-run-fan-out-fan-in/": {
+    "key": "multi-agent-parent-run-fan-out-fan-in",
+    "slug": "multi-agent-parent-run-fan-out-fan-in",
+    "language": "ko",
+    "section": "AI & AX",
+    "subsection": "Agents",
+    "contentType": "foundation",
+    "topics": "- ai-agents",
+    "primaryTopic": "ai-agents",
+    "freshness": "periodic",
+    "lastReviewed": "2026-10-12",
+    "nextReviewDate": "2027-01-12",
+    "title": "Multi-Agent는 Agent를 여러 개 띄우는 것이 아니다: Parent Run, Fan-out, Fan-in",
+    "path": "/ai/agents/multi-agent-parent-run-fan-out-fan-in/"
+  },
   "/ai/agents/state-is-not-event/": {
     "key": "state-is-not-event",
     "slug": "state-is-not-event",
@@ -588,6 +603,21 @@ export const ARTICLE_CATALOG = {
     "nextReviewDate": "2027-01-04",
     "title": "LangGraph Is Not Architecture: Where the Runtime Actually Belongs",
     "path": "/en/ai/agents/langgraph-runtime-not-architecture/"
+  },
+  "/en/ai/agents/multi-agent-parent-run-fan-out-fan-in/": {
+    "key": "multi-agent-parent-run-fan-out-fan-in",
+    "slug": "multi-agent-parent-run-fan-out-fan-in",
+    "language": "en",
+    "section": "AI & AX",
+    "subsection": "Agents",
+    "contentType": "foundation",
+    "topics": "- ai-agents",
+    "primaryTopic": "ai-agents",
+    "freshness": "periodic",
+    "lastReviewed": "2026-10-12",
+    "nextReviewDate": "2027-01-12",
+    "title": "Multi-Agent Is Not Multiple Agents: Parent Runs, Fan-out, and Fan-in",
+    "path": "/en/ai/agents/multi-agent-parent-run-fan-out-fan-in/"
   },
   "/en/ai/agents/state-is-not-event/": {
     "key": "state-is-not-event",

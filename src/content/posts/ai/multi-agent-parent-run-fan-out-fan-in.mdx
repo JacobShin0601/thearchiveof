@@ -2,7 +2,7 @@
 title: "Multi-Agent는 Agent를 여러 개 띄우는 것이 아니다: Parent Run, Fan-out, Fan-in"
 subtitle: "Child run의 lifecycle, 격리된 state와 부분 실패를 하나의 실행 트리로 다루는 법"
 description: "Multi-agent 실행을 durable parent-child run hierarchy로 모델링하고 fan-out, fan-in, context isolation, 부분 실패와 budget·cancellation 전파를 설계합니다."
-publishedDate: 2026-10-12
+publishedDate: 2026-10-11
 section: "AI & AX"
 subsection: "Agents"
 contentType: "foundation"
@@ -17,7 +17,7 @@ tags:
   - distributed-systems
 author: "Jacob Shin"
 featured: false
-draft: true
+draft: false
 comments: true
 language: "ko"
 translationKey: "multi-agent-parent-run-fan-out-fan-in"
@@ -55,7 +55,7 @@ import AgentMultiRunDiagrams from '../../../components/AgentMultiRunDiagrams.ast
   <strong>아니다. Production multi-agent는 여러 coroutine의 묶음이 아니라 parent와 child의 ownership, state, budget, failure와 cancellation을 연결한 실행 트리다.</strong> Child를 stable ID를 가진 durable run으로 만들고, bounded fan-out과 명시적인 fan-in policy로 결과를 합쳐야 Worker가 죽거나 일부 child가 실패해도 하나의 product result로 수렴한다.
 </AnswerBlock>
 
-앞선 글 [Worker를 더 늘리기 전에](/ai/agents/backpressure-quotas-admission-control/)에서는 admission controller가 안전한 capacity 안에서만 run을 수용하게 만들었다. 그런데 parent run 하나가 Worker 안에서 child agent 열 개를 생성하면 어떻게 될까?
+앞선 글 [Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/)에서는 durable worker가 어떤 실행 단위를 소유하고 재시도하는지 분리했다. 그런데 parent run 하나가 그 Worker 안에서 child agent 열 개를 생성하면 어떻게 될까?
 
 ```python
 results = await asyncio.gather(

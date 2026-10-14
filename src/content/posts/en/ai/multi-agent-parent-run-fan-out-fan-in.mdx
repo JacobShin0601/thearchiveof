@@ -2,7 +2,7 @@
 title: "Multi-Agent Is Not Multiple Agents: Parent Runs, Fan-out, and Fan-in"
 subtitle: "Model child lifecycles, isolated state, and partial failure as one execution tree"
 description: "Model multi-agent execution as a durable parent-child run hierarchy with bounded fan-out, deterministic fan-in, isolated context, and propagated budgets and cancellation."
-publishedDate: 2026-10-12
+publishedDate: 2026-10-11
 section: "AI & AX"
 subsection: "Agents"
 contentType: "foundation"
@@ -17,7 +17,7 @@ tags:
   - distributed-systems
 author: "Jacob Shin"
 featured: false
-draft: true
+draft: false
 comments: true
 language: "en"
 translationKey: "multi-agent-parent-run-fan-out-fan-in"
@@ -58,7 +58,7 @@ import AgentMultiRunDiagrams from '../../../../components/AgentMultiRunDiagrams.
   <strong>No. Production multi-agent execution is not a bundle of coroutines. It is an execution tree that connects parent and child ownership, state, budgets, failures, and cancellation.</strong> Give every child a stable durable run, then combine results through bounded fan-out and an explicit fan-in policy so worker failure and partial child failure still converge to one product result.
 </AnswerBlock>
 
-The previous article, [Before Adding More Workers](/en/ai/agents/backpressure-quotas-admission-control/), admitted runs only inside safe capacity. What happens when one admitted parent creates ten child agents inside its worker?
+The previous article, [A Worker Is Not a Thread](/en/ai/agents/worker-is-not-thread/), separated what a durable worker owns from what it retries. What happens when one parent run creates ten child agents inside that worker?
 
 ```python
 results = await asyncio.gather(
