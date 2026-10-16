@@ -114,6 +114,13 @@ export const bloomScenarios: Record<BloomScenarioName, BloomAssumptions> = {
 
 const YEARS = [2027, 2028, 2029, 2030] as const;
 
+export function scaleBloomDeliveredGw(
+  deliveredGw: BloomAssumptions['deliveredGw'],
+  scale: number,
+): BloomAssumptions['deliveredGw'] {
+  return [deliveredGw[0] * scale, deliveredGw[1] * scale, deliveredGw[2] * scale, deliveredGw[3] * scale];
+}
+
 function finite(name: string, value: number) {
   if (!Number.isFinite(value)) throw new RangeError(`${name} must be finite`);
 }
@@ -140,7 +147,7 @@ export function assertBloomInputs(inputs: BloomAssumptions) {
 export function calculateBloomDcf(inputs: BloomAssumptions) {
   assertBloomInputs(inputs);
   let installedGw = inputs.openingInstalledGw;
-  let priorRevenue = bloomReported.fy2026RevenueGuidanceMidpoint;
+  let priorRevenue: number = bloomReported.fy2026RevenueGuidanceMidpoint;
   const projections = YEARS.map((year, index) => {
     const deliveredGw = inputs.deliveredGw[index];
     const deliveredMw = deliveredGw * 1_000;
@@ -178,7 +185,7 @@ export function calculateBloomDcf(inputs: BloomAssumptions) {
 export function solveBloomDeliveryScale({ targetPrice, assumptions }: { targetPrice: number; assumptions: BloomAssumptions }) {
   finite('targetPrice', targetPrice);
   if (targetPrice <= 0) throw new RangeError('Target price must be positive');
-  const at = (scale: number) => calculateBloomDcf({ ...assumptions, deliveredGw: assumptions.deliveredGw.map((value) => value * scale) as BloomAssumptions['deliveredGw'] }).fairValuePerShare;
+  const at = (scale: number) => calculateBloomDcf({ ...assumptions, deliveredGw: scaleBloomDeliveredGw(assumptions.deliveredGw, scale) }).fairValuePerShare;
   if (targetPrice < at(0.2) || targetPrice > at(5)) return null;
   let low = 0.2; let high = 5;
   for (let i = 0; i < 100; i += 1) {
