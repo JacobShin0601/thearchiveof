@@ -24,7 +24,7 @@ test('Bloom valuation responds monotonically to core drivers', () => {
 });
 
 test('Bloom reverse delivery solver round-trips a reachable valuation', () => {
-  const scenario = { ...bloomScenarios.base, deliveredGw: [2.04, 2.4, 2.76, 3.12] as const };
+  const scenario = { ...bloomScenarios.base, deliveredGw: [2.04, 2.4, 2.76, 3.12] };
   const price = calculateBloomDcf(scenario).fairValuePerShare;
   const solved = solveBloomDeliveryScale({ targetPrice: price, assumptions: bloomScenarios.base });
   assert.ok(solved !== null);
