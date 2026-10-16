@@ -1,0 +1,55 @@
+---
+title: "Bloom Energy Valuation Lab: 2030년 몇 GW를 팔아야 현재 주가가 정당화될까?"
+subtitle: "인도 GW, MW당 장비 매출, 마진, 희석과 할인율을 바꾸며 현재 가격이 요구하는 조합을 역산한다."
+description: "Bloom Energy의 발표된 계약과 금융 프레임워크를 확정 매출로 읽지 않고, FCFF와 희석주당 가치로 연결하는 인터랙티브 모델."
+publishedDate: 2026-10-16
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, supply-chain, enterprise-ai]
+primaryTopic: portfolio
+tags: [bloom-energy, valuation, data-centers, energy, fuel-cell]
+author: "Jacob Shin"
+draft: true
+comments: true
+language: "ko"
+translationKey: "bloom-energy-valuation-lab"
+freshness: time-sensitive
+lastReviewed: 2026-10-16
+nextReviewDate: 2026-10-23
+dataThrough: 2026-10-16
+methodology: "Q2 2026 10-Q/A, 회사 실적자료 및 계약 발표를 출발점으로 한다. 인도 GW·단가·마진·CAPEX·운전자본·희석은 가정이며, 옵션·금융 프레임워크·프로젝트 총투자액을 Bloom 매출로 취급하지 않는다."
+references:
+  - title: "Bloom Energy Q2 2026 Form 10-Q/A"
+    url: "https://www.sec.gov/Archives/edgar/data/1664703/000162828026050325/be-20260630.htm"
+    publisher: "SEC"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import EquityDecisionChart from '../../../components/interactive/EquityDecisionChart.astro';
+import BloomEnergyValuationLab from '../../../components/interactive/BloomEnergyValuationLab.astro';
+import decision from '../../../data/equity-decisions/be-2026-10-15.json';
+
+<EquityDecisionChart decision={decision} language="ko" />
+
+<AnswerBlock question="이 Lab은 무엇을 계산하고 무엇을 계산하지 않는가?">
+  이 Lab은 인도 GW가 제품·설치·서비스 매출, EBIT, FCFF, 희석 후 보통주 가치로 전환되는 과정을 계산한다. Oracle의 최대 2.8GW, Brookfield의 $25B 프레임워크, AEP의 약 $4B 프로젝트를 Bloom의 확정 매출로 넣지 않는다. 결과는 가격목표가 아니라, 현재 가격을 지지하려면 어떤 조합이 필요한지 보여 주는 민감도 도구다.
+</AnswerBlock>
+
+의사결정은 **비중 축소**다. 2026년 10월 15일 종가 $236.30에서 시작한다. 이 도구는 이후 종가를 기록하는 차트와, 그 날짜에 설정한 FCFF 가정을 분리한다. 가격 변동은 투자 판단의 자동 채점이 아니다.
+
+<BloomEnergyValuationLab language="ko" />
+
+## 읽는 순서
+
+Base는 2030년 2.6GW 인도와 18.8% EBIT 마진을 전제한다. 먼저 제품 매출총이익률과 영업비용률을 한 번에 하나만 바꿔 보자. 매출이 커져도 두 값이 함께 개선되지 않으면 FCFF와 주당 가치는 충분히 따라오지 않는다.
+
+그다음 출하량을 높여 보자. 이 값은 발표된 최대 옵션 용량이 아니라 **실제로 인도·매출 인식되는 연간 용량**이다. Bull 4.0GW는 발표된 2GW 생산능력을 초과하므로, 추가 증설·수율·수요가 모두 필요하다.
+
+마지막으로 Reverse Valuation을 읽는다. 현재가에 필요한 2030년 인도량은 시장의 실제 예측이 아니라, 다른 가정을 고정했을 때 기대치가 얼마나 커지는지 보여 주는 결과다.
+
+## 모델의 경계
+
+상반기 CFO에는 고객선수금·이연수익과 매입채무의 큰 증가가 포함돼 있다. 따라서 이 Lab은 고객 선급금 증가를 영구 현금흐름으로 복사하지 않는다. 스택 수명, 프로젝트별 가격, 정확한 서비스 계약, 전환증권의 세부 조건은 공개범위가 제한적이므로 정밀한 목표주가처럼 읽어서는 안 된다.
+
+[분석 글](/investing/markets/bloom-energy-ai-power-valuation/)은 계약의 확정성, 고객 집중도, Oracle 워런트와 경쟁 리스크를 함께 설명한다.
