@@ -1,0 +1,55 @@
+---
+title: "Bloom Energy Valuation Lab: How Many Gigawatts Must Bloom Sell to Justify Today’s Price?"
+subtitle: "Change delivered GW, equipment revenue per MW, margins, dilution, and discounting to test the combination implied by the market price."
+description: "An interactive FCFF model that separates Bloom Energy’s announced contracts and financing frameworks from common-equity value."
+publishedDate: 2026-10-16
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, supply-chain, enterprise-ai]
+primaryTopic: portfolio
+tags: [bloom-energy, valuation, data-centers, energy, fuel-cell]
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "en"
+translationKey: "bloom-energy-valuation-lab"
+freshness: time-sensitive
+lastReviewed: 2026-10-16
+nextReviewDate: 2026-10-23
+dataThrough: 2026-10-16
+methodology: "Anchored in the Q2 2026 10-Q/A, company results, and contract announcements. Delivery, pricing, margin, CAPEX, working capital and dilution are assumptions; options, financing frameworks and total project investment are not Bloom revenue."
+references:
+  - title: "Bloom Energy Q2 2026 Form 10-Q/A"
+    url: "https://www.sec.gov/Archives/edgar/data/1664703/000162828026050325/be-20260630.htm"
+    publisher: "SEC"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import EquityDecisionChart from '../../../../components/interactive/EquityDecisionChart.astro';
+import BloomEnergyValuationLab from '../../../../components/interactive/BloomEnergyValuationLab.astro';
+import decision from '../../../../data/equity-decisions/be-2026-10-15.json';
+
+<EquityDecisionChart decision={decision} language="en" />
+
+<AnswerBlock question="What does this Lab calculate—and what does it deliberately leave out?">
+  It links delivered GW to product, installation and service revenue, EBIT, FCFF, and diluted common-equity value. It does not convert Oracle’s 2.8GW ceiling, Brookfield’s $25B financing framework, or AEP’s approximately $4B project investment into Bloom revenue. The output is a sensitivity tool, not a price target.
+</AnswerBlock>
+
+The recorded stance is **Sell** at the October 15, 2026 close of $236.30. The chart records completed closes after that date; the model tests the dated FCFF assumptions. Later price movement is feedback, not an automatic score.
+
+<BloomEnergyValuationLab language="en" />
+
+## How to use it
+
+The Base case assumes 2.6GW of 2030 deliveries and an 18.8% EBIT margin. Change product gross margin and operating expense ratio one at a time. Revenue growth alone does not guarantee an equivalent increase in FCFF or per-share value.
+
+Then change deliveries. This is annual capacity actually delivered and recognized as revenue—not maximum option capacity in an announcement. The 4.0GW Bull case is above announced 2GW capacity, so it requires additional expansion, yield, and demand.
+
+Finally, read the reverse result as an expectation test. It does not say the market literally forecasts one delivery number; it shows how large the combined assumptions must become if other inputs stay fixed.
+
+## Limits
+
+First-half operating cash flow includes material customer-deposit/deferred-revenue and payable movements. The model does not repeat those timing effects as perpetual cash flow. Stack life, project pricing, exact service contracts, and convertible-security details are not fully public, so precision should not be confused with certainty.
+
+Read the [research article](/en/investing/markets/bloom-energy-ai-power-valuation/) for contract certainty, customer concentration, Oracle warrant economics, and competitive risks.
