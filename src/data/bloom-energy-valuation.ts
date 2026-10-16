@@ -128,7 +128,7 @@ export function assertBloomInputs(inputs: BloomAssumptions) {
     finite(key, inputs[key]);
     if (inputs[key] < 0 || inputs[key] > 1) throw new RangeError(`${key} must be between 0 and 1`);
   }
-  for (const value of inputs.deliveredGw) if (!Number.isFinite(value) || value < 0 || value > 10) throw new RangeError('Delivered GW must be between 0 and 10');
+  for (const value of inputs.deliveredGw) if (!Number.isFinite(value) || value < 0 || value > 25) throw new RangeError('Delivered GW must be between 0 and 25');
   if (inputs.equipmentRevenuePerMw <= 0 || inputs.equipmentRevenuePerMw > 10) throw new RangeError('Equipment revenue per MW must be positive and plausible');
   if (inputs.serviceRevenuePerMw < 0 || inputs.serviceRevenuePerMw > 2) throw new RangeError('Service revenue per MW must be between 0 and 2');
   if (inputs.openingInstalledGw < 0 || inputs.openingInstalledGw > 30) throw new RangeError('Opening installed GW must be between 0 and 30');
