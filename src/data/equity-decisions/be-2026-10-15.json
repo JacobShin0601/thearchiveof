@@ -4,7 +4,7 @@
   "name": { "ko": "Bloom Energy Corporation", "en": "Bloom Energy Corporation" },
   "venue": "NYSE",
   "currency": "USD",
-  "stance": "reduce",
+  "stance": "sell",
   "decisionDate": "2026-10-15",
   "decisionClose": 236.30,
   "priceField": "close",
