@@ -4,8 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [develop]
-    paths:
-      - .github/workflows/deploy-develop-preview.yml
 
 concurrency:
   group: deploy-develop-preview
