@@ -1,0 +1,14 @@
+{
+  "id": "be-2026-10-15",
+  "ticker": "BE",
+  "name": { "ko": "Bloom Energy Corporation", "en": "Bloom Energy Corporation" },
+  "venue": "NYSE",
+  "currency": "USD",
+  "stance": "sell",
+  "decisionDate": "2026-10-15",
+  "decisionClose": 236.30,
+  "priceField": "close",
+  "feed": { "kind": "yahoo", "symbol": "BE" },
+  "source": { "name": "StockAnalysis historical prices", "url": "https://stockanalysis.com/stocks/be/history/" },
+  "closes": [{ "date": "2026-10-15", "close": 236.30 }]
+}
