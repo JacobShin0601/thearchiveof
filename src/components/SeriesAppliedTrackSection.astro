@@ -1,6 +1,6 @@
 ---
 import type { CollectionEntry } from 'astro:content';
-import PostCard from './PostCard.astro';
+import { postPath } from '../consts';
 import {
   AGENT_ENGINEERING_APPLIED_TRACKS,
   appliedTrackDetailMeta,
@@ -26,21 +26,36 @@ const countLabel = isKo ? `${trackPosts.length}편` : `${trackPosts.length} arti
     <h2 id="series-applied-track">{meta.trackTitle[language]}</h2>
     <p class="series-section-dek">{meta.sectionDek[language]}</p>
   </header>
-  <a class="applied-track-card" href={trackHref}>
-    <p class="applied-track-eyebrow">{isKo ? `Applied Track · ${countLabel}` : `Applied Track · ${countLabel.toUpperCase()}`}</p>
-    <p class="applied-track-title">{meta.trackTitle[language]}</p>
-    <p class="applied-track-dek">
-      {isKo
-        ? '내부 GPU에서 모델을 선택하고, 튜닝하고, 병목을 진단하는 실전 과정'
-        : 'Choose, tune, and troubleshoot models served on internal GPUs.'}
-    </p>
+  <a class="applied-track-intro" href={trackHref}>
+    <div>
+      <p class="applied-track-eyebrow">{isKo ? `Applied Track · ${countLabel}` : `Applied Track · ${countLabel.toUpperCase()}`}</p>
+      <p class="applied-track-title">{meta.trackTitle[language]}</p>
+      <p class="applied-track-dek">
+        {isKo
+          ? '내부 GPU에서 모델을 선택하고, 튜닝하고, 병목을 진단하는 실전 과정'
+          : 'Choose, tune, and troubleshoot models served on internal GPUs.'}
+      </p>
+    </div>
+    <span class="applied-track-arrow" aria-hidden="true">→</span>
   </a>
   {trackPosts.length > 0 ? (
-    <div class="post-grid series-section-grid">
-      {trackPosts.map((post) => (
-        <PostCard post={post} />
+    <ol class="applied-article-list">
+      {trackPosts.map((post, index) => (
+        <li>
+          <span class="applied-article-order">{String(index + 1).padStart(2, '0')}</span>
+          <div class="applied-article-copy">
+            <p class="applied-article-meta">
+              <span>{post.data.contentType}</span>
+              <span>{post.data.publishedDate.toLocaleDateString(language === 'ko' ? 'ko-KR' : 'en-US', { year: 'numeric', month: language === 'ko' ? 'long' : 'short', day: 'numeric' })}</span>
+              {post.data.draft && <span class="draft-label">{isKo ? '미리보기 초안' : 'Preview draft'}</span>}
+            </p>
+            <h3><a href={postPath(post)}>{post.data.title}</a></h3>
+            {(post.data.subtitle || post.data.description) && <p>{post.data.subtitle || post.data.description}</p>}
+          </div>
+          <span class="applied-article-arrow" aria-hidden="true">→</span>
+        </li>
       ))}
-    </div>
+    </ol>
   ) : (
     <p class="empty-state">
       {isKo ? '이 트랙의 글이 준비 중입니다.' : 'Articles for this track are being prepared.'}
@@ -49,18 +64,20 @@ const countLabel = isKo ? `${trackPosts.length}편` : `${trackPosts.length} arti
 </section>
 
 <style>
-  .applied-track-card {
+  .applied-track-intro {
     display: grid;
-    gap: 0.35rem;
-    margin-bottom: 1.25rem;
-    padding: 1rem 1.15rem;
-    border: 1px solid var(--line);
-    background: var(--paper-deep);
-    text-decoration: none;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 0;
+    padding: clamp(1rem, 3vw, 1.35rem);
+    border-top: 2px solid var(--ink);
+    border-bottom: 1px solid var(--line);
     color: inherit;
+    text-decoration: none;
   }
-  .applied-track-card:hover {
-    border-color: var(--accent);
+  .applied-track-intro:hover {
+    background: var(--paper-deep);
   }
   .applied-track-eyebrow {
     margin: 0;
@@ -75,8 +92,66 @@ const countLabel = isKo ? `${trackPosts.length}편` : `${trackPosts.length} arti
     font-size: 1.05rem;
   }
   .applied-track-dek {
-    margin: 0;
+    max-width: 42rem;
+    margin: 0.4rem 0 0;
     font-size: 0.9rem;
+    line-height: 1.55;
     color: var(--muted);
+  }
+  .applied-track-arrow,
+  .applied-article-arrow {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--line);
+    color: var(--accent);
+  }
+  .applied-article-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .applied-article-list li {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr) 2rem;
+    gap: 1rem;
+    align-items: start;
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .applied-article-order {
+    padding-top: 0.3rem;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+  .applied-article-copy { min-width: 0; }
+  .applied-article-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin: 0 0 0.35rem;
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .draft-label { color: var(--accent); }
+  .applied-article-copy h3 { margin: 0; font-size: clamp(1rem, 2vw, 1.2rem); line-height: 1.45; }
+  .applied-article-copy h3 a { color: inherit; text-decoration: none; }
+  .applied-article-copy h3 a:hover { color: var(--accent); }
+  .applied-article-copy > p:last-child {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
+  @media (max-width: 680px) {
+    .applied-article-list li { grid-template-columns: 2.25rem minmax(0, 1fr); gap: 0.75rem; }
+    .applied-article-arrow { display: none; }
   }
 </style>
