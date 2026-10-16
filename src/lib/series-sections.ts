@@ -38,46 +38,66 @@ export const SERIES_PART_ORDER: Record<string, readonly SeriesPartId[]> = {
 
 export const SERIES_PART_META: Record<
   SeriesPartId,
-  { index: number; title: LocalizedCopy; description: LocalizedCopy }
+  { index: number; title: LocalizedCopy; description: LocalizedCopy; question: LocalizedCopy }
 > = {
   design: {
     index: 1,
     title: { ko: '설계와 전체 구조', en: 'Design and overall structure' },
     description: {
       ko: '에이전트의 제어 패턴과 이를 실행할 backend의 전체 책임 경계를 먼저 그립니다.',
-      en: 'Agent control patterns and the backend’s overall boundaries of responsibility before execution details.',
+      en: 'Map agent control patterns and the backend’s boundaries of responsibility before implementation details.',
+    },
+    question: {
+      ko: 'Agent와 backend는 각각 무엇을 책임해야 하는가?',
+      en: 'What should the agent own, and what belongs to the backend?',
     },
   },
   execution: {
     index: 2,
-    title: { ko: '실행과 동시성', en: 'Execution and concurrency' },
+    title: { ko: '실행과 오케스트레이션', en: 'Execution and orchestration' },
     description: {
-      ko: '비동기, 스레드, 워커로 실행을 분리하는 방법',
-      en: 'Async, threads, and workers for reliable execution',
+      ko: '비동기, 스레드, 워커와 parent-child run으로 실행을 분리하고 조정합니다.',
+      en: 'Separate and coordinate work with async, threads, workers, and parent-child runs.',
+    },
+    question: {
+      ko: '오래 걸리는 실행을 어떻게 분리하고 병렬화할 것인가?',
+      en: 'How should long-running work be separated and parallelized?',
     },
   },
   state: {
     index: 3,
     title: { ko: '상태와 내구성', en: 'State and durability' },
     description: {
-      ko: '상태 저장, 이벤트, 내구성의 경계',
-      en: 'Where state lives and how it differs from events',
+      ko: '영속 상태, 실시간 투영, event와 session ownership의 경계를 구분합니다.',
+      en: 'Separate durable state, live projections, events, and session ownership.',
+    },
+    question: {
+      ko: '실행 상태는 어디에 저장되고 누구에게 속하는가?',
+      en: 'Where does execution state live, and who owns it?',
     },
   },
   safety: {
     index: 4,
-    title: { ko: '안전한 실행과 복구', en: 'Safe Execution and Recovery' },
+    title: { ko: '안전한 실행과 복구', en: 'Safe execution and recovery' },
     description: {
-      ko: '승인, 멱등성, 재시도와 부수 효과의 경계',
-      en: 'Approval, idempotency, retries, and side-effect boundaries',
+      ko: '승인, 멱등성, 재시도, 취소, checkpoint와 권한 경계를 하나의 복구 계약으로 연결합니다.',
+      en: 'Connect approval, idempotency, retries, cancellation, checkpoints, and permissions into a recovery contract.',
+    },
+    question: {
+      ko: '중복·장애·취소·권한 오류를 어떻게 견딜 것인가?',
+      en: 'How does the system survive duplicates, failures, cancellation, and permission errors?',
     },
   },
   delivery: {
     index: 5,
-    title: { ko: '전달과 런타임 경계', en: 'Delivery and runtime boundaries' },
+    title: { ko: '전달과 운영 경계', en: 'Delivery and operational boundaries' },
     description: {
-      ko: '스트리밍과 runtime 경계를 넘는 전달 계층',
-      en: 'Streaming APIs and runtime boundaries',
+      ko: '스트리밍, runtime, 배포, 관측과 과부하 제어를 프로덕션 전달 계층으로 묶습니다.',
+      en: 'Unify streaming, runtimes, deployment, observability, and overload control as the production delivery layer.',
+    },
+    question: {
+      ko: '실행 사실을 어떻게 전달하고 관찰하며 운영할 것인가?',
+      en: 'How should execution facts be delivered, observed, and operated?',
     },
   },
 };
