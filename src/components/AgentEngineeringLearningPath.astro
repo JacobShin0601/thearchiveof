@@ -60,20 +60,6 @@ const startPoints = startPointDefinitions.flatMap((definition) => {
           : 'A field-tested learning path for designing agent backends that remain understandable and recoverable in production.'}
       </p>
     </div>
-    <dl class="path-stats" aria-label={isKo ? '시리즈 구성' : 'Series composition'}>
-      <div>
-        <dt>{String(partIds.length).padStart(2, '0')}</dt>
-        <dd>{isKo ? '학습 단계' : 'Learning stages'}</dd>
-      </div>
-      <div>
-        <dt>{String(posts.length).padStart(2, '0')}</dt>
-        <dd>{isKo ? '핵심 글' : 'Core articles'}</dd>
-      </div>
-      <div>
-        <dt>01→05</dt>
-        <dd>{isKo ? '설계에서 운영까지' : 'Design to operations'}</dd>
-      </div>
-    </dl>
   </section>
 
   <nav class="stage-map" aria-label={isKo ? 'Agent Engineering 학습 단계' : 'Agent Engineering learning stages'}>
@@ -193,33 +179,6 @@ const startPoints = startPointDefinitions.flatMap((definition) => {
     max-width: 47rem;
     margin: 0.8rem 0 0;
     color: var(--muted);
-  }
-
-  .path-stats {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1px;
-    margin: 0;
-    background: var(--line);
-    border: 1px solid var(--line);
-  }
-
-  .path-stats div {
-    padding: 0.9rem 0.75rem;
-    background: var(--paper);
-  }
-
-  .path-stats dt {
-    font-family: var(--font-display);
-    font-size: 1.2rem;
-    font-weight: 700;
-  }
-
-  .path-stats dd {
-    margin: 0.25rem 0 0;
-    color: var(--muted);
-    font-size: 0.72rem;
-    line-height: 1.35;
   }
 
   .stage-map {
@@ -464,7 +423,6 @@ const startPoints = startPointDefinitions.flatMap((definition) => {
   }
 
   @media (max-width: 680px) {
-    .path-stats,
     .start-point-grid,
     .stage-map {
       grid-template-columns: 1fr;
