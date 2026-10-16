@@ -18,7 +18,7 @@ test('Bloom FCFF bridge is internally consistent', () => {
 
 test('Bloom valuation responds monotonically to core drivers', () => {
   const base = calculateBloomDcf(bloomScenarios.base);
-  assert.ok(calculateBloomDcf({ ...bloomScenarios.base, productGrossMargin: .32 }).fairValuePerShare > base.fairValuePerShare);
+  assert.ok(calculateBloomDcf({ ...bloomScenarios.base, productGrossMargin: .38 }).fairValuePerShare > base.fairValuePerShare);
   assert.ok(calculateBloomDcf({ ...bloomScenarios.base, discountRate: .11 }).fairValuePerShare < base.fairValuePerShare);
   assert.ok(calculateBloomDcf({ ...bloomScenarios.base, dilutedShares: 250 }).fairValuePerShare < base.fairValuePerShare);
 });
