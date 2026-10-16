@@ -39,7 +39,7 @@ import AnswerBlock from '../../../../components/AnswerBlock.astro';
 import EquityStance from '../../../../components/EquityStance.astro';
 import decision from '../../../../data/equity-decisions/be-2026-10-15.json';
 
-<EquityStance decision={decision} language="en" labHref="/en/coding/experiments/bloom-energy-valuation-lab/" />
+<EquityStance decision={decision} language="en" />
 
 <AnswerBlock question="Is Bloom Energy Corporation (NYSE: BE) a strong AI-power business—and is it a good stock at today’s price?">
   They are different questions. Data-center power scarcity and Bloom’s revenue acceleration are real. Fast onsite generation can be valuable while grid connections and turbine supply remain constrained.
@@ -113,7 +113,7 @@ The Base case assumes 2.6GW of 2030 deliveries, 34% product gross margin, 13% op
 
 Holding Base unit economics and discounting constant, a simple reverse calculation requires roughly **12GW** of 2030 deliveries to reach the reference price. That is not a prediction that the market literally expects 12GW. It is a way to show how much stronger the combined delivery, price, margin, discount-rate, and post-2030-growth assumptions must be.
 
-The [Valuation Lab](/en/coding/experiments/bloom-energy-valuation-lab/) lets readers change those assumptions directly.
+The underlying model retains those assumptions as a separate review tool.
 
 ## What could prove this too conservative?
 
