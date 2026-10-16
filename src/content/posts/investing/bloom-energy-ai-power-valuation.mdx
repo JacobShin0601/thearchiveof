@@ -48,7 +48,7 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 import EquityStance from '../../../components/EquityStance.astro';
 import decision from '../../../data/equity-decisions/be-2026-10-15.json';
 
-<EquityStance decision={decision} language="ko" labHref="/coding/experiments/bloom-energy-valuation-lab/" />
+<EquityStance decision={decision} language="ko" />
 
 <AnswerBlock question="Bloom Energy Corporation (NYSE: BE)는 좋은 AI 전력 수혜 기업인가, 그리고 지금 좋은 주식인가?">
   내 결론은 사업과 주식을 분리해서 봐야 한다는 것이다. 데이터센터 전력 부족과 Bloom의 매출 성장은 모두 실제다. 현장 발전을 빠르게 설치하는 능력은 2027~2029년에 희소한 가치를 가질 수 있다.
@@ -122,7 +122,7 @@ Base에는 2.6GW 인도, 제품 매출총이익률 34%, 영업비용률 13%, 할
 
 현재 가격은 Base의 단가·마진·할인율을 고정한 단순 역산에서 2030년 약 **12GW** 인도를 요구한다. 이 수치는 시장이 정확히 12GW를 예측한다는 뜻이 아니다. 높은 가격은 출하량, ASP, 마진, 할인율, 그리고 그 이후의 성장 중 여러 변수가 동시에 Base보다 훨씬 좋아져야 한다는 뜻이다.
 
-[Valuation Lab](/coding/experiments/bloom-energy-valuation-lab/)에서는 이 조합을 직접 바꿔 볼 수 있다. 특히 2030년 매출이 커도, 제품 마진과 영업비용이 정상화되면 현재 가격을 지지하지 못하는 모습을 확인할 수 있다.
+모델은 이 조합을 직접 바꿔 볼 수 있도록 별도 검증용으로 유지한다. 2030년 매출이 커도 제품 마진과 영업비용이 정상화되면 현재 가격을 지지하지 못한다는 점이 핵심이다.
 
 ## 내가 틀릴 수 있는 이유와 다음 실적의 검증 기준
 
