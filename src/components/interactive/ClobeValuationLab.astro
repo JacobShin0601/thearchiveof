@@ -1,0 +1,105 @@
+---
+interface Props { language?: 'ko' | 'en'; }
+const { language = 'ko' } = Astro.props;
+const en = language === 'en';
+---
+<section class="clobe-lab" data-clobe-lab data-language={language} aria-labelledby="clobe-lab-title">
+  <header>
+    <div>
+      <p class="kicker">THE ARCHIVE / PRIVATE MARKETS LAB</p>
+      <h3 id="clobe-lab-title">Clobe AI Series A Return Simulator</h3>
+      <p>{en ? 'Separate business value from an investor’s entry price. Change investment, dilution, exit earnings, and the multiple to update the maximum acceptable pre-money and expected IRR.' : '사업의 가치와 투자자의 진입 가격을 분리합니다. 투자금·희석·Exit 이익·멀티플을 바꾸면 최대 허용 Pre-money와 예상 IRR이 함께 갱신됩니다.'}</p>
+    </div>
+    <span class="badge">{en ? 'Assumption-based' : '가정 기반'}</span>
+  </header>
+
+  <div class="presets" role="group" aria-label="시나리오 프리셋">
+    <span>시나리오</span><button type="button" data-preset="bear">Bear</button><button type="button" data-preset="base" class="active" aria-pressed="true">Base</button><button type="button" data-preset="bull">Bull</button>
+  </div>
+
+  <div class="headline" aria-live="polite">
+    <div class="primary"><span>최대 Pre-money</span><strong data-out="maxPreMoney">2,863억</strong><small>선택한 목표 IRR 충족</small></div>
+    <div><span>예상 IRR</span><strong data-out="irr">41.2%</strong><small data-out="moic">4.0× MOIC</small></div>
+    <div><span>2031 Exit 지분가치</span><strong data-out="exitEquityValue">10,922억</strong><small data-out="netIncome">순이익 607억</small></div>
+    <div><span>Exit 시 보유 지분</span><strong data-out="ownershipAtExit">7.3%</strong><small data-out="proceeds">회수금 795억</small></div>
+  </div>
+
+  <div class="lab-grid">
+    <section class="controls">
+      <h4>01 / 투자 조건</h4>
+      <label><span>진입 Pre-money <output data-value="entryPreMoney">2,000억</output></span><input name="entryPreMoney" type="range" min="500" max="10000" step="100" value="2000" /></label>
+      <label><span>투자금 <output data-value="investment">200억</output></span><input name="investment" type="range" min="50" max="500" step="10" value="200" /></label>
+      <label><span>후속·ESOP 누적 희석 <output data-value="cumulativeDilution">20.0%</output></span><input name="cumulativeDilution" type="range" min="0" max="50" step="2.5" value="20" /></label>
+      <label><span>목표 IRR <output data-value="requiredIrr">30.0%</output></span><input name="requiredIrr" type="range" min="20" max="50" step="2.5" value="30" /></label>
+    </section>
+    <section class="controls">
+      <h4>02 / 사업·Exit 가정</h4>
+      <label><span>2027년 회계상 매출 <output data-value="revenue2027">800억</output></span><input name="revenue2027" type="range" min="200" max="1500" step="50" value="800" /></label>
+      <label><span>2027–31 매출 CAGR <output data-value="revenueGrowth">35.5%</output></span><input name="revenueGrowth" type="range" min="0" max="60" step="0.1" value="35.5" /></label>
+      <label><span>2031 영업이익률 <output data-value="operatingMargin">30.0%</output></span><input name="operatingMargin" type="range" min="5" max="60" step="2.5" value="30" /></label>
+      <label><span>Exit P/E <output data-value="exitPe">18.0×</output></span><input name="exitPe" type="range" min="8" max="30" step="1" value="18" /></label>
+      <label><span>Exit 시점 <output data-value="yearsToExit">4년</output></span><input name="yearsToExit" type="range" min="3" max="6" step="1" value="4" /></label>
+    </section>
+  </div>
+
+  <section class="bridge">
+    <h4>03 / 투자자 회수 브리지</h4>
+    <div class="bridge-grid">
+      <div><span>2031 매출</span><strong data-out="revenue2031">2,697억</strong></div>
+      <div><span>2031 영업이익</span><strong data-out="operatingIncome2031">809억</strong></div>
+      <div><span>2031 순이익*</span><strong data-out="netIncomeBridge">607억</strong></div>
+      <div><span>Exit 지분가치</span><strong data-out="exitEquityValueBridge">10,922억</strong></div>
+      <div><span>투자 직후 지분</span><strong data-out="ownershipAtEntry">9.1%</strong></div>
+      <div><span>Exit 회수금</span><strong data-out="proceedsBridge">795억</strong></div>
+    </div>
+    <p>*세율 25%를 적용한 단순 모델입니다. 실제 우선주 조건, 순이자·신용손실, 상환권과 청산우선권은 별도 실사 항목입니다.</p>
+  </section>
+
+  <section class="price-grid-section">
+    <h4>04 / 진입가격별 수익률</h4>
+    <div class="table-scroll"><table><thead><tr><th>Pre-money</th><th>Exit 회수금</th><th>MOIC</th><th>IRR</th></tr></thead><tbody data-returns></tbody></table></div>
+  </section>
+  <p class="note">이 Lab은 2027년부터 2031년까지의 가정 기반 VC Method입니다. 회사의 공개 실적이나 실제 투자 제안 가격이 아닙니다.</p>
+</section>
+
+<script>
+  import { calculateClobeValuation, clobeScenarios } from '../../data/clobe-valuation';
+  import { track } from '../../scripts/track';
+
+  document.querySelectorAll<HTMLElement>('[data-clobe-lab]').forEach((root) => {
+    const input = (name: string) => root.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
+    const value = (name: string) => Number(input(name).value);
+    const write = (name: string, text: string) => { const target = root.querySelector<HTMLElement>(`[data-out="${name}"]`); if (target) target.textContent = text; };
+    const en = root.dataset.language === 'en';
+    const won = (amount: number) => en ? `KRW ${(amount / 10).toFixed(amount % 10 === 0 ? 0 : 1)}bn` : `${Math.round(amount).toLocaleString('ko-KR')}억`;
+    const pct = (amount: number) => `${(amount * 100).toFixed(1)}%`;
+    const assumptions = () => ({ entryPreMoney: value('entryPreMoney'), investment: value('investment'), cumulativeDilution: value('cumulativeDilution') / 100, revenue2027: value('revenue2027'), revenueGrowth: value('revenueGrowth') / 100, operatingMargin: value('operatingMargin') / 100, taxRate: .25, exitPe: value('exitPe'), requiredIrr: value('requiredIrr') / 100, yearsToExit: value('yearsToExit') });
+    // Sliders keep percentage-point inputs (for example, 30 for 30%).
+    // Convert only at the display boundary; model assumptions convert them to decimals separately.
+    const inputPct = (percentagePoints: number) => pct(percentagePoints / 100);
+    const labels: Record<string, (n:number)=>string> = { entryPreMoney: won, investment: won, cumulativeDilution: inputPct, requiredIrr: inputPct, revenue2027: won, revenueGrowth: inputPct, operatingMargin: inputPct, exitPe: (n) => `${n.toFixed(1)}×`, yearsToExit: (n) => en ? `${n} yr` : `${n}년` };
+    const render = () => {
+      const model = calculateClobeValuation(assumptions());
+      root.querySelectorAll<HTMLInputElement>('input').forEach((node) => { const out = root.querySelector<HTMLOutputElement>(`[data-value="${node.name}"]`); if (out) out.value = labels[node.name](Number(node.value)); });
+      write('maxPreMoney', won(Math.max(0, model.maximumPreMoney))); write('irr', pct(model.irr)); write('moic', `${model.moic.toFixed(1)}× MOIC`); write('exitEquityValue', won(model.exitEquityValue)); write('netIncome', `${en ? 'Net income ' : '순이익 '}${won(model.netIncome2031)}`); write('ownershipAtExit', pct(model.ownershipAtExit)); write('proceeds', `${en ? 'Proceeds ' : '회수금 '}${won(model.exitProceeds)}`);
+      write('revenue2031', won(model.revenue2031)); write('operatingIncome2031', won(model.operatingIncome2031)); write('netIncomeBridge', won(model.netIncome2031)); write('exitEquityValueBridge', won(model.exitEquityValue)); write('ownershipAtEntry', pct(model.ownershipAtEntry)); write('proceedsBridge', won(model.exitProceeds));
+      const candidates = [1000, 2000, 3000, 5000, 8000, 10000]; const tbody = root.querySelector<HTMLTableSectionElement>('[data-returns]')!; tbody.replaceChildren(...candidates.map((entryPreMoney) => { const item = calculateClobeValuation({ ...assumptions(), entryPreMoney }); const tr = document.createElement('tr'); if (entryPreMoney === value('entryPreMoney')) tr.className = 'selected'; tr.innerHTML = `<th scope="row">${won(entryPreMoney)}</th><td>${won(item.exitProceeds)}</td><td>${item.moic.toFixed(1)}×</td><td class="${item.irr >= item.requiredIrr ? 'pass' : 'fail'}">${pct(item.irr)}</td>`; return tr; }));
+    };
+    const setPreset = (name: keyof typeof clobeScenarios) => { const source = clobeScenarios[name]; Object.entries(source).forEach(([key, item]) => { if (key === 'taxRate') return; const node = input(key); node.value = String(['cumulativeDilution','revenueGrowth','operatingMargin','requiredIrr'].includes(key) ? item * 100 : item); }); root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => { const active = button.dataset.preset === name; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); }); render(); };
+    let tracked = false;
+      root.querySelectorAll<HTMLInputElement>('input').forEach((node) => node.addEventListener('input', () => { root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => { button.classList.remove('active'); button.setAttribute('aria-pressed', 'false'); }); render(); if (!tracked) { track('code_run', { articleSlug: 'v-ic-clobe-ai-series-a-valuation-lab', language: en ? 'en' : 'ko', component: 'clobe-valuation-lab-v1' }); tracked = true; } }));
+    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => button.addEventListener('click', () => setPreset(button.dataset.preset as keyof typeof clobeScenarios)));
+    render();
+  });
+</script>
+
+<style>
+  .clobe-lab{--ink:#20382c;--line:#d9ddd3;--soft:#f2f5ef;--accent:#315b45;--muted:#686d65;margin:2rem 0;padding:clamp(1rem,3vw,2rem);border:1px solid var(--line);border-radius:22px;background:#f8f9f5;color:#242b25;font-family:var(--sans);box-shadow:0 12px 35px rgba(23,45,31,.06)}.clobe-lab header{display:flex;justify-content:space-between;gap:1rem}.kicker{margin:0;color:#4e6857;font:700 .68rem/1.3 ui-monospace,monospace;letter-spacing:.12em}.clobe-lab h3{margin:.2rem 0;font:700 clamp(1.5rem,3vw,2.2rem)/1.2 var(--serif)}.clobe-lab header p:not(.kicker){max-width:660px;margin:.45rem 0 0;color:var(--muted)}.badge{height:max-content;white-space:nowrap;border:1px solid #cbd7c9;border-radius:999px;background:#eaf1e8;padding:.35rem .65rem;color:#365c42;font-size:.75rem;font-weight:700}.presets{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;margin:1.25rem 0}.presets>span{margin-right:.25rem;color:var(--muted);font-size:.74rem;font-weight:700}.presets button{min-height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:.42rem .7rem;color:var(--ink);font:700 .76rem/1 var(--sans);cursor:pointer}.presets button.active{border-color:var(--ink);background:var(--ink);color:#fff}.headline{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem}.headline>div{display:flex;min-height:110px;flex-direction:column;justify-content:center;border:1px solid var(--line);border-radius:13px;background:#fff;padding:.85rem}.headline .primary{background:var(--ink);color:#fff}.headline span{color:var(--muted);font-size:.72rem;font-weight:700}.headline .primary span,.headline .primary small{color:#c8d8cf}.headline strong{margin:.2rem 0;font:700 clamp(1.35rem,3vw,2rem)/1.1 var(--serif);font-variant-numeric:tabular-nums}.headline small{color:var(--muted);font-size:.68rem}.lab-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-top:1.5rem}.controls,.bridge,.price-grid-section{border-top:1px solid var(--line);padding-top:1rem}.clobe-lab h4{margin:0 0 .75rem;font-size:1rem}.controls label{display:block;margin:.55rem 0;border:1px solid var(--line);border-radius:10px;background:#fff;padding:.72rem}.controls label span{display:flex;justify-content:space-between;gap:.5rem;color:var(--muted);font-size:.72rem;font-weight:700}.controls output{color:var(--ink);font-variant-numeric:tabular-nums}.controls input{width:100%;margin-top:.55rem;accent-color:var(--accent)}.bridge,.price-grid-section{margin-top:1.5rem}.bridge-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}.bridge-grid>div{min-height:83px;padding:.75rem;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff}.bridge-grid span{display:block;color:var(--muted);font-size:.7rem}.bridge-grid strong{display:block;margin-top:.25rem;font:700 1.1rem/1.2 var(--serif);font-variant-numeric:tabular-nums}.bridge p,.note{margin:.75rem 0 0;color:var(--muted);font-size:.7rem;line-height:1.55}.table-scroll{overflow-x:auto}.price-grid-section table{width:100%;min-width:520px;border-collapse:collapse;background:#fff;font-size:.8rem}.price-grid-section th,.price-grid-section td{padding:.7rem;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}.price-grid-section thead th{color:var(--muted);font-size:.7rem}.price-grid-section th:first-child,.price-grid-section td:first-child{text-align:left}.price-grid-section tbody .selected{background:#eaf1e8}.pass{color:#2e684b;font-weight:800}.fail{color:#a24f48;font-weight:800}@media(max-width:760px){.headline{grid-template-columns:repeat(2,minmax(0,1fr))}.lab-grid{grid-template-columns:1fr}.clobe-lab header{display:block}.badge{display:inline-block;margin-top:.75rem}}@media(max-width:520px){.clobe-lab{border-radius:16px}.headline,.bridge-grid{grid-template-columns:1fr}.headline>div{min-height:94px}.presets>span{width:100%}.headline strong{font-size:1.4rem}}
+</style>
+
+<style>
+  @media (max-width: 520px) {
+    .price-grid-section table { min-width: 430px; font-size: .74rem; }
+    .price-grid-section th, .price-grid-section td { padding: .55rem; white-space: nowrap; }
+  }
+</style>
