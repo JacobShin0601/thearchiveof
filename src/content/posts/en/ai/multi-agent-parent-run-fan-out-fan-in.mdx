@@ -28,7 +28,7 @@ localization:
   locale: "en-US"
   strategy: "localized-adaptation"
 freshness: periodic
-lastReviewed: 2026-10-12
+lastReviewed: 2026-10-17
 nextReviewDate: 2027-01-12
 references:
   - title: "Python asyncio — Coroutines and Tasks"
@@ -70,12 +70,14 @@ results = await asyncio.gather(
 
 The API admitted one run, but model calls, tool concurrency, and token cost fan out by three or more. If the worker dies, completed-child knowledge disappears. Whether one failure cancels siblings or successful results still synthesize depends on incidental exception handling.
 
+<AgentMultiRunDiagrams kind="timeline" language="en" caption="Figure 1. A durable child run recovers from worker failure from state, without rerunning a child that already succeeded." />
+
 The defining property is not the number of agents. Multi-agent execution is a **protocol that decomposes one goal into several execution units and converges them into deterministic product state**.
 
 <AgentMultiRunDiagrams
   kind="hierarchy"
   language="en"
-  caption="Figure 1. Parent and children form one execution tree, while each child owns a durable lifecycle, attempts, result, and budget."
+  caption="Figure 2. Parent and children form one execution tree, while each child owns a durable lifecycle, attempts, result, and budget."
 />
 
 ## Decide whether a specialist is a node or a child run
@@ -95,7 +97,7 @@ Turning a deterministic 100-millisecond lookup into a child run adds lifecycle r
 
 ## Make parent-child relationships first-class data
 
-A child run needs at least this durable relationship:
+A child run needs at least this durable relationship. **Production consideration:** this is a schema sketch; root rows have a null parent/key, while child rows need a stable parent/key constraint.
 
 ```sql
 CREATE TABLE agent_runs (
@@ -112,9 +114,13 @@ CREATE TABLE agent_runs (
     reserved_tokens BIGINT NOT NULL,
     result_ref TEXT,
     error_code TEXT,
-    UNIQUE (parent_run_id, child_key)
+    CHECK (depth >= 0),
+    CHECK (reserved_tokens >= 0),
+    UNIQUE NULLS NOT DISTINCT (parent_run_id, child_key)
 );
 ```
+
+For PostgreSQL versions before 15, use a partial unique index for child rows. Keep attempts in a separate table with attempt ID, generation/fencing token, worker trace, and timestamps so a stale completion is observable and rejectable.
 
 - `root_run_id` finds the entire execution tree.
 - `parent_run_id` identifies the direct creator.
@@ -135,25 +141,35 @@ crash after publication but before parent checkpoint
 replay of the parent node creates children again
 ```
 
-A stable `child_key` and unique constraint prevent duplicate logical children. Persist the parent transition, child rows, and enqueue outbox in one transaction.
+A stable `child_key` and unique constraint prevent duplicate logical children. Persist the parent transition, child rows, budget reservation, and enqueue outbox in one transaction. **Runnable example:** [`examples/multi_agent_durable`](https://github.com/JacobShin0601/thearchiveof/tree/dev/examples/multi_agent_durable) contains deterministic mocks and pytest; the following is a conceptual production sketch.
 
 ```python
 async def fan_out(parent, specs):
     async with db.transaction():
         await run_store.lock(parent.id)
-        await assert_can_spawn(parent, count=len(specs))
+        existing = await run_store.find_children(parent.id, [s.child_key for s in specs])
+        new_specs = [s for s in specs if s.child_key not in existing]
+        await assert_can_spawn(parent, new_specs, existing)
 
         children = []
         for spec in specs:
+            child_key = f"{spec.role}:{spec.logical_task_id}"
+            prior = existing.get(child_key)
+            if prior:
+                if prior.input_digest != spec.input_digest:
+                    raise ChildConflict(child_key)
+                children.append(prior)
+                continue
             child = await run_store.upsert_child(
                 root_run_id=parent.root_run_id,
                 parent_run_id=parent.id,
-                child_key=f"{spec.role}:{spec.logical_task_id}",
+                child_key=child_key,
                 role=spec.role,
                 input_digest=spec.input_digest,
                 deadline_at=min(parent.deadline_at, spec.deadline_at),
             )
-            await outbox.append_once("child_queued", child.id)
+            await budget_ledger.reserve_once(parent.id, child_key, spec.token_budget)
+            await outbox.append_once("child_queued", child.id, key=f"child:{child.id}:queued")
             children.append(child)
 
         await run_store.mark_waiting_children(parent.id, len(children))
@@ -162,19 +178,27 @@ async def fan_out(parent, specs):
 
 A replayed orchestrator reuses rows with the same child keys instead of inventing new UUIDs. It does not enqueue terminal children again.
 
+A key cannot be just a role: several research tasks may coexist. Include a stable logical task identity, such as `research:competitor-map`. The parent-row lock and `(parent_run_id, child_key)` constraint jointly preserve the invariant that one logical child has one row.
+
+<AgentMultiRunDiagrams kind="outbox" language="en" caption="Figure 3. DB commit and queue delivery are separate stages. Dispatch is at-least-once; consumers deduplicate from state and event keys." />
+
+Do not describe a PostgreSQL transaction and a Redis capacity reservation or queue publish as one atomic transaction. If Redis is used, specify reservation leases, compensation, and ledger reconciliation. If the process dies after commit but before publish, an outbox dispatcher reads the durable outbox again.
+
 ## Fan-out must pass admission control too
 
 Admitting one parent does not grant permission to execute an arbitrary number of children. Put explicit limits in the parent policy.
 
 ```python
-async def assert_can_spawn(parent, count: int) -> None:
+async def assert_can_spawn(parent, new_specs, existing) -> None:
     policy = await policy_store.for_operation(parent.operation)
 
     if parent.depth + 1 > policy.max_depth:
         raise FanoutRejected("max_depth")
-    if parent.child_count + count > policy.max_children:
+    if len(existing) + len(new_specs) > policy.max_children:
         raise FanoutRejected("max_children")
-    if not await capacity.reserve_children(parent.tenant_id, count):
+    if await run_store.count_descendants(parent.root_run_id) + len(new_specs) > policy.max_descendants:
+        raise FanoutRejected("max_descendants")
+    if not await capacity.reserve_children(parent.tenant_id, len(new_specs)):
         raise FanoutRejected("tenant_child_concurrency")
 ```
 
@@ -196,16 +220,39 @@ Letting three children mutate one Python dictionary or full conversation makes t
   caption="Figure 2. Children read a shared snapshot, isolate their state, and rejoin the parent only through a versioned result contract."
 />
 
+**Conceptual example — typed transport contract.** Pydantic validates shape; provenance, completeness, freshness, and factual accuracy need separate semantic checks.
+
 ```python
+class ResearchPayload(BaseModel):
+    kind: Literal["research"]
+    claims: list[str]
+    evidence: list[Evidence]
+    confidence: float = Field(ge=0, le=1)
+    uncertainty: str
+
+class DataPayload(BaseModel):
+    kind: Literal["data"]
+    metrics: dict[str, float]
+    units: dict[str, str]
+    as_of: datetime
+    validation_errors: list[str] = []
+
+class RiskPayload(BaseModel):
+    kind: Literal["risk"]
+    risks: list[RiskFactor]
+    limitations: list[str]
+
 class ChildResult(BaseModel):
     child_run_id: UUID
     role: Literal["research", "data", "risk"]
     status: Literal["succeeded", "partial", "failed", "cancelled"]
-    payload: dict
-    evidence_refs: list[str]
-    usage: Usage
+    payload: Annotated[ResearchPayload | DataPayload | RiskPayload, Field(discriminator="kind")] | None
+    error_code: str | None = None
+    accepted_attempt_id: UUID | None = None
     schema_version: Literal["child-result.v1"]
 ```
+
+Successful/partial results require a payload matching the role; failed/cancelled results require `payload=None` plus error detail. Structured output does not prove the claim is true.
 
 Do not copy every raw document or the full prompt into every child. Pass durable object references and content digests, then expose only the view allowed by that child's tools and credential scope.
 
@@ -220,9 +267,11 @@ async def run_local_branches(specs):
     tasks = {}
     async with asyncio.TaskGroup() as group:
         for spec in specs:
-            tasks[spec.role] = group.create_task(run_branch(spec))
+            if spec.child_key in tasks:
+                raise ValueError(f"duplicate task: {spec.child_key}")
+            tasks[spec.child_key] = group.create_task(run_branch(spec))
 
-    return {role: task.result() for role, task in tasks.items()}
+    return {child_key: task.result() for child_key, task in tasks.items()}
 ```
 
 When one task raises a regular exception, `TaskGroup` cancels the remaining tasks and waits for them before leaving the context. That behavior fits an all-required, fail-fast policy. Coroutines should re-raise `CancelledError` after cleanup so structured cancellation continues to work.
@@ -239,6 +288,12 @@ if not decision.can_synthesize:
 ```
 
 A durable child running in another worker is not a Python task. Cancelling the parent coroutine cannot stop it. Distributed children require database lifecycle, queue messages, and a cancellation protocol.
+
+| Pattern | Failure behavior | Good use |
+| --- | --- | --- |
+| `TaskGroup` | Cancel siblings after a regular exception | local fail-fast |
+| `gather()` | propagate or collect exceptions by configuration | local concurrency |
+| Durable child runs | independent lifecycle, retry, recovery | cross-worker execution |
 
 ## Fix partial-failure policy before fan-out
 
@@ -271,7 +326,7 @@ The policy also defines retryable errors, terminal errors, partial-result accept
 
 The parent worker does not need to remain in memory awaiting children. Move the parent durably to `waiting_children` and release execution ownership.
 
-Each terminal child publishes an outbox event. Under a row lock or conditional update, the coordinator reloads the current child set and evaluates the join policy.
+Each terminal child publishes an outbox event. Under a row lock or conditional update, the coordinator reloads the current child set and evaluates the join policy. **Production consideration:** event ID is a deduplication key, state version is for CAS/fencing, and an SSE cursor only resumes transport—it does not make state correct.
 
 ```python
 async def on_child_terminal(child_id: UUID):
@@ -286,8 +341,9 @@ async def on_child_terminal(child_id: UUID):
         decision = join_policy(parent).evaluate(children)
 
         if decision.ready:
-            await run_store.mark_synthesis_queued(parent.id, decision.snapshot_id)
-            await outbox.append_once("parent_synthesis_queued", parent.id)
+            snapshot = await run_store.freeze_join_snapshot(parent.id, children, decision)
+            if await run_store.compare_and_set_status(parent.id, "waiting_children", "synthesis_queued", snapshot.id):
+                await outbox.append_once("parent_synthesis_queued", parent.id, key=f"synthesis:{snapshot.id}")
         elif decision.impossible:
             await run_store.fail(parent.id, decision.error_code)
 ```
@@ -296,24 +352,31 @@ A bare `completed_children += 1` double-counts duplicate events and races child-
 
 The join snapshot fixes the child-result versions used for synthesis. Validate the active attempt and fence so a late stale result cannot alter the input.
 
+<AgentMultiRunDiagrams kind="fanin" language="en" caption="Figure 4. Fan-in is a durable state machine, not a counter. A snapshot and unique outbox key make the synthesis transition happen once." />
+
+Store the parent ID, join-policy version, logical child ID, accepted attempt ID, result reference/version, stable order, and missing/failed roles in the snapshot. If a required child terminally fails and success is no longer possible, move to failure and apply the policy’s sibling-cancellation rule.
+
 ## Synthesis is another attempt
 
 Completing all children does not complete the parent result. Schema validation, evidence deduplication, conflict resolution, and a final model call remain.
 
 ```python
 async def synthesize(parent, snapshot):
-    inputs = sorted(snapshot.results, key=lambda item: item.role)
+    inputs = sorted(snapshot.results, key=lambda item: (item.role, item.child_key))
     valid = [item for item in inputs if item.status in {"succeeded", "partial"}]
 
     return await synthesis_graph.ainvoke({
         "parent_run_id": str(parent.id),
         "join_policy": parent.join_policy,
+        "snapshot_id": snapshot.id,
         "child_results": [item.model_dump() for item in valid],
         "missing_roles": snapshot.missing_roles,
     })
 ```
 
 If the synthesis worker fails, retry against the same snapshot ID. Protect external publication and side effects with the parent execution ledger and idempotency key.
+
+Stable ordering and a frozen snapshot make the input deterministic; they do not promise fully deterministic LLM output.
 
 ## Allocate budgets instead of copying them
 
@@ -341,6 +404,8 @@ async def allocate_child_budget(parent, specs):
 
 A child deadline must not exceed the parent deadline. Settle actual usage when a child terminates and return unused reservation to the parent pool, without retroactively changing a running sibling's contract.
 
+Token reservation and final API billing can differ. Record reservation, actual usage, and release separately, reuse a reservation on replay by `(parent_run_id, child_key)`, and reconcile leases against the ledger after recovery.
+
 Propagate cost, tool-call count, and retry budget the same way. Aggregate whole-tree usage from the durable ledger rather than sampled traces.
 
 ## Cancellation propagates down the tree
@@ -367,6 +432,22 @@ Do not close the parent as cancelled while orphan children continue spending. If
 
 As with process-local task cancellation, do not assume a remote Lambda or external side effect stops immediately. Reconcile final state through child terminal records and execution ledgers.
 
+Serialize cancellation and spawn through the same parent-row transition. A queued child checks cancellation before it starts; a running child distinguishes cooperative cancellation, deadline, and tool-specific abort. Accept a late result only when its active-attempt fence still matches. Root cancellation cannot promise to undo an already-committed external side effect.
+
+## A small connected end-to-end example
+
+The new example creates Research, Data, and Risk children for an illustrative investment report, freezes a result snapshot, and then synthesizes it. Redis, PostgreSQL, and an LLM API are deliberately not prerequisites.
+
+```bash
+cd examples
+python -m venv .venv && . .venv/bin/activate
+pip install -r multi_agent_durable/requirements.txt
+pytest -q multi_agent_durable
+python -m multi_agent_durable.demo
+```
+
+The [README](https://github.com/JacobShin0601/thearchiveof/tree/dev/examples/multi_agent_durable) states why its in-memory lock is not PostgreSQL row locking and which production controls remain. If LangGraph is present, let it own graph state and node checkpoints; let the Run Store own durable run identity/lifecycle/ownership, the outbox/queue own delivery and retry scheduling, Workers own execution and cancellation checks, and API/SSE own user-visible progress. Do not duplicate ownership of the same state across these layers.
+
 ## Separate child detail from parent progress events
 
 Mixing every child's tokens into one timeline makes the UI unreadable. Preserve hierarchy in product events.
@@ -389,6 +470,8 @@ The parent stream exposes aggregate progress such as `children_started`, per-rol
 Observability attributes include `root_run_id`, `parent_run_id`, `child_run_id`, role, and depth. Connect the parent orchestration span to child traces on other workers through context propagation or span links.
 
 ## Multi-agent failure tests
+
+The runnable example executes T01–T16 with pytest: replay idempotency, digest conflict, same-role multiple children, concurrent fan-out capacity, validation before mutation, outbox recovery, duplicate delivery/event, stale attempt, required/optional failure, quorum, cancellation/spawn race, budget replay, idempotent publishing, and stable ordering. These are single-process invariant tests—not claims of PostgreSQL isolation, Redis leases, or real cross-worker crash validation.
 
 - Parent worker failure before, during, and after the fan-out transaction.
 - Replay of the same orchestration node and child unique keys.
