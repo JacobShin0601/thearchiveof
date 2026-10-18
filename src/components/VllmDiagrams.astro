@@ -1,22 +1,177 @@
 ---
-interface Props { kind: 'architecture' | 'timeline' | 'budget' | 'loop'; language?: 'ko' | 'en'; }
+interface Props {
+  kind: 'architecture' | 'timeline' | 'budget' | 'loop' | 'metrics' | 'triage' | 'comparison';
+  language?: 'ko' | 'en';
+}
+
 const { kind, language = 'ko' } = Astro.props;
 const ko = language === 'ko';
+
 const captions = {
-architecture: ko ? '그림 1. 애플리케이션과 GPU 사이의 공통 inference 계층' : 'Figure 1. A shared inference layer between applications and GPUs',
-timeline: ko ? '그림 2. 첫 토큰까지의 시간과 그 이후의 생성 간격' : 'Figure 2. Time to the first token, then the intervals between tokens',
-budget: ko ? '그림 3. Sequence 수, iteration token budget, KV 메모리는 서로 다른 제약이다' : 'Figure 3. Sequence count, tokens per iteration, and KV memory are separate constraints',
-loop: ko ? '그림 4. SLO를 제약조건으로 두는 tuning feedback loop' : 'Figure 4. A tuning feedback loop constrained by service SLOs',
+  architecture: ko ? '그림 1. 애플리케이션과 GPU 사이의 공통 추론 계층' : 'Figure 1. A shared inference layer between applications and GPUs',
+  timeline: ko ? '그림 2. 첫 token까지의 시간과 그 이후 생성 간격' : 'Figure 2. Time to the first token, then the intervals between tokens',
+  budget: ko ? '그림 3. sequence 수, 반복 단계의 token 예산, KV cache는 서로 다른 제약이다' : 'Figure 3. Sequence count, tokens per iteration, and KV cache are separate constraints',
+  loop: ko ? '그림 4. SLO를 제약 조건으로 두는 튜닝 피드백 loop' : 'Figure 4. A tuning feedback loop constrained by service SLOs',
+  metrics: ko ? '운영 지표는 네 묶음으로 함께 읽는다' : 'Read operating metrics as four related groups',
+  triage: ko ? '증상은 원인이 아니라, 다음 가설을 고르는 출발점이다' : 'Symptoms select the next hypothesis; they do not prove a cause',
+  comparison: ko ? '설정 A·B·C는 SLO를 기준으로 비교한다' : 'Compare settings A, B, and C against SLOs',
 };
-const steps = kind === 'architecture' ? (ko ? ['내부 Agent · RAG · Chat', 'Gateway: 인증 · 요청 제한', 'Kubernetes Service', 'vLLM Pod: API + Scheduler', 'GPU: 모델 가중치 + KV cache'] : ['Internal agents · RAG · chat', 'Gateway: auth · rate limits', 'Kubernetes Service', 'vLLM Pod: API + scheduler', 'GPU: model weights + KV cache']) : kind === 'timeline' ? (ko ? ['요청 도착 · Queue', 'Prompt 처리: Prefill', '첫 토큰', 'Decode → 다음 토큰', 'Decode → 다음 토큰 …'] : ['Request arrives · queue', 'Process prompt: prefill', 'First token', 'Decode → next token', 'Decode → next token …']) : (ko ? ['Workload 분포 정의', 'SLO와 baseline 측정', 'Metrics로 병목 가설', 'Parameter 하나 변경', '같은 부하로 재측정 → 반복'] : ['Define workload distributions', 'Set SLOs and measure baseline', 'Form a bottleneck hypothesis', 'Change one parameter', 'Repeat the same load → iterate']);
-const constraints = ko ? [['max_num_seqs', '한 iteration에 처리할 sequence 수의 상한', '동시 처리 증가 → KV 수요 증가 가능'], ['max_num_batched_tokens', '한 iteration에 처리할 token 수의 상한', 'Prefill과 decode가 같은 예산을 사용'], ['KV cache', '요청이 iteration 사이에도 유지하는 상태', '누적 context와 output이 메모리를 점유']] : [['max_num_seqs', 'Cap on sequences processed per iteration', 'More concurrency can increase KV demand'], ['max_num_batched_tokens', 'Cap on tokens processed per iteration', 'Prefill and decode share the token budget'], ['KV cache', 'Request state retained across iterations', 'Growing context and output occupy memory']];
+
+const flows = {
+  architecture: ko
+    ? ['내부 Agent · RAG · 채팅', 'Gateway\n인증 · 요청 한도', 'Kubernetes Service', 'vLLM Pod\nAPI · scheduler', 'GPU\n모델 가중치 · KV cache']
+    : ['Internal Agent · RAG · chat', 'Gateway\nauth · rate limits', 'Kubernetes Service', 'vLLM Pod\nAPI · scheduler', 'GPU\nmodel weights · KV cache'],
+  timeline: ko
+    ? ['요청 도착 · queue', '프리필(prefill)\nprompt 처리', '첫 token', '디코드(decode)\n다음 token', '디코드(decode)\n다음 token …']
+    : ['Request arrives · queue', 'Prefill\nprocess prompt', 'First token', 'Decode\nnext token', 'Decode\nnext token …'],
+  loop: ko
+    ? ['작업 부하 분포 정의', 'SLO와 기준선 측정', '지표로 병목 가설 수립', '설정값 하나 변경', '같은 부하로 재측정 → 반복']
+    : ['Define workload distributions', 'Set SLOs and measure baseline', 'Form a bottleneck hypothesis', 'Change one parameter', 'Repeat the same load → iterate'],
+};
+
+type Constraint = [string, string, string];
+type MetricCard = [string, string, string];
+type TriageCard = [string, string, string];
+type Scenario = [string, string, [string, string][], string];
+
+const flowSteps = kind === 'architecture' ? flows.architecture : kind === 'timeline' ? flows.timeline : kind === 'loop' ? flows.loop : [];
+
+const constraints: Constraint[] = ko
+  ? [
+      ['max_num_seqs', '한 반복 단계에서 처리할 sequence 수의 상한', '동시 처리 기회는 늘지만 KV 수요가 커질 수 있다.'],
+      ['max_num_batched_tokens', '한 반복 단계에서 계산할 token 수의 상한', '프리필과 디코드가 같은 token 예산을 나눠 쓴다.'],
+      ['KV cache', '반복 단계 사이에도 요청별로 남아 있는 상태', '누적 문맥과 출력이 GPU 메모리를 계속 점유한다.'],
+    ]
+  : [
+      ['max_num_seqs', 'Cap on sequences processed per iteration', 'More concurrency can increase KV demand.'],
+      ['max_num_batched_tokens', 'Cap on tokens computed per iteration', 'Prefill and decode share the token budget.'],
+      ['KV cache', 'Request state retained across iterations', 'Growing context and output continue to occupy GPU memory.'],
+    ];
+
+const metricCards: MetricCard[] = ko
+  ? [
+      ['사용자 경험', 'TTFT · TPOT · E2E', 'p50·p95·p99으로 사용자가 실제로 기다린 시간을 본다.'],
+      ['scheduler', '실행 중 · 대기 중 · 대기 시간 · 선점', 'queue가 쌓이는지, 실행 중 재계산이 생기는지 확인한다.'],
+      ['GPU · KV cache', 'KV 점유율 + DCGM', '연산 사용률만 보지 않고 cache 여유와 메모리 상태를 함께 본다.'],
+      ['완료량', '입력·출력 tok/s · 성공 요청/s', 'SLO 안에서 완료한 유효 처리량인지 확인한다.'],
+    ]
+  : [
+      ['User experience', 'TTFT · TPOT · E2E', 'Use p50, p95, and p99 to see what users actually wait for.'],
+      ['Scheduler', 'running · waiting · queue time · preemption', 'Check whether queues grow or execution is recomputed.'],
+      ['GPU · KV cache', 'KV usage + DCGM', 'Read cache headroom and memory state alongside compute utilization.'],
+      ['Completed work', 'input/output tok/s · success RPS', 'Measure useful completions that remain within SLOs.'],
+    ];
+
+const triageCards: TriageCard[] = ko
+  ? [
+      ['TTFT↑ + queue↑', '도착률이 처리 용량을 넘었거나 scheduler·수용 제어가 막혔을 수 있다.', '유입·완료 RPS, queue 증가 추세, 복제본 편중을 확인'],
+      ['TTFT↑ + queue 짧음 + prompt 김', '프리필 비용이 지배적일 수 있다.', 'prompt 길이별 TTFT, prefill 시간, prefix cache 적중을 확인'],
+      ['TTFT 정상 + TPOT 악화', '디코드 동시성·메모리 압박 또는 단계 간섭일 수 있다.', 'ITL, 활성 sequence, KV cache, DRAM, 선점을 확인'],
+    ]
+  : [
+      ['TTFT↑ + queue↑', 'Arrival rate may exceed capacity, or admission control and scheduling may be limiting.', 'Check arrival/completion RPS, queue trend, and replica skew.'],
+      ['TTFT↑ + short queue + long prompt', 'Prefill cost may dominate.', 'Check TTFT by prompt length, prefill time, and prefix-cache hits.'],
+      ['Normal TTFT + worse TPOT', 'Decode concurrency, memory pressure, or step interference may dominate.', 'Check ITL, active sequences, KV cache, DRAM, and preemption.'],
+    ];
+
+const scenarios: Scenario[] = ko
+  ? [
+      ['설정 A', 'max_num_seqs 32 · token 예산 2,048', [['GPU', '56%'], ['KV cache', '48%'], ['대기 요청', '17'], ['TTFT p95', '2.8s'], ['TPOT p95', '38ms'], ['Output tok/s', '1,100']], 'TTFT SLO 실패'],
+      ['설정 B', 'max_num_seqs 64 · token 예산 8,192', [['GPU', '87%'], ['KV cache', '76%'], ['대기 요청', '3'], ['TTFT p95', '1.2s'], ['TPOT p95', '44ms'], ['Output tok/s', '1,950']], 'SLO 충족 후보'],
+      ['설정 C', 'max_num_seqs 128 · token 예산 16,384', [['GPU', '96%'], ['KV cache', '94%'], ['대기 요청', '1'], ['TTFT p95', '0.9s'], ['TPOT p95', '86ms'], ['Output tok/s', '2,100']], 'TPOT SLO 실패 · 선점 발생'],
+    ]
+  : [
+      ['Setting A', 'max_num_seqs 32 · token budget 2,048', [['GPU', '56%'], ['KV cache', '48%'], ['waiting', '17'], ['TTFT p95', '2.8s'], ['TPOT p95', '38ms'], ['Output tok/s', '1,100']], 'Fails TTFT SLO'],
+      ['Setting B', 'max_num_seqs 64 · token budget 8,192', [['GPU', '87%'], ['KV cache', '76%'], ['waiting', '3'], ['TTFT p95', '1.2s'], ['TPOT p95', '44ms'], ['Output tok/s', '1,950']], 'Candidate within SLO'],
+      ['Setting C', 'max_num_seqs 128 · token budget 16,384', [['GPU', '96%'], ['KV cache', '94%'], ['waiting', '1'], ['TTFT p95', '0.9s'], ['TPOT p95', '86ms'], ['Output tok/s', '2,100']], 'Fails TPOT SLO · preemption occurs'],
+    ];
 ---
 <figure class="vllm-figure" aria-labelledby={`vllm-${kind}-${language}`}>
-<figcaption id={`vllm-${kind}-${language}`}>{captions[kind]}</figcaption>
-{kind === 'budget' ? <div class="constraints">{constraints.map(([label, meaning, effect]) => <div><strong>{label}</strong><p>{meaning}</p><small>{effect}</small></div>)}</div> : <ol class="flow">{steps.map((step) => <li>{step}</li>)}</ol>}
-{kind === 'timeline' && <p class="note">{ko ? 'TTFT: 요청 → 첫 토큰 · TPOT: 첫 토큰 이후 평균 간격. 도식은 비례 축이 아니다.' : 'TTFT: arrival → first token · TPOT: average interval after the first token. Not drawn to scale.'}</p>}
-{kind === 'loop' && <p class="note">{ko ? '선택 기준: TTFT · TPOT · E2E · 오류 SLO를 지키는 GPU당 지속 가능한 처리량' : 'Select for sustainable throughput per GPU within TTFT, TPOT, E2E, and error SLOs.'}</p>}
+  <figcaption id={`vllm-${kind}-${language}`}>{captions[kind]}</figcaption>
+
+  {(kind === 'architecture' || kind === 'timeline' || kind === 'loop') && (
+    <ol class="flow">
+      {flows[kind].map((step) => <li>{step.split('\n').map((line) => <>{line}<br /></>)}</li>)}
+    </ol>
+  )}
+
+  {kind === 'budget' && (
+    <>
+      <div class="budget-example">
+        <div><strong>{ko ? '이번 반복 단계' : 'This iteration'}</strong><span>{ko ? 'decode 32개 + prefill 1,000 token' : '32 decode requests + 1,000-token prefill'}</span></div>
+        <div><strong>{ko ? '확인 순서' : 'Checks'}</strong><span>{ko ? 'token 예산 → sequence 상한 → KV cache 여유' : 'token budget → sequence cap → KV-cache headroom'}</span></div>
+        <div><strong>{ko ? '다음 반복 단계에도 남는 것' : 'Persists into the next iteration'}</strong><span>{ko ? '각 활성 요청의 KV cache' : 'KV cache for every active request'}</span></div>
+      </div>
+      <div class="constraints">
+        {constraints.map(([label, meaning, effect]) => <div><strong>{label}</strong><p>{meaning}</p><small>{effect}</small></div>)}
+      </div>
+    </>
+  )}
+
+  {kind === 'metrics' && (
+    <div class="metric-grid">
+      {metricCards.map(([title, measure, purpose]) => <div><strong>{title}</strong><code>{measure}</code><p>{purpose}</p></div>)}
+    </div>
+  )}
+
+  {kind === 'triage' && (
+    <ol class="triage">
+      {triageCards.map(([symptom, hypothesis, next]) => <li><strong>{symptom}</strong><p>{hypothesis}</p><small>{next}</small></li>)}
+    </ol>
+  )}
+
+  {kind === 'comparison' && (
+    <div class="scenario-grid">
+      {scenarios.map(([name, config, metrics, verdict]) => (
+        <section>
+          <h3>{name}</h3>
+          <p class="config">{config}</p>
+          <dl>{metrics.map(([label, value]) => <><dt>{label}</dt><dd>{value}</dd></>)}</dl>
+          <p class="verdict">{verdict}</p>
+        </section>
+      ))}
+    </div>
+  )}
+
+  {kind === 'timeline' && <p class="note">{ko ? 'TTFT: 요청 → 첫 token · TPOT: 첫 token 이후의 평균 간격. 도식은 비례 축이 아니다.' : 'TTFT: arrival → first token · TPOT: average interval after the first token. Not drawn to scale.'}</p>}
+  {kind === 'loop' && <p class="note">{ko ? '선택 기준: TTFT · TPOT · E2E · 오류 SLO를 지키는 GPU당 지속 가능한 처리량' : 'Select for sustainable throughput per GPU within TTFT, TPOT, E2E, and error SLOs.'}</p>}
 </figure>
+
 <style>
-.vllm-figure{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.92rem;line-height:1.6}.vllm-figure figcaption{font-weight:700;margin-bottom:1rem}.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.1rem;margin:0;padding:0;list-style:none}.flow li{position:relative;margin:0;padding:.85rem;border:1px solid var(--line);background:var(--paper);min-width:0}.flow li:not(:last-child)::after{content:'→';position:absolute;right:-.95rem;top:35%;color:var(--accent)}.constraints{display:grid;gap:.8rem}.constraints>div{padding:1rem;border-left:3px solid var(--accent);background:var(--paper)}.constraints strong{font-family:monospace;overflow-wrap:anywhere}.constraints p{margin:.4rem 0}.constraints small{color:var(--muted)}.note{margin:1rem 0 0!important;color:var(--muted);font-size:.85rem}@media(max-width:600px){.flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:'↓';right:50%;top:auto;bottom:-1.2rem}.vllm-figure{padding:1rem}}@media(prefers-color-scheme:dark){.vllm-figure{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
+  .vllm-figure{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.92rem;line-height:1.6}
+  .vllm-figure figcaption{font-weight:700;margin-bottom:1rem}
+  .flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1.1rem;margin:0;padding:0;list-style:none}
+  .flow li{position:relative;margin:0;padding:.85rem;border:1px solid var(--line);background:var(--paper);min-width:0}
+  .flow li:not(:last-child)::after{content:'→';position:absolute;right:-.95rem;top:35%;color:var(--accent)}
+  .flow br:last-child{display:none}
+  .budget-example{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-bottom:.9rem}
+  .budget-example>div,.constraints>div,.metric-grid>div,.triage li,.scenario-grid section{min-width:0;padding:1rem;border:1px solid var(--line);background:var(--paper)}
+  .budget-example strong,.metric-grid strong,.triage strong{display:block;color:var(--accent)}
+  .budget-example span{display:block;margin-top:.35rem}
+  .constraints{display:grid;gap:.8rem}
+  .constraints>div{border-left:3px solid var(--accent)}
+  .constraints strong{font-family:monospace;overflow-wrap:anywhere}
+  .constraints p,.metric-grid p,.triage p{margin:.4rem 0}
+  .constraints small,.triage small{color:var(--muted)}
+  .metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}
+  .metric-grid code{display:block;margin:.45rem 0;font:600 .82rem/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}
+  .triage{display:grid;gap:.75rem;margin:0;padding:0;list-style:none;counter-reset:triage}
+  .triage li{position:relative;padding-left:3.3rem}
+  .triage li::before{counter-increment:triage;content:counter(triage);position:absolute;left:1rem;top:1rem;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--accent);color:var(--paper);text-align:center;font-weight:700;line-height:1.4rem}
+  .scenario-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}
+  .scenario-grid h3{margin:0;font-size:1rem}
+  .scenario-grid .config{min-height:2.9rem;margin:.35rem 0 .8rem;color:var(--muted);font:.78rem/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .scenario-grid dl{display:grid;grid-template-columns:1fr auto;gap:.25rem .6rem;margin:0}
+  .scenario-grid dt{color:var(--muted)}
+  .scenario-grid dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+  .scenario-grid .verdict{margin:.85rem 0 0;padding-top:.65rem;border-top:1px solid var(--line);font-weight:700}
+  .note{margin:1rem 0 0!important;color:var(--muted);font-size:.85rem}
+  @media(max-width:760px){
+    .flow{grid-template-columns:1fr}
+    .flow li:not(:last-child)::after{content:'↓';right:50%;top:auto;bottom:-1.2rem}
+    .budget-example,.metric-grid,.scenario-grid{grid-template-columns:1fr}
+    .scenario-grid .config{min-height:0}
+    .vllm-figure{padding:1rem}
+  }
+  @media(prefers-color-scheme:dark){.vllm-figure{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
 </style>
