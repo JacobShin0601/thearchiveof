@@ -77,24 +77,24 @@ import AgentBackendArchitectureMap from '../../../components/AgentBackendArchite
 | 구성 요소 | 맡는 역할 |
 | --- | --- |
 | API | 요청 접수 |
-| 큐(Queue) | 실행 의도 보존 |
+| queue(Queue) | 실행 의도 보존 |
 | Worker | 실제 실행 |
-| PostgreSQL | 복구 가능한 기준 상태 |
-| Redis | 실행 중 상태 조정과 짧은 이벤트 기록 |
-| SSE | 사용자에게 진행 상태 전달 |
+| PostgreSQL | 복구 가능한 기준 state |
+| Redis | 실행 중 state 조정과 짧은 이벤트 기록 |
+| SSE | 사용자에게 진행 state 전달 |
 
 그리고 본문에서 이어서 답하려는 질문은 다음과 같다.
 
-- 왜 큐가 필요한가?
+- 왜 queue가 필요한가?
 - 왜 중복 실행이 생기는가?
-- 왜 DB와 큐 사이가 위험한가?
+- 왜 DB와 queue 사이가 위험한가?
 - 왜 SSE 재연결을 고려해야 하는가?
 
 | 레이어 | 이 글에서 잡는 질문 | 후속 글 |
 | --- | --- | --- |
 | 동시성 | async/thread/process vs worker 역할 | [Async, Thread, Process](/ai/agents/async-thread-process-agent-backends/) |
 | 접수·실행 | 202, queue, worker 책임 | [Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/) |
-| 상태 | PostgreSQL vs Redis | [Agent State는 어디에](/ai/agents/where-agent-state-lives/), [State는 Event가 아니다](/ai/agents/state-is-not-event/) |
+| state | PostgreSQL vs Redis | [Agent State는 어디에](/ai/agents/where-agent-state-lives/), [State는 Event가 아니다](/ai/agents/state-is-not-event/) |
 | 전달 | SSE와 관측 경로 | [Agent SSE streaming](/ai/agents/agent-sse-streaming/) |
 | 부수 효과 | 중복 실행 대비 | [Agent Tool Idempotency](/ai/agents/agent-tool-idempotency-approval-retry/) |
 
@@ -108,10 +108,10 @@ import AgentBackendArchitectureMap from '../../../components/AgentBackendArchite
 
 | 경로 | 흐름 | 기억할 점 |
 | --- | --- | --- |
-| **명령** | 브라우저 → API → 큐 → Worker | HTTP 핸들러는 실행 수명을 소유하지 않는다 |
-| **관측** | Worker → 상태·이벤트 저장소 → SSE → 브라우저 | 연결이 끊겨도 실행은 계속될 수 있다 |
+| **명령** | 브라우저 → API → queue → Worker | HTTP 핸들러는 실행 수명을 소유하지 않는다 |
+| **관측** | Worker → state·이벤트 저장소 → SSE → 브라우저 | 연결이 끊겨도 실행은 계속될 수 있다 |
 
-Worker는 LLM·도구·checkpoint 로직을 실행한다. API는 run 접수, queue 게시, 상태 조회, SSE 중계에 집중한다. 이 분리 덕분에 API replica 수와 worker replica 수를 **서로 다른 자원**에 맞게 조정할 수 있다.
+Worker는 LLM·도구·checkpoint 로직을 실행한다. API는 run 접수, queue 게시, state 조회, SSE 중계에 집중한다. 이 분리 덕분에 API replica 수와 worker replica 수를 **서로 다른 자원**에 맞게 조정할 수 있다.
 
 ### 명령 경로와 관측 경로
 
@@ -155,7 +155,7 @@ async def create_run(request: RunRequest, user: User = Depends(current_user)):
 
 FastAPI [Background Tasks](https://fastapi.tiangolo.com/tutorial/background-tasks/)는 짧은 후처리에는 유용하지만, Agent run은 대개 queue 쪽에 가깝다.
 
-## 4. 큐는 실행 수명 주기를 분리한다
+## 4. queue는 실행 수명 주기를 분리한다
 
 Queue의 역할은 작업을 **빨리 실행**하는 것이 아니라, **API request lifecycle**과 **Agent execution lifecycle**을 분리하는 것이다.
 
@@ -186,7 +186,7 @@ Worker가 외부 LLM·업무 DB를 호출하는 선은 내부 state 전이와 �
 
 사용자가 탭을 닫거나 SSE가 끊기면 **관측 경로**만 사라진다. 이미 접수된 run은 계속 진행하는 것이 일반적이다. 실행 취소는 제품 정책이며, 기본 전제는 **run lifetime ≠ HTTP connection lifetime**이다.
 
-## 6. 상태는 어디에 저장할까?
+## 6. state는 어디에 저장할까?
 
 한 저장소에 모든 state를 넣지 않는다.
 
@@ -197,7 +197,7 @@ Worker가 외부 LLM·업무 DB를 호출하는 선은 내부 state 전이와 �
 | **Queue** | execution intent / delivery |
 | **Object storage** | large outputs and artifacts (필요 시) |
 
-PostgreSQL은 복구 가능한 **기준 상태**를 저장한다. Redis는 UI progress나 worker coordination처럼 **빠르게 변하는 상태**를 담당한다.
+PostgreSQL은 복구 가능한 **기준 state**를 저장한다. Redis는 UI progress나 worker coordination처럼 **빠르게 변하는 state**를 담당한다.
 
 Retrieval storage(embedding, RAG index)는 **별도 concern**이며 이 글에서는 execution architecture만 다룬다.
 
@@ -228,7 +228,7 @@ COMMIT;
 본문에서는 Redis를 runtime coordination에 쓴다고만 두고, 구현에서는 Hash(현재 snapshot), Stream(제한된 event 기록), **Lua script**로 한 번에 갱신하는 패턴이 흔하다. TTL·Stream maxlen·consumer offset은 [Agent SSE streaming](/ai/agents/agent-sse-streaming/)과 [State는 Event가 아니다](/ai/agents/state-is-not-event/)에서 연결한다.
 </details>
 
-> **한 문장 recap:** API는 실행을 접수하고, Queue는 이를 Worker에게 전달하며, Worker의 결과는 durable state에 기록되고 SSE는 그 상태를 사용자에게 보여준다.
+> **한 문장 recap:** API는 실행을 접수하고, Queue는 이를 Worker에게 전달하며, Worker의 결과는 durable state에 기록되고 SSE는 그 state를 사용자에게 보여준다.
 
 ## 7. 실행과 관측을 분리한다 — SSE
 
@@ -237,7 +237,7 @@ SSE는 Agent **실행과 독립**적이다.
 - 브라우저 연결이 끊겨도 Worker 실행은 계속되어야 한다.
 - 사용자가 다시 접속하면 **현재 snapshot** 또는 **최근 event**를 다시 받아야 한다.
 
-Worker는 실행 상태와 이벤트를 기록하고, SSE endpoint는 그 기록을 읽어 브라우저에 전달한다. SSE 연결 자체가 실행을 소유하지 않으므로, 브라우저가 닫혀도 Worker의 실행은 계속될 수 있다.
+Worker는 실행 state와 이벤트를 기록하고, SSE endpoint는 그 기록을 읽어 브라우저에 전달한다. SSE 연결 자체가 실행을 소유하지 않으므로, 브라우저가 닫혀도 Worker의 실행은 계속될 수 있다.
 
 관측 경로는 [WHATWG SSE](https://html.spec.whatwg.org/multipage/server-sent-events.html) 형식으로 event id·type·data를 보낸다. Generator가 disconnect를 감지하면 HTTP chunk 전송만 멈춘다. **스트리밍 연결 실패 ≠ run 롤백**이다.
 
@@ -320,9 +320,9 @@ Pod termination은 “process kill” 문제가 아니라 **in-flight run owners
 | 구성 요소 | 기억할 점 |
 | --- | --- |
 | API | 접수(`202`와 실행 ID 반환) |
-| 큐 | 실행 수명 주기를 분리하며 재전달될 수 있음 |
+| queue | 실행 수명 주기를 분리하며 재전달될 수 있음 |
 | Worker | 실행 시도를 소유하고 도구 호출 루프를 수행 |
-| PostgreSQL | 복구 가능한 기준 상태 |
+| PostgreSQL | 복구 가능한 기준 state |
 | Redis | 실행 중 조정과 짧은 관측 데이터 |
 | SSE | 관측만 담당하며 실행 자체는 소유하지 않음 |
 
