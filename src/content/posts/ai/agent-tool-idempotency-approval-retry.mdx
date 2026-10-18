@@ -1,7 +1,7 @@
 ---
 title: "Agent Tool은 정확히 한 번 실행될 수 있을까: 승인, 멱등성, 재시도"
 subtitle: "송금 Tool을 두 번 실행하지 않기 위해 사용자 의도와 실행 결과를 연결하는 법"
-description: "송금과 결제처럼 부수 효과가 있는 Agent Tool에서 사용자 승인, action fingerprint, idempotency key, Queue 재전달과 불명확한 실행 결과를 안전하게 처리하는 방법을 설명합니다."
+description: "송금과 결제처럼 부수 효과가 있는 Agent Tool에서 사용자 승인, action fingerprint, idempotency key, queue 재전달과 불명확한 실행 결과를 안전하게 처리하는 방법을 설명합니다."
 publishedDate: 2026-09-28
 section: "AI & AX"
 subsection: "Agents"
@@ -74,7 +74,7 @@ if user_approved:
 - 사용자가 무엇을 승인했는가?
 - 승인 후 LLM이 금액을 바꾸지는 않았는가?
 - 사용자가 승인 버튼을 두 번 누르면 어떻게 되는가?
-- Queue가 같은 작업을 다시 전달하면 어떻게 되는가?
+- queue가 같은 작업을 다시 전달하면 어떻게 되는가?
 - 송금은 성공했지만 Worker가 응답을 받기 전에 죽으면 어떻게 되는가?
 - 재시도해도 되는 실패와 멈춰야 하는 실패를 누가 구분하는가?
 
@@ -249,6 +249,8 @@ CREATE TABLE tool_actions (
     approval_expires_at TIMESTAMPTZ,
 
     execution_attempt_id UUID,
+    execution_lease_until TIMESTAMPTZ,
+    execution_fencing_token BIGINT NOT NULL DEFAULT 0,
     provider_reference TEXT,
     result JSONB,
     error JSONB,
@@ -271,6 +273,28 @@ Redis는 다음 용도로 보조할 수 있다.
 
 하지만 Redis key가 만료되거나 eviction됐다는 이유로 같은 송금을 다시 허용해서는 안 된다.
 
+### 승인과 queue 발행 사이도 복구해야 한다
+
+승인 기록을 `approved`로 바꾼 뒤 process가 queue 발행 전에 종료되면, 데이터베이스에는 실행 가능한 action이 남지만 Worker는 그것을 알지 못한다. 반대로 queue를 먼저 발행하면 Worker가 아직 읽을 수 없는 action을 받을 수 있다.
+
+이 구간은 **transactional outbox**로 닫는다. 승인 transaction 안에서 action 전이와 outbox 행을 함께 commit하고, 별도 relay가 아직 발행되지 않은 행을 queue로 전달한다. relay가 중복 전송해도 Worker의 조건부 claim과 동일 idempotency key가 결과를 한 번으로 수렴시킨다.
+
+```sql
+BEGIN;
+
+UPDATE tool_actions
+SET status = 'approved', approved_by = $actor_id, approved_at = NOW()
+WHERE action_id = $action_id
+  AND status = 'awaiting_approval';
+
+INSERT INTO outbox_events (event_id, topic, payload, published_at)
+VALUES ($event_id, 'tool-action.approved', jsonb_build_object('action_id', $action_id), NULL);
+
+COMMIT;
+```
+
+queue 발행 자체를 database transaction에 묶을 수는 없으므로 relay는 `published_at IS NULL` 행을 재시도한다. 소비자는 전달 횟수가 아니라 `action_id`와 action의 영속 state를 기준으로 판단한다.
+
 ## 6. 사용자가 승인한 정확한 행동을 묶는다
 
 <ToolExecutionSafetyDiagram kind="approval-flow" language="ko" />
@@ -286,6 +310,14 @@ async def approve_action(
 
     authorize_tool(user, action.tool_name)
     authorize_transaction(user, action.arguments)
+
+    # 같은 사용자가 같은 action을 다시 승인해도 새 action을 만들지 않는다.
+    if (
+        action.status == "approved"
+        and action.approved_by == user.id
+        and action.approved_fingerprint == action.action_fingerprint
+    ):
+        return ApprovedAction.from_existing(action)
 
     if action.status != "awaiting_approval":
         raise InvalidActionState(action.status)
@@ -312,7 +344,7 @@ async def approve_action(
     )
 ```
 
-브라우저가 보낸 `approved=true`만 믿지 않는다. 승인 대상, 사용자 권한, 만료 시간과 fingerprint를 서버에서 다시 확인한다.
+브라우저가 보낸 `approved=true`만 믿지 않는다. 승인 대상, 사용자 권한, 만료 시간과 fingerprint를 서버에서 다시 확인한다. `get_for_update()`와 `mark_approved()`는 하나의 database transaction 안에서 실행하며, `mark_approved()`도 `WHERE status = 'awaiting_approval'` 조건을 유지한다. 그래서 두 번 클릭된 승인 요청 중 첫 요청만 전이를 만들고, 같은 승인자의 후속 요청은 이미 확정된 결과를 돌려줄 수 있다.
 
 승인 후 사용자가 금액을 수정하고 싶다면 기존 action을 변경하지 않는다.
 
@@ -326,13 +358,15 @@ async def approve_action(
 
 ## 7. 한 Worker만 실행권을 가져간다
 
-Queue는 같은 메시지를 다시 전달할 수 있고, 일시적으로 두 Worker가 같은 run을 처리하려 할 수도 있다. 실행 전에 PostgreSQL의 조건부 갱신으로 한 Worker만 action을 확보한다.
+queue는 같은 메시지를 다시 전달할 수 있고, 일시적으로 두 Worker가 같은 run을 처리하려 할 수도 있다. 실행 전에 PostgreSQL의 조건부 갱신으로 한 Worker만 action을 확보한다.
 
 ```sql
 UPDATE tool_actions
 SET
     status = 'executing',
     execution_attempt_id = $2,
+    execution_lease_until = NOW() + INTERVAL '2 minutes',
+    execution_fencing_token = execution_fencing_token + 1,
     updated_at = NOW()
 WHERE action_id = $1
   AND status = 'approved'
@@ -344,6 +378,8 @@ RETURNING *;
 한 Worker만 row를 반환받는다. 다른 Worker는 이미 `executing` 또는 `succeeded`인 action을 보고 새 외부 호출을 만들지 않는다.
 
 하지만 이 조건부 갱신만으로 모든 중복을 막을 수 있는 것은 아니다. Worker가 `executing`으로 바꾼 뒤 외부 API 호출에 성공하고, 로컬 결과를 저장하기 전에 죽을 수 있기 때문이다.
+
+Worker가 외부 호출 전에 죽으면 `executing` action이 영구히 멈추지 않도록 lease가 만료된 뒤 recovery worker가 action을 회수한다. 다만 lease 만료만으로 이전 Worker가 외부 API를 호출하지 않았다고 단정할 수는 없다. 회수 뒤에도 같은 `action_id`와 idempotency key를 사용하고, 이전 시도의 결과가 불명하면 곧바로 재호출하지 않고 reconciliation으로 보낸다. fencing token은 내부 저장소의 오래된 갱신을 막는 데 유용하지만, provider가 token을 검증하지 않는 한 외부 부수 효과 자체를 막지는 못한다.
 
 이 장애 구간을 닫으려면 외부 서비스도 같은 idempotency key를 이해해야 한다.
 
@@ -425,16 +461,7 @@ async def insert_tool_action(row: NewToolAction) -> ToolAction:
 
 가장 위험한 시점은 외부 부수 효과와 로컬 결과 저장 사이이다.
 
-```text
-Worker ── 송금 요청 ──> Provider
-                         │
-                         ├─ 송금 성공
-                         └─ 응답 전송
-                              X 네트워크 단절
-
-Worker가 관측한 것: timeout
-실제로 일어난 것: 송금 성공
-```
+<ToolExecutionSafetyDiagram kind="unknown-recovery" language="ko" />
 
 이때 action을 바로 `failed`로 표시하고 새 idempotency key로 재시도하면 중복 송금이 발생할 수 있다.
 
@@ -468,13 +495,17 @@ async def reconcile_transfer(action: ToolAction) -> None:
             provider_reference=remote.reference,
             result=remote.payload,
         )
-    elif remote.status == "not_found":
-        await retry_same_action(action)
+    elif (
+        remote.status == "not_found"
+        and remote.is_authoritative_not_executed
+        and action.provider_visibility_deadline <= now()
+    ):
+        await retry_same_action(action)  # 반드시 같은 action과 같은 key
     else:
         await action_store.keep_outcome_unknown(action.action_id)
 ```
 
-`not_found`가 정말 “실행되지 않음”을 뜻하는지는 provider 계약으로 확인해야 한다. 조회 기능도 idempotency contract도 없다면 자동으로 안전한 재시도를 보장하기 어렵다. 그 경우 수동 reconciliation이나 더 보수적인 중단 정책이 필요하다.
+`not_found`가 정말 “실행되지 않음”을 뜻하는지는 provider 계약으로 확인해야 한다. 비동기 처리나 조회 지연이 있는 provider라면 즉시 `not_found`를 재시도 신호로 쓰지 않는다. provider가 **권위 있게 미실행을 확인**하고, 그 결과가 보일 때까지의 visibility window도 지났을 때만 같은 action을 재시도한다. 조회 기능도 idempotency contract도 없다면 자동으로 안전한 재시도를 보장하기 어렵다. 그 경우 수동 reconciliation이나 더 보수적인 중단 정책이 필요하다.
 
 ## 10. 재시도 여부는 오류 종류가 아니라 결과 확실성으로 정한다
 
@@ -492,7 +523,7 @@ async def reconcile_transfer(action: ToolAction) -> None:
 
 재시도 횟수, backoff와 jitter도 필요하지만 그 전에 “같은 요청을 반복해도 안전한가?”를 확인해야 한다. 멱등하지 않은 부수 효과를 일반적인 네트워크 재시도 정책에 그대로 넣으면 안 된다.
 
-## 11. Queue Ack는 결과 저장 뒤에 한다
+## 11. queue ack는 결과 저장 뒤에 한다
 
 정상 순서는 다음과 같다.
 
@@ -500,10 +531,10 @@ async def reconcile_transfer(action: ToolAction) -> None:
 action 실행권 확보
 → 외부 API 호출
 → PostgreSQL에 succeeded 또는 최종 state 저장
-→ Queue ack
+→ queue ack
 ```
 
-먼저 ack한 뒤 결과 저장에 실패하면 Queue에는 완료로 보이지만 로컬 시스템에는 결과가 없다.
+먼저 ack한 뒤 결과 저장에 실패하면 queue에는 완료로 보이지만 로컬 시스템에는 결과가 없다.
 
 반대로 결과를 저장한 뒤 ack 전에 Worker가 죽으면 메시지가 다시 전달될 수 있다. 재전달된 Worker는 action state를 확인한다.
 
@@ -532,7 +563,7 @@ async def handle_tool_message(message: ToolMessage) -> None:
     await execute_claimed_action(claimed)
 ```
 
-실제 구현에서는 lease 만료, fencing token, retry budget과 Worker crash recovery 정책을 추가해야 한다.
+실제 구현에서는 lease 만료 뒤의 recovery, fencing token, retry budget과 Worker crash recovery 정책을 함께 설계해야 한다. 특히 이미 `executing`이던 action을 재전달 메시지에서 곧바로 ack하지 말고, lease와 provider 조회 결과에 따라 정상 진행·reconciliation·회수 중 어느 경로인지 영속 기록으로 판정해야 한다.
 
 ## 12. Checkpoint와 Tool 실행 경계를 맞춘다
 
@@ -590,15 +621,17 @@ Happy path만 테스트하면 멱등성 문제를 발견하기 어렵다.
 최소한 다음 상황을 인위적으로 만들어야 한다.
 
 1. 사용자가 승인 버튼을 연속으로 두 번 누른다.
-2. 같은 Queue 메시지를 두 Worker가 거의 동시에 받는다.
-3. 승인 후 수취인이나 금액 변경을 시도한다.
-4. Worker가 외부 호출 직전에 종료된다.
-5. Provider 성공 직후 로컬 결과 저장 전에 종료된다.
-6. Provider 응답이 timeout되지만 실제 거래는 성공한다.
-7. 승인 만료 뒤 늦은 메시지가 도착한다.
-8. 같은 idempotency key에 다른 인자를 보낸다.
-9. Redis의 lock과 진행 state가 모두 사라진다.
-10. Runtime이 이전 checkpoint에서 Tool node를 다시 실행한다.
+2. 같은 queue 메시지를 두 Worker가 거의 동시에 받는다.
+3. `approved` transaction은 commit됐지만 outbox relay가 queue 발행 전에 종료된다.
+4. `executing` Worker가 lease 만료 뒤 살아나 외부 호출을 시도한다.
+5. 승인 후 수취인이나 금액 변경을 시도한다.
+6. Worker가 외부 호출 직전에 종료된다.
+7. Provider 성공 직후 로컬 결과 저장 전에 종료된다.
+8. Provider 응답이 timeout되지만 실제 거래는 성공한다.
+9. 승인 만료 뒤 늦은 메시지가 도착한다.
+10. 같은 idempotency key에 다른 인자를 보낸다.
+11. Redis의 lock과 진행 state가 모두 사라진다.
+12. Runtime이 이전 checkpoint에서 Tool node를 다시 실행한다.
 
 테스트의 성공 조건은 “Tool 함수가 한 번 호출됐다”가 아니다.
 
@@ -615,7 +648,7 @@ Happy path만 테스트하면 멱등성 문제를 발견하기 어렵다.
 
 - 사용자는 버튼을 다시 누른다.
 - 브라우저는 응답을 받지 못한다.
-- Queue는 메시지를 다시 전달한다.
+- queue는 메시지를 다시 전달한다.
 - Worker는 checkpoint에서 다시 시작한다.
 - 네트워크는 성공 응답을 잃는다.
 - 외부 서비스의 idempotency key는 언젠가 만료된다.
@@ -629,7 +662,7 @@ Happy path만 테스트하면 멱등성 문제를 발견하기 어렵다.
 3. **재시도에는 항상 같은 idempotency key를 사용한다.**
 4. **실행 결과를 모르면 새 부수 효과를 만들지 않는다.**
 
-이 네 가지가 지켜질 때 Agent가 다시 생각하고, Worker가 다시 실행되고, Queue가 메시지를 다시 전달하더라도 사용자는 같은 송금을 두 번 만들지 않는 시스템에 가까워질 수 있다.
+이 네 가지가 지켜질 때 Agent가 다시 생각하고, Worker가 다시 실행되고, queue가 메시지를 다시 전달하더라도 사용자는 같은 송금을 두 번 만들지 않는 시스템에 가까워질 수 있다.
 
 다음 글 [Agent가 일하면서 말하게 하기](/ai/agents/agent-sse-streaming/)에서는 승인 대기, 실행 진행과 reconciliation state를 SSE로 사용자에게 전달하는 방법을 살펴본다. 전체 흐름은 [Agent Engineering 시리즈](/series/agent-engineering/)에서 확인할 수 있다.
 
