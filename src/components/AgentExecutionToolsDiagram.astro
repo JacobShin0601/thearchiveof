@@ -1,0 +1,30 @@
+---
+interface Props { kind: 'workload' | 'hybrid' | 'ownership'; }
+const { kind } = Astro.props as Props;
+const captions: Record<Props['kind'], string> = {
+  workload: '그림 1. 작업이 기다림인지 계산인지에 따라 실행 도구를 고른다',
+  hybrid: '그림 2. 하나의 에이전트 실행 안에서 비동기·스레드·프로세스를 함께 쓸 수 있다',
+  ownership: '그림 3. 동시성 도구와 실행 수명 주기의 책임은 서로 다른 문제다',
+};
+---
+<figure class="tools-diagram" data-kind={kind}>
+  <figcaption>{captions[kind]}</figcaption>
+  {kind === 'workload' && <div class="cards">
+    <section><h3>논블로킹 I/O</h3><p>LLM · PostgreSQL · Redis</p><strong>비동기 태스크</strong><small>네트워크 응답을 기다리는 동안 실행권을 양보</small></section>
+    <section><h3>블로킹 I/O</h3><p>기존 동기식 SDK</p><strong>제한된 스레드 풀</strong><small>이벤트 루프 밖에서 대기하도록 격리</small></section>
+    <section><h3>CPU 중심 계산</h3><p>대규모 계산 · 파싱 · 시뮬레이션</p><strong>프로세스 · 연산 서비스</strong><small>별도 CPU/GPU 자원에서 계산</small></section>
+  </div>}
+  {kind === 'hybrid' && <div class="hybrid">
+    <div class="request">요청</div><b>↓</b><div class="loop">이벤트 루프 <small>결과를 모으고 다음 단계를 조율</small></div>
+    <div class="branches"><section><strong>비동기 I/O</strong><span>LLM API · PostgreSQL</span></section><section><strong>스레드 위임</strong><span>기존 SDK</span></section><section><strong>프로세스 위임</strong><span>위험 모델 · CPU 계산</span></section></div>
+    <b>↓</b><div class="result">결과 구성</div>
+  </div>}
+  {kind === 'ownership' && <div class="ownership">
+    <section><h3>동시성의 기본 요소</h3><strong>비동기 · 스레드 · 프로세스</strong><p>“작업을 어떻게 진행하고 계산하는가?”</p></section>
+    <span>≠</span>
+    <section><h3>실행 수명 주기의 책임</h3><strong>API 프로세스 · 큐 · 워커</strong><p>“누가 작업을 끝까지 책임지는가?”</p></section>
+  </div>}
+</figure>
+<style>
+.tools-diagram{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink);font-family:var(--sans)}figcaption{margin-bottom:1rem;font-weight:700;line-height:1.5}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.cards section,.ownership section,.branches section,.request,.loop,.result{padding:.9rem;border:1px solid var(--line);background:var(--paper)}.cards h3,.ownership h3{margin:0 0 .5rem;font-size:.95rem}.cards p{margin:0 0 .7rem;color:var(--muted);font-size:.82rem}.cards strong{display:block;color:var(--accent);font-size:.9rem}.cards small{display:block;margin-top:.55rem;color:var(--muted);line-height:1.45}.hybrid{display:grid;justify-items:center;gap:.45rem;text-align:center}.loop{width:min(100%,36rem);font-weight:700}.loop small{display:block;margin-top:.3rem;color:var(--muted);font-size:.78rem;font-weight:400}.branches{display:grid;width:100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.branches section{display:grid;gap:.35rem}.branches strong{color:var(--accent)}.branches span{font-size:.8rem;color:var(--muted)}.request,.result{min-width:7rem}.ownership{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:.75rem}.ownership>span{display:grid;place-items:center;color:var(--accent);font-weight:700;font-size:1.4rem}.ownership strong{font-size:.9rem}.ownership p{margin:.65rem 0 0;color:var(--muted);line-height:1.5;font-size:.84rem}@media(max-width:640px){.tools-diagram{padding:1rem}.cards,.branches,.ownership{grid-template-columns:1fr}.ownership>span{height:1.25rem}.ownership>span::after{content:'↓';font-size:1rem}.ownership>span{font-size:0}.ownership>span::first-letter{font-size:0}}@media(prefers-color-scheme:dark){.tools-diagram{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
+</style>
