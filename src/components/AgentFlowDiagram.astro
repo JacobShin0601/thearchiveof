@@ -1,0 +1,116 @@
+---
+interface Props {
+  variant: 'overview' | 'parallel' | 'plan' | 'reflection' | 'stack';
+}
+
+const { variant } = Astro.props;
+---
+
+{variant === 'overview' && (
+  <figure class="agent-flow agent-flow--overview" aria-label="여섯 가지 에이전트 패턴의 관계">
+    <div class="agent-flow__lead">에이전트 요청</div>
+    <div class="agent-flow__arrow" aria-hidden="true">↓</div>
+    <div class="agent-flow__branches">
+      <div>도구 호출</div>
+      <div>작업 분배·병렬 실행</div>
+      <div>계획·실행</div>
+    </div>
+    <div class="agent-flow__arrow" aria-hidden="true">↓</div>
+    <div class="agent-flow__node">재시도·대체 경로 · 평가·수정</div>
+    <div class="agent-flow__arrow" aria-hidden="true">↓</div>
+    <div class="agent-flow__node agent-flow__node--accent">외부 시스템 변경 전 사람의 승인</div>
+  </figure>
+)}
+
+{variant === 'parallel' && (
+  <figure class="agent-flow agent-flow--parallel" aria-label="작업 분배와 병렬 실행 흐름">
+    <div class="agent-flow__lead">요청</div>
+    <div class="agent-flow__arrow" aria-hidden="true">↓</div>
+    <div class="agent-flow__node">경로 선택</div>
+    <div class="agent-flow__arrow" aria-hidden="true">↓</div>
+    <div class="agent-flow__branches">
+      <div>조사 역할</div>
+      <div>데이터 역할</div>
+      <div>행동 역할<small>필요하면 승인</small></div>
+    </div>
+    <div class="agent-flow__arrow" aria-hidden="true">↓</div>
+    <div class="agent-flow__node">결과 종합</div>
+  </figure>
+)}
+
+{variant === 'plan' && (
+  <figure class="agent-flow agent-flow--plan" aria-label="계획의 의존성과 병렬 실행">
+    <div class="agent-flow__node">조사</div>
+    <div class="agent-flow__branches">
+      <div>가치 평가</div>
+      <div>비교 기업 분석</div>
+    </div>
+    <div class="agent-flow__arrow" aria-hidden="true">↓</div>
+    <div class="agent-flow__node">보고서 작성</div>
+  </figure>
+)}
+
+{variant === 'reflection' && (
+  <figure class="agent-flow agent-flow--reflection" aria-label="초안 평가와 수정의 제한된 반복">
+    <div class="agent-flow__steps">
+      <span>초안 생성</span><b>→</b><span>기준에 따라 평가</span><b>→</b><span>통과?</span>
+    </div>
+    <div class="agent-flow__feedback">미통과: 피드백을 반영해 수정한 뒤 다시 평가 <small>정해진 횟수까지만</small></div>
+  </figure>
+)}
+
+{variant === 'stack' && (
+  <figure class="agent-flow agent-flow--stack" aria-label="실제 요청에서 패턴이 결합되는 순서">
+    <div class="agent-flow__lead">사용자 요청</div>
+    <div class="agent-flow__arrow" aria-hidden="true">↓</div>
+    <div class="agent-flow__node">계획 수립 · 의존성 검증</div>
+    <div class="agent-flow__arrow" aria-hidden="true">↓</div>
+    <div class="agent-flow__branches">
+      <div>조사</div><div>데이터 조회</div>
+    </div>
+    <p class="agent-flow__hint">서로 독립적인 작업은 동시에 실행</p>
+    <div class="agent-flow__arrow" aria-hidden="true">↓</div>
+    <div class="agent-flow__node">평가 · 수정 <small>횟수 제한</small></div>
+    <div class="agent-flow__arrow" aria-hidden="true">↓</div>
+    <div class="agent-flow__node agent-flow__node--accent">제안된 행동 · 사람의 승인 · 외부 도구 실행</div>
+  </figure>
+)}
+
+<style>
+  .agent-flow {
+    margin: 2em 0;
+    padding: 24px;
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--paper-deep) 35%, transparent);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.45;
+    text-align: center;
+  }
+  .agent-flow__lead, .agent-flow__node, .agent-flow__branches > div, .agent-flow__steps span {
+    padding: 11px 14px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .agent-flow__lead { display: inline-block; border-color: var(--ink); font-weight: 700; }
+  .agent-flow__node { max-width: 340px; margin-inline: auto; }
+  .agent-flow__node--accent { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .agent-flow__arrow { margin: 6px 0; color: var(--accent); font-size: 20px; line-height: 1; }
+  .agent-flow__branches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-width: 620px; margin-inline: auto; }
+  .agent-flow__branches > div { display: grid; place-items: center; min-height: 56px; }
+  .agent-flow small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; font-weight: 400; }
+  .agent-flow--plan .agent-flow__branches { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 12px; }
+  .agent-flow--reflection { display: grid; gap: 14px; }
+  .agent-flow__steps { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .agent-flow__steps b { color: var(--accent); font-size: 18px; }
+  .agent-flow__feedback { max-width: 490px; margin-inline: auto; padding: 10px 14px; border-left: 2px solid var(--accent); color: var(--muted); text-align: left; }
+  .agent-flow__hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+  @media (max-width: 520px) {
+    .agent-flow { padding: 16px; font-size: 13px; }
+    .agent-flow__branches { grid-template-columns: 1fr; max-width: 270px; }
+    .agent-flow--plan .agent-flow__branches { grid-template-columns: 1fr; }
+    .agent-flow__steps { flex-direction: column; }
+    .agent-flow__steps b { transform: rotate(90deg); }
+  }
+</style>
