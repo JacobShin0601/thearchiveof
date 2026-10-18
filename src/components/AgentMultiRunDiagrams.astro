@@ -1,6 +1,6 @@
 ---
 interface Props {
-  kind: 'hierarchy' | 'context' | 'failure' | 'budget' | 'creation';
+  kind: 'hierarchy' | 'context' | 'failure' | 'budget' | 'timeline' | 'outbox' | 'fanin';
   language?: 'ko' | 'en';
   caption: string;
 }
@@ -63,15 +63,6 @@ const policies = ko
     </div>
   )}
 
-  {kind === 'creation' && (
-    <ol class="creation">
-      <li><b>1</b><strong>Child Run 행 생성</strong><span>중단돼도 같은 <code>child_key</code>를 재사용</span></li>
-      <li><b>2</b><strong>Outbox 기록</strong><span>생성 사실과 전달할 이벤트를 같은 트랜잭션에 남김</span></li>
-      <li><b>3</b><strong>Queue 전달</strong><span>Worker가 실행을 발견할 수 있도록 요청을 전달</span></li>
-      <li><b>4</b><strong>Parent checkpoint</strong><span>재실행 뒤에도 이미 생성한 Child Run을 다시 찾음</span></li>
-    </ol>
-  )}
-
   {kind === 'budget' && (
     <div class="budget">
       <header><strong>{ko ? 'Parent envelope' : 'Parent envelope'}</strong><code>deadline=120s · tokens=60k · cost=$3 · children≤4</code></header>
@@ -81,6 +72,23 @@ const policies = ko
     </div>
   )}
 
+  {kind === 'timeline' && (
+    <div class="timeline">
+      <header><strong>{ko ? '정상 실행' : 'Normal execution'}</strong><code>Parent: spawn → waiting → synthesis → done</code></header>
+      <section><strong>Research</strong><span class="done">success</span><strong>Data</strong><span class="done">success</span><strong>Risk</strong><span class="done">success</span></section>
+      <header><strong>{ko ? 'Worker 장애 뒤 복구' : 'Recovery after worker crash'}</strong><code>completed children are not re-executed</code></header>
+      <section><strong>Research</strong><span class="done">success</span><strong>Data</strong><span class="crash">crash → resume → success</span><strong>Risk</strong><span class="done">success</span></section>
+    </div>
+  )}
+
+  {kind === 'outbox' && (
+    <div class="outbox"><section><strong>DB transaction</strong><code>Parent state</code><code>Child rows</code><code>Budget reservations</code><code>Outbox rows</code></section><i>commit ↓</i><section><strong>Outbox dispatcher</strong><code>at-least-once publish</code></section><i>↓</i><section><strong>Queue → Worker</strong><code>state-based deduplication</code></section></div>
+  )}
+
+  {kind === 'fanin' && (
+    <div class="fanin"><section><strong>waiting_children</strong><i>↓</i><strong>join evaluation</strong></section><div><section><span>ready</span><i>↓</i><strong>synthesis_queued</strong><i>↓</i><strong>succeeded</strong></section><section><span>impossible</span><i>↓</i><strong>failed</strong></section></div><footer>{ko ? '현재 child state를 재조회해 평가한다. 완료 횟수만 누적하지 않는다.' : 'Evaluate current child state again; do not only increment a completion counter.'}</footer></div>
+  )}
+
   <figcaption>{caption}</figcaption>
 </figure>
 
@@ -88,9 +96,10 @@ const policies = ko
   .multi-run-diagram{margin:2.5rem 0;padding:1.2rem;border:1px solid var(--line);border-radius:.9rem;background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.9rem;line-height:1.5}.multi-run-diagram figcaption{margin-top:1rem;color:var(--muted);font-size:.84rem;line-height:1.55}.multi-run-diagram code{overflow-wrap:anywhere;color:var(--ink);font-size:.78rem}.hierarchy{display:grid;gap:.35rem}.hierarchy header{display:grid;grid-template-columns:auto 1fr auto;gap:.6rem;align-items:center;padding:.7rem;border:2px solid var(--accent);border-radius:.55rem;background:var(--paper)}.hierarchy header span{color:var(--accent);font-size:.76rem;font-weight:800;text-transform:uppercase}.fork{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem}.fork i{width:1px;height:1rem;margin:auto;background:var(--accent)}.children{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem}.children section{display:grid;gap:.25rem;padding:.7rem;border:1px solid var(--line);border-radius:.5rem;background:var(--paper);text-align:center}.children small{color:var(--muted);font-size:.76rem.join{display:grid;grid-template-columns:1fr auto auto 1fr;gap:.5rem;align-items:center;padding:.6rem;border:1px dashed var(--line);background:var(--paper)}.join i{height:1px;background:var(--accent)}.join strong{font-size:.8rem.hierarchy footer{display:flex;justify-content:center;gap:.6rem;padding:.65rem;border-left:3px solid var(--accent);background:var(--paper)}.hierarchy footer span{color:var(--muted);font-size:.78rem
   .context{display:grid;gap:.5rem}.shared,.contract{display:grid;grid-template-columns:auto 1fr auto;gap:.55rem;align-items:center;padding:.7rem;border:1px solid var(--line);background:var(--paper)}.shared span{color:var(--accent);font-size:.76rem;font-weight:800}.arrows{display:grid;grid-template-columns:repeat(3,1fr);color:var(--accent);text-align:center}.arrows i{font-style:normal}.isolated{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem}.isolated section{display:grid;gap:.25rem;padding:.7rem;border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:.5rem;background:var(--paper)}.isolated strong{font-size:.82rem.contract{border:2px solid var(--accent);border-radius:.5rem}.context footer{padding:.65rem;border:1px dashed var(--line);color:var(--muted);font-size:.8rem}
   .failure{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem}.failure section{display:grid;grid-template-columns:auto 1fr;gap:.2rem .55rem;padding:.75rem;border:1px solid var(--line);border-radius:.5rem;background:var(--paper)}.failure section>span{grid-row:1/4;color:var(--accent);font-size:.74rem;font-weight:800}.failure strong{font-size:.84rem.failure p{margin:0;color:var(--muted);font-size:.78rem.failure footer{grid-column:1/-1;padding:.65rem;border-left:3px solid var(--accent);background:var(--paper);color:var(--muted);font-size:.8rem}
-  .creation{display:grid;gap:.5rem;margin:0;padding:0;list-style:none}.creation li{display:grid;grid-template-columns:auto minmax(8rem,.7fr) minmax(12rem,1.3fr);gap:.55rem;align-items:center;padding:.75rem;border:1px solid var(--line);background:var(--paper);font-size:.82rem}.creation b{display:grid;place-items:center;width:1.5rem;height:1.5rem;border-radius:50%;background:var(--accent);color:var(--paper-deep);font-size:.72rem}.creation span{color:var(--muted);line-height:1.45}
   .budget{display:grid;gap:.6rem}.budget header{display:flex;justify-content:space-between;gap:.7rem;padding:.7rem;border:2px solid var(--accent);border-radius:.55rem;background:var(--paper)}.allocations{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem}.allocations section{display:grid;gap:.2rem;padding:.65rem;border:1px solid var(--line);background:var(--paper)}.allocations span{color:var(--accent);font-size:1rem;font-weight:800}.allocations strong{font-size:.8rem.signals{display:flex;flex-wrap:wrap;justify-content:center;gap:.4rem}.signals span{padding:.35rem .55rem;border:1px dashed var(--line);background:var(--paper);color:var(--muted);font-size:.78rem.budget footer{padding:.65rem;border-left:3px solid var(--accent);background:var(--paper);color:var(--muted);font-size:.8rem}
-  @media(max-width:700px){.hierarchy header{grid-template-columns:1fr}.children,.isolated{grid-template-columns:1fr}.fork,.arrows{display:grid;grid-template-columns:1fr;justify-items:center;gap:.25rem}.fork i{height:.65rem}.arrows i:not(:nth-child(2)){display:none}.failure{grid-template-columns:1fr}.failure footer{grid-column:1}.allocations{grid-template-columns:repeat(2,1fr)}.shared,.contract{grid-template-columns:1fr}.budget header{display:grid}.creation li{grid-template-columns:auto 1fr}.creation li span{grid-column:2}.failure{grid-template-columns:1fr}.failure footer{grid-column:1}.allocations{grid-template-columns:repeat(2,1fr)}.shared,.contract{grid-template-columns:1fr}.budget header{display:grid}}
+  .timeline{display:grid;gap:.45rem}.timeline header{display:flex;justify-content:space-between;gap:.8rem;padding:.65rem;border-bottom:1px solid var(--line)}.timeline section{display:grid;grid-template-columns:5rem 1fr 5rem 1fr 5rem 1fr;gap:.35rem;align-items:center}.timeline section strong{font-size:.7rem}.timeline span{padding:.35rem .45rem;font-size:.67rem;text-align:center}.timeline .done{border-left:3px solid var(--accent);background:var(--paper)}.timeline .crash{border-left:3px solid #c98a48;background:var(--paper)}
+  .outbox{display:grid;justify-items:center;gap:.5rem}.outbox section{display:grid;gap:.3rem;width:min(100%,27rem);padding:.75rem;border:1px solid var(--line);background:var(--paper);text-align:center}.outbox section:first-child{border:2px solid var(--accent)}.outbox i,.fanin i{color:var(--accent);font-style:normal;font-weight:800}.outbox strong{font-size:.75rem}.outbox code{font-size:.68rem}.fanin{display:grid;gap:.5rem;text-align:center}.fanin>section,.fanin>div>section{display:grid;gap:.35rem;padding:.75rem;border:1px solid var(--line);background:var(--paper)}.fanin>div{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}.fanin span{color:var(--accent);font-size:.72rem;font-weight:800}.fanin footer{padding:.65rem;border-left:3px solid var(--accent);background:var(--paper);color:var(--muted);font-size:.71rem}
+  @media(max-width:700px){.hierarchy header{grid-template-columns:1fr}.children,.isolated{grid-template-columns:1fr}.fork,.arrows{display:grid;grid-template-columns:1fr;justify-items:center;gap:.25rem}.fork i{height:.65rem}.arrows i:not(:nth-child(2)){display:none}.failure{grid-template-columns:1fr}.failure footer{grid-column:1}.allocations{grid-template-columns:repeat(2,1fr)}.shared,.contract{grid-template-columns:1fr}.budget header{display:grid}.timeline section{grid-template-columns:4.6rem 1fr}.timeline section strong:nth-of-type(n+2),.timeline section span:nth-of-type(n+2){margin-top:.25rem}.fanin>div{grid-template-columns:1fr}}
   @media(max-width:480px){.multi-run-diagram{padding:.8rem}.join{grid-template-columns:1fr;text-align:center}.join i{width:1px;height:.7rem;margin:auto}.allocations{grid-template-columns:1fr}.hierarchy footer{display:grid;text-align:center}}
   @media(prefers-color-scheme:dark){.multi-run-diagram{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
 </style>
