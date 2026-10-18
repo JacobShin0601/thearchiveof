@@ -1,6 +1,6 @@
 ---
 export interface Props {
-  kind: 'approval-flow' | 'failure-window';
+  kind: 'approval-flow' | 'failure-window' | 'unknown-recovery';
   language?: 'ko' | 'en';
 }
 
@@ -30,6 +30,15 @@ const copy = {
         { icon: '↻', label: '재시도 전 같은 key로 조회·reconciliation' },
       ],
     },
+    'unknown-recovery': {
+      caption: '결과 불명일 때의 복구 경로',
+      steps: [
+        { icon: '1', label: '동일 idempotency key로 Provider 호출' },
+        { icon: '2', label: '응답 유실 시 outcome_unknown으로 기록' },
+        { icon: '3', label: '같은 key·provider reference로 조회' },
+        { icon: '4', label: '미실행이 권위 있게 확인될 때만 같은 action 재시도' },
+      ],
+    },
   },
   en: {
     'approval-flow': {
@@ -52,6 +61,15 @@ const copy = {
         { icon: '↓', label: 'Response lost on the wire' },
         { icon: '⚠', label: 'Worker observes timeout only' },
         { icon: '↻', label: 'Look up by same key before retry' },
+      ],
+    },
+    'unknown-recovery': {
+      caption: 'Recovery path for an unknown outcome',
+      steps: [
+        { icon: '1', label: 'Call the provider with the same idempotency key' },
+        { icon: '2', label: 'Persist outcome_unknown when the response is lost' },
+        { icon: '3', label: 'Look up using the same key or provider reference' },
+        { icon: '4', label: 'Retry only when non-execution is authoritative' },
       ],
     },
   },
@@ -113,9 +131,13 @@ const figureId = `tool-exec-safety-${kind}-${language}`;
   }
   .step-label {
     flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
-  .flow[data-kind='failure-window'] .step:nth-child(3) {
+  .flow[data-kind='failure-window'] .step:nth-child(3),
+  .flow[data-kind='unknown-recovery'] .step:nth-child(2) {
     border-style: dashed;
+    border-color: var(--accent);
   }
   @media (min-width: 640px) {
     .flow[data-kind='approval-flow'] {
