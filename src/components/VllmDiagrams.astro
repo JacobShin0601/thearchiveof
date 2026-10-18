@@ -29,7 +29,14 @@ const flows = {
     : ['Define workload distributions', 'Set SLOs and measure baseline', 'Form a bottleneck hypothesis', 'Change one parameter', 'Repeat the same load → iterate'],
 };
 
-const flowSteps = kind === 'architecture' ? flows.architecture : kind === 'timeline' ? flows.timeline : kind === 'loop' ? flows.loop : [];\n\nconst constraints = ko
+type Constraint = [string, string, string];
+type MetricCard = [string, string, string];
+type TriageCard = [string, string, string];
+type Scenario = [string, string, [string, string][], string];
+
+const flowSteps = kind === 'architecture' ? flows.architecture : kind === 'timeline' ? flows.timeline : kind === 'loop' ? flows.loop : [];
+
+const constraints: Constraint[] = ko
   ? [
       ['max_num_seqs', '한 반복 단계에서 처리할 sequence 수의 상한', '동시 처리 기회는 늘지만 KV 수요가 커질 수 있다.'],
       ['max_num_batched_tokens', '한 반복 단계에서 계산할 token 수의 상한', '프리필과 디코드가 같은 token 예산을 나눠 쓴다.'],
@@ -41,7 +48,7 @@ const flowSteps = kind === 'architecture' ? flows.architecture : kind === 'timel
       ['KV cache', 'Request state retained across iterations', 'Growing context and output continue to occupy GPU memory.'],
     ];
 
-const metricCards = ko
+const metricCards: MetricCard[] = ko
   ? [
       ['사용자 경험', 'TTFT · TPOT · E2E', 'p50·p95·p99으로 사용자가 실제로 기다린 시간을 본다.'],
       ['scheduler', '실행 중 · 대기 중 · 대기 시간 · 선점', 'queue가 쌓이는지, 실행 중 재계산이 생기는지 확인한다.'],
@@ -55,7 +62,7 @@ const metricCards = ko
       ['Completed work', 'input/output tok/s · success RPS', 'Measure useful completions that remain within SLOs.'],
     ];
 
-const triageCards = ko
+const triageCards: TriageCard[] = ko
   ? [
       ['TTFT↑ + queue↑', '도착률이 처리 용량을 넘었거나 scheduler·수용 제어가 막혔을 수 있다.', '유입·완료 RPS, queue 증가 추세, 복제본 편중을 확인'],
       ['TTFT↑ + queue 짧음 + prompt 김', '프리필 비용이 지배적일 수 있다.', 'prompt 길이별 TTFT, prefill 시간, prefix cache 적중을 확인'],
@@ -67,7 +74,7 @@ const triageCards = ko
       ['Normal TTFT + worse TPOT', 'Decode concurrency, memory pressure, or step interference may dominate.', 'Check ITL, active sequences, KV cache, DRAM, and preemption.'],
     ];
 
-const scenarios = ko
+const scenarios: Scenario[] = ko
   ? [
       ['설정 A', 'max_num_seqs 32 · token 예산 2,048', [['GPU', '56%'], ['KV cache', '48%'], ['대기 요청', '17'], ['TTFT p95', '2.8s'], ['TPOT p95', '38ms'], ['Output tok/s', '1,100']], 'TTFT SLO 실패'],
       ['설정 B', 'max_num_seqs 64 · token 예산 8,192', [['GPU', '87%'], ['KV cache', '76%'], ['대기 요청', '3'], ['TTFT p95', '1.2s'], ['TPOT p95', '44ms'], ['Output tok/s', '1,950']], 'SLO 충족 후보'],
