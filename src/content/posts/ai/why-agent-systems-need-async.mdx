@@ -46,10 +46,10 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 import AsyncExecutionDiagram from '../../../components/AsyncExecutionDiagram.astro';
 
 <AnswerBlock question="에이전트 시스템에는 왜 비동기가 필요한가?">
-  Agent 작업 부하는 대개 계산보다 <strong>LLM, 데이터베이스, 검색 API, Redis 같은 외부 시스템의 응답을 기다리는 시간</strong>이 길다. Async는 한 run 안의 독립적인 대기를 겹쳐 지연 시간을 줄이고, 한 run이 기다리는 동안 다른 run을 진행해 backend의 처리량을 높인다. CPU를 더 많이 쓰는 기술이 아니라, I/O 때문에 비어 있던 실행 시간을 다른 작업에 돌려주는 동시성 모델이다.
+  에이전트의 작업 부하는 대개 계산보다 <strong>LLM, 데이터베이스, 검색 API, Redis 같은 외부 시스템의 응답을 기다리는 시간</strong>이 길다. 비동기 실행(async)은 한 번의 실행 안에서 독립적인 대기를 겹쳐 지연 시간을 줄이고, 한 실행이 기다리는 동안 다른 실행을 진행해 백엔드의 처리량을 높인다. CPU를 더 많이 쓰는 기술이 아니라, I/O 때문에 비어 있던 실행 시간을 다른 작업에 돌려주는 동시성 모델이다.
 </AnswerBlock>
 
-이전 글 [Agent Backend 한 장 지도](/ai/agents/agent-backend-architecture-map/)에서 API·queue·worker·PostgreSQL·Redis·SSE의 역할을 한 번에 봤다. 그 전제 위에서, worker 안에서 Agent가 LLM·DB·검색 API를 기다리는 **실행 모델**이 async가 되는 이유를 다룬다. [에이전트 패턴 설계](/ai/agents/agent-pattern-design/)에서 정리한 병렬 패턴을 Python으로 쓰면 이런 코드가 나온다.
+이전 글 [에이전트 백엔드 한 장 지도](/ai/agents/agent-backend-architecture-map/)에서 API·큐·워커·PostgreSQL·Redis·SSE의 역할을 한 번에 살펴봤다. 이 글에서는 그 전제 위에서 워커 안의 에이전트가 LLM·데이터베이스·검색 API를 기다릴 때, 왜 비동기 실행 모델이 필요한지 다룬다. [에이전트 패턴 설계](/ai/agents/agent-pattern-design/)의 병렬 패턴을 Python으로 옮기면 다음과 같다.
 
 ```python
 research, data = await asyncio.gather(
@@ -61,11 +61,11 @@ research, data = await asyncio.gather(
 코드는 짧다. 하지만 이 두 줄을 이해하려면 문법보다 실행 모델을 먼저 알아야 한다.
 
 - 무엇이 기다리는 작업이고, 무엇이 계산하는 작업인가?
-- `await`에서 멈춘 coroutine 대신 누가 다른 일을 진행하는가?
+- `await`에서 멈춘 코루틴 대신 누가 다른 일을 진행하는가?
 - 독립적인 작업과 순서가 필요한 작업을 어떻게 구분하는가?
-- async 함수 안에서 blocking SDK를 부르면 왜 다른 run까지 느려지는가?
+- 비동기 함수 안에서 블로킹 SDK를 호출하면 왜 다른 실행까지 느려지는가?
 
-운영 환경의 Agent는 한 번의 요청 안에서도 여러 I/O를 기다리고, 하나의 backend process 안에서도 여러 요청을 진행한다. Async를 모르면 어디서 시간이 사라지는지, 왜 한 blocking 호출이 관계없는 요청까지 멈추는지 설명하기 어렵다.
+운영 환경의 에이전트는 한 번의 요청 안에서도 여러 I/O를 기다리고, 하나의 백엔드 프로세스 안에서도 여러 요청을 진행한다. 비동기 실행 모델을 모르면 어디서 시간이 사라지는지, 왜 블로킹 호출 하나가 관계없는 요청까지 멈추는지 설명하기 어렵다.
 
 ## 에이전트는 계산보다 외부 응답을 기다리는 시간이 더 길다
 
@@ -107,9 +107,9 @@ async def collect_context(query: str):
 
 ## 한 번의 실행 시간보다 중요한 것: 전체 처리량
 
-Async를 `gather`로 API 세 개를 동시에 부르는 기법으로만 이해하면 절반을 놓친다. 운영 backend에는 서로 다른 사용자의 run이 계속 들어온다.
+비동기를 `gather`로 API 세 개를 동시에 부르는 기법으로만 이해하면 절반을 놓친다. 운영 백엔드에는 서로 다른 사용자의 실행 요청이 계속 들어온다.
 
-Run A가 LLM 응답을 20초 기다리는 동안 process 전체가 멈춰 있어야 할 이유는 없다. 그 사이 Run B는 데이터베이스 질의를 보낼 수 있고, Run C는 Redis에서 상태를 읽을 수 있다.
+실행 A가 LLM 응답을 20초 기다리는 동안 프로세스 전체가 멈춰 있어야 할 이유는 없다. 그 사이 실행 B는 데이터베이스 질의를 보낼 수 있고, 실행 C는 Redis에서 상태를 읽을 수 있다.
 
 <AsyncExecutionDiagram kind="throughput" />
 
@@ -120,23 +120,23 @@ Run A가 LLM 응답을 20초 기다리는 동안 process 전체가 멈춰 있어
 | 한 run 내부 | 독립적인 I/O 대기를 겹쳐 지연 시간을 줄인다 |
 | 여러 run 사이 | 한 run이 기다릴 때 다른 run을 진행해 처리량을 높인다 |
 
-Async는 외부 API 하나를 더 빨리 응답하게 만들지 않는다. 대신 그 응답을 기다리는 동안 다른 일을 진행하게 한다. 따라서 async가 개선하는 것은 CPU 성능이 아니라 **실행 자원의 이용률과 I/O 중심 backend의 처리량**이다.
+비동기는 외부 API 하나의 응답 자체를 더 빠르게 만들지 않는다. 대신 그 응답을 기다리는 동안 다른 일을 진행하게 한다. 따라서 비동기가 개선하는 것은 CPU 성능이 아니라 **실행 자원의 이용률과 I/O 중심 백엔드의 처리량**이다.
 
 물론 event loop가 여러 run을 진행할 수 있다는 사실이 그 run을 지속 가능하게 소유한다는 뜻은 아니다. API process가 재시작되어도 살아남아야 하는 장시간 작업은 queue와 worker라는 별도의 수명 주기 경계가 필요하다. 그 문제는 5편 [Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/)에서 다룬다.
 
 ## 블로킹과 논블로킹은 무엇이 다른가
 
-Blocking 호출은 결과가 돌아올 때까지 현재 thread를 붙잡는다. 같은 event loop thread에 놓인 다른 coroutine도 그동안 진행할 수 없다.
+블로킹 호출은 결과가 돌아올 때까지 현재 스레드를 붙잡는다. 같은 이벤트 루프 스레드에 놓인 다른 코루틴도 그동안 진행할 수 없다.
 
 <AsyncExecutionDiagram kind="blocking" />
 
-Non-blocking I/O는 운영체제나 런타임에 "이 작업이 준비되면 알려달라"고 맡기고 현재 실행권을 돌려준다. event loop는 그 사이 실행 가능한 다른 coroutine을 고른다.
+논블로킹 I/O는 운영체제나 런타임에 “이 작업이 준비되면 알려 달라”고 맡기고 현재 실행권을 돌려준다. 이벤트 루프는 그 사이 실행 가능한 다른 코루틴을 고른다.
 
 <AsyncExecutionDiagram kind="interleaving" />
 
 한 thread가 같은 순간에 Python 코드 세 줄을 실행하는 것은 아니다. 한 coroutine이 I/O에서 실행권을 양보하면 event loop가 다른 실행 가능한 coroutine을 고른다. Python 공식 문서는 `asyncio`를 `async/await` 문법으로 동시성 코드를 작성하는 라이브러리로 설명하며, 특히 I/O-bound 작업과 고수준 네트워크 코드에 잘 맞는다고 정리한다. ([asyncio 문서](https://docs.python.org/3/library/asyncio.html))
 
-여기서 "양보"가 중요하다. Async는 협력적으로 동작한다. 실행 중인 coroutine이 `await` 가능한 I/O에 도달해야 event loop가 다른 작업을 진행할 기회를 얻는다.
+여기서 “양보”가 중요하다. 비동기 실행은 협력적으로 동작한다. 실행 중인 코루틴이 `await` 가능한 I/O에 도달해야 이벤트 루프가 다른 작업을 진행할 기회를 얻는다.
 
 ## 코루틴, 태스크, 이벤트 루프를 나누어 보자
 
@@ -302,7 +302,7 @@ async def search_with_bridge(query: str):
 
 ## 에이전트 실행 흐름에 다시 적용해 보기
 
-Async는 Agent의 제어 흐름을 대신 설계하지 않는다. 독립성과 의존성을 먼저 정한 뒤 실행 모델을 적용한다.
+비동기는 에이전트의 제어 흐름을 대신 설계하지 않는다. 독립성과 의존성을 먼저 정한 뒤 실행 모델을 적용한다.
 
 ```python
 async def analyze_company(query: str):
@@ -328,7 +328,7 @@ async def analyze_company(query: str):
 
 ## 운영 환경에서 확인할 질문
 
-Agent backend에 async를 적용할 때는 문법보다 다음 질문이 더 중요하다.
+에이전트 백엔드에 비동기를 적용할 때는 문법보다 다음 질문이 더 중요하다.
 
 | 질문 | 확인할 것 |
 | --- | --- |
@@ -351,6 +351,6 @@ async def misleading_async_job(rows):
     return expensive_python_calculation(rows)  # await 지점 없이 CPU를 계속 점유
 ```
 
-함수 선언만 async일 뿐, 계산이 끝날 때까지 event loop thread를 놓지 않는다. 그동안 다른 coroutine은 진행할 기회를 얻지 못한다. Async는 CPU-bound 작업을 빠르게 만들지도, 여러 코어에서 자동으로 병렬화하지도 않는다.
+함수 선언만 async일 뿐, 계산이 끝날 때까지 event loop thread를 놓지 않는다. 그동안 다른 coroutine은 진행할 기회를 얻지 못한다. 비동기는 CPU 중심 작업을 빠르게 만들지도, 여러 코어에서 자동으로 병렬화하지도 않는다.
 
-다음 글 **Async, Thread, Process**에서는 기다리는 작업과 계산하는 작업을 나누고, blocking SDK를 thread로 옮기는 경우, CPU-bound 계산을 process나 별도 worker에 두는 경우를 비교한다. Async는 시작점이지만 모든 동시성 문제의 답은 아니다.
+다음 글 **Async, Thread, Process**에서는 기다리는 작업과 계산하는 작업을 나누고, blocking SDK를 thread로 옮기는 경우, CPU-bound 계산을 process나 별도 worker에 두는 경우를 비교한다. 비동기는 시작점이지만 모든 동시성 문제의 답은 아니다.
