@@ -18,17 +18,18 @@ const meta = appliedTrackDetailMeta(detailSeriesName);
 const isKo = language === 'ko';
 const trackHref = appliedTrackPath(detailSeriesName, language);
 const countLabel = isKo ? `${trackPosts.length}편` : `${trackPosts.length} article${trackPosts.length === 1 ? '' : 's'}`;
+const contentTypeLabel = (contentType: string) => isKo ? '실전 글' : contentType;
 ---
 
 <section class="series-section-block series-applied-track" aria-labelledby="series-applied-track">
   <header class="series-section-heading">
-    <p class="eyebrow">{isKo ? 'Applied Track' : 'Applied Track'}</p>
+    <p class="eyebrow">{isKo ? '실전 트랙' : 'Applied Track'}</p>
     <h2 id="series-applied-track">{meta.trackTitle[language]}</h2>
     <p class="series-section-dek">{meta.sectionDek[language]}</p>
   </header>
   <a class="applied-track-intro" href={trackHref}>
     <div>
-      <p class="applied-track-eyebrow">{isKo ? `Applied Track · ${countLabel}` : `Applied Track · ${countLabel.toUpperCase()}`}</p>
+      <p class="applied-track-eyebrow">{isKo ? `실전 트랙 · ${countLabel}` : `Applied Track · ${countLabel.toUpperCase()}`}</p>
       <p class="applied-track-title">{meta.trackTitle[language]}</p>
       <p class="applied-track-dek">
         {isKo
@@ -45,7 +46,7 @@ const countLabel = isKo ? `${trackPosts.length}편` : `${trackPosts.length} arti
           <span class="applied-article-order">{String(index + 1).padStart(2, '0')}</span>
           <div class="applied-article-copy">
             <p class="applied-article-meta">
-              <span>{post.data.contentType}</span>
+              <span>{contentTypeLabel(post.data.contentType)}</span>
               <span>{post.data.publishedDate.toLocaleDateString(language === 'ko' ? 'ko-KR' : 'en-US', { year: 'numeric', month: language === 'ko' ? 'long' : 'short', day: 'numeric' })}</span>
               {post.data.draft && <span class="draft-label">{isKo ? '미리보기 초안' : 'Preview draft'}</span>}
             </p>
