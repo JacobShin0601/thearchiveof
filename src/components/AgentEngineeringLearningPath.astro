@@ -21,22 +21,25 @@ const startPointDefinitions = [
   {
     translationKey: 'agent-pattern-design',
     eyebrow: isKo ? '처음부터 읽기' : 'Start from the beginning',
+    label: isKo ? '설계부터 차근차근' : 'Start with design',
     description: isKo
-      ? 'Agent의 제어 흐름과 패턴부터 시작합니다.'
+      ? 'Agent의 제어 흐름과 경계부터 이해합니다.'
       : 'Begin with agent control flow and bounded patterns.',
   },
   {
     translationKey: 'agent-backend-architecture-map',
     eyebrow: isKo ? '전체 구조 먼저 보기' : 'See the architecture first',
+    label: isKo ? '전체 구조를 먼저 보기' : 'See the architecture first',
     description: isKo
-      ? 'API, Queue, Worker, State와 SSE의 책임을 한 장에 봅니다.'
+      ? 'API, Queue, Worker, State, SSE가 어떻게 연결되는지 한눈에 봅니다.'
       : 'See how APIs, queues, workers, state, and SSE fit together.',
   },
   {
     translationKey: 'agent-request-end-to-end',
     eyebrow: isKo ? '완성된 실행 따라가기' : 'Trace a complete run',
+    label: isKo ? '요청 하나를 끝까지 따라가기' : 'Trace one request end to end',
     description: isKo
-      ? '하나의 요청이 생성되고 복구되는 전체 경로를 따라갑니다.'
+      ? '요청 생성부터 실행·전달·복구까지의 전체 경로를 따라갑니다.'
       : 'Follow one request through execution, delivery, and recovery.',
   },
 ];
@@ -45,18 +48,23 @@ const startPoints = startPointDefinitions.flatMap((definition) => {
   const post = posts.find((candidate) => candidate.data.translationKey === definition.translationKey);
   return post ? [{ ...definition, post }] : [];
 });
+
+const contentTypeLabel = (contentType: string) => {
+  if (!isKo) return contentType;
+  return '시리즈 글';
+};
 ---
 
 <div class="agent-learning-path">
   <section class="path-overview" aria-labelledby="learning-path-heading">
     <div class="path-overview-copy">
-      <p class="eyebrow">{isKo ? 'Learning Path' : 'Learning Path'}</p>
+      <p class="eyebrow">{isKo ? '읽기 경로' : 'Learning Path'}</p>
       <h2 id="learning-path-heading">
-        {isKo ? '제어 흐름에서 프로덕션 계약까지' : 'From control flow to production contracts'}
+        {isKo ? '설계에서 운영까지, 필요한 순서대로' : 'From control flow to production contracts'}
       </h2>
       <p>
         {isKo
-          ? '현장에서 Agent backend를 만들며 부딪힌 문제를 설계 원칙과 구현 패턴으로 정리한 학습 경로입니다.'
+          ? 'Agent 백엔드를 설계하고 운영할 때 마주치는 문제를, 구현에 필요한 순서대로 정리했습니다.'
           : 'A field-tested learning path for designing agent backends that remain understandable and recoverable in production.'}
       </p>
     </div>
@@ -81,15 +89,16 @@ const startPoints = startPointDefinitions.flatMap((definition) => {
   {startPoints.length > 0 && (
     <section class="start-points" aria-labelledby="start-points-heading">
       <header>
-        <p class="eyebrow">{isKo ? '어디서 시작할까요?' : 'Where should I start?'}</p>
-        <h2 id="start-points-heading">{isKo ? '목적에 맞는 시작점' : 'Choose your entry point'}</h2>
+        <p class="eyebrow">{isKo ? '빠른 시작' : 'Quick start'}</p>
+        <h2 id="start-points-heading">{isKo ? '지금 필요한 방식으로 시작하세요' : 'Choose your entry point'}</h2>
       </header>
       <div class="start-point-grid">
-        {startPoints.map(({ post, eyebrow, description }) => (
+        {startPoints.map(({ post, eyebrow, label, description }) => (
           <a class="start-point-card" href={postPath(post)}>
             <span>{eyebrow}</span>
-            <strong>{post.data.title}</strong>
+            <strong>{label}</strong>
             <small>{description}</small>
+            <em>{post.data.title}</em>
           </a>
         ))}
       </div>
@@ -112,7 +121,7 @@ const startPoints = startPointDefinitions.flatMap((definition) => {
           <header class="learning-stage-header">
             <div class="stage-number" aria-hidden="true">{String(meta.index).padStart(2, '0')}</div>
             <div class="stage-heading-copy">
-              <p class="eyebrow">{isKo ? `Stage ${meta.index}` : `Stage ${meta.index}`}</p>
+              <p class="eyebrow">{isKo ? `${meta.index}단계` : `Stage ${meta.index}`}</p>
               <h2 id={`series-part-${partId}`}>{meta.title[language]}</h2>
               <p>{meta.description[language]}</p>
               <p class="stage-question">{meta.question[language]}</p>
@@ -130,7 +139,7 @@ const startPoints = startPointDefinitions.flatMap((definition) => {
                   <span class="article-order">{String(post.data.seriesOrder).padStart(2, '0')}</span>
                   <div class="article-copy">
                     <p class="article-meta">
-                      <span>{post.data.contentType}</span>
+                      <span>{contentTypeLabel(post.data.contentType)}</span>
                       {post.data.draft && <span class="draft-label">{isKo ? '미리보기 초안' : 'Preview draft'}</span>}
                     </p>
                     <h3><a href={postPath(post)}>{post.data.title}</a></h3>
@@ -159,13 +168,13 @@ const startPoints = startPointDefinitions.flatMap((definition) => {
   }
 
   .path-overview {
-    display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.85fr);
-    gap: clamp(1.5rem, 5vw, 4rem);
-    align-items: end;
-    padding: clamp(1.4rem, 4vw, 2.5rem);
+    padding: clamp(1.35rem, 3vw, 2rem);
     border: 1px solid var(--line);
     background: linear-gradient(135deg, var(--paper-deep), var(--paper));
+  }
+
+  .path-overview-copy {
+    max-width: 48rem;
   }
 
   .path-overview-copy h2,
@@ -274,6 +283,14 @@ const startPoints = startPointDefinitions.flatMap((definition) => {
   .start-point-card small {
     color: var(--muted);
     line-height: 1.5;
+  }
+
+  .start-point-card em {
+    margin-top: auto;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-style: normal;
+    line-height: 1.45;
   }
 
   .learning-stage-list {
@@ -400,10 +417,6 @@ const startPoints = startPointDefinitions.flatMap((definition) => {
   }
 
   @media (max-width: 900px) {
-    .path-overview {
-      grid-template-columns: 1fr;
-    }
-
     .stage-map {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
