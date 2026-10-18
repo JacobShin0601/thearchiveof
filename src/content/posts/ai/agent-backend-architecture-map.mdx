@@ -1,7 +1,7 @@
 ---
-title: "에이전트 백엔드 한 장 지도: API·큐·워커·상태·SSE는 어떻게 연결되는가"
+title: "에이전트 백엔드 한 장 지도: API·큐·Worker·상태·SSE는 어떻게 연결되는가"
 subtitle: "실행 구조의 책임 경계: 전체 관점, 실패 상황, 필요한 곳의 자세한 설명"
-description: "에이전트 백엔드에서 API, 큐, 워커, PostgreSQL, Redis, SSE가 맡는 책임과 연결 방식을 한 장 지도로 정리합니다."
+description: "에이전트 백엔드에서 API, 큐, Worker, PostgreSQL, Redis, SSE가 맡는 책임과 연결 방식을 한 장 지도로 정리합니다."
 publishedDate: 2026-09-18
 section: "AI & AX"
 subsection: "Agents"
@@ -52,7 +52,7 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 import AgentBackendArchitectureMap from '../../../components/AgentBackendArchitectureMap.astro';
 
 <AnswerBlock question="운영 환경의 에이전트 백엔드는 어떻게 나누어야 할까?">
-  <strong>API는 에이전트를 실행하는 곳이 아니라, 실행을 접수하는 곳이다.</strong> 큐는 실행 의도를 프로세스 밖에 남기고, 워커가 실행(run)을 소유한다. PostgreSQL은 영속 상태를, Redis는 실행 중 조정과 짧은 관측 데이터를, SSE는 사용자에게 진행 상황을 전달한다.
+  <strong>API는 에이전트를 실행하는 곳이 아니라, 실행을 접수하는 곳이다.</strong> 큐는 실행 의도를 프로세스 밖에 남기고, Worker가 실행(run)을 소유한다. PostgreSQL은 영속 상태를, Redis는 실행 중 조정과 짧은 관측 데이터를, SSE는 사용자에게 진행 상황을 전달한다.
 </AnswerBlock>
 
 이전 글 [에이전트 패턴 설계](/ai/agents/agent-pattern-design/)에서는 도구 호출, 병렬 실행, 계획, 사람의 승인, 재시도, 품질 개선 같은 **제어 흐름 패턴**을 정리했다. 패턴은 “한 실행 안에서 무엇을 할까”를 설명한다.
@@ -78,7 +78,7 @@ import AgentBackendArchitectureMap from '../../../components/AgentBackendArchite
 | --- | --- |
 | API | 요청 접수 |
 | 큐(Queue) | 실행 의도 보존 |
-| 워커(Worker) | 실제 실행 |
+| Worker(Worker) | 실제 실행 |
 | PostgreSQL | 복구 가능한 기준 상태 |
 | Redis | 실행 중 상태 조정과 짧은 이벤트 기록 |
 | SSE | 사용자에게 진행 상태 전달 |
@@ -104,14 +104,14 @@ import AgentBackendArchitectureMap from '../../../components/AgentBackendArchite
 
 <AgentBackendArchitectureMap kind="overview" language="ko" />
 
-워커는 LLM·도구·체크포인트 로직을 실행한다. API는 실행 접수, 큐 게시, 상태 조회, SSE 중계에 집중한다. 이 분리 덕분에 API 복제본 수와 워커 복제본 수를 **서로 다른 자원**에 맞게 조정할 수 있다.
+Worker는 LLM·도구·체크포인트 로직을 실행한다. API는 실행 접수, 큐 게시, 상태 조회, SSE 중계에 집중한다. 이 분리 덕분에 API 복제본 수와 Worker 복제본 수를 **서로 다른 자원**에 맞게 조정할 수 있다.
 
 ### 명령 경로와 관측 경로
 
 | 경로 | 흐름 | 기억할 점 |
 | --- | --- | --- |
-| **명령** | 브라우저 → API → 큐 → 워커 | HTTP 핸들러는 실행 수명을 소유하지 않는다 |
-| **관측** | 워커 → 상태·이벤트 저장소 → SSE → 브라우저 | 연결이 끊겨도 실행은 계속될 수 있다 |
+| **명령** | 브라우저 → API → 큐 → Worker | HTTP 핸들러는 실행 수명을 소유하지 않는다 |
+| **관측** | Worker → 상태·이벤트 저장소 → SSE → 브라우저 | 연결이 끊겨도 실행은 계속될 수 있다 |
 
 ## 3. API는 실행하지 않고 접수한다
 
@@ -153,8 +153,8 @@ FastAPI [Background Tasks](https://fastapi.tiangolo.com/tutorial/background-task
 큐의 역할은 작업을 **빨리 실행**하는 것이 아니라, **API 요청 수명 주기**와 **에이전트 실행 수명 주기**를 분리하는 것이다.
 
 - API는 작업을 큐에 넣는다.
-- 워커는 작업을 가져와 처리한다.
-- 워커가 죽으면 작업이 **재전달**될 수 있다.
+- Worker는 작업을 가져와 처리한다.
+- Worker가 죽으면 작업이 **재전달**될 수 있다.
 - 따라서 **중복 실행**은 정상적으로 발생할 수 있는 실패 상황이다.
 
 부수 효과가 있는 단계(Tool 호출, 티켓 생성 등)는 “이 메시지를 처음 처리하는가?”를 run row·attempt·idempotency key로 판단해야 한다. [Agent Tool Idempotency](/ai/agents/agent-tool-idempotency-approval-retry/)에서 이어서 다룬다.
@@ -171,9 +171,9 @@ FastAPI [Background Tasks](https://fastapi.tiangolo.com/tutorial/background-task
 exactly-once illusion을 queue에 기대하지 말고, **멱등한 단계 + 중복 감지**로 다룬다. ack timing, idempotency key, lease expiration은 구현 글에서 코드로 연결한다.
 </details>
 
-## 5. 워커가 에이전트 실행을 소유한다
+## 5. Worker가 에이전트 실행을 소유한다
 
-**워커(역할)** 는 큐에서 작업을 가져와 **현재 실행 시도(attempt)** 의 수명 주기를 책임진다. LLM 호출, 도구 호출 루프, 체크포인트 기록, 최종 상태 기록이 여기서 일어난다.
+**Worker(역할)** 는 큐에서 작업을 가져와 **현재 실행 시도(attempt)** 의 수명 주기를 책임진다. LLM 호출, 도구 호출 루프, 체크포인트 기록, 최종 상태 기록이 여기서 일어난다.
 
 Worker가 외부 LLM·업무 DB를 호출하는 선은 내부 state 전이와 다르다. timeout·재시도와 함께 **부수 효과 idempotency**가 별도 계약이다.
 
@@ -190,7 +190,7 @@ Worker가 외부 LLM·업무 DB를 호출하는 선은 내부 state 전이와 �
 | **큐(Queue)** | 실행 의도와 전달 |
 | **객체 저장소** | 큰 출력과 산출물(필요할 때) |
 
-PostgreSQL은 복구 가능한 **기준 상태**를 저장한다. Redis는 UI 진행률이나 워커 조정처럼 **빠르게 변하는 상태**를 담당한다.
+PostgreSQL은 복구 가능한 **기준 상태**를 저장한다. Redis는 UI 진행률이나 Worker 조정처럼 **빠르게 변하는 상태**를 담당한다.
 
 검색용 저장소(임베딩, RAG 색인)는 **별도의 관심사**이며 이 글에서는 실행 구조만 다룬다.
 
@@ -230,7 +230,7 @@ SSE는 에이전트 **실행과 독립**적이다.
 - 브라우저 연결이 끊겨도 Worker 실행은 계속되어야 한다.
 - 사용자가 다시 접속하면 **현재 snapshot** 또는 **최근 event**를 다시 받아야 한다.
 
-관측 경로는 워커가 상태·이벤트 저장소에 기록한 내용을 SSE 엔드포인트가 브라우저로 전달하는 방식이다.
+관측 경로는 Worker가 상태·이벤트 저장소에 기록한 내용을 SSE 엔드포인트가 브라우저로 전달하는 방식이다.
 
 관측 경로는 [WHATWG SSE](https://html.spec.whatwg.org/multipage/server-sent-events.html) 형식으로 event id·type·data를 보낸다. Generator가 disconnect를 감지하면 HTTP chunk 전송만 멈춘다. **스트리밍 연결 실패 ≠ run 롤백**이다.
 
@@ -240,7 +240,7 @@ SSE는 에이전트 **실행과 독립**적이다.
 클라이언트는 `Last-Event-ID`로 재연결하고, 서버는 event store cursor부터 이어 읽는다. Redis Stream·sequence number·replay 구간 설계, transport vs domain idempotency(같은 event_id를 UI가 두 번 받아도 무해하게)는 [Agent SSE streaming](/ai/agents/agent-sse-streaming/)에서 다룬다.
 </details>
 
-## 8. 같은 실행을 두 워커가 처리하면?
+## 8. 같은 실행을 두 Worker가 처리하면?
 
 Queue와 lease만으로는 “이전 worker가 정말 죽었다”를 완벽히 증명하기 어렵다. **여러 Worker가 같은 run을 동시에 처리할 가능성**에 대비해야 한다.
 
@@ -261,7 +261,7 @@ A write rejected · B write accepted
 
 ## 9. Pod, Process, Worker, Thread
 
-Kubernetes, Python 실행 환경, 에이전트 백엔드 용어가 한 문장에 섞이면 설계가 흔들린다. **워커와 Pod는 같은 개념이 아니다.**
+Kubernetes, Python 실행 환경, 에이전트 백엔드 용어가 한 문장에 섞이면 설계가 흔들린다. **Worker와 Pod는 같은 개념이 아니다.**
 
 | 용어 | 무엇인가 |
 | --- | --- |
@@ -272,7 +272,7 @@ Kubernetes, Python 실행 환경, 에이전트 백엔드 용어가 한 문장에
 
 Pod가 재시작되면 그 안의 process와 asyncio task도 사라진다. Worker **역할**은 queue와 PostgreSQL에 남은 실행 의도·run 기록으로 다른 Pod가 이어받게 설계한다. “thread pool worker”는 CPU 병렬용 도구 이름일 뿐, queue consumer Worker와 같지 않다.
 
-## 10. async, thread, process — 워커 안에서
+## 10. async, thread, process — Worker 안에서
 
 | 도구 | 언제 쓰는가 |
 | --- | --- |
@@ -282,9 +282,9 @@ Pod가 재시작되면 그 안의 process와 asyncio task도 사라진다. Worke
 
 Python GIL·executor 구현 세부는 [에이전트는 왜 Async가 필요한가](/ai/agents/why-agent-systems-need-async/)와 [Async, Thread, Process](/ai/agents/async-thread-process-agent-backends/)에서 코드로 이어진다.
 
-## 11. API와 워커를 따로 배포해야 하는 이유
+## 11. API와 Worker를 따로 배포해야 하는 이유
 
-로컬에서는 API와 워커가 한 프로세스·한 Pod에 있어도 학습에는 충분하다. 운영에서는 [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)를 나눈다.
+로컬에서는 API와 Worker가 한 프로세스·한 Pod에 있어도 학습에는 충분하다. 운영에서는 [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)를 나눈다.
 
 <AgentBackendArchitectureMap kind="deployment" language="ko" />
 
@@ -314,7 +314,7 @@ Pod termination은 “process kill” 문제가 아니라 **in-flight run owners
 | --- | --- |
 | API | 접수(`202`와 실행 ID 반환) |
 | 큐 | 실행 수명 주기를 분리하며 재전달될 수 있음 |
-| 워커 | 실행 시도를 소유하고 도구 호출 루프를 수행 |
+| Worker | 실행 시도를 소유하고 도구 호출 루프를 수행 |
 | PostgreSQL | 복구 가능한 기준 상태 |
 | Redis | 실행 중 조정과 짧은 관측 데이터 |
 | SSE | 관측만 담당하며 실행 자체는 소유하지 않음 |
@@ -328,7 +328,7 @@ Pod termination은 “process kill” 문제가 아니라 **in-flight run owners
 | 오래된 진행 상태 | attempt·version·fencing으로 늦은 쓰기 거부 |
 | SSE 연결 끊김 | 실행은 계속하고, 재연결 시 상태와 이벤트 복구 |
 
-패턴 설계에서 정한 도구 호출·사람의 승인·재시도는 **워커 프로세스 안**에서 돈다. 이 지도는 그 루프가 **어떤 인프라 위에서 수명 주기를 갖는지**를 정리한다.
+패턴 설계에서 정한 도구 호출·사람의 승인·재시도는 **Worker 프로세스 안**에서 돈다. 이 지도는 그 루프가 **어떤 인프라 위에서 수명 주기를 갖는지**를 정리한다.
 
 <AgentBackendArchitectureMap kind="lifecycle" language="ko" />
 
@@ -338,7 +338,7 @@ Pod termination은 “process kill” 문제가 아니라 **in-flight run owners
 
 - FastAPI 요청 접수 엔드포인트
 - 큐 게시기(또는 outbox relay)
-- 워커 프로세스
+- Worker 프로세스
 - PostgreSQL 실행 상태
 - Redis 진행 상태
 - SSE 스트리밍 엔드포인트
