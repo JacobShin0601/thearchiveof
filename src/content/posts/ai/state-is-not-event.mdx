@@ -55,7 +55,7 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 import StateEventUiDiagrams from '../../../components/StateEventUiDiagrams.astro';
 
 <AnswerBlock question="실시간 Agent UI에는 state와 event 중 무엇이 필요한가?">
-  둘 다 필요하다. <strong>State는 화면을 즉시 복원할 현재 snapshot이고, event는 그 상태에 도달하는 동안 무엇이 일어났는지 보여주는 시간순 기록</strong>이다. Redis Hash는 덮어쓰는 현재 state에, Redis Stream은 추가되는 event 이력에 맞는다. SSE는 둘을 브라우저로 전달하는 전송 방식이며, event 자체나 저장소를 대신하지 않는다.
+  둘 다 필요하다. <strong>State는 화면을 즉시 복원할 현재 snapshot이고, event는 그 state에 도달하는 동안 무엇이 일어났는지 보여주는 시간순 기록</strong>이다. Redis Hash는 덮어쓰는 현재 state에, Redis Stream은 추가되는 event 이력에 맞는다. SSE는 둘을 브라우저로 전달하는 전송 방식이며, event 자체나 저장소를 대신하지 않는다.
 </AnswerBlock>
 
 이전 글 [Agent State는 어디에 있어야 하는가](/ai/agents/where-agent-state-lives/)에서는 PostgreSQL에 영속적 run 기록과 재시작 기준 snapshot을, Redis Hash에는 **UI·운영용 hot projection**을, checkpoint에 재개용 graph snapshot을 두었다. Hash field는 PostgreSQL row를 대체하지 않는다.
@@ -68,11 +68,11 @@ import StateEventUiDiagrams from '../../../components/StateEventUiDiagrams.astro
 
 이 질문은 각각 **snapshot**, **event timeline**, **delivery cursor**가 답한다.
 
-<StateEventUiDiagrams kind="snapshot-timeline" caption="Snapshot은 화면을 현재 상태로 복원하고, Event timeline은 사용자가 이해할 수 있는 변화의 순서를 보여 준다. cursor는 두 표현이 만나는 지점이다." />
+<StateEventUiDiagrams kind="snapshot-timeline" caption="Snapshot은 화면을 현재 state로 복원하고, Event timeline은 사용자가 이해할 수 있는 변화의 순서를 보여 준다. cursor는 두 표현이 만나는 지점이다." />
 
 <StateEventUiDiagrams
   kind="browser"
-  caption="실제 run 화면에서 snapshot은 현재 상태와 작업을 복원하고, event는 사용자가 이해할 수 있는 timeline을 만든다. 연속적인 progress 변화는 timeline을 오염시키지 않는다."
+  caption="실제 run 화면에서 snapshot은 현재 state와 작업을 복원하고, event는 사용자가 이해할 수 있는 timeline을 만든다. 연속적인 progress 변화는 timeline을 오염시키지 않는다."
 />
 
 Hash field를 계속 덮어쓰면 현재 값만 남는다. 반대로 event만 쌓으면 화면을 열 때마다 처음부터 모두 replay해서 현재 진행률을 계산해야 한다. 둘은 같은 데이터를 중복 저장하는 실수가 아니라, **current state**, **event history**, **delivery stream**이라는 서로 다른 층의 의도적인 투영값이다.
@@ -83,7 +83,7 @@ Hash field를 계속 덮어쓰면 현재 값만 남는다. 반대로 event만 �
 
 | 구분 | State | Event |
 | --- | --- | --- |
-| 질문 | 지금 어떤 상태인가? | 어떤 일이 일어났는가? |
+| 질문 | 지금 어떤 state인가? | 어떤 일이 일어났는가? |
 | 쓰기 방식 | 같은 field를 덮어씀 | 새 entry를 추가 |
 | 읽기 방식 | 최신 snapshot 한 번 | Cursor 이후 범위 |
 | 대표 구조 | Redis Hash | Redis Stream |
@@ -636,7 +636,7 @@ Event payload에 규칙 적용 결과 전체를 복사하지 않았다. UI가 ti
 | 채널 | 포함할 것 | 화면에서의 위치 |
 | --- | --- | --- |
 | Timeline event | 단계 완료, 승인 요청, 사용자 개입, 복구·실패, 최종 완료 | 활동 timeline |
-| State only | 연속 progress, heartbeat, 현재 attempt의 내부 상태 | Status card 또는 숨김 |
+| State only | 연속 progress, heartbeat, 현재 attempt의 내부 state | Status card 또는 숨김 |
 | 별도 token channel | 생성 중인 부분 출력 | 결과 panel |
 | Debug / audit | 상세 trace, 원본 tool 인자, 장기 보존 기록 | 운영·감사 시스템 |
 
@@ -690,4 +690,4 @@ Redis Stream을 지워도 PostgreSQL 결과와 checkpoint가 남고, Hash를 다
 
 이제 state와 event를 어디에 저장하고 어떤 cursor로 연결할지는 정했다. 그다음은 송금처럼 **부수 효과가 있는 Tool**이 Queue 재전달과 timeout 아래에서도 한 번의 사용자 의도로 수렴하게 만드는 일이다.
 
-다음 글 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)에서는 승인, action fingerprint, idempotency key와 `outcome_unknown` 처리를 다룬다. 그다음 [Agent가 일하면서 말하게 하기](/ai/agents/agent-sse-streaming/)에서 승인·실행·reconciliation 상태를 SSE로 전달한다.
+다음 글 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)에서는 승인, action fingerprint, idempotency key와 `outcome_unknown` 처리를 다룬다. 그다음 [Agent가 일하면서 말하게 하기](/ai/agents/agent-sse-streaming/)에서 승인·실행·reconciliation state를 SSE로 전달한다.
