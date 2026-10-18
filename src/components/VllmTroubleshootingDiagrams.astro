@@ -1,104 +1,147 @@
 ---
 interface Props {
-  kind: 'lifecycle' | 'signals' | 'kv-pressure' | 'experiment';
+  kind: 'lifecycle' | 'metrics' | 'signals' | 'case-queue' | 'case-prefill' | 'case-decode' | 'kv-pressure' | 'comparison' | 'experiment' | 'incident';
   language?: 'ko' | 'en';
 }
+
+type Triple = [string, string, string];
+type Pair = [string, string];
 
 const { kind, language = 'ko' } = Astro.props;
 const ko = language === 'ko';
 
 const captions = {
-  lifecycle: ko
-    ? '그림 1. 사용자 증상을 요청 생애주기의 단계로 분해한다'
-    : 'Figure 1. Map the user-visible symptom to the request lifecycle',
-  signals: ko
-    ? '그림 2. 하나의 지표가 아니라 함께 움직이는 신호로 가설을 고른다'
-    : 'Figure 2. Select hypotheses from signals that move together',
-  'kv-pressure': ko
-    ? '그림 3. KV pressure는 재계산과 지연으로 이어질 수 있다'
-    : 'Figure 3. KV pressure can turn into recomputation and latency',
-  experiment: ko
-    ? '그림 4. Troubleshooting은 통제된 가설 검증의 반복이다'
-    : 'Figure 4. Troubleshooting is a controlled hypothesis-testing loop',
+  lifecycle: ko ? '그림 1. 사용자 증상을 요청 생애주기의 단계로 분해한다' : 'Figure 1. Map the user-visible symptom to the request lifecycle',
+  metrics: ko ? '요청 단계마다 확인할 지표가 다르다' : 'Each request stage has its own diagnostic metrics',
+  signals: ko ? '관찰값은 원인이 아니라, 다음 가설을 고르는 출발점이다' : 'Observations select the next hypothesis; they do not prove a cause',
+  'case-queue': ko ? '사례 A. TTFT와 queue가 함께 증가할 때' : 'Case A. When TTFT and queue rise together',
+  'case-prefill': ko ? '사례 B. queue는 짧은데 TTFT가 느릴 때' : 'Case B. When the queue is short but TTFT is slow',
+  'case-decode': ko ? '사례 C. 첫 token은 빠른데 생성이 느릴 때' : 'Case C. When the first token is fast but generation is slow',
+  'kv-pressure': ko ? '그림 3. KV pressure는 재계산과 지연으로 이어질 수 있다' : 'Figure 3. KV pressure can turn into recomputation and latency',
+  comparison: ko ? '사건 전후는 평균보다 상위 구간과 단계별 시간을 비교한다' : 'Compare upper percentiles and stage times, not just averages',
+  experiment: ko ? '그림 4. Troubleshooting은 통제된 가설 검증의 반복이다' : 'Figure 4. Troubleshooting is a controlled hypothesis-testing loop',
+  incident: ko ? 'Incident 대응과 장기 튜닝은 분리한다' : 'Separate incident response from long-term tuning',
 };
 
-const lifecycle = ko
+const lifecycle: Pair[] = ko
+  ? [['요청 도착', 'Client · Gateway'], ['queue', 'waiting · queue time'], ['prefill', 'prompt · prefill time'], ['첫 token', 'TTFT'], ['decode', 'TPOT · ITL'], ['완료', 'E2E · success']]
+  : [['Request arrives', 'Client · gateway'], ['Queue', 'waiting · queue time'], ['Prefill', 'prompt · prefill time'], ['First token', 'TTFT'], ['Decode', 'TPOT · ITL'], ['Complete', 'E2E · success']];
+
+const metrics: Triple[] = ko
   ? [
-      ['요청 도착', 'Client · Gateway'],
-      ['Queue', 'waiting · queue time'],
-      ['Prefill', 'prompt · prefill time'],
-      ['첫 토큰', 'TTFT'],
-      ['Decode', 'TPOT · ITL'],
-      ['완료', 'E2E · success'],
+      ['queue', 'GPU 실행 전 얼마나 기다렸나?', 'waiting 요청 · queue time'],
+      ['prefill', '입력을 읽는 데 얼마나 걸렸나?', 'prompt token · prefill time · TTFT'],
+      ['decode', '생성이 안정적으로 이어지는가?', '요청별 TPOT · ITL · decode time'],
+      ['KV cache', '실행 상태를 유지할 공간이 충분한가?', 'KV 사용률 · preemption'],
+      ['전체 요청', 'SLO 안에서 완료됐나?', 'E2E · 성공/오류 · 완료 처리량'],
     ]
   : [
-      ['Request arrives', 'Client · gateway'],
-      ['Queue', 'waiting · queue time'],
-      ['Prefill', 'prompt · prefill time'],
-      ['First token', 'TTFT'],
-      ['Decode', 'TPOT · ITL'],
-      ['Complete', 'E2E · success'],
+      ['Queue', 'How long did it wait before GPU execution?', 'waiting requests · queue time'],
+      ['Prefill', 'How long did input processing take?', 'prompt tokens · prefill time · TTFT'],
+      ['Decode', 'Does generation remain steady?', 'per-request TPOT · ITL · decode time'],
+      ['KV cache', 'Is there enough memory for live state?', 'KV usage · preemption'],
+      ['Whole request', 'Did it finish within SLO?', 'E2E · success/error · completed throughput'],
     ];
 
-const signals = ko
+const signals: Triple[] = ko
   ? [
-      ['TTFT ↑ · Queue ↑', 'Capacity / admission'],
-      ['TTFT ↑ · Queue 낮음', 'Prefill / 긴 입력'],
-      ['TTFT 정상 · TPOT ↑', 'Decode pressure'],
-      ['KV ↑ · Preemption ↑', 'KV 부족 / 재계산'],
-      ['GPU 낮음 · Queue ↑', 'GPU 외부 병목'],
+      ['TTFT↑ + queue↑', '도착률이 처리 용량을 넘었거나 수용 제어가 막혔을 수 있다.', '유입·완료 RPS, queue 증가 추세, 복제본 편중'],
+      ['TTFT↑ + queue 짧음 + prompt 김', 'prefill 비용 또는 접두부 재사용 저하일 수 있다.', 'prompt 길이별 TTFT, prefill 시간, prefix cache 적중'],
+      ['TTFT 정상 + TPOT·ITL↑', 'decode 동시성 또는 메모리 압박일 수 있다.', '활성 sequence, KV cache, DRAM, preemption'],
+      ['KV↑ + preemption↑', 'KV 공간 부족과 재계산일 수 있다.', '긴 요청군, context·output 길이, 지속 발생 여부'],
+      ['GPU 낮음 + queue↑', 'CPU·gateway·라우팅 같은 GPU 외부 병목일 수 있다.', 'CPU throttle, gateway 지연, replica 부하 편중'],
     ]
   : [
-      ['TTFT ↑ · Queue ↑', 'Capacity / admission'],
-      ['TTFT ↑ · Queue low', 'Prefill / long input'],
-      ['TTFT healthy · TPOT ↑', 'Decode pressure'],
-      ['KV ↑ · Preemption ↑', 'KV shortage / recompute'],
-      ['GPU low · Queue ↑', 'Upstream bottleneck'],
+      ['TTFT↑ + queue↑', 'Arrival rate may exceed capacity, or admission control may be limiting.', 'arrival/completion RPS, queue trend, replica skew'],
+      ['TTFT↑ + short queue + long prompt', 'Prefill cost or reduced prefix reuse may dominate.', 'TTFT by prompt length, prefill time, prefix-cache hits'],
+      ['Normal TTFT + TPOT·ITL↑', 'Decode concurrency or memory pressure may dominate.', 'active sequences, KV cache, DRAM, preemption'],
+      ['KV↑ + preemption↑', 'KV shortage and recomputation may dominate.', 'long-request cohort, context/output length, persistence'],
+      ['Low GPU + queue↑', 'A CPU, gateway, or routing bottleneck may dominate.', 'CPU throttling, gateway latency, replica skew'],
     ];
+
+const caseQueue: Triple[] = ko
+  ? [['관찰', '유입 요청↑ → waiting 요청↑ → queue time↑ → TTFT↑', 'prefill에 들어가기 전부터 기다리는지 확인한다.'], ['먼저 배제', '긴 prompt 자체가 원인이라는 가설', 'queue 시간 증가분이 TTFT 악화를 설명하는지 본다.'], ['한 변수 실험', '재시도 한도·수용 제어·workload 분리 중 하나', '완료 RPS와 p95/p99가 함께 개선되는지 확인한다.']]
+  : [['Observe', 'arrivals↑ → waiting↑ → queue time↑ → TTFT↑', 'Check whether waiting occurs before prefill.'], ['Rule out first', 'The hypothesis that long prompts alone caused it', 'See whether queue-time growth explains TTFT.'], ['One-variable test', 'Retry cap, admission control, or workload separation', 'Check whether completion RPS and p95/p99 improve together.']];
+
+const casePrefill: Triple[] = ko
+  ? [['관찰', 'queue time 안정 + prompt p95↑ + prefill p95↑ + TTFT p95↑', '실행을 기다리는 문제가 아니라 입력을 읽는 비용일 수 있다.'], ['먼저 배제', 'decode 또는 GPU 부족만이 원인이라는 가설', 'TPOT·활성 sequence·queue가 안정적인지 본다.'], ['한 변수 실험', 'RAG chunk 수·문맥 압축·접두부 구성 중 하나', '같은 workload에서 TTFT와 prefix cache 적중을 비교한다.']]
+  : [['Observe', 'stable queue time + prompt p95↑ + prefill p95↑ + TTFT p95↑', 'The cost may be reading input, not waiting to run.'], ['Rule out first', 'The hypothesis that decode or raw GPU shortage alone caused it', 'Check whether TPOT, active sequences, and queue are stable.'], ['One-variable test', 'RAG chunk count, context compression, or prefix layout', 'Compare TTFT and prefix-cache hits under the same workload.']];
+
+const caseDecode: Triple[] = ko
+  ? [['관찰', 'TTFT 정상 + TPOT·ITL 악화 + 활성 sequence 증가', '첫 반응은 빠르지만 생성 단계가 압박을 받는 신호다.'], ['먼저 배제', '출력 길이 증가 또는 일괄 workload 간섭', 'output 길이 분포와 대화형·일괄 요청의 경쟁을 본다.'], ['한 변수 실험', 'max_num_seqs 한 단계 축소 또는 workload 분리', 'TPOT 개선이 queue·TTFT 악화보다 큰지 확인한다.']]
+  : [['Observe', 'healthy TTFT + worse TPOT·ITL + more active sequences', 'The first response is fast, but generation is under pressure.'], ['Rule out first', 'Longer outputs or batch-workload interference', 'Check output-length distribution and competition with interactive work.'], ['One-variable test', 'Lower max_num_seqs one step or separate workloads', 'Check whether TPOT gains outweigh queue and TTFT losses.']];
 
 const pressure = ko
-  ? ['동시 sequence 증가', 'KV cache 압력', 'Preemption', 'Recompute', 'E2E · tail latency 증가']
+  ? ['동시 sequence 증가', 'KV cache 압력', 'preemption', '재계산', 'E2E · tail latency 증가']
   : ['More active sequences', 'KV-cache pressure', 'Preemption', 'Recompute', 'Higher E2E · tail latency'];
+
+const comparison: Pair[][] = ko
+  ? [
+      [['Prompt p50', '850 → 870'], ['Prompt p95', '2,400 → 6,100'], ['queue p95', '120ms → 130ms'], ['prefill p95', '640ms → 1.9s'], ['TTFT p95', '900ms → 2.2s'], ['TPOT p95', '42ms → 43ms']],
+      [['판단', '평균 prompt와 queue·TPOT는 안정적'], ['우선 가설', '일부 긴 prompt군의 prefill 비용 증가'], ['다음 확인', 'RAG chunk·도구 schema·prefix cache·p95/p99 prompt 분포']],
+    ]
+  : [
+      [['Prompt p50', '850 → 870'], ['Prompt p95', '2,400 → 6,100'], ['queue p95', '120ms → 130ms'], ['prefill p95', '640ms → 1.9s'], ['TTFT p95', '900ms → 2.2s'], ['TPOT p95', '42ms → 43ms']],
+      [['Judgment', 'Average prompt plus queue and TPOT remain stable'], ['Leading hypothesis', 'Higher prefill cost for a long-prompt cohort'], ['Next checks', 'RAG chunks, tool schema, prefix cache, prompt p95/p99']],
+    ];
 
 const experiment = ko
   ? ['증상 정의', '지표 조합', '병목 가설', '변수 하나 변경', '동일 부하 재측정', '채택 또는 기각']
   : ['Define symptom', 'Combine signals', 'Form hypothesis', 'Change one variable', 'Replay same load', 'Accept or reject'];
----
 
+const incident: Triple[] = ko
+  ? [['즉시 완화', '장애 확산을 멈춘다.', '수용 제어·rate limit, 일괄 요청 분리, 승인된 상한 적용, 롤백'], ['원인 분석', '사건을 재현할 근거를 보존한다.', 'workload·설정 스냅숏, 재시작 전 지표·로그, 대표 trace 재생'], ['재발 방지', '다음 사건의 진단 비용을 낮춘다.', 'workload별 dashboard·경보, 버전 기록, 회귀 benchmark, 롤백 매니페스트']]
+  : [['Immediate mitigation', 'Stop the incident from spreading.', 'admission/rate limits, batch separation, approved caps, rollback'], ['Root-cause analysis', 'Preserve evidence that can reproduce the event.', 'workload/config snapshot, metrics and logs before restart, trace replay'], ['Prevention', 'Reduce the cost of diagnosing the next incident.', 'workload dashboards and alerts, version records, regression benchmarks, rollback manifests']];
+
+const flowSteps = kind === 'lifecycle' ? lifecycle.map(([label, metric]) => [label, metric]) : kind === 'kv-pressure' ? pressure.map((step) => [step, '']) : kind === 'experiment' ? experiment.map((step) => [step, '']) : [];
+const caseData = kind === 'case-queue' ? caseQueue : kind === 'case-prefill' ? casePrefill : kind === 'case-decode' ? caseDecode : [];
+---
 <figure class={`vllm-troubleshooting ${kind}`} aria-labelledby={`vllm-troubleshooting-${kind}-${language}`}>
   <figcaption id={`vllm-troubleshooting-${kind}-${language}`}>{captions[kind]}</figcaption>
 
-  {kind === 'lifecycle' && (
-    <ol class="flow lifecycle-flow">
-      {lifecycle.map(([label, metric]) => <li><strong>{label}</strong><small>{metric}</small></li>)}
+  {(kind === 'lifecycle' || kind === 'kv-pressure' || kind === 'experiment') && (
+    <ol class="flow">
+      {flowSteps.map(([label, metric]) => <li><strong>{label}</strong>{metric && <small>{metric}</small>}</li>)}
     </ol>
   )}
 
-  {kind === 'signals' && (
-    <div class="signal-grid">
-      {signals.map(([observation, hypothesis]) => (
-        <div><strong>{observation}</strong><span>→</span><p>{hypothesis}</p></div>
-      ))}
-    </div>
-  )}
+  {kind === 'metrics' && <div class="metric-grid">{metrics.map(([stage, question, metric]) => <div><strong>{stage}</strong><p>{question}</p><small>{metric}</small></div>)}</div>}
 
-  {kind === 'kv-pressure' && (
-    <ol class="flow pressure-flow">
-      {pressure.map((step) => <li>{step}</li>)}
-    </ol>
-  )}
+  {kind === 'signals' && <ol class="signal-list">{signals.map(([observation, hypothesis, check]) => <li><strong>{observation}</strong><p>{hypothesis}</p><small>{ko ? '다음 확인: ' : 'Check next: '}{check}</small></li>)}</ol>}
 
-  {kind === 'experiment' && (
-    <ol class="flow experiment-flow">
-      {experiment.map((step) => <li>{step}</li>)}
-    </ol>
-  )}
+  {caseData.length > 0 && <div class="case-grid">{caseData.map(([label, content, check]) => <div><strong>{label}</strong><p>{content}</p><small>{check}</small></div>)}</div>}
+
+  {kind === 'comparison' && <div class="comparison-grid">
+    <section><h3>{ko ? '전후 비교' : 'Before / after'}</h3><dl>{comparison[0].map(([label, value]) => <><dt>{label}</dt><dd>{value}</dd></>)}</dl></section>
+    <section><h3>{ko ? '읽는 법' : 'How to read it'}</h3><dl>{comparison[1].map(([label, value]) => <><dt>{label}</dt><dd>{value}</dd></>)}</dl></section>
+  </div>}
+
+  {kind === 'incident' && <div class="incident-grid">{incident.map(([title, purpose, actions]) => <section><h3>{title}</h3><p>{purpose}</p><small>{actions}</small></section>)}</div>}
 
   {kind === 'signals' && <p class="note">{ko ? '이 조합은 원인 확정표가 아니라 다음 검증 순서를 정하는 가설 지도다.' : 'These combinations are a hypothesis map, not proof of root cause.'}</p>}
-  {kind === 'kv-pressure' && <p class="note">{ko ? 'KV 사용률이 높다는 사실만으로 장애는 아니다. Preemption과 SLO 악화가 함께 나타나는지 확인한다.' : 'High KV occupancy alone is not an incident. Check whether preemption and SLO degradation rise with it.'}</p>}
+  {kind === 'kv-pressure' && <p class="note">{ko ? 'KV 사용률이 높다는 사실만으로 장애는 아니다. preemption과 SLO 악화가 함께 나타나는지 확인한다.' : 'High KV occupancy alone is not an incident. Check whether preemption and SLO degradation rise with it.'}</p>}
   {kind === 'experiment' && <p class="note">{ko ? '실험마다 workload, cache 상태, duration을 고정하고 첫 pass에서는 한 변수만 바꾼다.' : 'Hold workload, cache state, and duration constant; change one variable in the first pass.'}</p>}
 </figure>
 
 <style>
-  .vllm-troubleshooting{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.9rem;line-height:1.55}.vllm-troubleshooting figcaption{font-weight:700;margin-bottom:1rem}.flow{display:grid;gap:1rem;margin:0;padding:0;list-style:none}.flow li{position:relative;margin:0;padding:.85rem;border:1px solid var(--line);background:var(--paper);min-width:0;text-align:center}.flow li:not(:last-child)::after{content:'→';position:absolute;right:-.85rem;top:34%;color:var(--accent);font-weight:700}.lifecycle-flow{grid-template-columns:repeat(6,minmax(0,1fr))}.lifecycle-flow strong,.lifecycle-flow small{display:block}.lifecycle-flow small{margin-top:.35rem;color:var(--muted);overflow-wrap:anywhere}.pressure-flow{grid-template-columns:repeat(5,minmax(0,1fr))}.experiment-flow{grid-template-columns:repeat(6,minmax(0,1fr))}.experiment-flow li:last-child{border-color:var(--accent)}.signal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.signal-grid>div{display:grid;grid-template-columns:minmax(0,1.2fr) auto minmax(0,1fr);align-items:center;gap:.55rem;padding:.9rem;border-left:3px solid var(--accent);background:var(--paper)}.signal-grid strong{font-family:monospace;font-size:.84rem}.signal-grid span{color:var(--accent)}.signal-grid p{margin:0}.note{margin:1rem 0 0!important;color:var(--muted);font-size:.84rem}@media(max-width:760px){.lifecycle-flow,.pressure-flow,.experiment-flow{grid-template-columns:1fr}.flow li:not(:last-child)::after{content:'↓';right:50%;top:auto;bottom:-1.25rem}.signal-grid{grid-template-columns:1fr}.vllm-troubleshooting{padding:1rem}}@media(prefers-color-scheme:dark){.vllm-troubleshooting{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
+  .vllm-troubleshooting{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.9rem;line-height:1.55}
+  .vllm-troubleshooting figcaption{font-weight:700;margin-bottom:1rem}
+  .flow{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:1rem;margin:0;padding:0;list-style:none}
+  .flow li{position:relative;margin:0;padding:.85rem;border:1px solid var(--line);background:var(--paper);min-width:0;text-align:center}
+  .flow li:not(:last-child)::after{content:'→';position:absolute;right:-.85rem;top:34%;color:var(--accent);font-weight:700}
+  .flow strong,.flow small{display:block}.flow small{margin-top:.35rem;color:var(--muted);overflow-wrap:anywhere}
+  .metric-grid,.case-grid,.incident-grid{display:grid;gap:.75rem}
+  .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .case-grid,.incident-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .metric-grid>div,.case-grid>div,.incident-grid section,.signal-list li,.comparison-grid section{min-width:0;padding:1rem;border:1px solid var(--line);background:var(--paper)}
+  .metric-grid strong,.case-grid strong{color:var(--accent)}
+  .metric-grid p,.case-grid p,.incident-grid p{margin:.35rem 0}.metric-grid small,.case-grid small,.incident-grid small{color:var(--muted)}
+  .signal-list{display:grid;gap:.7rem;margin:0;padding:0;list-style:none;counter-reset:signal}
+  .signal-list li{position:relative;padding-left:3.3rem}.signal-list li::before{counter-increment:signal;content:counter(signal);position:absolute;left:1rem;top:1rem;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--accent);color:var(--paper);text-align:center;font-weight:700;line-height:1.4rem}
+  .signal-list strong{display:block}.signal-list p{margin:.35rem 0}.signal-list small{color:var(--muted)}
+  .comparison-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:.75rem}.comparison-grid h3,.incident-grid h3{margin:0;font-size:1rem}
+  .comparison-grid dl{display:grid;grid-template-columns:1fr auto;gap:.3rem .7rem;margin:.75rem 0 0}.comparison-grid dt{color:var(--muted)}.comparison-grid dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+  .note{margin:1rem 0 0!important;color:var(--muted);font-size:.84rem}
+  @media(max-width:760px){.flow{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:1fr}.flow li:not(:last-child)::after{content:'↓';right:50%;top:auto;bottom:-1.25rem}.metric-grid,.case-grid,.incident-grid,.comparison-grid{grid-template-columns:1fr}.vllm-troubleshooting{padding:1rem}}
+  @media(prefers-color-scheme:dark){.vllm-troubleshooting{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
 </style>
