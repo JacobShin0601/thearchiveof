@@ -1,0 +1,37 @@
+---
+interface Props { kind: 'responsibility' | 'api-lifetime' | 'queue-lifecycle' | 'worker-models'; }
+const { kind } = Astro.props as Props;
+const captions: Record<Props['kind'], string> = {
+  responsibility: '그림 1. 동시성 도구와 실행 수명 주기의 책임은 서로 다른 문제다',
+  'api-lifetime': '그림 2. API 프로세스 안의 백그라운드 작업은 프로세스 수명을 넘을 수 없다',
+  'queue-lifecycle': '그림 3. 큐와 워커는 안전하게 접수된 실행을 끝까지 처리한다',
+  'worker-models': '그림 4. 워커는 작업 부하에 맞는 내부 실행 모델을 조합할 수 있다',
+};
+---
+<figure class="worker-diagram" data-kind={kind}>
+  <figcaption>{captions[kind]}</figcaption>
+  {kind === 'responsibility' && <div class="responsibility">
+    <section><h3>동시성의 기본 요소</h3><strong>비동기 · 스레드 · 프로세스</strong><p>작업을 어떻게 진행하고 계산하는가?</p></section>
+    <span>≠</span>
+    <section><h3>실행 수명 주기의 책임</h3><strong>API · 큐 · 워커</strong><p>누가 작업을 끝까지 책임지는가?</p></section>
+  </div>}
+  {kind === 'api-lifetime' && <div class="api-lifetime">
+    <section class="api"><strong>API 프로세스</strong><span>HTTP 요청 처리</span><span>백그라운드 태스크 시작</span></section>
+    <b>↓</b><section class="task"><strong>장시간 분석</strong><span>프로세스 메모리 안에서 실행</span></section>
+    <b>↓</b><section class="stop"><strong>배포 · 재시작 · 장애</strong><span>API 프로세스 종료 → 태스크도 함께 종료</span></section>
+  </div>}
+  {kind === 'queue-lifecycle' && <ol class="lifecycle">
+    <li><b>1</b><strong>API</strong><span>검증·권한 확인·실행 기록</span></li>
+    <li><b>2</b><strong>큐</strong><span>API 프로세스 밖에 실행 요청 보관</span></li>
+    <li><b>3</b><strong>워커</strong><span>작업 확보 → 실행 → 진행 상태 갱신</span></li>
+    <li><b>4</b><strong>저장소</strong><span>결과를 안전하게 저장한 뒤 처리 완료 통지</span></li>
+  </ol>}
+  {kind === 'worker-models' && <div class="models">
+    <section><h3>I/O 워커</h3><strong>이벤트 루프 + 제한된 작업 동시성</strong><p>LLM·DB·검색 API의 대기를 겹친다.</p></section>
+    <section><h3>CPU 워커</h3><strong>여러 프로세스</strong><p>할당된 CPU 슬롯에서 계산 작업을 분리한다.</p></section>
+    <section><h3>GPU 추론 워커</h3><strong>모델 서버 + 배치 처리</strong><p>GPU 메모리와 요청 묶음을 함께 관리한다.</p></section>
+  </div>}
+</figure>
+<style>
+.worker-diagram{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink);font-family:var(--sans)}figcaption{margin-bottom:1rem;font-weight:700;line-height:1.5}.responsibility{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:.75rem}.responsibility section,.models section,.api-lifetime section{padding:1rem;border:1px solid var(--line);background:var(--paper)}.responsibility h3,.models h3{margin:0 0 .5rem;font-size:.92rem}.responsibility>span{display:grid;place-items:center;color:var(--accent);font-size:1.4rem;font-weight:700}.responsibility p,.models p{margin:.65rem 0 0;color:var(--muted);font-size:.83rem;line-height:1.45}.api-lifetime{display:grid;justify-items:center;gap:.45rem;text-align:center}.api-lifetime section{width:min(100%,32rem);display:grid;gap:.3rem}.api-lifetime span{color:var(--muted);font-size:.82rem}.api-lifetime .task{border-left:4px solid var(--accent)}.api-lifetime .stop{border-color:var(--accent);font-weight:700}.lifecycle{display:grid;gap:.55rem;margin:0;padding:0;list-style:none}.lifecycle li{display:grid;grid-template-columns:auto 5rem 1fr;gap:.65rem;align-items:center;padding:.75rem;border:1px solid var(--line);background:var(--paper);font-size:.85rem}.lifecycle b{display:grid;place-items:center;width:1.6rem;height:1.6rem;border-radius:50%;background:var(--accent);color:var(--paper-deep);font-size:.76rem}.lifecycle span{color:var(--muted)}.models{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.models strong{display:block;color:var(--accent);font-size:.86rem}@media(max-width:640px){.worker-diagram{padding:1rem}.responsibility,.models{grid-template-columns:1fr}.responsibility>span{height:1.25rem;font-size:0}.responsibility>span::after{content:'↓';font-size:1rem}.lifecycle li{grid-template-columns:auto 1fr}.lifecycle li span{grid-column:2}}@media(prefers-color-scheme:dark){.worker-diagram{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
+</style>
