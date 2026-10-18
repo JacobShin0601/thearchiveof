@@ -1,7 +1,7 @@
 ---
-title: "Agent State는 어디에 있어야 하는가: PostgreSQL, Redis, Checkpoint"
-subtitle: "영속 기록, 실시간 투영, 재개 snapshot은 서로 다른 실패를 견딘다"
-description: "Agent state를 durable run record, hot projection, execution checkpoint와 process-local state로 나누고 실패·복구 요구사항에 따라 저장 위치를 결정합니다."
+title: "Agent State는 어디에 있어야 할까: PostgreSQL, Redis, Checkpoint"
+subtitle: "영속 기록, 실시간 투영, 재개용 snapshot은 각기 다른 장애 상황에 대비한다"
+description: "Agent State를 Durable Run Record, Hot Projection, Execution Checkpoint, Process-local State로 나누고 장애와 복구 요구사항을 기준으로 저장 위치를 결정합니다."
 publishedDate: 2026-09-25
 section: "AI & AX"
 subsection: "Agents"
@@ -58,7 +58,7 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 import AgentStateDiagrams from '../../../components/AgentStateDiagrams.astro';
 
 <AnswerBlock question="Agent state는 어디에 저장해야 하는가?">
-  하나의 저장소에 전부 넣지 않는다. <strong>PostgreSQL은 run과 결과의 영속적 기준 정보, Redis는 다시 만들 수 있는 hot projection, checkpoint는 재개에 충분한 실행 snapshot, 프로세스 메모리는 잃어도 되는 runtime state</strong>를 맡는다. 먼저 state의 의미를 정의하고, 그 값이 견뎌야 할 실패에 맞춰 물리적 저장소를 선택한다.
+  하나의 저장소에 전부 넣지 않는다. <strong>PostgreSQL은 Run과 결과의 영속 기준 정보, Redis는 다시 만들 수 있는 Hot Projection, Checkpoint는 재개에 필요한 실행 snapshot, 프로세스 메모리는 잃어도 되는 Runtime State</strong>를 맡는다. 먼저 State의 의미를 정의한 뒤, 그 값이 견뎌야 할 장애에 맞춰 물리적 저장소를 고른다.
 </AnswerBlock>
 
 이전 글 [Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/)에서는 장시간 Agent run의 수명 주기를 API 요청에서 queue와 worker로 넘겼다. 이제 worker가 실행을 맡았다고 해보자.
@@ -76,7 +76,7 @@ Worker는 문서 수집과 정규화를 끝내고 규칙 적용 단계로 넘어
 
 Agent state 설계는 데이터베이스 선택 문제가 아니라 **서로 다른 종류의 진실과 복구 계약을 분리하는 문제**다.
 
-## 먼저 논리적 state와 물리적 저장소를 나눈다
+## 먼저 논리적 State와 물리적 저장소를 나눈다
 
 | 논리적 artifact | 답해야 하는 질문 | 필요한 수명 | 자연스러운 위치 |
 | --- | --- | --- | --- |
@@ -117,7 +117,7 @@ Checkpoint는 데이터베이스 제품명이 아니다. **재개 가능한 snap
 
 이 글은 초기·중간 규모의 내부 Agent 서비스를 기준으로 PostgreSQL과 Redis를 사용한다. 다른 트래픽·규정·팀 역량이면 다른 제품이 맞을 수 있다. 중요한 것은 제품 조합이 아니라 위 계약을 지키는 것이다.
 
-## 하나의 run은 세 개의 저장 표현을 만든다
+## 하나의 Run은 세 가지 저장 표현을 만든다
 
 문서 검토 Agent가 다음 순서로 실행된다고 하자.
 
@@ -127,29 +127,10 @@ collect → normalize → apply_rules → draft → approval
 
 같은 시점의 state를 저장소별로 펼치면 다음과 같다.
 
-```text
-PostgreSQL: agent_runs
-  run_id          = 7d5...
-  tenant_id       = acme
-  session_id      = 91a...
-  status          = running
-  input           = {"document_set": "travel-policy-2026"}
-  final_result    = null
-  version         = 3
-
-Redis: agent:run:{7d5...}:state
-  status          = running
-  current_step    = apply_rules
-  progress        = 65
-  attempt_id      = 4fe...
-  heartbeat_at    = 2026-10-04T04:10:00Z
-  version         = 18
-
-Checkpoint 12
-  values          = {document refs, normalized facts, applicable rules}
-  next_nodes      = [apply_rules]
-  completed_nodes = [collect, normalize]
-```
+<AgentStateDiagrams
+  kind="representations"
+  caption="같은 Run이라도 공식 기록, 실시간 화면, 재개 지점은 서로 다른 독자와 복구 계약을 위해 별도로 저장한다."
+/>
 
 이 셋은 같은 state의 복제본이 아니다. 서로 다른 독자와 복구 계약을 가진 표현이다.
 
@@ -157,7 +138,7 @@ Checkpoint 12
 - Hot projection은 UI와 운영자가 지금 보고 싶은 최신 값만 제공한다.
 - Execution checkpoint는 새 worker가 계산을 이어갈 충분한 snapshot을 보존한다.
 
-## Durable run record: PostgreSQL 기준 정보를 작게 유지한다
+## Durable Run Record: PostgreSQL에는 기준 정보만 작게 둔다
 
 Run table은 공식 기록이다. 사용자에게 결과를 보여주고, 권한을 검사하고, 과금이나 감사의 근거로 사용할 수 있어야 한다.
 
@@ -303,24 +284,14 @@ def assert_transition(current: str, target: str) -> None:
 
 LLM이 status를 결정하게 두지 않는 것도 중요하다. 모델은 "분석이 끝났다"고 말할 수 있지만 종료 전환은 필수 출력 검증과 영속화가 완료된 뒤 결정론적 코드가 수행해야 한다.
 
-## Hot projection: Redis에는 작고 현재적인 값만 둔다
+## Hot Projection: Redis에는 작고 현재적인 값만 둔다
 
 Redis에는 UI와 운영 loop가 자주 읽는 작은 현재 상태 투영값을 둔다.
 
-```text
-Key
-agent:run:{run_id}:state
-
-Hash fields
-status          running
-current_step    apply_rules
-progress        65
-attempt_id      4fe...
-heartbeat_at    2026-10-04T04:10:00Z
-updated_at      2026-10-04T04:10:00Z
-version         18
-detail_json     {"policy":"travel-2026","rules_checked":4}
-```
+<AgentStateDiagrams
+  kind="hot-state"
+  caption="Redis Hash는 실행 중인 Run의 현재 상태만 작은 field 단위로 보관한다."
+/>
 
 Redis Hash는 field-value 쌍의 모음이다. `HSET`으로 일부 field를 갱신하고 `HMGET`이나 `HGETALL`로 읽을 수 있어 평평한 현재 상태 객체에 잘 맞는다. Hash field 값은 기본적으로 string/bytes이므로 중첩 객체는 JSON string으로 직렬화하거나 Redis JSON 같은 별도 자료형을 선택해야 한다. ([Redis Hashes](https://redis.io/docs/latest/develop/data-types/hashes/))
 
@@ -421,11 +392,10 @@ Key 이름은 단순한 미관이 아니다. 누가 읽을 수 있고, 무엇과
 
 권장 시작점은 다음과 같다.
 
-```text
-agent:run:{run_id}:state
-agent:run:{run_id}:lease
-agent:run:{run_id}:cancel
-```
+<AgentStateDiagrams
+  kind="redis-keys"
+  caption="같은 Run에 속한 Redis key는 이름과 수명을 함께 설계한다."
+/>
 
 여기서 `{run_id}`는 Redis Cluster hash tag다. 같은 중괄호 값을 가진 key는 같은 hash slot으로 배치할 수 있다. 다중 key transaction이나 Lua script가 필요한 관련 key를 같은 slot에 두는 데 유용하다. 하지만 모든 tenant key를 `{tenant_id}` 하나로 묶으면 큰 tenant가 한 slot에 몰릴 수 있다. 실제 접근 패턴을 보고 hash tag를 정해야 한다.
 
@@ -472,24 +442,19 @@ Redis의 `EXPIRE`는 key 전체에 TTL을 설정한다. `HSET`처럼 값을 제�
 
 TTL이 만료되었다고 run이 사라진 것은 아니다. Redis에서 찾지 못하면 API는 PostgreSQL의 영속적 state를 대신 사용해야 한다. 이것이 Redis를 투영값으로 두는 장점이다.
 
-```text
-GET /runs/{run_id}
-   │
-   ├─ PostgreSQL: authorization + durable status/result
-   │
-   └─ Redis: current step/progress가 있으면 응답에 보강
-```
+<AgentStateDiagrams
+  kind="read-view"
+  caption="조회는 PostgreSQL에서 권한과 영속 상태를 확인한 뒤, 활성 Run일 때만 Redis의 실시간 정보를 더한다."
+/>
 
 ### 갱신 순서에는 attempt와 fencing이 필요하다
 
 병렬 node나 재시도가 있는 Agent에서는 늦게 도착한 갱신이 최신 진행률을 덮을 수 있다.
 
-```text
-Worker A writes version 19, progress 70
-Worker B arrives late with version 18, progress 60
-
-Blind HSET result → UI가 70%에서 60%로 되돌아감
-```
+<AgentStateDiagrams
+  kind="stale-write"
+  caption="늦게 도착한 Worker의 이전 상태를 막지 않으면 UI가 과거 진행률로 되돌아갈 수 있다."
+/>
 
 한 run의 조정자만 진행률을 쓰도록 책임을 좁히는 것이 가장 단순하다. 그래도 오래된 갱신 가능성이 있다면 version 비교와 쓰기를 Redis 안에서 원자적으로 실행해야 한다. 읽은 후 애플리케이션에서 비교하고 다시 `HSET`하면 두 명령 사이에 경쟁 상태가 생긴다.
 
@@ -576,7 +541,7 @@ Redis Hash는 **작고 현재적인 투영값**에 적합하다. 중첩 state가
 
 Redis에 RDB나 AOF 영속성을 켜도 역할이 자동으로 바뀌지는 않는다. ([Redis Persistence](https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/)) 기준 정보는 디스크 쓰기 여부뿐 아니라 transaction, constraint, backup, 장기 query, 감사와 failover의 허용 손실 범위로 결정된다. Eviction이 켜져 있으면 TTL 전에도 key가 사라질 수 있으므로 hot projection은 여전히 재구성 가능해야 한다. ([Key eviction](https://redis.io/docs/latest/reference/eviction/))
 
-## Execution checkpoint: 현재 status가 아니라 재개 snapshot이다
+## Execution Checkpoint: 현재 status가 아니라 재개용 snapshot이다
 
 Redis hot state가 다음과 같다고 해보자.
 
@@ -730,7 +695,7 @@ def migrate_checkpoint(values: dict, from_version: int) -> dict:
 
 장시간 run이 여러 배포 version을 가로지를 수 있다면 코드 version도 metadata에 남기고, 새 worker가 이전 checkpoint를 읽을 수 있는 기간을 출시 정책에 포함해야 한다.
 
-## Worker code에서 세 저장소를 연결해 보자
+## Worker 코드에서 세 저장소를 연결해 보자
 
 이제 run 하나가 실제로 움직이는 순서를 합쳐보자.
 
@@ -810,7 +775,7 @@ async def execute_run(
 
 마지막 Redis 쓰기가 실패해도 PostgreSQL에는 성공 결과가 남는다. API가 영속적 row를 우선하면 사용자에게 잘못된 `running` 상태를 영원히 보여주지 않는다. 조정 작업이 종료 run의 Redis 투영값을 정리할 수도 있다.
 
-## 쓰기와 조회 경로는 durable state를 우선한다
+## 쓰기와 조회 경로에서는 영속 State를 기준으로 삼는다
 
 <AgentStateDiagrams
   kind="write-read-path"
@@ -920,39 +885,25 @@ Hash를 계속 덮어쓰면 현재 값은 알 수 있지만 어떻게 그 상태
 
 Client, file handle, coroutine은 새 worker에서 복원할 수 없다. 직렬화 가능한 state와 자원 식별자만 저장하고 runtime 자원은 재생성한다.
 
-## Framework state와 application state를 구분한다
+## Framework State와 Application State를 구분한다
 
 이 글의 구조는 특정 framework에 종속되지 않는다. LangGraph를 사용한다면 checkpoint 개념은 checkpointer에 대응한다. 공식 문서는 checkpointer가 thread의 graph-state snapshot을 저장하고, store는 thread 밖에서 애플리케이션이 정의한 장기 데이터를 저장한다고 구분한다. 메모리 내 saver는 프로세스 재시작 뒤 유지되지 않으므로 운영 환경에는 영속적 checkpointer가 필요하다고도 설명한다. ([LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/persistence))
 
-```text
-이 글의 개념                    LangGraph에서의 mapping
-───────────────────────────    ─────────────────────────────
-Run의 durable business record   Application PostgreSQL tables
-Resume 가능한 graph snapshot    Checkpointer
-Cross-thread long-term memory    Store
-현재 progress projection         Application-managed Redis state
-Process-local temporary state    Runtime memory
-```
+<AgentStateDiagrams
+  kind="framework-map"
+  caption="LangGraph의 persistence 기능은 Application의 Run 기록·권한·진행률 저장소를 대신하지 않는다."
+/>
 
 `thread_id`를 넘기고 checkpointer를 연결했다고 run 기록, 권한 확인, UI 진행률, event 이력이 모두 해결되는 것은 아니다. Framework graph state와 애플리케이션 업무 state는 겹치는 부분이 있지만 같은 것은 아니다. 이 차이는 9편에서 더 자세히 다룬다.
 
-## 위치보다 먼저 복구 계약을 정한다
+## 저장 위치보다 먼저 복구 계약을 정한다
 
 State를 어디에 둘지는 속도 비교로 끝나지 않는다. 어떤 독자가 무엇을 묻는지, 어떤 실패 뒤에도 답이 남아야 하는지, 사라진 값을 다시 만들 수 있는지를 먼저 정해야 한다. 그 답이 저장 위치뿐 아니라 version, TTL, transaction과 보존 기간을 결정한다.
 
-```text
-PostgreSQL
-  durable truth: run, identity, status, result, audit
-
-Redis Hash
-  hot projection: current step, progress, heartbeat
-
-Checkpoint
-  resume snapshot: values, next nodes, completed work
-
-Process memory
-  disposable runtime objects
-```
+<AgentStateDiagrams
+  kind="recovery-contract"
+  caption="저장소는 속도보다도, 어떤 장애 뒤에 어떤 근거로 복구할지를 기준으로 나눈다."
+/>
 
 이 경계가 분명하면 Redis를 잃어도 run과 결과를 설명할 수 있고, worker를 잃어도 checkpoint에서 재개할 수 있으며, 오래된 worker가 최신 결과를 되돌리지 못한다.
 

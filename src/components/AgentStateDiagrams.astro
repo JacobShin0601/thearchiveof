@@ -1,6 +1,6 @@
 ---
 interface Props {
-  kind: 'placement' | 'write-read-path' | 'failure';
+  kind: 'placement' | 'write-read-path' | 'failure' | 'representations' | 'hot-state' | 'redis-keys' | 'read-view' | 'stale-write' | 'framework-map' | 'recovery-contract';
   language?: 'ko' | 'en';
   caption: string;
 }
@@ -107,6 +107,91 @@ const failures = ko
           </li>
         ))}
       </ul>
+    </div>
+  )}
+
+
+  {kind === 'representations' && (
+    <div class="representations">
+      <article>
+        <span>01 · PostgreSQL</span>
+        <strong>Durable Run Record</strong>
+        <p>{ko ? '누가 요청했고 어떻게 끝났는지 남기는 공식 기록' : 'The official record of ownership and outcome'}</p>
+        <small>{ko ? 'run · identity · status · result · audit' : 'run · identity · status · result · audit'}</small>
+      </article>
+      <article>
+        <span>02 · Redis</span>
+        <strong>Hot Projection</strong>
+        <p>{ko ? '화면과 운영 도구가 즉시 읽는 현재 상태' : 'The current view for UI and operations'}</p>
+        <small>{ko ? 'current step · progress · heartbeat' : 'current step · progress · heartbeat'}</small>
+      </article>
+      <article>
+        <span>03 · Durable store</span>
+        <strong>Execution Checkpoint</strong>
+        <p>{ko ? '새 Worker가 이어서 실행할 수 있는 안전한 재개 지점' : 'A safe resume point for a new worker'}</p>
+        <small>{ko ? 'values · next nodes · completed work' : 'values · next nodes · completed work'}</small>
+      </article>
+    </div>
+  )}
+
+  {kind === 'hot-state' && (
+    <div class="hot-state">
+      <header><span>Redis Hash</span><code>agent:run:&#123;run_id&#125;:state</code></header>
+      <dl>
+        <div><dt>status</dt><dd>running</dd></div>
+        <div><dt>current_step</dt><dd>apply_rules</dd></div>
+        <div><dt>progress</dt><dd>65%</dd></div>
+        <div><dt>attempt_id · version</dt><dd>4fe… · 18</dd></div>
+        <div><dt>heartbeat_at</dt><dd>2026-10-04 04:10Z</dd></div>
+        <div><dt>detail_json</dt><dd>{'{ policy, rules_checked }'}</dd></div>
+      </dl>
+    </div>
+  )}
+
+  {kind === 'redis-keys' && (
+    <div class="redis-keys">
+      <code>agent:run:&#123;run_id&#125;:state</code>
+      <code>agent:run:&#123;run_id&#125;:lease</code>
+      <code>agent:run:&#123;run_id&#125;:cancel</code>
+      <p>{ko ? '같은 Run의 관련 key를 함께 다룰 때는 &#123;run_id&#125; hash tag가 같은 Cluster slot 배치를 돕는다.' : 'The {run_id} hash tag keeps related keys in the same Cluster slot.'}</p>
+    </div>
+  )}
+
+  {kind === 'read-view' && (
+    <div class="read-view">
+      <div><b>1</b><strong>GET /runs/&#123;run_id&#125;</strong><small>{ko ? '요청 수신' : 'request'}</small></div>
+      <div><b>2</b><strong>PostgreSQL</strong><small>{ko ? '권한 · 영속 status · 결과 확인' : 'authorization · durable status · result'}</small></div>
+      <div><b>3</b><strong>Redis</strong><small>{ko ? '활성 Run에만 step · progress 보강' : 'active Run: add step · progress'}</small></div>
+      <div><b>4</b><strong>Response</strong><small>{ko ? '종료 상태는 DB를 우선' : 'terminal status: DB wins'}</small></div>
+    </div>
+  )}
+
+  {kind === 'stale-write' && (
+    <div class="stale-write">
+      <article class="latest"><span>현재 값</span><strong>Worker A · version 19</strong><b>progress 70%</b></article>
+      <i aria-hidden="true">vs</i>
+      <article class="stale"><span>늦게 도착</span><strong>Worker B · version 18</strong><b>progress 60%</b></article>
+      <p>{ko ? 'version 또는 fencing token이 없으면 60%가 70%를 덮을 수 있다.' : 'Without a version or fencing token, 60% can overwrite 70%.'}</p>
+    </div>
+  )}
+
+  {kind === 'framework-map' && (
+    <div class="framework-map">
+      <div><strong>{ko ? '이 글의 개념' : 'This article'}</strong><strong>LangGraph</strong></div>
+      <div><span>{ko ? 'Run의 업무 기록' : 'Run business record'}</span><b>Application PostgreSQL tables</b></div>
+      <div><span>{ko ? '재개 가능한 graph snapshot' : 'Resumable graph snapshot'}</span><b>Checkpointer</b></div>
+      <div><span>{ko ? 'thread 밖 장기 메모리' : 'Long-term memory outside a thread'}</span><b>Store</b></div>
+      <div><span>{ko ? '현재 progress 투영값' : 'Current progress projection'}</span><b>Application-managed Redis State</b></div>
+      <div><span>{ko ? '프로세스 안의 임시 상태' : 'Process-local temporary State'}</span><b>Runtime memory</b></div>
+    </div>
+  )}
+
+  {kind === 'recovery-contract' && (
+    <div class="recovery-contract">
+      <article><strong>PostgreSQL</strong><p>{ko ? '공식 기록' : 'Durable truth'}</p><small>run · identity · status · result · audit</small></article>
+      <article><strong>Redis Hash</strong><p>{ko ? '실시간 투영값' : 'Hot projection'}</p><small>current step · progress · heartbeat</small></article>
+      <article><strong>Checkpoint</strong><p>{ko ? '재개용 snapshot' : 'Resume snapshot'}</p><small>values · next nodes · completed work</small></article>
+      <article><strong>Worker memory</strong><p>{ko ? '버려도 되는 실행 객체' : 'Disposable runtime objects'}</p><small>client · buffer · coroutine</small></article>
     </div>
   )}
 
@@ -314,10 +399,234 @@ const failures = ko
     color: var(--muted);
   }
 
+
+  .representations,
+  .recovery-contract {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .representations article,
+  .recovery-contract article,
+  .stale-write article {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: 0.65rem;
+    background: var(--paper);
+  }
+
+  .representations span,
+  .hot-state header span,
+  .stale-write span {
+    color: var(--accent);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+  }
+
+  .representations strong,
+  .recovery-contract strong,
+  .stale-write strong {
+    font-size: 0.9rem;
+  }
+
+  .representations p,
+  .recovery-contract p,
+  .stale-write p {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  .representations small,
+  .recovery-contract small {
+    color: var(--muted);
+    font-size: 0.7rem;
+    line-height: 1.4;
+  }
+
+  .hot-state {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 0.65rem;
+    background: var(--paper);
+  }
+
+  .hot-state header {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.75rem 0.85rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .hot-state code,
+  .redis-keys code {
+    overflow-wrap: anywhere;
+    color: var(--ink);
+    font-size: 0.72rem;
+  }
+
+  .hot-state dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+  }
+
+  .hot-state dl div {
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.7rem 0.85rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .hot-state dl div:nth-child(odd) {
+    border-right: 1px solid var(--line);
+  }
+
+  .hot-state dt {
+    color: var(--muted);
+    font-size: 0.68rem;
+  }
+
+  .hot-state dd {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    overflow-wrap: anywhere;
+  }
+
+  .redis-keys {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .redis-keys code {
+    padding: 0.7rem 0.8rem;
+    border-left: 3px solid var(--accent);
+    background: var(--paper);
+  }
+
+  .redis-keys p {
+    margin: 0.2rem 0 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+
+  .read-view {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .read-view div {
+    position: relative;
+    display: grid;
+    gap: 0.25rem;
+    min-height: 5.7rem;
+    padding: 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0.6rem;
+    background: var(--paper);
+  }
+
+  .read-view div:not(:last-child)::after {
+    position: absolute;
+    right: -0.45rem;
+    top: 50%;
+    z-index: 1;
+    color: var(--accent);
+    content: '→';
+    font-weight: 800;
+  }
+
+  .read-view b {
+    color: var(--accent);
+    font-size: 0.72rem;
+  }
+
+  .read-view strong { font-size: 0.78rem; }
+  .read-view small { color: var(--muted); font-size: 0.7rem; line-height: 1.4; }
+
+  .stale-write {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0.65rem;
+    align-items: center;
+  }
+
+  .stale-write article { min-height: 5.4rem; }
+  .stale-write .latest { border-color: var(--accent); }
+  .stale-write .stale { border-style: dashed; }
+  .stale-write b { font-size: 0.8rem; }
+  .stale-write > i { color: var(--muted); font-style: normal; font-size: 0.75rem; }
+  .stale-write > p { grid-column: 1 / -1; padding: 0.6rem; border-left: 3px solid var(--accent); }
+
+  .framework-map {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .framework-map div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(9rem, 1fr);
+    gap: 0.65rem;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: var(--paper);
+  }
+
+  .framework-map div:first-child {
+    background: var(--paper-deep);
+    color: var(--muted);
+    font-size: 0.7rem;
+  }
+
+  .framework-map span,
+  .framework-map b {
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  .framework-map b { font-weight: 700; }
+
+  .recovery-contract {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .recovery-contract article {
+    min-height: 6.4rem;
+  }
+
   @media (max-width: 760px) {
     .placement ol,
-    .paths {
+    .paths,
+    .representations,
+    .recovery-contract {
       grid-template-columns: 1fr;
+    }
+
+    .read-view {
+      grid-template-columns: 1fr;
+    }
+
+    .read-view div:not(:last-child)::after {
+      right: auto;
+      left: 1rem;
+      top: auto;
+      bottom: -0.72rem;
+      content: '↓';
+    }
+
+    .framework-map div {
+      grid-template-columns: 1fr;
+      gap: 0.2rem;
     }
 
     .failure-head {
@@ -357,6 +666,26 @@ const failures = ko
 
     .paths li {
       grid-template-columns: 1.5rem 1fr;
+    }
+
+    .hot-state header {
+      display: grid;
+    }
+
+    .hot-state dl {
+      grid-template-columns: 1fr;
+    }
+
+    .hot-state dl div:nth-child(odd) {
+      border-right: 0;
+    }
+
+    .stale-write {
+      grid-template-columns: 1fr;
+    }
+
+    .stale-write > i {
+      justify-self: center;
     }
 
     .paths li small {
