@@ -1,6 +1,6 @@
 ---
 title: "Multi-Agent는 Agent 여러 개를 띄우는 일이 아니다: Parent Run, Fan-out, Fan-in"
-subtitle: "Child Run의 수명 주기, 격리된 상태와 부분 실패를 하나의 실행 트리로 다루는 법"
+subtitle: "Child Run의 수명 주기, 격리된 state와 부분 실패를 하나의 실행 트리로 다루는 법"
 description: "Multi-agent 실행을 durable parent-child run hierarchy로 모델링하고 fan-out, fan-in, context isolation, 부분 실패와 budget·cancellation 전파를 설계합니다."
 publishedDate: 2026-10-11
 section: "AI & AX"
@@ -52,7 +52,7 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 import AgentMultiRunDiagrams from '../../../components/AgentMultiRunDiagrams.astro';
 
 <AnswerBlock question="Agent 세 개를 동시에 실행하면 Multi-Agent 시스템이 되는가?">
-  <strong>아니다. 운영 환경의 Multi-Agent는 여러 코루틴을 묶은 것이 아니라 Parent Run과 Child Run의 책임, 상태, 예산, 실패와 취소를 연결한 실행 트리다.</strong> Child를 안정적인 ID를 가진 영속적인 Run으로 만들고, 제한된 Fan-out과 명시적인 Fan-in 정책으로 결과를 합쳐야 Worker가 종료되거나 일부 Child가 실패해도 하나의 제품 결과로 수렴한다.
+  <strong>아니다. 운영 환경의 Multi-Agent는 여러 코루틴을 묶은 것이 아니라 Parent Run과 Child Run의 책임, state, 예산, 실패와 취소를 연결한 실행 트리다.</strong> Child를 안정적인 ID를 가진 영속적인 Run으로 만들고, 제한된 Fan-out과 명시적인 Fan-in 정책으로 결과를 합쳐야 Worker가 종료되거나 일부 Child가 실패해도 하나의 제품 결과로 수렴한다.
 </AnswerBlock>
 
 앞선 글 [Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/)에서는 durable worker가 어떤 실행 단위를 소유하고 재시도하는지 분리했다. 그런데 parent run 하나가 그 Worker 안에서 child agent 열 개를 생성하면 어떻게 될까?
@@ -67,7 +67,7 @@ results = await asyncio.gather(
 
 API에서는 run 한 건만 수용했지만 model call, tool concurrency와 token cost는 세 배 이상으로 fan-out한다. Worker가 중간에 죽으면 어떤 child가 끝났는지 사라진다. 하나가 실패했을 때 나머지를 취소할지, 성공 결과만 합성할지도 코드의 우연한 예외 처리에 맡겨진다.
 
-Multi-Agent의 핵심은 Agent 수가 아니다. **하나의 목표를 여러 실행 단위로 분해하고, 다시 예측 가능한 제품 상태로 합치는 실행 규약**이다.
+Multi-Agent의 핵심은 Agent 수가 아니다. **하나의 목표를 여러 실행 단위로 분해하고, 다시 예측 가능한 제품 state로 합치는 실행 규약**이다.
 
 `gather()`나 `TaskGroup`은 한 Worker attempt 안의 짧은 로컬 동시성을 다룬다. 반면 Parent Run과 Child Run은 Worker 재시작 뒤에도 다시 찾고, 재시도하고, 결과를 합쳐야 하는 영속적인 실행 수명 주기다.
 
@@ -88,7 +88,7 @@ Multi-Agent의 핵심은 Agent 수가 아니다. **하나의 목표를 여러 �
 | Subgraph | 복수 단계지만 parent lifecycle 안에서 재사용 | namespaced graph state |
 | Child run | 독립 retry·checkpoint·budget·권한·관찰이 필요 | 별도 durable lifecycle |
 
-“research agent”라는 이름이 붙었다고 child run인 것은 아니다. Worker crash 뒤 개별 재개가 필요하고, 몇 분 동안 병렬 실행되며, 사용자에게 진행 상태를 보여 주거나 별도 quota를 계산해야 할 때 child run이 유리하다.
+“research agent”라는 이름이 붙었다고 child run인 것은 아니다. Worker crash 뒤 개별 재개가 필요하고, 몇 분 동안 병렬 실행되며, 사용자에게 진행 state를 보여 주거나 별도 quota를 계산해야 할 때 child run이 유리하다.
 
 반대로 100ms짜리 deterministic lookup까지 child run으로 만들면 lifecycle row, event와 scheduling overhead만 늘어난다. Runtime boundary는 캐릭터나 prompt가 아니라 **독립적으로 관리해야 하는 실패 경계**로 정한다.
 
@@ -267,7 +267,7 @@ Policy에는 retryable error, terminal error, partial result의 허용 여부와
 
 ## Fan-in은 durable barrier다
 
-Parent Worker가 `await children` 상태로 memory에 남아 있을 필요는 없다. Parent는 `waiting_children`으로 durable하게 전이하고 ownership을 반납한다.
+Parent Worker가 `await children` state로 memory에 남아 있을 필요는 없다. Parent는 `waiting_children`으로 durable하게 전이하고 ownership을 반납한다.
 
 Child가 terminal state에 들어가면 outbox event를 발행한다. Coordinator는 row lock 또는 conditional update 아래에서 현재 child 집합을 다시 읽고 join policy를 평가한다.
 
@@ -363,7 +363,7 @@ async def cancel_tree(root_run_id: UUID, reason: str):
 
 Parent가 먼저 `cancelled`로 닫히고 child가 계속 비용을 쓰는 orphan을 허용하지 않는다. 정말 detached background work가 필요하다면 parent-close policy, 별도 owner와 budget을 명시한다.
 
-Process-local Task cancellation과 마찬가지로 remote Lambda나 이미 시작된 외부 side effect가 즉시 멈춘다고 가정하지 않는다. Child terminal 상태와 execution ledger로 최종 결과를 reconcile한다.
+Process-local Task cancellation과 마찬가지로 remote Lambda나 이미 시작된 외부 side effect가 즉시 멈춘다고 가정하지 않는다. Child terminal state와 execution ledger로 최종 결과를 reconcile한다.
 
 ## Event는 child detail과 parent progress를 분리한다
 
