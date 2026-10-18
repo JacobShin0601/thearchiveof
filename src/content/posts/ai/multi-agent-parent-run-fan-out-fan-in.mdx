@@ -1,6 +1,6 @@
 ---
-title: "Multi-Agent는 Agent를 여러 개 띄우는 것이 아니다: Parent Run, Fan-out, Fan-in"
-subtitle: "Child run의 lifecycle, 격리된 state와 부분 실패를 하나의 실행 트리로 다루는 법"
+title: "Multi-Agent는 Agent 여러 개를 띄우는 일이 아니다: Parent Run, Fan-out, Fan-in"
+subtitle: "Child Run의 수명 주기, 격리된 상태와 부분 실패를 하나의 실행 트리로 다루는 법"
 description: "Multi-agent 실행을 durable parent-child run hierarchy로 모델링하고 fan-out, fan-in, context isolation, 부분 실패와 budget·cancellation 전파를 설계합니다."
 publishedDate: 2026-10-11
 section: "AI & AX"
@@ -52,7 +52,7 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 import AgentMultiRunDiagrams from '../../../components/AgentMultiRunDiagrams.astro';
 
 <AnswerBlock question="Agent 세 개를 동시에 실행하면 Multi-Agent 시스템이 되는가?">
-  <strong>아니다. Production multi-agent는 여러 coroutine의 묶음이 아니라 parent와 child의 ownership, state, budget, failure와 cancellation을 연결한 실행 트리다.</strong> Child를 stable ID를 가진 durable run으로 만들고, bounded fan-out과 명시적인 fan-in policy로 결과를 합쳐야 Worker가 죽거나 일부 child가 실패해도 하나의 product result로 수렴한다.
+  <strong>아니다. 운영 환경의 Multi-Agent는 여러 코루틴을 묶은 것이 아니라 Parent Run과 Child Run의 책임, 상태, 예산, 실패와 취소를 연결한 실행 트리다.</strong> Child를 안정적인 ID를 가진 영속적인 Run으로 만들고, 제한된 Fan-out과 명시적인 Fan-in 정책으로 결과를 합쳐야 Worker가 종료되거나 일부 Child가 실패해도 하나의 제품 결과로 수렴한다.
 </AnswerBlock>
 
 앞선 글 [Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/)에서는 durable worker가 어떤 실행 단위를 소유하고 재시도하는지 분리했다. 그런데 parent run 하나가 그 Worker 안에서 child agent 열 개를 생성하면 어떻게 될까?
@@ -67,12 +67,14 @@ results = await asyncio.gather(
 
 API에서는 run 한 건만 수용했지만 model call, tool concurrency와 token cost는 세 배 이상으로 fan-out한다. Worker가 중간에 죽으면 어떤 child가 끝났는지 사라진다. 하나가 실패했을 때 나머지를 취소할지, 성공 결과만 합성할지도 코드의 우연한 예외 처리에 맡겨진다.
 
-Multi-agent의 핵심은 agent 수가 아니다. **하나의 목표를 여러 실행 단위로 분해하고 다시 결정론적인 product state로 합치는 protocol**이다.
+Multi-Agent의 핵심은 Agent 수가 아니다. **하나의 목표를 여러 실행 단위로 분해하고, 다시 예측 가능한 제품 상태로 합치는 실행 규약**이다.
+
+`gather()`나 `TaskGroup`은 한 Worker attempt 안의 짧은 로컬 동시성을 다룬다. 반면 Parent Run과 Child Run은 Worker 재시작 뒤에도 다시 찾고, 재시도하고, 결과를 합쳐야 하는 영속적인 실행 수명 주기다.
 
 <AgentMultiRunDiagrams
   kind="hierarchy"
   language="ko"
-  caption="그림 1. Parent와 child는 하나의 실행 트리지만 각자 durable lifecycle, attempt, result와 budget을 가진다."
+  caption="그림 1. Parent Run과 Child Run은 하나의 실행 트리지만 각자 영속적인 수명 주기, 시도, 결과와 예산을 가진다."
 />
 
 ## 먼저 child를 node로 둘지 run으로 둘지 결정한다
@@ -125,12 +127,11 @@ CREATE TABLE agent_runs (
 
 Orchestrator가 child를 만든 직후 죽을 수 있다.
 
-```text
-child row 생성 전 crash
-child row 생성 후 queue publish 전 crash
-queue publish 후 parent checkpoint 전 crash
-같은 parent node가 replay되어 child를 다시 생성
-```
+<AgentMultiRunDiagrams
+  kind="creation"
+  language="ko"
+  caption="그림 2. Fan-out은 Child Run 생성, outbox 기록, queue 전달, Parent checkpoint를 함께 다뤄야 한다."
+/>
 
 Stable `child_key`와 unique constraint가 logical child의 중복 생성을 막는다. Parent state update, child rows와 enqueue outbox는 같은 transaction에서 기록한다.
 
