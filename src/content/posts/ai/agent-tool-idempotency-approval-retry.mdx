@@ -266,7 +266,7 @@ Redis는 다음 용도로 보조할 수 있다.
 
 - 짧은 실행 lock
 - 승인 대기 알림
-- UI 진행 상태
+- UI 진행 state
 - 최근 이벤트 전달
 
 하지만 Redis key가 만료되거나 eviction됐다는 이유로 같은 송금을 다시 허용해서는 안 된다.
@@ -376,7 +376,7 @@ Idempotency-Key: tool-action:action_123
 Idempotency-Key: tool-action:action_123
 ```
 
-Provider가 이 계약을 지원한다면 두 번째 요청은 새 송금을 만들지 않고 최초 실행의 결과를 반환하거나 기존 실행 상태를 조회할 수 있다.
+Provider가 이 계약을 지원한다면 두 번째 요청은 새 송금을 만들지 않고 최초 실행의 결과를 반환하거나 기존 실행 state를 조회할 수 있다.
 
 중요한 것은 “idempotency”라는 필드 이름의 존재가 아니다. 다음 계약을 확인해야 한다.
 
@@ -385,7 +385,7 @@ Provider가 이 계약을 지원한다면 두 번째 요청은 새 송금을 만
 - 요청이 실행되기 전 validation 실패도 저장하는가?
 - 서버 오류 결과도 같은 키에 묶이는가?
 - 처리 중인 요청과 동시에 같은 키가 들어오면 어떻게 되는가?
-- 거래 상태를 별도 API로 조회할 수 있는가?
+- 거래 state를 별도 API로 조회할 수 있는가?
 
 Provider가 idempotency key나 거래 조회 API를 지원하지 않으면, 호출 성공과 로컬 저장 사이의 장애 구간을 일반적인 애플리케이션 코드만으로 완전히 닫을 수 없다는 한계를 명시한다.
 
@@ -438,7 +438,7 @@ Worker가 관측한 것: timeout
 
 이때 action을 바로 `failed`로 표시하고 새 idempotency key로 재시도하면 중복 송금이 발생할 수 있다.
 
-대신 `outcome_unknown` 상태로 전환한다.
+대신 `outcome_unknown` state로 전환한다.
 
 ```python
 try:
@@ -454,7 +454,7 @@ except NetworkTimeout as error:
     return
 ```
 
-Reconciliation worker는 같은 idempotency key나 provider reference로 상태를 확인한다.
+Reconciliation worker는 같은 idempotency key나 provider reference로 state를 확인한다.
 
 ```python
 async def reconcile_transfer(action: ToolAction) -> None:
@@ -499,13 +499,13 @@ async def reconcile_transfer(action: ToolAction) -> None:
 ```text
 action 실행권 확보
 → 외부 API 호출
-→ PostgreSQL에 succeeded 또는 최종 상태 저장
+→ PostgreSQL에 succeeded 또는 최종 state 저장
 → Queue ack
 ```
 
 먼저 ack한 뒤 결과 저장에 실패하면 Queue에는 완료로 보이지만 로컬 시스템에는 결과가 없다.
 
-반대로 결과를 저장한 뒤 ack 전에 Worker가 죽으면 메시지가 다시 전달될 수 있다. 재전달된 Worker는 action 상태를 확인한다.
+반대로 결과를 저장한 뒤 ack 전에 Worker가 죽으면 메시지가 다시 전달될 수 있다. 재전달된 Worker는 action state를 확인한다.
 
 ```python
 async def handle_tool_message(message: ToolMessage) -> None:
@@ -597,7 +597,7 @@ Happy path만 테스트하면 멱등성 문제를 발견하기 어렵다.
 6. Provider 응답이 timeout되지만 실제 거래는 성공한다.
 7. 승인 만료 뒤 늦은 메시지가 도착한다.
 8. 같은 idempotency key에 다른 인자를 보낸다.
-9. Redis의 lock과 진행 상태가 모두 사라진다.
+9. Redis의 lock과 진행 state가 모두 사라진다.
 10. Runtime이 이전 checkpoint에서 Tool node를 다시 실행한다.
 
 테스트의 성공 조건은 “Tool 함수가 한 번 호출됐다”가 아니다.
@@ -620,7 +620,7 @@ Happy path만 테스트하면 멱등성 문제를 발견하기 어렵다.
 - 네트워크는 성공 응답을 잃는다.
 - 외부 서비스의 idempotency key는 언젠가 만료된다.
 
-좋은 Tool 실행 경계는 이 중복을 숨기지 않는다. 하나의 사용자 의도를 영속적인 action으로 만들고, 정확한 인자에 승인을 묶고, 모든 재시도에 같은 idempotency key를 사용하며, 결과를 모르는 상태를 별도로 관리한다.
+좋은 Tool 실행 경계는 이 중복을 숨기지 않는다. 하나의 사용자 의도를 영속적인 action으로 만들고, 정확한 인자에 승인을 묶고, 모든 재시도에 같은 idempotency key를 사용하며, 결과를 모르는 state를 별도로 관리한다.
 
 핵심 원칙은 네 가지다.
 
@@ -631,6 +631,6 @@ Happy path만 테스트하면 멱등성 문제를 발견하기 어렵다.
 
 이 네 가지가 지켜질 때 Agent가 다시 생각하고, Worker가 다시 실행되고, Queue가 메시지를 다시 전달하더라도 사용자는 같은 송금을 두 번 만들지 않는 시스템에 가까워질 수 있다.
 
-다음 글 [Agent가 일하면서 말하게 하기](/ai/agents/agent-sse-streaming/)에서는 승인 대기, 실행 진행과 reconciliation 상태를 SSE로 사용자에게 전달하는 방법을 살펴본다. 전체 흐름은 [Agent Engineering 시리즈](/series/agent-engineering/)에서 확인할 수 있다.
+다음 글 [Agent가 일하면서 말하게 하기](/ai/agents/agent-sse-streaming/)에서는 승인 대기, 실행 진행과 reconciliation state를 SSE로 사용자에게 전달하는 방법을 살펴본다. 전체 흐름은 [Agent Engineering 시리즈](/series/agent-engineering/)에서 확인할 수 있다.
 
-초안의 승인 원칙은 사용자가 수취인·금액 같은 중요 데이터를 직접 확인하고 서버에서 거래 상태 전이를 강제하라는 [OWASP 지침](https://cheatsheetseries.owasp.org/cheatsheets/Transaction_Authorization_Cheat_Sheet.html), 재시도에서 같은 의도를 구별하라는 [AWS Builders’ Library](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/), 동일 키 재사용 시 최초 결과와 인자 일치를 다루는 [Stripe 공식 문서](https://docs.stripe.com/api/idempotent_requests), 그리고 중복을 데이터베이스 수준에서 막는 [PostgreSQL 제약조건](https://www.postgresql.org/docs/current/ddl-constraints.html)을 기준으로 잡았습니다.
+초안의 승인 원칙은 사용자가 수취인·금액 같은 중요 데이터를 직접 확인하고 서버에서 거래 state 전이를 강제하라는 [OWASP 지침](https://cheatsheetseries.owasp.org/cheatsheets/Transaction_Authorization_Cheat_Sheet.html), 재시도에서 같은 의도를 구별하라는 [AWS Builders’ Library](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/), 동일 키 재사용 시 최초 결과와 인자 일치를 다루는 [Stripe 공식 문서](https://docs.stripe.com/api/idempotent_requests), 그리고 중복을 데이터베이스 수준에서 막는 [PostgreSQL 제약조건](https://www.postgresql.org/docs/current/ddl-constraints.html)을 기준으로 잡았습니다.
