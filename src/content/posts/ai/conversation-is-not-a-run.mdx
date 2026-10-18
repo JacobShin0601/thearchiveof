@@ -1,0 +1,461 @@
+---
+title: "Conversation은 Run이 아니다: Session Isolation 설계"
+subtitle: "지속되는 대화와 한 번의 실행을 분리하고, tenant·user·session·run의 소유권을 지키는 법"
+description: "Agent backend에서 tenant, user, session, run을 분리하고 객체 단위 권한검사와 동시 실행 제약으로 여러 사용자의 대화 state를 안전하게 격리하는 방법을 설명합니다."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - session-isolation
+  - authorization
+  - multi-tenancy
+  - concurrency
+  - langgraph
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "ko"
+translationKey: "conversation-is-not-a-run"
+series: "Agent Engineering"
+seriesOrder: 9
+seriesPart: "state"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "LangGraph Persistence"
+    url: "https://docs.langchain.com/oss/python/langgraph/persistence"
+    publisher: "LangChain Documentation"
+  - title: "Create a thread"
+    url: "https://docs.langchain.com/langsmith/managed-deep-agents-api/threads/create-thread"
+    publisher: "LangChain Documentation"
+  - title: "Create a thread run"
+    url: "https://docs.langchain.com/langsmith/managed-deep-agents-api/runs/create-thread-run"
+    publisher: "LangChain Documentation"
+  - title: "Insecure Direct Object Reference Prevention Cheat Sheet"
+    url: "https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html"
+    publisher: "OWASP"
+  - title: "Authorization Cheat Sheet"
+    url: "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+    publisher: "OWASP"
+  - title: "PostgreSQL Constraints"
+    url: "https://www.postgresql.org/docs/current/ddl-constraints.html"
+    publisher: "PostgreSQL Documentation"
+  - title: "PostgreSQL Partial Indexes"
+    url: "https://www.postgresql.org/docs/current/indexes-partial.html"
+    publisher: "PostgreSQL Documentation"
+  - title: "PostgreSQL Row Security Policies"
+    url: "https://www.postgresql.org/docs/current/ddl-rowsecurity.html"
+    publisher: "PostgreSQL Documentation"
+  - title: "FastAPI Dependencies"
+    url: "https://fastapi.tiangolo.com/reference/dependencies/"
+    publisher: "FastAPI Documentation"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="Conversation과 Run은 왜 분리해야 하는가?">
+  <strong>Conversation 또는 session은 여러 요청에 걸쳐 이어지는 context이고, run은 그 안에서 한 번 시작되어 끝나는 실행 instance다.</strong> 두 개를 같은 ID와 같은 state로 취급하면 동시 요청이 서로의 checkpoint를 덮어쓰고, 실패·재시도·승인 state를 구분하기 어려워지며, 다른 사용자의 run에 접근하는 권한검사도 흐려진다. 애플리케이션은 tenant → user → session → run의 소유 관계를 PostgreSQL에 남기고, 모든 조회와 streaming 전에 그 관계를 서버에서 검증해야 한다.
+</AnswerBlock>
+
+앞선 [Agent State는 어디에 있어야 하는가](/ai/agents/where-agent-state-lives/)에서는 PostgreSQL의 durable record, Redis의 hot projection, runtime checkpoint를 분리했다. [State는 Event가 아니다](/ai/agents/state-is-not-event/)에서는 현재 snapshot과 시간순 event도 다른 데이터라고 설명했다.
+
+그 다음 질문은 **그 state가 누구의 어떤 대화에 속하고, 지금 보고 있는 실행은 정확히 무엇인가**다.
+
+사용자가 “NVIDIA를 분석해줘”라고 요청한 뒤 “방금 분석에 AMD도 비교해줘”라고 말한다. 두 번째 요청은 첫 번째 요청과 context를 공유하지만, 같은 실행은 아니다. 첫 번째 run은 이미 성공했을 수 있고, 두 번째 run은 새 tool call과 새 실패 가능성, 새 비용, 새 승인 state를 갖는다.
+
+```text
+Session S1
+├─ Run R1: NVIDIA 분석        → succeeded
+└─ Run R2: AMD도 비교         → running
+```
+
+이 차이를 데이터 모델에 표현하지 않으면 “대화 기록”과 “실행 state”가 하나의 커다란 mutable object에 섞인다.
+
+## 네 개의 ID가 서로 다른 질문에 답한다
+
+기본 계층은 다음과 같다.
+
+```text
+Tenant
+└─ User
+   └─ Session
+      ├─ Run 1
+      ├─ Run 2
+      └─ Run 3
+```
+
+| Entity | 답하는 질문 | 대표 수명주기 |
+| --- | --- | --- |
+| Tenant | 어느 조직의 데이터인가? | 계약·workspace 단위 |
+| User | 누가 요청했는가? | 계정 단위 |
+| Session | 어떤 대화 또는 작업 context인가? | 여러 사용자 turn에 걸쳐 지속 |
+| Run | 한 번의 실행에서 무슨 일이 일어났는가? | queued → running → terminal |
+
+`session_id`는 context를 잇는다. `run_id`는 실행 한 번의 state, 시도, event, 비용과 결과를 식별한다. 둘은 1:N 관계다.
+
+```python
+from dataclasses import dataclass
+from uuid import UUID
+
+@dataclass(frozen=True)
+class RunIdentity:
+    tenant_id: UUID
+    user_id: UUID
+    session_id: UUID
+    run_id: UUID
+```
+
+이 구조는 ID를 많이 만드는 취향의 문제가 아니다. 장애를 설명하고 권한을 증명하기 위한 최소한의 좌표다.
+
+## 관계는 URL이 아니라 데이터베이스가 증명한다
+
+다음 URL은 읽기 좋다.
+
+```text
+GET /sessions/{session_id}/runs/{run_id}
+```
+
+하지만 URL에 두 ID가 함께 있다고 해서 `run_id`가 실제로 그 `session_id`에 속하는 것은 아니다. 클라이언트가 보낸 경로는 주장일 뿐이다. 관계는 서버의 durable record가 증명해야 한다.
+
+```sql
+CREATE TABLE sessions (
+    session_id uuid PRIMARY KEY,
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    title text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (tenant_id, user_id, session_id)
+);
+
+CREATE TABLE runs (
+    run_id uuid PRIMARY KEY,
+    session_id uuid NOT NULL REFERENCES sessions(session_id),
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    status text NOT NULL,
+    input_json jsonb NOT NULL,
+    result_json jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    started_at timestamptz,
+    finished_at timestamptz
+);
+```
+
+실제 schema에서는 composite foreign key나 별도의 ownership invariant로 `tenant_id`, `user_id`, `session_id`의 일관성까지 강제할 수 있다. 중요한 점은 run row만 읽고 “현재 사용자와 아마 같은 tenant일 것”이라고 가정하지 않는 것이다.
+
+조회도 전체 테이블에서 `run_id` 하나로 찾은 다음 Python에서 비교하기보다, 처음부터 현재 identity의 범위 안에서 찾는 편이 안전하다.
+
+```python
+async def load_owned_run(
+    db,
+    *,
+    tenant_id: str,
+    user_id: str,
+    session_id: str,
+    run_id: str,
+):
+    return await db.fetchrow(
+        """
+        SELECT r.*
+        FROM runs AS r
+        JOIN sessions AS s ON s.session_id = r.session_id
+        WHERE r.run_id = $1
+          AND r.session_id = $2
+          AND s.tenant_id = $3
+          AND s.user_id = $4
+        """,
+        run_id,
+        session_id,
+        tenant_id,
+        user_id,
+    )
+```
+
+OWASP가 설명하는 IDOR의 핵심도 예측 가능한 숫자 ID 자체가 아니라 **객체 단위 권한검사가 빠진 것**이다. UUID는 추측을 어렵게 만드는 defense in depth일 뿐, authorization을 대신하지 않는다.
+
+## 인증된 사용자와 요청 body의 사용자는 다르다
+
+다음 요청은 위험하다.
+
+```json
+{
+  "user_id": "someone-else",
+  "tenant_id": "another-company",
+  "query": "show me the report"
+}
+```
+
+`user_id`와 `tenant_id`를 클라이언트가 선택하게 두면, API는 공격자가 제출한 identity로 권한을 확인하게 될 수 있다. identity는 신뢰 가능한 SSO/JWT/session context에서 서버가 가져오고, body에는 업무 입력만 받는다.
+
+```python
+from typing import Annotated
+
+from fastapi import Depends, HTTPException
+
+async def authorize_run(
+    session_id: str,
+    run_id: str,
+    identity: Annotated[Identity, Depends(current_identity)],
+) -> RunRecord:
+    run = await load_owned_run(
+        db,
+        tenant_id=identity.tenant_id,
+        user_id=identity.user_id,
+        session_id=session_id,
+        run_id=run_id,
+    )
+    if run is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    return RunRecord.from_row(run)
+```
+
+존재하지만 권한이 없는 객체에 `404`를 반환할지는 제품의 보안 정책에 따라 정한다. 핵심은 어떤 status code를 고르느냐보다, Redis나 object storage를 읽기 전에 ownership query가 완료되는 것이다.
+
+```text
+Browser
+  ↓
+Ingress / SSO
+  ↓ trusted identity
+FastAPI
+  ↓ object-level authorization
+PostgreSQL ownership record
+  ↓ authorized run_id
+Redis state / events / result storage
+```
+
+SSE도 예외가 아니다. 연결이 오래 유지된다고 해서 최초 인증만으로 충분한 것은 아니다. 연결을 열기 전에 run ownership을 검증하고, 토큰 만료나 권한 변경을 어떻게 처리할지 명시해야 한다.
+
+## LangGraph의 thread는 애플리케이션 session과 대응할 수 있다
+
+LangGraph checkpointer는 `thread_id`를 기준으로 checkpoint를 저장하고 이어 읽는다. 애플리케이션의 대화 context가 LangGraph state와 자연스럽게 대응한다면 `session_id`를 `thread_id`로 전달할 수 있다.
+
+```python
+config = {
+    "configurable": {
+        "thread_id": str(session_id),
+    }
+}
+
+result = await graph.ainvoke(
+    {"messages": [{"role": "user", "content": query}]},
+    config=config,
+)
+```
+
+하지만 이 mapping은 다음 등식이 아니다.
+
+```text
+LangGraph thread_id
+≠ authenticated application session
+≠ one execution run
+```
+
+`thread_id`는 runtime persistence key다. 사용자가 그 값을 안다고 해서 해당 session을 읽을 권한이 생기지 않는다. 또한 같은 `thread_id`로 `ainvoke()`를 두 번 호출하면 애플리케이션 관점에서는 여전히 서로 다른 두 run이다.
+
+따라서 worker는 runtime config와 별개로 `run_id`를 소유해야 한다.
+
+```python
+async def execute_run(run: RunRecord) -> None:
+    config = {
+        "configurable": {
+            "thread_id": str(run.session_id),
+        },
+        "metadata": {
+            "run_id": str(run.run_id),
+            "tenant_id": str(run.tenant_id),
+        },
+    }
+
+    await graph.ainvoke(run.input_state, config=config)
+```
+
+checkpoint는 graph를 재개하기 위한 state이고, run row는 제품이 실행을 추적하기 위한 durable entity다. 둘은 연결되지만 같은 책임을 갖지 않는다.
+
+## 같은 session에서 두 run을 동시에 실행하면 무엇이 깨지는가
+
+두 요청이 거의 동시에 들어왔다고 하자.
+
+```text
+Session S1 checkpoint: messages=[A]
+
+Run R2 reads [A] ── appends B ── writes [A,B]
+Run R3 reads [A] ── appends C ── writes [A,C]
+```
+
+마지막 write가 이기면 한 turn이 사라질 수 있다. checkpointer가 충돌을 감지하더라도 어느 turn이 먼저여야 하는지 제품 semantics까지 정해주지는 않는다. tool side effect가 포함되면 문제는 state merge보다 더 커진다.
+
+초기 정책은 단순하게 잡는 편이 좋다.
+
+> **한 session에는 한 번에 하나의 active run만 허용한다.**
+
+이 규칙을 Redis lock 하나에만 맡기지 않는다. lock은 빠른 조정 수단이지만 TTL 만료, process pause, network partition을 만난다. 제품 invariant는 durable store에서도 지키는 편이 낫다.
+
+PostgreSQL partial unique index로 active status에만 uniqueness를 적용할 수 있다.
+
+```sql
+CREATE UNIQUE INDEX one_active_run_per_session
+ON runs (session_id)
+WHERE status IN ('queued', 'running', 'cancelling');
+```
+
+두 API replica가 동시에 insert해도 둘 다 active run을 만들 수 없다.
+
+```python
+async def create_run(db, *, identity, session_id, request):
+    session = await load_owned_session(
+        db,
+        tenant_id=identity.tenant_id,
+        user_id=identity.user_id,
+        session_id=session_id,
+    )
+    if session is None:
+        raise NotFound()
+
+    try:
+        return await db.fetchrow(
+            """
+            INSERT INTO runs (
+                run_id, session_id, tenant_id, user_id,
+                status, input_json
+            )
+            VALUES ($1, $2, $3, $4, 'queued', $5)
+            RETURNING *
+            """,
+            new_uuid(),
+            session.session_id,
+            identity.tenant_id,
+            identity.user_id,
+            request.model_dump_json(),
+        )
+    except UniqueViolationError as exc:
+        raise RunAlreadyActive() from exc
+```
+
+Redis lock이나 session queue를 추가할 수 있지만, 각각의 목적을 구분한다.
+
+| Mechanism | 맡기기 좋은 책임 | 맡기면 안 되는 책임 |
+| --- | --- | --- |
+| PostgreSQL unique invariant | 동시에 active run이 둘 생기는 것 방지 | 긴 작업의 실행 소유권 갱신 |
+| Redis lock | 빠른 admission coordination | 유일한 영구 정합성 보장 |
+| Session queue | 입력 turn의 순서 보존 | 객체 권한검사 |
+| Optimistic version | 명시적인 state 충돌 감지 | 자동 merge semantics 결정 |
+
+동시 실행이 진짜 필요한 제품이라면 금지 규칙을 조용히 해제하지 않는다. session branch, parent checkpoint, merge policy를 명시적인 기능으로 설계한다.
+
+```text
+Session S1
+├─ Branch B1 → Run R2
+└─ Branch B2 → Run R3
+                 ↓
+          explicit comparison/merge
+```
+
+## Redis key도 authorization boundary가 아니다
+
+run state와 event가 Redis에 있다고 해서 API가 다음처럼 바로 읽어서는 안 된다.
+
+```python
+# Do not do this before authorization.
+state = await redis.hgetall(f"agent:run:{run_id}:state")
+```
+
+안전한 순서는 durable ownership을 확인한 뒤 authorized `run_id`로 operational state를 읽는 것이다.
+
+```python
+async def load_run_screen(identity, session_id, run_id):
+    run = await load_owned_run(
+        db,
+        tenant_id=identity.tenant_id,
+        user_id=identity.user_id,
+        session_id=session_id,
+        run_id=run_id,
+    )
+    if run is None:
+        raise NotFound()
+
+    state, events = await load_run_projection(redis, run.run_id)
+    return build_run_screen(run, state, events)
+```
+
+Redis key에 `tenant_id`를 넣는 것은 운영과 삭제 범위를 명확하게 할 수 있지만, key naming만으로 권한이 강제되지는 않는다. Redis credential이 tenant별로 완전히 분리되지 않았다면 애플리케이션의 authorization gate는 여전히 필요하다.
+
+PostgreSQL Row-Level Security는 추가 방어선이 될 수 있다. 다만 table owner와 `BYPASSRLS` role은 일반적으로 policy를 우회할 수 있으므로, “RLS를 켰다”만으로 애플리케이션 identity 전달과 권한 테스트가 끝나는 것은 아니다.
+
+## 생성부터 streaming까지 하나의 ownership path를 유지한다
+
+실행 접수와 조회, event stream이 서로 다른 기준을 쓰면 틈이 생긴다.
+
+```text
+POST /sessions/{session_id}/runs
+  1. trusted identity 읽기
+  2. owned session 조회
+  3. active-run invariant 아래 run 생성
+  4. transaction commit
+  5. run_id를 queue에 전달
+
+GET /sessions/{session_id}/runs/{run_id}
+  1. 같은 ownership scope로 run 조회
+  2. durable row + authorized projection 반환
+
+GET /sessions/{session_id}/runs/{run_id}/events
+  1. 같은 ownership scope로 run 조회
+  2. 승인 후 Redis Stream을 XREAD
+  3. disconnect 시 읽기 종료
+```
+
+`POST`에서 queue에 먼저 넣고 DB commit을 나중에 하면 worker가 존재하지 않는 run을 집을 수 있다. 최소한 durable run row가 commit된 뒤 enqueue하고, DB commit과 queue publish 사이의 유실까지 다뤄야 한다면 transactional outbox 같은 별도 패턴이 필요하다. 그 문제는 다음 reliability 글의 범위다.
+
+## 테스트는 정상 경로보다 경계 침범을 먼저 본다
+
+session isolation은 unit test 하나로 끝나지 않는다. 최소한 다음 조합을 확인한다.
+
+| Test | Expected result |
+| --- | --- |
+| User A가 자신의 session/run 조회 | 허용 |
+| User A가 User B의 `run_id`만 바꿔 요청 | 거부 |
+| 같은 tenant의 다른 user가 session 조회 | 정책에 따라 명시적으로 허용 또는 거부 |
+| 다른 tenant의 UUID를 알고 요청 | 항상 거부 |
+| 올바른 `run_id`와 잘못된 `session_id` 조합 | 거부 |
+| 같은 session에 동시 run 두 개 생성 | 하나만 성공 |
+| 완료된 run 뒤 새 run 생성 | 허용 |
+| Redis state가 없지만 PostgreSQL row가 존재 | durable fallback |
+
+```python
+async def test_cross_tenant_run_is_not_visible(client, tenant_a, tenant_b):
+    session_b = await create_session(tenant_b)
+    run_b = await create_run(session_b)
+
+    response = await client.get(
+        f"/sessions/{session_b.id}/runs/{run_b.id}",
+        headers=auth_headers(tenant_a.owner),
+    )
+
+    assert response.status_code == 404
+```
+
+UUID를 무작위로 생성하는 테스트보다, **실제로 존재하는 다른 tenant의 UUID**를 넣는 테스트가 중요하다. 공격자는 유효한 ID를 로그, 링크, 브라우저 history나 잘못 공유된 화면에서 얻을 수 있기 때문이다.
+
+## 구현 체크리스트
+
+- Tenant, user, session, run의 수명주기와 1:N 관계가 명시되어 있는가?
+- `user_id`와 `tenant_id`를 request body가 아니라 trusted identity에서 가져오는가?
+- 모든 run 조회가 `run_id`뿐 아니라 session과 ownership scope를 함께 확인하는가?
+- UUID를 authorization 대체물로 착각하지 않는가?
+- SSE 연결 전에 같은 객체 단위 권한검사를 수행하는가?
+- LangGraph `thread_id`와 애플리케이션 run을 별도 entity로 추적하는가?
+- 같은 session의 동시 실행 정책이 명시되어 있는가?
+- “one active run” 규칙이 durable invariant로도 강제되는가?
+- Redis를 읽기 전에 PostgreSQL의 durable ownership을 확인하는가?
+- cross-user, cross-tenant, run/session mismatch를 통합 테스트하는가?
+
+## Session isolation은 reliability의 출발점이다
+
+session과 run을 분리하면 비로소 “무엇을 복구해야 하는가”를 정확히 말할 수 있다. session은 계속 남아 있고, 실패한 것은 특정 `run_id`의 특정 attempt다. 새 worker가 작업을 이어받더라도 다른 사용자의 context나 이미 끝난 run을 건드리면 안 된다.
+
+다음 글에서는 이 run을 queue에서 가져간 worker가 중간에 죽었을 때를 다룬다. Redis Streams의 consumer group, pending entry, `XACK`, reclaim과 retry를 연결해 **전달된 작업과 완료된 작업이 왜 다른지** 설명한다.

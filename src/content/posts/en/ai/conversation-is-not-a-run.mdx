@@ -1,0 +1,464 @@
+---
+title: "A Conversation Is Not a Run: Designing Session Isolation"
+subtitle: "Separate persistent context from one execution—and enforce ownership across tenant, user, session, and run"
+description: "How to separate tenants, users, sessions, and runs, enforce object-level authorization, and prevent concurrent agent executions from corrupting shared context."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - session-isolation
+  - authorization
+  - multi-tenancy
+  - concurrency
+  - langgraph
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "conversation-is-not-a-run"
+series: "Agent Engineering"
+seriesOrder: 9
+seriesPart: "state"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "LangGraph Persistence"
+    url: "https://docs.langchain.com/oss/python/langgraph/persistence"
+    publisher: "LangChain Documentation"
+  - title: "Create a thread"
+    url: "https://docs.langchain.com/langsmith/managed-deep-agents-api/threads/create-thread"
+    publisher: "LangChain Documentation"
+  - title: "Create a thread run"
+    url: "https://docs.langchain.com/langsmith/managed-deep-agents-api/runs/create-thread-run"
+    publisher: "LangChain Documentation"
+  - title: "Insecure Direct Object Reference Prevention Cheat Sheet"
+    url: "https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html"
+    publisher: "OWASP"
+  - title: "Authorization Cheat Sheet"
+    url: "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+    publisher: "OWASP"
+  - title: "PostgreSQL Constraints"
+    url: "https://www.postgresql.org/docs/current/ddl-constraints.html"
+    publisher: "PostgreSQL Documentation"
+  - title: "PostgreSQL Partial Indexes"
+    url: "https://www.postgresql.org/docs/current/indexes-partial.html"
+    publisher: "PostgreSQL Documentation"
+  - title: "PostgreSQL Row Security Policies"
+    url: "https://www.postgresql.org/docs/current/ddl-rowsecurity.html"
+    publisher: "PostgreSQL Documentation"
+  - title: "FastAPI Dependencies"
+    url: "https://fastapi.tiangolo.com/reference/dependencies/"
+    publisher: "FastAPI Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="Why must a conversation and a run be separate entities?">
+  <strong>A conversation or session is context that persists across requests; a run is one execution that starts and ends inside that context.</strong> Treating them as one ID and one mutable state lets concurrent requests overwrite checkpoints, obscures failure and retry boundaries, and weakens authorization. The application should persist the tenant → user → session → run ownership chain in PostgreSQL and verify it on the server before every read or stream.
+</AnswerBlock>
+
+[Where Should Agent State Live?](/en/ai/agents/where-agent-state-lives/) separated the durable PostgreSQL record, the hot Redis projection, and the runtime checkpoint. [State Is Not an Event](/en/ai/agents/state-is-not-event/) then separated the current snapshot from the chronological event history.
+
+The next question is **whose state this is, which conversation it belongs to, and what exactly is executing now**.
+
+A user asks for an NVIDIA analysis, then follows with, “Compare AMD with that analysis.” The second request shares context with the first, but it is not the same execution. The first run may already have succeeded. The second has its own tool calls, failure modes, cost, approval state, and terminal result.
+
+```text
+Session S1
+├─ Run R1: analyze NVIDIA       → succeeded
+└─ Run R2: compare AMD          → running
+```
+
+Without this distinction, conversation history and execution state collapse into one large mutable object.
+
+## Four IDs answer four different questions
+
+The basic hierarchy is:
+
+```text
+Tenant
+└─ User
+   └─ Session
+      ├─ Run 1
+      ├─ Run 2
+      └─ Run 3
+```
+
+| Entity | Question it answers | Typical lifetime |
+| --- | --- | --- |
+| Tenant | Which organization owns the data? | Contract or workspace |
+| User | Who submitted the request? | Account |
+| Session | Which conversation or task context is this? | Multiple user turns |
+| Run | What happened in one execution? | queued → running → terminal |
+
+`session_id` connects context. `run_id` identifies the status, attempts, events, cost, and result of one execution. The relationship is one session to many runs.
+
+```python
+from dataclasses import dataclass
+from uuid import UUID
+
+@dataclass(frozen=True)
+class RunIdentity:
+    tenant_id: UUID
+    user_id: UUID
+    session_id: UUID
+    run_id: UUID
+```
+
+This is not an aesthetic preference for extra IDs. It is the minimum coordinate system needed to explain a failure and prove ownership.
+
+## The database—not the URL—proves the relationship
+
+This route is readable:
+
+```text
+GET /sessions/{session_id}/runs/{run_id}
+```
+
+But placing two IDs in one URL does not prove that the run belongs to that session. The client-supplied path is a claim. A durable server-side record must prove the relationship.
+
+```sql
+CREATE TABLE sessions (
+    session_id uuid PRIMARY KEY,
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    title text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (tenant_id, user_id, session_id)
+);
+
+CREATE TABLE runs (
+    run_id uuid PRIMARY KEY,
+    session_id uuid NOT NULL REFERENCES sessions(session_id),
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    status text NOT NULL,
+    input_json jsonb NOT NULL,
+    result_json jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    started_at timestamptz,
+    finished_at timestamptz
+);
+```
+
+A production schema can use composite foreign keys or another ownership invariant to keep tenant, user, and session values consistent. The important rule is not to read a run row and assume it probably belongs to the current tenant.
+
+Scope the query to the authenticated identity from the start instead of fetching globally by `run_id` and comparing later in application code.
+
+```python
+async def load_owned_run(
+    db,
+    *,
+    tenant_id: str,
+    user_id: str,
+    session_id: str,
+    run_id: str,
+):
+    return await db.fetchrow(
+        """
+        SELECT r.*
+        FROM runs AS r
+        JOIN sessions AS s ON s.session_id = r.session_id
+        WHERE r.run_id = $1
+          AND r.session_id = $2
+          AND s.tenant_id = $3
+          AND s.user_id = $4
+        """,
+        run_id,
+        session_id,
+        tenant_id,
+        user_id,
+    )
+```
+
+OWASP's IDOR guidance makes the same point: the vulnerability is a missing object-level authorization check, not merely a predictable numeric ID. A UUID makes guessing harder, but it is defense in depth—not authorization.
+
+## The authenticated user is not the user in the request body
+
+This request is dangerous:
+
+```json
+{
+  "user_id": "someone-else",
+  "tenant_id": "another-company",
+  "query": "show me the report"
+}
+```
+
+If the client chooses `user_id` and `tenant_id`, the API may authorize against attacker-supplied identity. The server should derive identity from a trusted SSO, JWT, or server-side session context and accept only business input in the body.
+
+```python
+from typing import Annotated
+
+from fastapi import Depends, HTTPException
+
+async def authorize_run(
+    session_id: str,
+    run_id: str,
+    identity: Annotated[Identity, Depends(current_identity)],
+) -> RunRecord:
+    run = await load_owned_run(
+        db,
+        tenant_id=identity.tenant_id,
+        user_id=identity.user_id,
+        session_id=session_id,
+        run_id=run_id,
+    )
+    if run is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    return RunRecord.from_row(run)
+```
+
+Whether an unauthorized but existing object should return `404` is a product security decision. The essential point is that ownership must be resolved before reading Redis or object storage.
+
+```text
+Browser
+  ↓
+Ingress / SSO
+  ↓ trusted identity
+FastAPI
+  ↓ object-level authorization
+PostgreSQL ownership record
+  ↓ authorized run_id
+Redis state / events / result storage
+```
+
+SSE is not an exception. A long-lived connection must pass the same ownership gate before it opens, and the system should define how token expiration or permission changes affect that connection.
+
+## A LangGraph thread can map to an application session
+
+LangGraph checkpointers use `thread_id` to store and resume checkpoints. When application conversation context maps naturally to graph state, the application can pass `session_id` as the runtime `thread_id`.
+
+```python
+config = {
+    "configurable": {
+        "thread_id": str(session_id),
+    }
+}
+
+result = await graph.ainvoke(
+    {"messages": [{"role": "user", "content": query}]},
+    config=config,
+)
+```
+
+That mapping does not create this equivalence:
+
+```text
+LangGraph thread_id
+≠ authenticated application session
+≠ one execution run
+```
+
+`thread_id` is a runtime persistence key. Knowing it does not authorize a user to read the session. Calling `ainvoke()` twice with the same `thread_id` still creates two application-level runs.
+
+The worker therefore owns an application `run_id` separately from runtime configuration.
+
+```python
+async def execute_run(run: RunRecord) -> None:
+    config = {
+        "configurable": {
+            "thread_id": str(run.session_id),
+        },
+        "metadata": {
+            "run_id": str(run.run_id),
+            "tenant_id": str(run.tenant_id),
+        },
+    }
+
+    await graph.ainvoke(run.input_state, config=config)
+```
+
+The checkpoint exists to resume graph execution. The run row exists so the product can track an execution. They are connected, but they do not carry the same responsibility.
+
+## What breaks when two runs share one session concurrently
+
+Suppose two requests arrive almost simultaneously.
+
+```text
+Session S1 checkpoint: messages=[A]
+
+Run R2 reads [A] ── appends B ── writes [A,B]
+Run R3 reads [A] ── appends C ── writes [A,C]
+```
+
+With last-write-wins behavior, one turn can disappear. A checkpointer may detect a conflict, but it cannot decide the product semantics of which turn should come first. Once tools cause side effects, the problem is larger than merging state.
+
+A sound initial policy is deliberately simple:
+
+> **Allow only one active run per session.**
+
+Do not entrust this invariant to a Redis lock alone. A lock is useful for fast coordination, but it can meet TTL expiry, process pauses, and network partitions. Keep the product invariant in the durable store as well.
+
+A PostgreSQL partial unique index can apply uniqueness only to active statuses.
+
+```sql
+CREATE UNIQUE INDEX one_active_run_per_session
+ON runs (session_id)
+WHERE status IN ('queued', 'running', 'cancelling');
+```
+
+Two API replicas can race to insert, but both cannot create an active run.
+
+```python
+async def create_run(db, *, identity, session_id, request):
+    session = await load_owned_session(
+        db,
+        tenant_id=identity.tenant_id,
+        user_id=identity.user_id,
+        session_id=session_id,
+    )
+    if session is None:
+        raise NotFound()
+
+    try:
+        return await db.fetchrow(
+            """
+            INSERT INTO runs (
+                run_id, session_id, tenant_id, user_id,
+                status, input_json
+            )
+            VALUES ($1, $2, $3, $4, 'queued', $5)
+            RETURNING *
+            """,
+            new_uuid(),
+            session.session_id,
+            identity.tenant_id,
+            identity.user_id,
+            request.model_dump_json(),
+        )
+    except UniqueViolationError as exc:
+        raise RunAlreadyActive() from exc
+```
+
+Redis locks and session queues can still help, but their responsibilities differ.
+
+| Mechanism | Good responsibility | Responsibility it cannot replace |
+| --- | --- | --- |
+| PostgreSQL unique invariant | Prevent two active runs from existing | Renew ownership of a long-running attempt |
+| Redis lock | Fast admission coordination | Sole durable consistency guarantee |
+| Session queue | Preserve turn order | Object-level authorization |
+| Optimistic version | Detect explicit state conflict | Decide merge semantics automatically |
+
+If the product truly needs parallel work, do not silently remove the restriction. Make session branches, parent checkpoints, and merge policy explicit features.
+
+```text
+Session S1
+├─ Branch B1 → Run R2
+└─ Branch B2 → Run R3
+                 ↓
+          explicit comparison/merge
+```
+
+## A Redis key is not an authorization boundary either
+
+The API should not read operational state directly merely because it knows the key.
+
+```python
+# Do not do this before authorization.
+state = await redis.hgetall(f"agent:run:{run_id}:state")
+```
+
+Verify durable ownership first, then use the authorized run ID to load the projection.
+
+```python
+async def load_run_screen(identity, session_id, run_id):
+    run = await load_owned_run(
+        db,
+        tenant_id=identity.tenant_id,
+        user_id=identity.user_id,
+        session_id=session_id,
+        run_id=run_id,
+    )
+    if run is None:
+        raise NotFound()
+
+    state, events = await load_run_projection(redis, run.run_id)
+    return build_run_screen(run, state, events)
+```
+
+Putting `tenant_id` in Redis key names can clarify operational and deletion scope, but naming cannot enforce permission. Unless Redis credentials are physically separated by tenant, the application authorization gate remains necessary.
+
+PostgreSQL Row-Level Security can provide defense in depth. Table owners and roles with `BYPASSRLS` normally bypass policies, however, so enabling RLS does not eliminate the need to pass application identity correctly and test authorization.
+
+## Keep one ownership path from creation through streaming
+
+Gaps appear when submission, reads, and event streaming use different ownership rules.
+
+```text
+POST /sessions/{session_id}/runs
+  1. read trusted identity
+  2. load an owned session
+  3. create a run under the active-run invariant
+  4. commit the transaction
+  5. enqueue run_id
+
+GET /sessions/{session_id}/runs/{run_id}
+  1. load the run through the same ownership scope
+  2. return the durable row and authorized projection
+
+GET /sessions/{session_id}/runs/{run_id}/events
+  1. load the run through the same ownership scope
+  2. after authorization, XREAD the Redis Stream
+  3. stop reading on disconnect
+```
+
+If `POST` enqueues before committing the row, a worker may receive a run that does not yet exist. At minimum, commit the durable run before enqueueing. If the product must also close the loss window between database commit and queue publication, it needs a separate mechanism such as a transactional outbox. That belongs in the next reliability article.
+
+## Test attempted boundary crossings first
+
+Session isolation requires more than a happy-path unit test.
+
+| Test | Expected result |
+| --- | --- |
+| User A reads their own session and run | Allow |
+| User A changes only the URL to User B's `run_id` | Deny |
+| Another user in the same tenant reads the session | Explicitly allow or deny according to policy |
+| A caller knows a UUID from another tenant | Always deny |
+| Correct `run_id` paired with the wrong `session_id` | Deny |
+| Two runs are submitted concurrently to one session | Only one succeeds |
+| A new run follows a terminal run | Allow |
+| Redis state is missing but the PostgreSQL row exists | Use durable fallback |
+
+```python
+async def test_cross_tenant_run_is_not_visible(client, tenant_a, tenant_b):
+    session_b = await create_session(tenant_b)
+    run_b = await create_run(session_b)
+
+    response = await client.get(
+        f"/sessions/{session_b.id}/runs/{run_b.id}",
+        headers=auth_headers(tenant_a.owner),
+    )
+
+    assert response.status_code == 404
+```
+
+Use a valid UUID owned by another tenant in this test, not just a random UUID. An attacker may obtain a valid ID from logs, links, browser history, or an incorrectly shared screen.
+
+## Implementation checklist
+
+- Are tenant, user, session, and run lifetimes and one-to-many relationships explicit?
+- Do `user_id` and `tenant_id` come from trusted identity rather than the request body?
+- Does every run lookup scope by session and ownership, not only `run_id`?
+- Is a UUID treated as defense in depth rather than authorization?
+- Does an SSE connection pass the same object-level authorization gate?
+- Does the application track LangGraph `thread_id` separately from an execution run?
+- Is the same-session concurrency policy explicit?
+- Is the one-active-run rule enforced as a durable invariant?
+- Is PostgreSQL ownership checked before Redis is read?
+- Do integration tests cover cross-user, cross-tenant, and run/session mismatch cases?
+
+## Session isolation is the start of reliability
+
+Once session and run are separate, the system can state exactly what must recover. The session persists; a particular attempt of a particular `run_id` failed. A replacement worker may continue that work, but it must not touch another user's context or an already completed run.
+
+The next article follows a run after its worker dies. Redis Streams consumer groups, pending entries, `XACK`, reclaim, and retry will show why a delivered job and a completed job are different things.

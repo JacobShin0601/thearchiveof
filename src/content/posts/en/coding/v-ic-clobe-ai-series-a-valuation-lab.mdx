@@ -1,0 +1,63 @@
+---
+title: "V-IC (Clobe AI) Valuation Lab: What Is a Sensible Series A Entry Price?"
+subtitle: "Change entry price, dilution, revenue growth, margin, and exit P/E to calculate a VC investor’s MOIC and IRR."
+description: "An assumption-based Series A model for private V-IC (Clobe AI), allowing readers to test entry pre-money, dilution, and 2031 exit assumptions."
+publishedDate: 2026-10-14
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio]
+primaryTopic: portfolio
+tags: [valuation, fintech, private-markets, credit, research]
+author: "Jacob Shin"
+draft: true
+comments: true
+language: "en"
+translationKey: "v-ic-clobe-ai-series-a-valuation-lab"
+localization: { locale: en-US, strategy: localized-adaptation }
+freshness: time-sensitive
+lastReviewed: 2026-10-14
+nextReviewDate: 2026-11-14
+dataThrough: 2026-10-14
+methodology: "The model uses assumed 2027 revenue, 2031 operating margin, a 25% tax rate, exit P/E, investment amount, and follow-on dilution to calculate 2031 equity value and investor proceeds. Operating and financial assumptions are the author’s estimates in the absence of public financial statements; they are neither an actual offering price nor an investment recommendation."
+references:
+  - title: "Clobe Finance"
+    url: "https://clobe.ai/product/clobe-finance"
+    publisher: "Clobe"
+  - title: "V-IC Pre-A financing announcement"
+    url: "https://www.mt.co.kr/industry/2026/04/01/2026040111134555581"
+    publisher: "MoneyToday"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import ClobeValuationLab from '../../../../components/interactive/ClobeValuationLab.astro';
+
+<AnswerBlock question="What is the most a Series A investor could pay for V-IC (Clobe AI)?">
+  In the Base case, 2031 equity value is roughly KRW 1.1tn. With a KRW 20bn investment, 20% cumulative dilution, and a four-year holding period, the maximum pre-money that meets a 30% IRR is approximately KRW 290bn; for a 40% IRR, it is roughly KRW 210bn.
+</AnswerBlock>
+
+This is the interactive companion to the [V-IC (Clobe AI) investment research](/en/investing/markets/v-ic-clobe-ai-series-a-valuation/). A good business and a good entry price are different questions. Holding exit value constant, entry price and subsequent dilution can radically change investor returns.
+
+<ClobeValuationLab language="en" />
+
+## Calculation
+
+2031 equity value is modeled as 2031 net income times exit P/E:
+
+$$
+Exit\ equity\ value = Revenue_{2031} \times Operating\ margin \times (1-Tax) \times Exit\ P/E
+$$
+
+Investor proceeds equal exit value times the ownership bought at entry, then ownership after subsequent dilution:
+
+$$
+Exit\ proceeds = Exit\ equity\ value \times \frac{Investment}{Pre-money + Investment} \times (1-Dilution)
+$$
+
+The maximum pre-money is solved backward to meet the target IRR. Actual terms may include liquidation preferences, participating preferred stock, redemption rights, drag-along provisions, and follow-on rights. This is a simplified common-equivalent model that sets those rights to zero.
+
+## The Lab’s most important use
+
+The purpose is not to admire a large Bull-case future value. It is to test whether a proposed entry price leaves the required return in the Base case. When credit loss, funding cost, and revenue recognition become clearer, the 2027 revenue and margin assumptions should be revised first.
+
+Disclosure: This is a personal investment-research tool, not investment advice. Private investments carry substantial uncertainty around liquidity, dilution, preferred-stock rights, and exit timing.

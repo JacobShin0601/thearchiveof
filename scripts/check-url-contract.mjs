@@ -9,6 +9,9 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const dist = join(root, 'dist');
 const redirectsFile = join(root, 'public', '_redirects');
 const robotsFile = join(dist, 'robots.txt');
+const isPreview = process.env.DEPLOY_ENV === 'preview'
+  || (Boolean(process.env.CF_PAGES_BRANCH) && process.env.CF_PAGES_BRANCH !== 'main');
+const previewSitemapAliases = new Set(['/sitemap.xml', '/sitemap_index.xml']);
 
 function walk(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -99,7 +102,14 @@ if (actualRedirects !== expectedRedirects) {
 
 if (existsSync(robotsFile)) {
   const robots = readFileSync(robotsFile, 'utf8');
-  if (!robots.includes(`Sitemap: ${SITE_URL}/sitemap-index.xml`)) {
+  if (isPreview) {
+    if (robots.includes('Sitemap:')) {
+      errors.push('preview robots.txt must not declare a sitemap');
+    }
+    if (!/User-agent:\s*\*\s*\r?\nDisallow:\s*\/(?:\s|$)/m.test(robots)) {
+      errors.push('preview robots.txt must disallow all crawlers');
+    }
+  } else if (!robots.includes(`Sitemap: ${SITE_URL}/sitemap-index.xml`)) {
     errors.push(`robots.txt must declare Sitemap: ${SITE_URL}/sitemap-index.xml`);
   }
 } else {
@@ -191,7 +201,10 @@ for (const page of pages) {
 
 for (const { source, target, status } of redirects) {
   if (status !== '301') errors.push(`${source} redirect must be permanent (301)`);
-  if (!pageRoutes.has(target) && !staticPaths.has(target)) {
+  const isExpectedPreviewSitemapRedirect = isPreview
+    && previewSitemapAliases.has(source)
+    && target === '/sitemap-index.xml';
+  if (!pageRoutes.has(target) && !staticPaths.has(target) && !isExpectedPreviewSitemapRedirect) {
     errors.push(`${source} redirects to missing path ${target}`);
   }
   if (redirectSources.has(target)) errors.push(`${source} creates a redirect chain through ${target}`);
@@ -209,7 +222,17 @@ for (const entry of catalogRedirects) {
 }
 
 const sitemapFiles = files.filter((file) => /^sitemap-\d+\.xml$/.test(relative(dist, file)));
-if (sitemapFiles.length > 0) {
+const sitemapIndexFile = join(dist, 'sitemap-index.xml');
+if (isPreview) {
+  if (existsSync(sitemapIndexFile) || sitemapFiles.length > 0) {
+    errors.push('preview build must not emit sitemap files');
+  }
+} else {
+  if (!existsSync(sitemapIndexFile)) errors.push('dist/sitemap-index.xml is missing');
+  if (sitemapFiles.length === 0) errors.push('dist sitemap shards are missing');
+}
+
+if (!isPreview && sitemapFiles.length > 0) {
   const sitemapUrls = sitemapFiles.flatMap((file) => [
     ...readFileSync(file, 'utf8').matchAll(/<loc>([^<]+)<\/loc>/g),
   ].map(([, url]) => url));
@@ -235,3 +258,4 @@ if (sitemapFiles.length > 0) {
 
 failIfAny(errors);
 console.log(`URL contract ok (${pages.length} HTML pages, ${redirects.length} redirects)`);
+

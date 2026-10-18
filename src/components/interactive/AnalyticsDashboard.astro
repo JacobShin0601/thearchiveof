@@ -1,0 +1,776 @@
+<section class="analytics-dashboard" data-analytics-dashboard>
+  <div class="access-panel">
+    <div>
+      <p class="eyebrow">Private aggregate feed</p>
+      <h2>읽기 토큰으로 연결</h2>
+      <p>토큰은 이 탭의 메모리에서만 사용하며 저장하지 않습니다. 원시 IP, 전체 User-Agent, 방문자 식별자는 이 화면에 제공되지 않습니다.</p>
+    </div>
+    <form data-access-form>
+      <label>
+        <span>Analytics read token</span>
+        <input name="token" type="password" autocomplete="off" spellcheck="false" required />
+      </label>
+      <label>
+        <span>비교 기간</span>
+        <select name="days">
+          <option value="7">최근 7일</option>
+          <option value="30" selected>최근 30일</option>
+          <option value="90">최근 90일</option>
+        </select>
+      </label>
+      <button type="submit">불러오기</button>
+    </form>
+    <p class="status" data-status role="status">토큰을 입력하면 집계 데이터를 불러옵니다.</p>
+  </div>
+
+  <div class="dashboard-content" data-content hidden>
+    <header class="dashboard-meta">
+      <div>
+        <p class="eyebrow">Cloudflare zone analytics + first-party events</p>
+        <h2>독자, AI 크롤, AI 유입, 판단 후보</h2>
+      </div>
+      <p data-freshness></p>
+    </header>
+
+    <nav class="section-nav" aria-label="대시보드 구역">
+      <a href="#signals">신호</a>
+      <a href="#readers">독자</a>
+      <a href="#errors">오류</a>
+      <a href="#ai-crawl">AI 크롤</a>
+      <a href="#ai-referral">AI 유입</a>
+      <a href="#strategy">판단 후보</a>
+    </nav>
+
+    <section id="signals" class="panel-block">
+      <div class="panel-heading">
+        <div><p class="eyebrow">Signal layers</p><h3>Zone / Search / AI</h3></div>
+        <p>같은 기간의 신호를 겹치지 않게 분리합니다. Zone visits를 고유 방문자로 단정하지 마세요.</p>
+      </div>
+      <p class="quality-banner" data-quality hidden></p>
+      <dl class="signal-grid">
+        <div>
+          <dt>Zone visits</dt>
+          <dd data-signal="zone">—</dd>
+          <small data-signal-note="zone">Cloudflare Zone visits · 사람 수 아님</small>
+        </div>
+        <div>
+          <dt>Search crawl</dt>
+          <dd data-signal="search">—</dd>
+          <small data-signal-note="search">Googlebot, Bingbot 등 검색 인덱싱</small>
+        </div>
+        <div>
+          <dt>AI crawl</dt>
+          <dd data-signal="ai">—</dd>
+          <small data-signal-note="ai">training / user-fetch / agent</small>
+        </div>
+      </dl>
+    </section>
+
+    <section id="readers" class="panel-block">
+      <div class="panel-heading">
+        <div><p class="eyebrow">Readers</p><h3>독자</h3></div>
+        <p>사람 visits와 HTTP 요청을 분리해서 봅니다.</p>
+      </div>
+      <dl class="metric-grid">
+        <div><dt>Visits</dt><dd data-metric="visits">—</dd><small data-change="visits">—</small></div>
+        <div><dt>HTTP requests</dt><dd data-metric="requests">—</dd><small data-change="requests">—</small></div>
+        <div><dt>Transferred</dt><dd data-metric="bytes">—</dd><small data-change="bytes">—</small></div>
+      </dl>
+      <div class="trend-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">Daily trend</p><h3>Visits</h3></div>
+        </div>
+        <svg data-trend viewBox="0 0 900 260" role="img" aria-label="일별 visits 추이"></svg>
+      </div>
+      <div class="table-grid">
+        <section class="table-card">
+          <div class="table-card-heading"><p class="eyebrow">Discovery</p><h4>상위 글</h4></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th class="col-text">글</th><th class="col-tag">언어</th><th class="col-num">Visits</th><th class="col-num">Useful∞</th><th class="col-tag">Impact</th></tr></thead>
+              <tbody data-top-articles></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="table-card">
+          <div class="table-card-heading"><p class="eyebrow">Geography</p><h4>상위 국가</h4></div>
+          <div class="table-wrap">
+            <table class="data-table compact">
+              <thead><tr><th class="col-text">국가</th><th class="col-num">Visits</th><th class="col-num">Requests</th></tr></thead>
+              <tbody data-countries></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="errors" class="panel-block">
+      <div class="panel-heading">
+        <div><p class="eyebrow">Errors</p><h3>4xx / 5xx 분리</h3></div>
+        <p data-error-summary>경로 패턴으로 scanner / content / asset / api를 나눕니다. 원문 User-Agent는 저장하지 않습니다.</p>
+      </div>
+      <dl class="metric-grid">
+        <div><dt>Scanner 4xx</dt><dd data-error-metric="scanner">—</dd></div>
+        <div><dt>Content 4xx</dt><dd data-error-metric="content">—</dd></div>
+        <div><dt>5xx paths</dt><dd data-error-metric="server">—</dd></div>
+      </dl>
+      <div class="table-grid">
+        <section class="table-card">
+          <div class="table-card-heading"><p class="eyebrow">Classes</p><h4>4xx 분류</h4></div>
+          <div class="table-wrap">
+            <table class="data-table compact">
+              <thead><tr><th class="col-tag">Class</th><th class="col-num">Requests</th></tr></thead>
+              <tbody data-error-classes></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="table-card">
+          <div class="table-card-heading"><p class="eyebrow">Detail</p><h4>상위 4xx 경로</h4></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th class="col-text">경로</th><th class="col-tag">Status</th><th class="col-tag">Class</th><th class="col-num">Requests</th></tr></thead>
+              <tbody data-error-details></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="table-card">
+          <div class="table-card-heading"><p class="eyebrow">Server</p><h4>상위 5xx 경로</h4></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th class="col-text">경로</th><th class="col-tag">Status</th><th class="col-num">Requests</th></tr></thead>
+              <tbody data-server-errors></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="ai-crawl" class="panel-block">
+      <div class="panel-heading">
+        <div><p class="eyebrow">AI crawl</p><h3>AI 크롤</h3></div>
+        <p data-crawler-success>알려진 크롤러만 카탈로그 키로 집계합니다.</p>
+      </div>
+      <div class="table-grid">
+        <section class="table-card">
+          <div class="table-card-heading"><p class="eyebrow">Operators</p><h4>크롤러</h4></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th class="col-text">Crawler</th><th class="col-tag">Operator</th><th class="col-tag">Category</th><th class="col-num">Requests</th><th class="col-num">Bytes</th></tr></thead>
+              <tbody data-crawlers></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="table-card">
+          <div class="table-card-heading"><p class="eyebrow">Paths</p><h4>많이 읽힌 경로</h4></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th class="col-text">경로</th><th class="col-tag">Crawler</th><th class="col-num">Requests</th></tr></thead>
+              <tbody data-crawler-paths></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="ai-referral" class="panel-block">
+      <div class="panel-heading">
+        <div><p class="eyebrow">AI referral</p><h3>AI 유입</h3></div>
+        <p data-referrer-status>ChatGPT, Perplexity, Gemini, Copilot, Claude referrer.</p>
+      </div>
+      <div class="table-grid" data-referrer-tables>
+        <section class="table-card">
+          <div class="table-card-heading"><p class="eyebrow">Sources</p><h4>서비스</h4></div>
+          <div class="table-wrap">
+            <table class="data-table compact">
+              <thead><tr><th class="col-text">Source</th><th class="col-num">Visits</th><th class="col-num">Requests</th></tr></thead>
+              <tbody data-referrer-sources></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="table-card">
+          <div class="table-card-heading"><p class="eyebrow">Landing</p><h4>도착 글</h4></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th class="col-tag">Source</th><th class="col-text">경로</th><th class="col-num">Visits</th></tr></thead>
+              <tbody data-referrer-paths></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="strategy" class="panel-block">
+      <div class="panel-heading">
+        <div><p class="eyebrow">Strategy</p><h3>판단 후보</h3></div>
+        <p>규칙 기반 후보만 보여 줍니다. 발행 전략은 직접 결정하세요.</p>
+      </div>
+      <div class="candidate-list" data-candidates></div>
+      <section class="table-card full">
+        <div class="table-card-heading">
+          <div><p class="eyebrow">Articles</p><h4>글별 신호</h4></div>
+          <p class="scroll-hint">넓은 표는 가로로 스크롤됩니다.</p>
+        </div>
+        <div class="table-wrap wide">
+          <table class="data-table strategy-table">
+            <thead>
+              <tr>
+                <th class="col-text sticky">글</th>
+                <th class="col-tag">언어</th>
+                <th class="col-num">Visits</th>
+                <th class="col-num">AI crawl</th>
+                <th class="col-num">AI referral</th>
+                <th class="col-num">Useful∞</th>
+                <th class="col-num">+Useful</th>
+                <th class="col-tag">Impact</th>
+                <th class="col-num">Code</th>
+                <th class="col-num">Lang</th>
+                <th class="col-tag">검토</th>
+              </tr>
+            </thead>
+            <tbody data-strategy-articles></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <aside class="reading-note">
+      <strong>해석 규칙</strong>
+      <p>Requests는 페이지뷰가 아닙니다. Zone visits, Search crawl, AI crawl을 먼저 분리하세요. Useful∞는 누적 활성 Useful, +Useful와 Impact는 선택 기간의 추가·이벤트만 사용합니다. 비교 기간 coverage가 부족하면 성장률을 읽지 마세요.</p>
+    </aside>
+  </div>
+</section>
+
+<script>
+  type MetricValue = {
+    current: number;
+    previous: number;
+    change: number | null;
+    changeUnavailableReason?: string | null;
+  };
+  type DailyRow = { day: string; requests: number; visits: number; bytes: number };
+  type ArticleRow = {
+    path: string;
+    title: string;
+    language: string;
+    visits: number;
+    crawlerRequests: number;
+    aiReferrerVisits: number;
+    useful: number;
+    allTimeActiveUseful?: number;
+    periodUsefulAdded?: number;
+    reviewState: string;
+    events: { code_run: number; language_switch: number };
+    impact: { score: number; usefulRate: number; periodUsefulAddRate?: number; label: string };
+  };
+  type Candidate = {
+    type: string;
+    action: string;
+    reason: string;
+    title?: string;
+    path?: string;
+    topic?: string;
+    smallSample: boolean;
+    note: string;
+  };
+  type AnalyticsPayload = {
+    ok: boolean;
+    error?: string;
+    metadata: {
+      windowStart: string;
+      windowEnd: string;
+      refreshedAt: string;
+      capabilities?: { referrers?: { available: boolean; detail: string } };
+    };
+    dataQuality: {
+      requestedDays: number;
+      currentCoverageDays: number;
+      previousCoverageDays: number;
+      comparisonComplete: boolean;
+      changeUnavailableReason: string | null;
+      note: string;
+    };
+    overview: { visits: MetricValue; requests: MetricValue; bytes: MetricValue };
+    signals: {
+      zone: { visits: number; note: string; label?: string };
+      search: { requests: number; bytes: number };
+      ai: { requests: number; bytes: number; training: number; userFetch: number; agent: number };
+    };
+    daily: DailyRow[];
+    readers: {
+      countries: Array<{ country: string; visits: number; requests: number }>;
+      topArticles: ArticleRow[];
+    };
+    aiCrawl: {
+      crawlers: Array<{ crawler: string; operator: string; category: string; requests: number; bytes: number }>;
+      topPaths: Array<{ path: string; crawler: string; requests: number }>;
+      statuses: { successShare: number | null };
+    };
+    aiReferral: {
+      available: boolean;
+      unavailableReason: string | null;
+      sources: Array<{ source: string; visits: number; requests: number }>;
+      topPaths: Array<{ source: string; path: string; visits: number }>;
+    };
+    strategy: { articles: ArticleRow[]; candidates: Candidate[] };
+    errors?: {
+      available: boolean;
+      byClass: Array<{ class: string; requests: number }>;
+      byStatus: Array<{ status: number; requests: number }>;
+      topDetails: Array<{ path: string; status: number; class: string; requests: number }>;
+      topServerErrors: Array<{ path: string; status: number; requests: number }>;
+      totals: {
+        scanner4xx: number;
+        content4xx: number;
+        serverErrors: number;
+        scannerShare: number | null;
+      };
+      legacyTopPaths?: Array<{ path: string; requests: number }>;
+    };
+  };
+
+  const root = document.querySelector<HTMLElement>('[data-analytics-dashboard]');
+  const form = root?.querySelector<HTMLFormElement>('[data-access-form]');
+  const status = root?.querySelector<HTMLElement>('[data-status]');
+  const content = root?.querySelector<HTMLElement>('[data-content]');
+
+  const number = new Intl.NumberFormat('ko-KR');
+  const compact = new Intl.NumberFormat('ko-KR', { notation: 'compact', maximumFractionDigits: 1 });
+
+  function setText(selector: string, value: string) {
+    const element = root?.querySelector(selector);
+    if (element) element.textContent = value;
+  }
+
+  function changeLabel(metric: MetricValue) {
+    if (!metric || metric.change == null) {
+      return metric?.changeUnavailableReason === 'insufficient_coverage'
+        ? 'coverage 부족 · 성장률 숨김'
+        : '직전 기간 비교 불가';
+    }
+    const sign = metric.change > 0 ? '+' : '';
+    return `직전 기간 대비 ${sign}${(metric.change * 100).toFixed(1)}%`;
+  }
+
+  function impactLabel(row: ArticleRow) {
+    const impact = row.impact ?? { score: 0, usefulRate: 0, label: 'weak' };
+    return `${impact.score} ${impact.label}`;
+  }
+
+  function renderQuality(quality: AnalyticsPayload['dataQuality']) {
+    const banner = root?.querySelector<HTMLElement>('[data-quality]');
+    if (!(banner instanceof HTMLElement)) return;
+    banner.hidden = false;
+    if (quality.comparisonComplete) {
+      banner.textContent = `Coverage 완전 · 현재 ${quality.currentCoverageDays}일 / 이전 ${quality.previousCoverageDays}일`;
+      banner.dataset.state = 'ok';
+      return;
+    }
+    banner.textContent = `Coverage 부족 · 현재 ${quality.currentCoverageDays}/${quality.requestedDays}일, 이전 ${quality.previousCoverageDays}/${quality.requestedDays}일 · 성장률을 숨깁니다`;
+    banner.dataset.state = 'warn';
+  }
+
+  function shortTitle(value: string, limit = 42) {
+    if (value.length <= limit) return value;
+    return `${value.slice(0, limit - 1)}…`;
+  }
+
+  function metric(name: string, value: MetricValue, formatter: Intl.NumberFormat = number) {
+    setText(`[data-metric="${name}"]`, formatter.format(value.current));
+    setText(`[data-change="${name}"]`, changeLabel(value));
+  }
+
+  function renderSignals(signals: AnalyticsPayload['signals'], visitMetric: MetricValue) {
+    setText('[data-signal="zone"]', number.format(signals.zone.visits));
+    setText('[data-signal-note="zone"]', `${changeLabel(visitMetric)} · 고유 방문자 아님`);
+    setText('[data-signal="search"]', number.format(signals.search.requests));
+    setText('[data-signal-note="search"]', `검색 크롤 · ${compact.format(signals.search.bytes)}`);
+    setText('[data-signal="ai"]', number.format(signals.ai.requests));
+    setText(
+      '[data-signal-note="ai"]',
+      `train ${number.format(signals.ai.training)} · fetch ${number.format(signals.ai.userFetch)} · agent ${number.format(signals.ai.agent)}`,
+    );
+  }
+
+  function renderTrend(rows: DailyRow[]) {
+    const svg = root?.querySelector<SVGElement>('[data-trend]');
+    if (!(svg instanceof SVGElement)) return;
+    svg.replaceChildren();
+    if (!rows.length) {
+      const empty = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      empty.setAttribute('x', '450'); empty.setAttribute('y', '130'); empty.setAttribute('text-anchor', 'middle');
+      empty.textContent = '아직 표시할 데이터가 없습니다.';
+      svg.append(empty); return;
+    }
+    const width = 900; const height = 260; const pad = 34;
+    const max = Math.max(1, ...rows.map((row) => row.visits));
+    const points = rows.map((row, index) => {
+      const x = rows.length === 1 ? width / 2 : pad + index * ((width - pad * 2) / (rows.length - 1));
+      const y = height - pad - (row.visits / max) * (height - pad * 2);
+      return `${x},${y}`;
+    }).join(' ');
+    const baseline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    baseline.setAttribute('x1', String(pad)); baseline.setAttribute('x2', String(width - pad));
+    baseline.setAttribute('y1', String(height - pad)); baseline.setAttribute('y2', String(height - pad));
+    baseline.setAttribute('class', 'baseline');
+    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    polyline.setAttribute('points', points); polyline.setAttribute('class', 'trend-line');
+    const start = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    start.setAttribute('x', String(pad)); start.setAttribute('y', String(height - 8)); start.textContent = rows[0].day;
+    const end = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    end.setAttribute('x', String(width - pad)); end.setAttribute('y', String(height - 8)); end.setAttribute('text-anchor', 'end');
+    end.textContent = rows[rows.length - 1]!.day;
+    svg.append(baseline, polyline, start, end);
+  }
+
+  function renderRows<Row>(
+    selector: string,
+    rows: Row[],
+    cells: Array<{ value: (row: Row) => string; className?: string; title?: (row: Row) => string }>,
+  ) {
+    const body = root?.querySelector(selector);
+    if (!(body instanceof HTMLElement)) return;
+    body.replaceChildren();
+    if (!rows.length) {
+      const row = document.createElement('tr'); const cell = document.createElement('td');
+      cell.colSpan = cells.length; cell.className = 'empty-cell'; cell.textContent = '데이터 없음';
+      row.append(cell); body.append(row); return;
+    }
+    for (const item of rows) {
+      const row = document.createElement('tr');
+      for (const cellDef of cells) {
+        const cell = document.createElement('td');
+        if (cellDef.className) cell.className = cellDef.className;
+        const text = cellDef.value(item);
+        cell.textContent = text;
+        const title = cellDef.title?.(item);
+        if (title && title !== text) cell.title = title;
+        row.append(cell);
+      }
+      body.append(row);
+    }
+  }
+
+  function reviewLabel(state: string) {
+    if (state === 'overdue') return '기한 지남';
+    if (state === 'upcoming') return '30일 이내';
+    if (state === 'scheduled') return '예약됨';
+    return '미예약';
+  }
+
+  function actionLabel(action: string) {
+    if (action === 'expand') return '확장';
+    if (action === 'refresh') return '갱신';
+    if (action === 'defend') return '방어';
+    if (action === 'fix') return '수정';
+    return action;
+  }
+
+  function renderCandidates(candidates: Candidate[]) {
+    const host = root?.querySelector('[data-candidates]');
+    if (!(host instanceof HTMLElement)) return;
+    host.replaceChildren();
+    if (!candidates.length) {
+      const empty = document.createElement('p');
+      empty.className = 'empty-candidates';
+      empty.textContent = '현재 규칙에 걸린 후보가 없습니다.';
+      host.append(empty);
+      return;
+    }
+    for (const candidate of candidates) {
+      const card = document.createElement('article');
+      card.className = 'candidate-card';
+      const eyebrow = document.createElement('p');
+      eyebrow.className = 'eyebrow';
+      eyebrow.textContent = `${actionLabel(candidate.action)} · ${candidate.type}`;
+      const title = document.createElement('h4');
+      title.textContent = candidate.title || candidate.topic || candidate.path || candidate.type;
+      const reason = document.createElement('p');
+      reason.textContent = candidate.reason;
+      const note = document.createElement('small');
+      note.textContent = candidate.note;
+      card.append(eyebrow, title, reason, note);
+      host.append(card);
+    }
+  }
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const data = new FormData(form);
+    const token = String(data.get('token') ?? '').trim();
+    const days = String(data.get('days') ?? '30');
+    if (!token || !status || !content) return;
+    status.textContent = '집계 데이터를 불러오는 중…';
+    try {
+      const response = await fetch(`/api/ops/analytics?days=${encodeURIComponent(days)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await response.json() as AnalyticsPayload;
+      if (!response.ok || !payload.ok) throw new Error(payload.error ?? `HTTP ${response.status}`);
+
+      metric('visits', payload.overview.visits);
+      metric('requests', payload.overview.requests);
+      metric('bytes', payload.overview.bytes, compact);
+      renderQuality(payload.dataQuality);
+      renderSignals(payload.signals, payload.overview.visits);
+      renderTrend(payload.daily);
+
+      renderRows('[data-top-articles]', payload.readers.topArticles, [
+        { className: 'col-text', value: (row) => shortTitle(row.title || row.path), title: (row) => row.title || row.path },
+        { className: 'col-tag', value: (row) => row.language },
+        { className: 'col-num', value: (row) => number.format(row.visits) },
+        { className: 'col-num', value: (row) => number.format(row.allTimeActiveUseful ?? row.useful) },
+        { className: 'col-tag', value: (row) => impactLabel(row), title: (row) => `period useful add ${((row.impact.periodUsefulAddRate ?? row.impact.usefulRate) * 100).toFixed(0)}%` },
+      ]);
+      renderRows('[data-countries]', payload.readers.countries, [
+        { className: 'col-text', value: (row) => row.country },
+        { className: 'col-num', value: (row) => number.format(row.visits) },
+        { className: 'col-num', value: (row) => number.format(row.requests) },
+      ]);
+
+      const errors = payload.errors;
+      if (errors?.available) {
+        const scannerShare = errors.totals.scannerShare;
+        setText('[data-error-summary]', scannerShare == null
+          ? '경로 패턴으로 4xx를 분류합니다. 배포 효과는 1일·7일 창으로 보세요.'
+          : `분류된 4xx 중 scanner 비중 ${(scannerShare * 100).toFixed(1)}%. 배포 효과는 1일·7일 창으로 보세요.`);
+        setText('[data-error-metric="scanner"]', number.format(errors.totals.scanner4xx));
+        setText('[data-error-metric="content"]', number.format(errors.totals.content4xx));
+        setText('[data-error-metric="server"]', number.format(errors.totals.serverErrors));
+        renderRows('[data-error-classes]', errors.byClass, [
+          { className: 'col-tag', value: (row) => row.class },
+          { className: 'col-num', value: (row) => number.format(row.requests) },
+        ]);
+        renderRows('[data-error-details]', errors.topDetails.slice(0, 20), [
+          { className: 'col-text', value: (row) => shortTitle(row.path, 48), title: (row) => row.path },
+          { className: 'col-tag', value: (row) => String(row.status) },
+          { className: 'col-tag', value: (row) => row.class },
+          { className: 'col-num', value: (row) => number.format(row.requests) },
+        ]);
+        renderRows('[data-server-errors]', errors.topServerErrors, [
+          { className: 'col-text', value: (row) => shortTitle(row.path, 48), title: (row) => row.path },
+          { className: 'col-tag', value: (row) => String(row.status) },
+          { className: 'col-num', value: (row) => number.format(row.requests) },
+        ]);
+      } else {
+        setText('[data-error-summary]', 'error detail sync 이전 데이터입니다. Analytics sync 후 scanner/content 분리가 채워집니다.');
+        setText('[data-error-metric="scanner"]', '—');
+        setText('[data-error-metric="content"]', '—');
+        setText('[data-error-metric="server"]', '—');
+        renderRows('[data-error-classes]', [], []);
+        renderRows('[data-error-details]', errors?.legacyTopPaths?.map((row) => ({
+          path: row.path,
+          status: 0,
+          class: 'legacy',
+          requests: row.requests,
+        })) ?? [], [
+          { className: 'col-text', value: (row) => shortTitle(row.path, 48), title: (row) => row.path },
+          { className: 'col-tag', value: () => '—' },
+          { className: 'col-tag', value: () => 'legacy' },
+          { className: 'col-num', value: (row) => number.format(row.requests) },
+        ]);
+        renderRows('[data-server-errors]', [], []);
+      }
+
+      const success = payload.aiCrawl.statuses.successShare;
+      setText('[data-crawler-success]', success == null
+        ? '알려진 크롤러 성공 응답 비율을 아직 계산할 수 없습니다.'
+        : `알려진 크롤러 성공 응답 비율 ${(success * 100).toFixed(1)}%`);
+      renderRows('[data-crawlers]', payload.aiCrawl.crawlers, [
+        { className: 'col-text', value: (row) => row.crawler },
+        { className: 'col-tag', value: (row) => row.operator },
+        { className: 'col-tag', value: (row) => row.category },
+        { className: 'col-num', value: (row) => number.format(row.requests) },
+        { className: 'col-num', value: (row) => compact.format(row.bytes) },
+      ]);
+      renderRows('[data-crawler-paths]', payload.aiCrawl.topPaths, [
+        { className: 'col-text', value: (row) => shortTitle(row.path, 48), title: (row) => row.path },
+        { className: 'col-tag', value: (row) => row.crawler },
+        { className: 'col-num', value: (row) => number.format(row.requests) },
+      ]);
+
+      const referrerTables = root?.querySelector<HTMLElement>('[data-referrer-tables]');
+      if (payload.aiReferral.available) {
+        setText('[data-referrer-status]', 'AI 서비스 referrer visits와 도착 경로입니다.');
+        if (referrerTables) referrerTables.hidden = false;
+        renderRows('[data-referrer-sources]', payload.aiReferral.sources, [
+          { className: 'col-text', value: (row) => row.source },
+          { className: 'col-num', value: (row) => number.format(row.visits) },
+          { className: 'col-num', value: (row) => number.format(row.requests) },
+        ]);
+        renderRows('[data-referrer-paths]', payload.aiReferral.topPaths, [
+          { className: 'col-tag', value: (row) => row.source },
+          { className: 'col-text', value: (row) => shortTitle(row.path, 48), title: (row) => row.path },
+          { className: 'col-num', value: (row) => number.format(row.visits) },
+        ]);
+      } else {
+        setText('[data-referrer-status]', payload.aiReferral.unavailableReason ?? '리퍼러 차원을 사용할 수 없습니다.');
+        if (referrerTables) referrerTables.hidden = true;
+      }
+
+      renderCandidates(payload.strategy.candidates);
+      renderRows('[data-strategy-articles]', payload.strategy.articles, [
+        { className: 'col-text sticky', value: (row) => shortTitle(row.title || row.path, 36), title: (row) => row.title || row.path },
+        { className: 'col-tag', value: (row) => row.language },
+        { className: 'col-num', value: (row) => number.format(row.visits) },
+        { className: 'col-num', value: (row) => number.format(row.crawlerRequests) },
+        { className: 'col-num', value: (row) => number.format(row.aiReferrerVisits) },
+        { className: 'col-num', value: (row) => number.format(row.allTimeActiveUseful ?? row.useful) },
+        { className: 'col-num', value: (row) => number.format(row.periodUsefulAdded ?? 0) },
+        { className: 'col-tag', value: (row) => impactLabel(row), title: (row) => `period useful add ${((row.impact.periodUsefulAddRate ?? row.impact.usefulRate) * 100).toFixed(0)}%` },
+        { className: 'col-num', value: (row) => number.format(row.events.code_run) },
+        { className: 'col-num', value: (row) => number.format(row.events.language_switch) },
+        { className: 'col-tag', value: (row) => reviewLabel(row.reviewState) },
+      ]);
+
+      setText('[data-freshness]', `집계 ${payload.metadata.windowStart}–${payload.metadata.windowEnd} · 동기화 ${payload.metadata.refreshedAt}`);
+      content.hidden = false;
+      status.textContent = '연결됨. 토큰은 저장되지 않았습니다.';
+    } catch (error) {
+      content.hidden = true;
+      status.textContent = `불러오지 못했습니다: ${error instanceof Error ? error.message : 'unknown error'}`;
+    }
+  });
+</script>
+
+<style>
+  .analytics-dashboard { margin-top: 42px; }
+  .access-panel, .trend-panel, .reading-note, .panel-block, .candidate-card, .table-card {
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--paper) 96%, var(--ink));
+  }
+  .access-panel { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; padding: 28px; }
+  .access-panel h2, .dashboard-meta h2, .panel-heading h3, .candidate-card h4, .table-card-heading h4 {
+    margin: 8px 0 0; font-family: var(--serif); font-weight: 400;
+  }
+  .access-panel h2 { font-size: 28px; }
+  .access-panel p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .access-panel form { display: grid; grid-template-columns: 1fr 140px auto; gap: 10px; align-items: end; }
+  .access-panel label span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+  .access-panel input, .access-panel select, .access-panel button {
+    width: 100%; min-height: 42px; border: 1px solid var(--ink); border-radius: 0;
+    background: var(--paper); color: var(--ink); font: inherit;
+  }
+  .access-panel input, .access-panel select { padding: 0 10px; }
+  .access-panel button { padding: 0 16px; background: var(--ink); color: var(--paper); cursor: pointer; }
+  .status { grid-column: 1 / -1; margin: 0; }
+  .dashboard-content { margin-top: 64px; }
+  .dashboard-meta { display: flex; justify-content: space-between; gap: 30px; align-items: end; margin-bottom: 24px; }
+  .dashboard-meta h2 { max-width: 780px; font-size: clamp(32px, 5vw, 52px); line-height: .95; letter-spacing: -.04em; }
+  .dashboard-meta > p { max-width: 320px; color: var(--muted); font-size: 11px; text-align: right; }
+  .section-nav { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 28px; }
+  .section-nav a {
+    padding: 8px 12px; border: 1px solid var(--line); color: var(--ink); text-decoration: none;
+    font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+  }
+  .panel-block { padding: 22px; margin-bottom: 22px; overflow: hidden; }
+  .quality-banner {
+    margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--line);
+    color: var(--muted); font-size: 12px; line-height: 1.45;
+  }
+  .quality-banner[data-state='warn'] {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+    color: var(--ink);
+  }
+  .metric-grid, .signal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 22px; }
+  .metric-grid > div, .signal-grid > div {
+    min-width: 0; padding: 18px; border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--paper) 98%, var(--ink));
+  }
+  .metric-grid dt, .signal-grid dt { color: var(--muted); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+  .metric-grid dd, .signal-grid dd {
+    margin: 10px 0 8px; font-family: var(--serif); font-size: clamp(28px, 4vw, 44px); line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .metric-grid small, .signal-grid small { color: var(--muted); font-size: 10px; line-height: 1.45; display: block; }
+  .trend-panel { padding: 18px; margin-bottom: 18px; }
+  .panel-heading, .table-card-heading {
+    display: flex; justify-content: space-between; gap: 16px; align-items: end; margin-bottom: 14px;
+  }
+  .panel-heading h3 { font-size: 26px; }
+  .table-card-heading h4 { font-size: 18px; }
+  .panel-heading > p, .scroll-hint { color: var(--muted); font-size: 11px; max-width: 360px; margin: 0; }
+  [data-trend] { display: block; width: 100%; min-height: 200px; overflow: visible; }
+  [data-trend] :global(.trend-line) { fill: none; stroke: var(--accent); stroke-width: 3; vector-effect: non-scaling-stroke; }
+  [data-trend] :global(.baseline) { stroke: var(--line); stroke-width: 1; }
+  [data-trend] :global(text) { fill: var(--muted); font-size: 11px; }
+
+  .table-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 8px;
+  }
+  .table-card { min-width: 0; padding: 14px 14px 8px; }
+  .table-card.full { margin-top: 8px; }
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    margin: 0 -4px;
+    padding: 0 4px 8px;
+  }
+  .data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+  }
+  .data-table.compact { table-layout: auto; }
+  .strategy-table { table-layout: auto; min-width: 860px; }
+  .data-table th, .data-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .data-table th {
+    position: sticky; top: 0; z-index: 1;
+    color: var(--muted); font-size: 9px; letter-spacing: .08em; text-transform: uppercase;
+    background: color-mix(in srgb, var(--paper) 96%, var(--ink));
+    white-space: nowrap;
+  }
+  .data-table .col-text { text-align: left; }
+  .data-table .col-tag { text-align: left; white-space: nowrap; width: 7.5rem; }
+  .data-table .col-num {
+    text-align: right; white-space: nowrap; width: 5.5rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .data-table td.col-text {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .data-table td.col-tag { color: var(--muted); }
+  .data-table td.sticky, .data-table th.sticky {
+    position: sticky; left: 0; z-index: 2;
+    background: color-mix(in srgb, var(--paper) 96%, var(--ink));
+    box-shadow: 1px 0 0 var(--line);
+    min-width: 12rem; max-width: 18rem;
+  }
+  .data-table th.sticky { z-index: 3; }
+  .empty-cell { text-align: left !important; color: var(--muted); }
+
+  .candidate-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .candidate-card { padding: 16px; min-width: 0; }
+  .candidate-card h4 { font-size: 18px; line-height: 1.2; overflow-wrap: anywhere; }
+  .candidate-card p { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+  .candidate-card small { display: block; margin-top: 12px; color: var(--muted); font-size: 11px; }
+  .empty-candidates { color: var(--muted); font-size: 13px; }
+  .reading-note { margin-top: 22px; padding: 18px 22px; }
+  .reading-note strong { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+  .reading-note p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+  @media (max-width: 980px) {
+    .table-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 820px) {
+    .access-panel { grid-template-columns: 1fr; }
+    .access-panel form { grid-template-columns: 1fr; }
+    .dashboard-meta { display: block; }
+    .dashboard-meta > p { margin-top: 14px; text-align: left; }
+    .metric-grid, .signal-grid, .candidate-list { grid-template-columns: 1fr; }
+    .panel-heading, .table-card-heading { display: block; }
+    .panel-heading > p, .scroll-hint { margin-top: 8px; max-width: none; }
+    .data-table td.col-text { white-space: normal; overflow-wrap: anywhere; }
+    .strategy-table { min-width: 760px; }
+  }
+</style>
