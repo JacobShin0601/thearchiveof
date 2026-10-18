@@ -1,7 +1,7 @@
 ---
 interface Props { kind: 'latency' | 'throughput' | 'blocking' | 'interleaving' | 'compare'; }
 const { kind } = Astro.props;
-const captions = {
+const captions: Record<Props['kind'], string> = {
   latency: '그림 1. 순차 실행과 동시 실행: 대기 구간을 겹치면 가장 느린 작업 시간에 가까워진다',
   throughput: '그림 2. 한 실행이 대기하는 동안 다른 실행을 진행해 처리량을 높인다',
   blocking: '그림 3. 블로킹 호출은 이벤트 루프 스레드를 붙잡고, 다른 작업의 진행을 막는다',
