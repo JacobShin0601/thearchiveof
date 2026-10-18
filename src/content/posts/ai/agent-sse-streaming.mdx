@@ -73,7 +73,11 @@ Agent에게 기업 분석을 요청하고 40초 동안 로딩 표시만 본다�
 
 여기서 세 개념이 자주 섞인다.
 
-<SseStreamingDiagrams kind="ownership" language="ko" />
+| 층 | 맡는 일 |
+| --- | --- |
+| Async generator | Python에서 값을 하나씩 생산 |
+| StreamingResponse | 값을 HTTP body 조각으로 전달 |
+| SSE | body 조각을 event ID·type·data로 해석 |
 
 Async generator가 있다고 자동으로 네트워크 stream이 되는 것은 아니다. async generator는 Python 안에서 값을 생산하고, StreamingResponse는 그 값을 HTTP body 조각으로 내보내며, SSE는 그 조각을 event로 해석하는 규칙이다. 각 층이 다른 책임을 가진다.
 
@@ -674,7 +678,7 @@ Load balancer와 proxy timeout보다 짧은 heartbeat가 필요하다. 모든 �
 
 ## End-to-end mental model
 
-<SseStreamingDiagrams kind="ownership" language="ko" />
+Worker는 event를 기록하고, SSE API는 cursor 이후의 event를 전달한다. Browser는 snapshot을 기준값으로 적용한 뒤 replay event를 timeline에 반영한다. 연결이 사라져도 run은 계속될 수 있으며, 재연결은 마지막 event ID 또는 새 snapshot에서 다시 시작한다.
 
 각 층의 실패도 다르다.
 
