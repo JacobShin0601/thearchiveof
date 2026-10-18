@@ -159,7 +159,7 @@ if remaining <= 0:
 
 ## 각 step timeout은 남은 run time보다 작아야 한다
 
-Tool의 기본 timeout이 30초여도 run에 11초만 남았다면 30초를 기다릴 수 없다. 최종 상태 저장과 event 발행을 위한 reserve도 남겨야 한다.
+Tool의 기본 timeout이 30초여도 run에 11초만 남았다면 30초를 기다릴 수 없다. 최종 state 저장과 event 발행을 위한 reserve도 남겨야 한다.
 
 ```python
 def attempt_timeout(
@@ -353,7 +353,7 @@ Partial result는 실패를 성공처럼 포장하는 것이 아니다. 다음�
 
 검증되지 않은 intermediate text를 내보내서는 안 된다. Partial로 반환할 수 있는 artifact와 폐기해야 할 scratch state를 미리 분리한다.
 
-## 오류와 terminal 상태를 한 종류로 뭉치지 않는다
+## 오류와 terminal state를 한 종류로 뭉치지 않는다
 
 모든 경계를 `failed`로 기록하면 정책을 고치기 어렵다.
 
