@@ -1,7 +1,7 @@
 ---
-title: "Async, Thread, Process: Agent Worker를 이해하기 전에 알아야 할 것"
-subtitle: "기다리는 작업, blocking SDK, CPU-bound 계산에는 서로 다른 실행 도구가 필요하다"
-description: "Agent backend의 작업 부하를 non-blocking I/O, blocking I/O, CPU-bound 계산으로 나누고 async, thread, process의 선택 기준을 설명합니다."
+title: "비동기·스레드·프로세스: 에이전트 워커를 이해하기 전에 알아야 할 것"
+subtitle: "기다리는 작업, 블로킹 SDK, CPU 중심 계산에는 서로 다른 실행 도구가 필요하다"
+description: "에이전트 백엔드의 작업 부하를 논블로킹 I/O, 블로킹 I/O, CPU 중심 계산으로 나누고 비동기·스레드·프로세스의 선택 기준을 설명합니다."
 publishedDate: 2026-09-21
 section: "AI & AX"
 subsection: "Agents"
@@ -55,9 +55,10 @@ references:
 ---
 
 import AnswerBlock from '../../../components/AnswerBlock.astro';
+import AgentExecutionToolsDiagram from '../../../components/AgentExecutionToolsDiagram.astro';
 
-<AnswerBlock question="Agent backend에서는 async, thread, process 중 무엇을 써야 하는가?">
-  셋은 하나만 고르는 경쟁 옵션이 아니다. <strong>Non-blocking I/O 대기에는 async, event loop를 막는 blocking I/O에는 제한된 thread 위임, CPU-bound 계산에는 process나 별도 연산 서비스</strong>가 자연스러운 출발점이다. 먼저 병목이 기다림인지 계산인지 분류하고, 서로 다른 실행 도구를 한 시스템 안에서 조합해야 한다.
+<AnswerBlock question="에이전트 백엔드에서는 비동기·스레드·프로세스 중 무엇을 써야 할까?">
+  셋은 하나만 고르는 경쟁 옵션이 아니다. <strong>논블로킹 I/O 대기에는 비동기 실행, 이벤트 루프를 막는 블로킹 I/O에는 제한된 스레드 위임, CPU 중심 계산에는 프로세스나 별도 연산 서비스</strong>가 자연스러운 출발점이다. 먼저 병목이 기다림인지 계산인지 분류하고, 서로 다른 실행 도구를 한 시스템 안에서 조합해야 한다.
 </AnswerBlock>
 
 이전 글 [에이전트는 왜 Async가 필요한가](/ai/agents/why-agent-systems-need-async/)에서는 LLM, 데이터베이스, 검색 API의 대기를 겹치는 실행 모델을 살펴봤다. Async는 한 run 안의 독립적인 I/O를 동시에 진행하고, 한 run이 기다리는 동안 다른 run을 진행하게 한다.
@@ -73,7 +74,7 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 
 핵심은 문법이 아니라 **작업 부하가 어디에서 시간을 쓰는지**다.
 
-## 실행 도구를 고르기 전에 병목을 세 가지로 나눠라
+## 실행 도구를 고르기 전에 병목을 세 가지로 나누자
 
 Agent backend의 작업은 먼저 다음 세 범주로 나눌 수 있다.
 
@@ -85,19 +86,11 @@ Agent backend의 작업은 먼저 다음 세 범주로 나눌 수 있다.
 
 이를 실행 구조로 그리면 다음과 같다.
 
-```text
-Agent run
-   │
-   ├─ LLM / PostgreSQL / Redis ── non-blocking 대기 ──> async task
-   │
-   ├─ 기존 동기식 SDK ─────────── blocking 대기 ──────> 제한된 thread pool
-   │
-   └─ 고부하 계산 ──────────────── CPU 실행 ──────────> process / 연산 서비스
-```
+<AgentExecutionToolsDiagram kind="workload" />
 
 분류 기준은 라이브러리 이름이 아니다. 같은 SDK도 async 클라이언트와 동기식 클라이언트를 모두 제공할 수 있고, 같은 함수 안에서도 파일 읽기는 I/O-bound이지만 파싱은 CPU-bound일 수 있다. 실제 호출 경로를 보고 **무엇을 기다리고, 무엇을 계산하는지**를 판단해야 한다.
 
-## Async: 기다리는 동안 실행권을 돌려준다
+## 비동기: 기다리는 동안 실행권을 돌려준다
 
 Asyncio는 협력적 동시성 모델이다. Coroutine이 non-blocking I/O를 `await`하면 event loop에 실행권을 돌려주고, event loop는 그동안 실행 가능한 다른 task를 진행한다.
 
@@ -184,7 +177,7 @@ async def enrich_customer(customer_id: str):
 
 라이브러리가 async API를 제공한다면 그것을 사용하는 편이 우선이다. 연결 풀링, 취소, 시간 초과 같은 동작을 event loop와 일관되게 관리할 수 있기 때문이다. Async API가 없고 작업이 blocking I/O라면 thread가 호환성 다리가 될 수 있다.
 
-## Thread: blocking 코드를 event loop 밖으로 옮기는 호환성 도구
+## 스레드: 블로킹 코드를 이벤트 루프 밖으로 옮기는 호환성 도구
 
 Thread는 한 process 안에서 여러 실행 흐름을 만든다. 같은 메모리를 공유하므로 객체를 process 사이로 직렬화할 필요가 없고, 동기식 라이브러리를 비교적 작은 변경으로 호출할 수 있다.
 
@@ -255,7 +248,7 @@ with ThreadPoolExecutor(max_workers=8) as pool:
 
 Agent 상태를 Python 객체 하나에 모아 여러 thread가 함께 수정하는 설계는 특히 위험하다. Run 상태와 이벤트 이력은 명시적인 책임 주체와 저장소 경계를 가져야 한다. 이 시리즈의 상태 편에서 그 경계를 다시 다룬다.
 
-## GIL: Thread가 유용하지 않다는 뜻은 아니다
+## GIL: 스레드가 쓸모없다는 뜻은 아니다
 
 기본 GIL 활성화 CPython에서는 한 시점에 하나의 thread만 Python 바이트코드를 실행할 수 있다. 따라서 순수 Python CPU-bound 루프를 thread 여러 개에 나눠도 일반적으로 여러 CPU 코어를 동시에 활용하는 성능 향상을 기대하기 어렵다. 문맥 전환 비용 때문에 오히려 느려질 수도 있다. Python 공식 문서도 CPU 자원을 더 활용하려면 `multiprocessing`이나 `ProcessPoolExecutor`를 고려하고, thread는 I/O-bound task에 여전히 적합하다고 설명한다. ([threading 문서](https://docs.python.org/3/library/threading.html))
 
@@ -267,7 +260,7 @@ Agent 상태를 Python 객체 하나에 모아 여러 thread가 함께 수정하
 
 실무 판단은 더 단순하게 시작해도 된다. **일반적인 GIL 활성화 CPython에서 blocking I/O 호환에는 thread, 무거운 순수 Python 계산에는 process**를 첫 가설로 두고 벤치마크로 확인한다.
 
-## Process: 별도 interpreter와 memory로 CPU를 병렬 사용한다
+## 프로세스: 별도 인터프리터와 메모리에서 CPU를 병렬로 사용한다
 
 Process는 독립된 Python 인터프리터와 메모리 공간을 갖는다. 여러 process는 여러 CPU 코어에서 실제로 동시에 계산할 수 있으므로 순수 Python CPU-bound 작업 부하에 적합하다.
 
@@ -302,7 +295,7 @@ Event loop는 process의 계산 결과를 기다리는 동안 다른 I/O task를
 
 따라서 작은 JSON 파싱 하나마다 새 process를 띄우는 것은 좋은 선택이 아니다. Process pool을 애플리케이션 수명 주기에 맞춰 재사용하거나, 계산이 충분히 크고 독립적이라면 전용 CPU worker나 서비스로 분리하는 편이 낫다. `multiprocessing`이 하위 process를 이용해 GIL을 우회할 수 있다는 점과 `ProcessPoolExecutor`의 제약은 Python 공식 문서에도 명시되어 있다. ([multiprocessing](https://docs.python.org/3/library/multiprocessing.html), [concurrent.futures](https://docs.python.org/3/library/concurrent.futures.html))
 
-## Agent backend는 셋을 함께 쓸 수 있다
+## 에이전트 백엔드는 셋을 함께 쓸 수 있다
 
 실제 run은 한 종류의 작업 부하로만 이루어지지 않는다. 하나의 요청 안에서 LLM과 데이터베이스는 async로 기다리고, 기존 SDK는 thread로 격리하며, 큰 계산은 process나 별도 서비스로 보낼 수 있다.
 
@@ -331,19 +324,13 @@ async def execute_agent_run(request: dict) -> dict:
     return compose_answer(llm, data, crm, risk)
 ```
 
-```text
-                         ┌─ LLM API ────────────────┐
-                         ├─ PostgreSQL ─────────────┤ async I/O
-요청 ────> event loop ───┤                          ├─> 결과 구성
-                         ├─ legacy SDK ─> thread ───┤
-                         └─ risk model ─> process ──┘
-```
+<AgentExecutionToolsDiagram kind="hybrid" />
 
 이 구조에서 event loop가 중심 스케줄러 역할을 하지만 모든 일을 직접 실행하지는 않는다. 기다림은 async task로 겹치고, 불가피한 blocking I/O는 제한된 thread pool로 격리하며, CPU 사용량이 많은 작업은 process 경계 밖으로 보낸다.
 
 로컬 LLM 추론은 또 다른 경우다. 모델 가중치, 배치 처리, GPU 메모리, 커널 스케줄링을 관리해야 하므로 웹 process 안에서 `ProcessPoolExecutor`로 호출하기보다 전용 추론 서비스가 더 자연스러운 경우가 많다. Async Agent는 그 서비스에 네트워크 요청을 보내고 결과를 기다린다. Agent 관점에서는 다시 I/O-bound 호출이 된다.
 
-## 선택 기준: 라이브러리가 아니라 병목부터 본다
+## 선택 기준: 라이브러리보다 병목을 먼저 본다
 
 | 상황 | 첫 선택 | 이유 | 주의할 점 |
 | --- | --- | --- | --- |
@@ -384,7 +371,7 @@ Process 경계의 시작, IPC, 직렬화 비용이 실제 작업보다 커진다
 
 순차 for-loop와 결합하면 latency도 늘고 connection pool도 매번 버려진다. 공유 클라이언트, `gather`, semaphore를 함께 쓰거나, SDK가 동기식뿐이면 `to_thread` 경로를 의도적으로 선택한다.
 
-## Async, thread, process는 수명 주기의 책임 주체가 아니다
+## 비동기·스레드·프로세스는 수명 주기의 책임 주체가 아니다
 
 여기까지의 세 도구는 주로 **어떻게 동시에 진행하거나 병렬 실행할지**에 답한다.
 
@@ -402,12 +389,7 @@ Process 경계의 시작, IPC, 직렬화 비용이 실제 작업보다 커진다
 
 이 질문은 `async`, `thread`, `process` 중 무엇을 고를지로 답할 수 없다. 이것은 **실행 수명 주기를 누가 책임지는가**의 문제다.
 
-```text
-동시성 기본 요소                           수명 주기의 책임
-──────────────────────────────────         ─────────────────────────────
-async / thread / process                   API process / queue / worker
-"어떻게 진행하고 계산하는가?"              "누가 끝까지 책임지는가?"
-```
+<AgentExecutionToolsDiagram kind="ownership" />
 
 Worker는 thread의 다른 이름도, process의 동의어도 아니다. Worker process 하나가 내부에서 asyncio event loop를 실행하고, blocking SDK를 thread pool로 보내며, CPU 계산을 별도 process나 연산 서비스에 위임할 수 있다.
 
