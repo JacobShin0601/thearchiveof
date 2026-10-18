@@ -1,6 +1,6 @@
 ---
 interface Props {
-  kind: 'dataPath' | 'batching' | 'adoption';
+  kind: 'dataPath' | 'batching' | 'adoption' | 'architecture';
   language?: 'ko' | 'en';
 }
 
@@ -17,6 +17,9 @@ const captions = {
   adoption: ko
     ? '그림 3. 내부 vLLM 도입 — 네 가지 조건을 함께 봐야 한다'
     : 'Figure 3. Adopting internal vLLM — four conditions read together',
+  architecture: ko
+    ? '그림 4. 내부 LLM 서빙의 운영 경계'
+    : 'Figure 4. Operational boundaries for internal LLM serving',
 };
 
 const dataPathRows = ko
@@ -27,6 +30,24 @@ const dataPathRows = ko
   : [
       ['Internal app · agent', 'Prompt · retrieval · PII', 'Internet · vendor region', 'Commercial LLM API'],
       ['Internal app · agent', 'Same data', 'Corporate VPC · gateway', 'vLLM · GPU · model store'],
+    ];
+
+const architectureSteps = ko
+  ? [
+      ['내부 앱', 'Agent · RAG · 채팅이 요청을 보낸다'],
+      ['게이트웨이', '인증 · 요청 한도 · 감사 로그'],
+      ['Kubernetes Service', 'vLLM Pod로 요청을 전달'],
+      ['vLLM Pod', 'API · scheduler · streaming을 처리'],
+      ['GPU · 모델 저장소', '가중치와 KV cache를 사용'],
+      ['관측', 'Prometheus · DCGM · 로그로 상태를 확인'],
+    ]
+  : [
+      ['Internal apps', 'Agents, RAG, and chat send requests'],
+      ['Gateway', 'Authentication, quotas, and audit logs'],
+      ['Kubernetes Service', 'Routes requests to vLLM pods'],
+      ['vLLM pod', 'Handles API, scheduling, and streaming'],
+      ['GPU and model store', 'Serves weights and KV cache'],
+      ['Observability', 'Prometheus, DCGM, and logs'],
     ];
 
 const batchingSteps = ko
@@ -63,13 +84,23 @@ const adoptionItems = ko
   {kind === 'dataPath' && (
     <div class="compare">
       {dataPathRows.map((row, index) => (
-        <div class="row" data-variant={index === 0 ? 'external' : 'internal'}>
-          {row.map((cell) => <span>{cell}</span>)}
+        <div class="path" data-variant={index === 0 ? 'external' : 'internal'}>
+          <strong>{index === 0 ? (ko ? '외부 API 경로' : 'External API path') : (ko ? '내부 vLLM 경로' : 'Internal vLLM path')}</strong>
+          <div class="row">
+            {row.map((cell) => <span>{cell}</span>)}
+          </div>
         </div>
       ))}
     </div>
   )}
   {kind === 'batching' && <ol class="flow">{batchingSteps.map((step) => <li>{step}</li>)}</ol>}
+  {kind === 'architecture' && (
+    <ol class="architecture">
+      {architectureSteps.map(([title, detail], index) => (
+        <li><span>{index + 1}</span><div><strong>{title}</strong><small>{detail}</small></div></li>
+      ))}
+    </ol>
+  )}
   {kind === 'adoption' && (
     <ul class="criteria">
       {adoptionItems.map(([title, detail]) => (
@@ -98,25 +129,25 @@ const adoptionItems = ko
     display: grid;
     gap: 0.75rem;
   }
+  .compare .path { display: grid; gap: 0.45rem; }
+  .compare .path > strong { font-size: 0.84rem; }
+  .compare .path[data-variant='external'] > strong { color: var(--muted); }
   .compare .row {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.5rem;
   }
   .compare .row span {
+    position: relative;
     padding: 0.65rem 0.5rem;
     border: 1px solid var(--line);
     background: var(--paper);
     font-size: 0.82rem;
     text-align: center;
   }
-  .compare .row[data-variant='external'] span:last-child {
-    border-color: var(--accent);
-  }
-  .compare .row[data-variant='internal'] span:last-child {
-    border-color: var(--accent);
-    font-weight: 600;
-  }
+  .compare .row span:not(:last-child)::after { content: '→'; position: absolute; right: -0.38rem; top: 34%; z-index: 1; color: var(--accent); }
+  .compare .row[data-variant='external'] span:last-child { border-color: var(--accent); }
+  .compare .row[data-variant='internal'] span:last-child { border-color: var(--accent); font-weight: 600; }
   .flow {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -141,6 +172,12 @@ const adoptionItems = ko
     top: 35%;
     color: var(--accent);
   }
+  .architecture { margin:0; padding:0; list-style:none; display:grid; gap:.55rem; }
+  .architecture li { display:grid; grid-template-columns:1.75rem minmax(0,1fr); gap:.65rem; padding:.7rem .8rem; border:1px solid var(--line); background:var(--paper); }
+  .architecture li > span { display:grid; place-items:center; width:1.55rem; height:1.55rem; border-radius:50%; background:var(--accent); color:var(--paper); font-size:.75rem; font-weight:700; }
+  .architecture div { display:grid; gap:.1rem; }
+  .architecture strong { font-size:.87rem; }
+  .architecture small { color:var(--muted); font-size:.81rem; line-height:1.45; }
   .criteria {
     margin: 0;
     padding: 0;
@@ -163,9 +200,8 @@ const adoptionItems = ko
     font-size: 0.85rem;
   }
   @media (max-width: 640px) {
-    .compare .row {
-      grid-template-columns: 1fr;
-    }
+    .compare .row { grid-template-columns: 1fr; }
+    .compare .row span:not(:last-child)::after { content: '↓'; right: 50%; top: auto; bottom: -1.08rem; }
     .flow {
       grid-template-columns: 1fr;
     }
