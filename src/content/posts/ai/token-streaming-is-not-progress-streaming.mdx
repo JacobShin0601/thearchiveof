@@ -1,7 +1,7 @@
 ---
-title: "Token Streaming Is Not Progress Streaming: Agent UI의 상태 계약"
+title: "Token Streaming Is Not Progress Streaming: Agent UI의 state 계약"
 subtitle: "텍스트 출력, 실행 진행, 최종 결과를 분리해 재연결 가능한 Agent 경험 만들기"
-description: "Token delta와 durable progress event, terminal result를 분리하고 sequence, replay, child aggregation과 UI reducer로 신뢰할 수 있는 Agent 진행 상태를 설계합니다."
+description: "Token delta와 durable progress event, terminal result를 분리하고 sequence, replay, child aggregation과 UI reducer로 신뢰할 수 있는 Agent 진행 state를 설계합니다."
 publishedDate: 2026-10-12
 section: "AI & AX"
 subsection: "Agents"
@@ -46,7 +46,7 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 import AgentProgressDiagrams from '../../../components/AgentProgressDiagrams.astro';
 
 <AnswerBlock question="Agent 답변이 실시간으로 출력되면 작업 진행률도 알 수 있는가?">
-  <strong>아니다. Token stream은 모델이 텍스트를 생성하고 있다는 신호일 뿐, 전체 작업의 상태나 완료 여부를 증명하지 않는다.</strong> 실행 시스템은 token delta, durable progress event와 committed result를 서로 다른 계약으로 전달해야 한다. UI는 이를 run state로 reduce하고, 재연결할 때 snapshot과 event cursor로 복구해야 한다.
+  <strong>아니다. Token stream은 모델이 텍스트를 생성하고 있다는 신호일 뿐, 전체 작업의 state나 완료 여부를 증명하지 않는다.</strong> 실행 시스템은 token delta, durable progress event와 committed result를 서로 다른 계약으로 전달해야 한다. UI는 이를 run state로 reduce하고, 재연결할 때 snapshot과 event cursor로 복구해야 한다.
 </AnswerBlock>
 
 앞선 글 [Agent Security는 Prompt 문제가 아니다](/ai/agents/agent-security-permissions-credentials-tool-boundaries/)에서는 model output을 권한 없는 proposal로 다뤘다. 전달 계층에도 같은 원칙이 필요하다. Model이 내보낸 문장을 그대로 system state처럼 표시하면 다음과 같은 착시가 생긴다.
@@ -61,7 +61,7 @@ import AgentProgressDiagrams from '../../../components/AgentProgressDiagrams.ast
 
 1. 지금 어떤 **실행 단계**인가?
 2. 무엇이 **완료되거나 실패했다는 사실**이 확정됐는가?
-3. 연결이 끊겨도 같은 상태를 **다시 복구**할 수 있는가?
+3. 연결이 끊겨도 같은 state를 **다시 복구**할 수 있는가?
 
 <AgentProgressDiagrams
   kind="planes"
@@ -74,7 +74,7 @@ import AgentProgressDiagrams from '../../../components/AgentProgressDiagrams.ast
 | 전달면 | 예시 | 의미 | 내구성 | UI 용도 |
 | --- | --- | --- | --- | --- |
 | Token stream | `token.delta` | 모델이 생성한 부분 텍스트 | 보통 일시적 | 답변을 빨리 읽게 함 |
-| Progress event | `step.started`, `tool.completed` | 실행 상태가 바뀐 사실 | durable·replayable | 단계, 승인, 실패 표시 |
+| Progress event | `step.started`, `tool.completed` | 실행 state가 바뀐 사실 | durable·replayable | 단계, 승인, 실패 표시 |
 | Result | `run.completed` + `result_ref` | 확정된 최종 산출물 | canonical | 새로고침·재조회 가능한 답변 |
 
 이 셋은 같은 SSE connection을 사용할 수 있다. 그러나 같은 connection을 쓴다고 같은 데이터 모델이어서는 안 된다.
@@ -132,7 +132,7 @@ class ProgressEvent(BaseModel):
 <AgentProgressDiagrams
   kind="contract"
   language="ko"
-  caption="그림 2. 내부 event envelope에서 사용자에게 허용된 projection만 UI 상태로 전달한다."
+  caption="그림 2. 내부 event envelope에서 사용자에게 허용된 projection만 UI state로 전달한다."
 />
 
 필드에는 역할이 있다.
@@ -149,7 +149,7 @@ class ProgressEvent(BaseModel):
 
 ## Event taxonomy를 작게 유지한다
 
-수십 개의 화면 문구를 event type으로 만들기보다 상태 전이에 필요한 최소 vocabulary를 정의한다.
+수십 개의 화면 문구를 event type으로 만들기보다 state 전이에 필요한 최소 vocabulary를 정의한다.
 
 | 범주 | Event | 핵심 payload |
 | --- | --- | --- |
@@ -173,7 +173,7 @@ StreamMessage = (
 
 `thinking.delta`나 chain-of-thought를 public event로 정의하지 않는다. 내부 추론을 진행률처럼 노출하면 보안 경계를 흔들고, 사용자도 사실과 모델의 추측을 구분하기 어려워진다. 대신 “문서 4개 분석 완료”, “승인 대기”처럼 검증 가능한 milestone을 보낸다.
 
-## 상태가 먼저 commit되고 event가 따라야 한다
+## state가 먼저 commit되고 event가 따라야 한다
 
 가장 위험한 버그는 UI에 `run.completed`가 도착했지만 result row가 아직 없거나, DB에는 완료됐지만 event가 유실되는 dual write다. Run state와 outbox를 같은 transaction에 기록한 뒤 relay가 stream으로 전달한다.
 
@@ -226,7 +226,7 @@ async def sse(run_id: str, last_event_id: str | None):
             yield encode_sse(event)
 ```
 
-Heartbeat comment는 proxy idle timeout을 피하고 연결 상태를 감지하는 데 도움을 준다. 그러나 heartbeat가 100번 왔어도 business milestone이 진행됐다는 뜻은 아니다.
+Heartbeat comment는 proxy idle timeout을 피하고 연결 state를 감지하는 데 도움을 준다. 그러나 heartbeat가 100번 왔어도 business milestone이 진행됐다는 뜻은 아니다.
 
 <AgentProgressDiagrams
   kind="reconnect"
@@ -281,13 +281,13 @@ function onToken(delta: TokenDelta) {
 
 ## Progress percentage는 계산할 수 있을 때만 쓴다
 
-Agent는 실행 중 새 문서, tool call과 child task를 발견한다. 전체 작업량을 모르는 상태에서 `73%` 같은 숫자를 만들면 정밀해 보일 뿐 사실이 아니다.
+Agent는 실행 중 새 문서, tool call과 child task를 발견한다. 전체 작업량을 모르는 state에서 `73%` 같은 숫자를 만들면 정밀해 보일 뿐 사실이 아니다.
 
 Progress를 표현하는 우선순위는 다음과 같다.
 
 1. **현재 phase**: planning, collecting, analyzing, reviewing
 2. **완료한 milestone**: 문서 4개 중 3개 분석
-3. **현재 상태**: running, waiting for approval, retrying
+3. **현재 state**: running, waiting for approval, retrying
 4. **예상 범위**: historical p50–p90, SLA deadline
 5. **Percentage**: denominator가 안정적일 때만
 
@@ -310,7 +310,7 @@ def weighted_progress(tasks) -> float | None:
 
 ## Multi-Agent progress는 parent가 투영한다
 
-각 child의 token을 한 channel에 섞으면 어느 답변인지 알 수 없고 private tool output이 노출될 수 있다. Child는 자신의 durable event를 만들고 parent projector가 사용자에게 허용된 상태만 집계한다.
+각 child의 token을 한 channel에 섞으면 어느 답변인지 알 수 없고 private tool output이 노출될 수 있다. Child는 자신의 durable event를 만들고 parent projector가 사용자에게 허용된 state만 집계한다.
 
 ```python
 async def project_child_event(parent, event):
@@ -332,7 +332,7 @@ async def project_child_event(parent, event):
   caption="그림 4. Parent는 child token이 아니라 확정된 milestone과 waiting state를 사용자용 progress로 집계한다."
 />
 
-Parent 상태는 단순 평균이 아니다.
+Parent state는 단순 평균이 아니다.
 
 - 한 child가 approval을 기다리면 parent도 `waiting_for_approval`일 수 있다.
 - Optional child 실패는 경고로 남기고 parent가 계속될 수 있다.
@@ -346,7 +346,7 @@ OpenTelemetry trace는 root span과 child span을 연결하고, span event로 �
 
 | Product progress | Observability telemetry |
 | --- | --- |
-| 사용자에게 약속한 상태 계약 | 운영 진단용 signal |
+| 사용자에게 약속한 state 계약 | 운영 진단용 signal |
 | 긴 retention과 replay가 필요할 수 있음 | sampling될 수 있음 |
 | access control과 localization 필요 | backend·operator 중심 |
 | business terminal state가 정본 | span status는 진단 표현 |
@@ -401,7 +401,7 @@ Trace ID를 access token처럼 사용하지 않는다. 상관관계 identifier�
 - Denominator를 모를 때 가짜 percentage를 표시하지 않는가?
 - Plan 변경을 `plan.rebased`로 명시하는가?
 - Parent가 child의 public milestone만 집계하는가?
-- Approval, retry, cancellation과 partial failure가 사용자 상태에 보이는가?
+- Approval, retry, cancellation과 partial failure가 사용자 state에 보이는가?
 - Product event와 trace가 correlation ID로 연결되는가?
 - Raw prompt, private reasoning, credential과 민감 tool output을 stream하지 않는가?
 
