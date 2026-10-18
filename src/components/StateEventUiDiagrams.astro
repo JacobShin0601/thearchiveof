@@ -53,7 +53,7 @@ const contracts = ko
       </div>
       <div class="status-card">
         <div>
-          <span>{ko ? '현재 상태' : 'Current status'}</span>
+          <span>{ko ? '현재 state' : 'Current status'}</span>
           <strong>{ko ? '규칙 적용 중' : 'Applying rules'}</strong>
         </div>
         <div class="progress-copy"><b>65%</b><small>{ko ? '방금 갱신' : 'updated just now'}</small></div>
@@ -84,7 +84,7 @@ const contracts = ko
         </section>
       </div>
       <div class="reconnect-banner">
-        <b>{ko ? '재연결 상태도 화면 계약이다' : 'Reconnect state is part of the UI contract'}</b>
+        <b>{ko ? '재연결 state도 화면 계약이다' : 'Reconnect state is part of the UI contract'}</b>
         <span>{ko ? '연결 복구 중 → cursor replay → 이력 만료 시 snapshot 재동기화' : 'Reconnecting → cursor replay → snapshot resync when history expired'}</span>
       </div>
     </div>
