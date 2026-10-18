@@ -1,6 +1,6 @@
 ---
 interface Props {
-  kind: 'browser' | 'data-contract' | 'reconnect';
+  kind: 'browser' | 'data-contract' | 'reconnect' | 'snapshot-timeline' | 'state-event-time' | 'event-names' | 'bootstrap-contract' | 'delivery-contract' | 'storage-boundaries' | 'live-sequence';
   language?: 'ko' | 'en';
   caption: string;
 }
@@ -122,6 +122,61 @@ const contracts = ko
     </div>
   )}
 
+
+  {kind === 'snapshot-timeline' && (
+    <div class="snapshot-timeline">
+      <section><span>Snapshot</span><strong>{ko ? '규칙 적용 중 · 65%' : 'Applying rules · 65%'}</strong><small>{ko ? '예외 규칙 4개 중 3개 검토' : 'Reviewing 3 of 4 exception rules'}</small></section>
+      <section><span>Event timeline</span><ol><li>✓ {ko ? '문서 수집 완료' : 'Documents collected'}</li><li>✓ {ko ? '입력 정규화 완료' : 'Inputs normalized'}</li><li>→ {ko ? '규칙 적용 중' : 'Applying rules'}</li><li>! {ko ? '승인 필요' : 'Approval required'}</li></ol></section>
+      <p><b>cursor</b><code>last_event_id = 1760000000123-0</code></p>
+    </div>
+  )}
+
+  {kind === 'state-event-time' && (
+    <div class="state-event-time">
+      <section><strong>State</strong><span>{ko ? '지금 이 순간의 답' : 'Answer now'}</span><b>{'{ progress: 65, step: apply_rules }'}</b></section>
+      <section><strong>Events</strong><span>{ko ? '변화가 일어난 순서' : 'Order of change'}</span><ol><li>documents_collected</li><li>inputs_normalized</li><li>rules_applied</li></ol></section>
+    </div>
+  )}
+
+  {kind === 'event-names' && (
+    <div class="event-names">
+      <section><span>{ko ? '권장' : 'Prefer'}</span><code>documents_collected</code><code>rules_applied</code><code>approval_required</code><code>run_succeeded</code></section>
+      <section><span>{ko ? '피할 표현' : 'Avoid'}</span><code>{ko ? '문서를 모두 불러왔습니다!' : 'The documents are loaded!'}</code><code>{ko ? '검토가 거의 끝났어요' : 'The review is almost done'}</code></section>
+    </div>
+  )}
+
+  {kind === 'bootstrap-contract' && (
+    <div class="bootstrap-contract">
+      <section class="unsafe"><span>{ko ? '놓치는 경로' : 'Gap'}</span><ol><li>{ko ? 'Snapshot 읽기' : 'Read snapshot'}</li><li>{ko ? 'Event 발생' : 'Event happens'}</li><li>{ko ? '새 Event만 구독' : 'Subscribe only to new events'}</li></ol><p>{ko ? '중간 Event가 사라진다' : 'The middle event is missed'}</p></section>
+      <section class="safe"><span>{ko ? '안전한 경로' : 'Safe path'}</span><ol><li>Bootstrap</li><li>snapshot + events + cursor</li><li>{ko ? 'cursor 이후 replay' : 'replay after cursor'}</li></ol><p>{ko ? '같은 경계에서 이어 읽는다' : 'Continue from one boundary'}</p></section>
+    </div>
+  )}
+
+  {kind === 'delivery-contract' && (
+    <div class="delivery-contract">
+      <section><strong>Pub/Sub</strong><p>{ko ? '연결된 구독자에게만 즉시 전달' : 'Deliver only to connected subscribers'}</p><small>{ko ? '끊긴 구간은 다시 읽을 수 없다' : 'A disconnect gap cannot be replayed'}</small></section>
+      <section><strong>Redis Stream</strong><p><code>XADD</code> → <code>XREAD(last_id)</code></p><small>{ko ? '각 SSE viewer가 같은 Event를 replay할 수 있다' : 'Each SSE viewer can replay the same event'}</small></section>
+    </div>
+  )}
+
+  {kind === 'storage-boundaries' && (
+    <div class="storage-boundaries">
+      <article><strong>PostgreSQL</strong><span>{ko ? '공식 업무 기록' : 'Durable business truth'}</span></article>
+      <article><strong>Redis Hash</strong><span>{ko ? '버려도 되는 현재 화면' : 'Disposable current projection'}</span></article>
+      <article><strong>Redis Stream</strong><span>{ko ? '보존 기간이 있는 운영 Event 이력' : 'Bounded operational event history'}</span></article>
+      <article><strong>Checkpoint</strong><span>{ko ? '재개 가능한 실행 snapshot' : 'Resumable execution snapshot'}</span></article>
+    </div>
+  )}
+
+  {kind === 'live-sequence' && (
+    <div class="live-sequence">
+      <div><b>1</b><strong>Bootstrap</strong><span>snapshot + history + cursor</span></div>
+      <div><b>2</b><strong>Live SSE</strong><span>{ko ? 'cursor 이후 Event 전달' : 'deliver events after cursor'}</span></div>
+      <div><b>3</b><strong>{ko ? '재연결' : 'Reconnect'}</strong><span>{ko ? '마지막 cursor부터 replay' : 'replay from the last cursor'}</span></div>
+      <p><code>resync_required</code> → {ko ? '이력이 만료됐을 때만 Bootstrap을 다시 호출' : 'call Bootstrap again only when history expired'}</p>
+    </div>
+  )}
+
   <figcaption>{caption}</figcaption>
 </figure>
 
@@ -136,7 +191,18 @@ const contracts = ko
   .timeline ol{display:grid;gap:.1rem;margin:.55rem 0 0;padding:0;list-style:none}.timeline li{display:grid;grid-template-columns:2.7rem 1fr;gap:.5rem;padding:.45rem 0;border-bottom:1px solid var(--line)}.timeline time{color:var(--muted);font-size:.65rem}.timeline li div{display:grid;gap:.1rem}.timeline strong{font-size:.72rem}.timeline small{color:var(--muted);font-size:.65rem}.timeline li.pending{border:1px dashed var(--accent);border-radius:.4rem;padding:.45rem}.reconnect-banner{display:grid;gap:.15rem;padding:.7rem 1rem;border-top:1px solid var(--line);background:var(--paper-deep)}.reconnect-banner b{font-size:.72rem}.reconnect-banner span{color:var(--muted);font-size:.68rem}
   .contract{display:grid;gap:.45rem}.contract header,.contract li{display:grid;grid-template-columns:minmax(7rem,.7fr) minmax(6rem,.55fr) minmax(0,1.4fr);gap:.6rem;align-items:center}.contract header{padding:0 .7rem;color:var(--muted);font-size:.68rem;font-weight:800}.contract ul{display:grid;gap:.35rem;margin:0;padding:0;list-style:none}.contract li{padding:.65rem .7rem;border:1px solid var(--line);border-radius:.5rem;background:var(--paper)}.contract li strong{font-size:.76rem}.contract li b{color:var(--accent);font-size:.7rem}.contract li span{color:var(--muted);font-size:.7rem}.contract p,.reconnect>p{margin:0;padding:.65rem;border-left:3px solid var(--accent);background:var(--paper);font-size:.74rem}
   .reconnect{display:grid;gap:.8rem}.reconnect ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin:0;padding:0;list-style:none}.reconnect li{display:grid;grid-template-columns:auto 1fr;gap:.3rem .45rem;padding:.7rem;border:1px solid var(--line);border-radius:.55rem;background:var(--paper)}.reconnect li b{grid-row:1/3;color:var(--accent);font-size:.7rem}.reconnect li strong{font-size:.76rem}.reconnect li span{color:var(--muted);font-size:.68rem}.decision{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;padding:.8rem;border:1px dashed var(--accent);border-radius:.6rem}.decision>strong{grid-column:1/-1;text-align:center;font-size:.8rem}.decision div{display:grid;gap:.2rem;padding:.55rem;background:var(--paper);border-radius:.4rem}.decision div b{font-size:.72rem}.decision div span{color:var(--muted);font-size:.68rem}
-  @media(max-width:700px){.run-grid{grid-template-columns:1fr}.contract header{display:none}.contract li{grid-template-columns:1fr}.reconnect ol{grid-template-columns:1fr}.decision{grid-template-columns:1fr}.decision>strong{grid-column:auto}}
+
+  .snapshot-timeline,.event-names,.bootstrap-contract,.delivery-contract,.state-event-time{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+  .snapshot-timeline section,.event-names section,.bootstrap-contract section,.delivery-contract section,.state-event-time section,.storage-boundaries article,.live-sequence>div{display:grid;gap:.35rem;padding:.8rem;border:1px solid var(--line);border-radius:.55rem;background:var(--paper)}
+  .snapshot-timeline section>span,.event-names section>span,.bootstrap-contract section>span,.state-event-time section>span{color:var(--accent);font-size:.7rem;font-weight:800;letter-spacing:.04em}
+  .snapshot-timeline section strong,.state-event-time section strong,.delivery-contract strong{font-size:.85rem}.snapshot-timeline section small,.delivery-contract small,.storage-boundaries span,.live-sequence span{color:var(--muted);font-size:.7rem;line-height:1.45}
+  .snapshot-timeline ol,.state-event-time ol,.bootstrap-contract ol{display:grid;gap:.25rem;margin:0;padding:0;list-style:none;font-size:.72rem}.snapshot-timeline>p,.live-sequence>p{grid-column:1/-1;margin:0;padding:.6rem;border-left:3px solid var(--accent);background:var(--paper);font-size:.72rem}
+  .snapshot-timeline code,.event-names code,.state-event-time b,.delivery-contract code,.live-sequence code{font-family:var(--font-mono);overflow-wrap:anywhere}
+  .state-event-time section{min-height:8rem}.state-event-time section b{align-self:end;padding:.55rem;background:var(--paper-deep);font-size:.7rem}.state-event-time ol{grid-template-columns:repeat(3,minmax(0,1fr));gap:.3rem}.state-event-time li{padding:.4rem;border:1px solid var(--line);border-radius:.35rem;font-size:.62rem;overflow-wrap:anywhere}
+  .event-names section{align-content:start}.event-names section:nth-child(2){border-style:dashed}.event-names code{padding:.35rem .45rem;background:var(--paper-deep);font-size:.68rem}.bootstrap-contract .unsafe{border-style:dashed}.bootstrap-contract .safe{border-color:var(--accent)}.bootstrap-contract p{margin:0;color:var(--muted);font-size:.7rem}
+  .delivery-contract p{margin:0;font-size:.74rem}.delivery-contract code{font-size:.7rem}.storage-boundaries{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.5rem}.storage-boundaries article{min-height:6.4rem}.storage-boundaries strong{font-size:.78rem}
+  .live-sequence{display:grid;grid-template-columns:repeat(3,minmax(0,1fr);gap:.5rem}.live-sequence>div{grid-template-columns:auto 1fr;gap:.25rem .45rem}.live-sequence b{grid-row:1/3;color:var(--accent);font-size:.72rem}.live-sequence strong{font-size:.76rem}
+  @media(max-width:700px){.snapshot-timeline,.event-names,.bootstrap-contract,.delivery-contract,.state-event-time,.live-sequence,.storage-boundaries{grid-template-columns:1fr}.state-event-time ol{grid-template-columns:1fr}.snapshot-timeline>p,.live-sequence>p{grid-column:auto}.run-grid{grid-template-columns:1fr}.contract header{display:none}.contract li{grid-template-columns:1fr}.reconnect ol{grid-template-columns:1fr}.decision{grid-template-columns:1fr}.decision>strong{grid-column:auto}}
   @media(max-width:460px){.state-event-ui{padding:.8rem}.run-header{align-items:flex-start}.connection{max-width:7rem}.status-card{grid-template-columns:1fr}.progress-copy{text-align:left}.progress-track,.status-card p{grid-column:auto}.current-work dl div{grid-template-columns:1fr}.decision div{min-width:0}}
   @media(prefers-color-scheme:dark){.state-event-ui{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
 </style>
