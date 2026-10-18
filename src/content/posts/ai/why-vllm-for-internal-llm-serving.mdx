@@ -114,7 +114,7 @@ API는 사용량에 비례하는 **변동비** 모델이다. 내부 GPU는 **고
 - Kubernetes, GPU 드라이버, 노드 패치, **DCGM·Prometheus·알림**을 자동으로 완성하지 않는다.
 - “Agent 오케스트레이션”, “RAG 품질”, “평가 체계(harness)”를 제공하지 않는다—앱 계층 문제다.
 
-vLLM을 도입하면 **추론 엔진(inference engine)** 하나를 얻는 것이지, **엔터프라이즈 AI 플랫폼 전체**를 얻는 것은 아니다.
+vLLM을 도입하면 **추론 엔진**(inference engine) 하나를 얻는 것이지, **엔터프라이즈 AI 플랫폼 전체**를 얻는 것은 아니다.
 
 ## 5. 대안과 vLLM의 경계
 
@@ -125,7 +125,7 @@ vLLM을 도입하면 **추론 엔진(inference engine)** 하나를 얻는 것이
 | Transformers + FastAPI (단순 서버) | PoC, 저동시성, 한두 모델 | 동시 요청·KV 메모리·배치 효율을 직접 구현해야 함 |
 | **vLLM** | 온프레 GPU에서 **다수 동시 추론**, 스트리밍, 운영 메트릭 | GPU/K8s/튜닝·관측 역량 필요 |
 
-“FastAPI에 `model.generate()` 한 줄”은 **데모**에는 충분하다. Agent·RAG·채팅이 동시에 붙으면 **KV cache 고갈**, **꼬리 지연시간(tail latency)**, **GPU 유휴 시간**이 동시에 나타난다. vLLM은 그 문제를 **스케줄러와 메모리 관리**로 다루는 쪽에 가깝다. [Optimization and Tuning](https://docs.vllm.ai/en/stable/configuration/optimization/)
+“FastAPI에 `model.generate()` 한 줄”은 **데모**에는 충분하다. Agent·RAG·채팅이 동시에 붙으면 **KV cache 고갈**, **꼬리 지연시간**(tail latency), **GPU 유휴 시간**이 동시에 나타난다. vLLM은 그 문제를 **스케줄러와 메모리 관리**로 다루는 쪽에 가깝다. [Optimization and Tuning](https://docs.vllm.ai/en/stable/configuration/optimization/)
 
 ### PagedAttention, continuous batching, prefix caching — 사용자가 느끼는 변화
 
