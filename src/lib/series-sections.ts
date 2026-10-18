@@ -154,14 +154,24 @@ export function progressLabel(options: {
   const partTotal = partCountForSeries(seriesName);
   const title = part.title[language];
 
+  const hasConsistentArticlePosition = seriesOrder <= totalInSeries;
+
   if (language === 'ko') {
-    const visible = `${partTotal}개 학습 단계 중 ${partNum}번째 · ${title} · 전체 ${totalInSeries}편 중 ${seriesOrder}번째 글`;
-    const aria = `${seriesName} 시리즈, ${partTotal}개 학습 단계 중 ${partNum}번째 ${title}, 전체 ${totalInSeries}편 중 ${seriesOrder}번째 글`;
+    const visible = hasConsistentArticlePosition
+      ? `${partTotal}개 학습 단계 중 ${partNum}번째 · ${title} · 전체 ${totalInSeries}편 중 ${seriesOrder}번째 글`
+      : `${partTotal}개 학습 단계 중 ${partNum}번째 · ${title}`;
+    const aria = hasConsistentArticlePosition
+      ? `${seriesName} 시리즈, ${partTotal}개 학습 단계 중 ${partNum}번째 ${title}, 전체 ${totalInSeries}편 중 ${seriesOrder}번째 글`
+      : `${seriesName} 시리즈, ${partTotal}개 학습 단계 중 ${partNum}번째 ${title}`;
     return { visible, aria };
   }
 
-  const visible = `Stage ${partNum} of ${partTotal} · ${title} · Article ${seriesOrder} of ${totalInSeries}`;
-  const aria = `${seriesName} series, stage ${partNum} of ${partTotal}: ${title}, article ${seriesOrder} of ${totalInSeries}`;
+  const visible = hasConsistentArticlePosition
+    ? `Stage ${partNum} of ${partTotal} · ${title} · Article ${seriesOrder} of ${totalInSeries}`
+    : `Stage ${partNum} of ${partTotal} · ${title}`;
+  const aria = hasConsistentArticlePosition
+    ? `${seriesName} series, stage ${partNum} of ${partTotal}: ${title}, article ${seriesOrder} of ${totalInSeries}`
+    : `${seriesName} series, stage ${partNum} of ${partTotal}: ${title}`;
   return { visible, aria };
 }
 

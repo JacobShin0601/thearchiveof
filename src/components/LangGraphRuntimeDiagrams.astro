@@ -1,0 +1,112 @@
+---
+export interface Props {
+  kind: 'boundary' | 'states' | 'streaming' | 'records' | 'choice' | 'responsibilities';
+}
+
+const { kind } = Astro.props;
+
+const diagrams = {
+  boundary: {
+    caption: 'LangGraph의 위치: 실행 runtime과 시스템 경계',
+    items: [
+      ['Browser', 'run 요청과 진행 화면'],
+      ['API', '권한 확인과 run 접수'],
+      ['queue', '대기 작업의 전달과 재전달'],
+      ['Worker', '실행 시도·취소·timeout을 관리'],
+      ['LangGraph', 'node 실행·전환·checkpoint·runtime stream'],
+    ],
+    note: 'LangGraph는 Worker 안에서 실행된다. API, queue, Worker, 저장소의 책임까지 대신하지는 않는다.',
+  },
+  states: {
+    caption: '세 state는 목적과 수명이 다르다',
+    items: [
+      ['LangGraph state', '다음 node의 계산', '작업 데이터·중간 결과', 'UI 문구·무한 event 이력'],
+      ['Redis UI state', 'UI 복원과 운영 조회', 'status·진행률·종료 요약', '대형 문서·prompt·전체 보고서'],
+      ['Browser state', '사용자 화면', '표시 가능한 진행률·결과 링크', '내부 node payload·권한 밖 metadata'],
+    ],
+    note: '같은 사실을 세 저장소에 복제하지 않는다. 각 소비자가 필요한 최소 형태로 변환한다.',
+  },
+  streaming: {
+    caption: 'runtime output은 제품 계약으로 변환한다',
+    items: [
+      ['LangGraph', 'updates · custom'],
+      ['변환 계층', '허용 목록 · 검증 · version'],
+      ['제품 event', 'analysis_progressed 등 안정된 schema'],
+      ['Redis / SSE', 'UI projection · replay · browser 전달'],
+    ],
+    note: 'framework의 node 이름과 원본 payload를 browser가 직접 해석하지 않게 한다.',
+  },
+  records: {
+    caption: '같은 PostgreSQL을 써도 역할은 분리된다',
+    items: [
+      ['Checkpoint', 'graph 실행을 다시 잇는 state'],
+      ['queue', 'work delivery와 redelivery'],
+      ['업무 DB', 'run의 기준 기록·결과·과금'],
+      ['Event stream', '관찰 가능한 progress history'],
+    ],
+    note: '저장소가 같아도 schema, 일관성 경계, 복구 책임은 다르다.',
+  },
+  choice: {
+    caption: 'LangGraph를 선택하는 기준',
+    items: [
+      ['Control flow와 재개 의미 체계가 복잡한가?', '분기·순환·HITL·checkpoint가 필요하다면 LangGraph의 가치가 커진다.'],
+      ['그렇지 않은가?', '단계가 고정된 작업은 실행 상한을 가진 일반 Python 흐름이 더 읽기 쉬울 수 있다.'],
+    ],
+    note: '“Agent이므로 graph를 쓴다”가 아니라 실행 제어의 복잡도로 결정한다.',
+  },
+  responsibilities: {
+    caption: '누가 무엇을 책임지는가',
+    items: [
+      ['API', '사용자 인증·run 생성 권한·입력 검증'],
+      ['queue', '아직 처리되지 않은 작업의 영속적 전달'],
+      ['Worker', '활성 실행 시도·heartbeat·취소·timeout'],
+      ['LangGraph', 'node 일정·state 갱신·조건부 전환·재개'],
+      ['Redis', '빠른 UI snapshot과 replay 가능한 진행 event'],
+      ['PostgreSQL', 'run의 기준 기록과 최종 결과'],
+      ['SSE gateway', 'cursor 이후 event를 browser에 전달'],
+    ],
+    note: '구성은 달라질 수 있지만, 각 보장의 책임 주체는 항상 명시해야 한다.',
+  },
+} as const;
+
+const diagram = diagrams[kind] as {
+  caption: string;
+  items: readonly (readonly string[])[];
+  note: string;
+};
+---
+<figure class="runtime-diagram" aria-labelledby={`runtime-${kind}`}>
+  <figcaption id={`runtime-${kind}`}>{diagram.caption}</figcaption>
+  <ol class:list={[kind, 'steps']}>
+    {diagram.items.map((item, index) => (
+      <li>
+        <span class="number">{index + 1}</span>
+        <div>
+          <strong>{item[0]}</strong>
+          <span>{item[1]}</span>
+          {item[2] && <small><b>넣을 것</b> {item[2]}<br /><b>피할 것</b> {item[3]}</small>}
+        </div>
+      </li>
+    ))}
+  </ol>
+  <p>{diagram.note}</p>
+</figure>
+
+<style>
+  .runtime-diagram{margin:2rem 0;padding:1.15rem;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink);font-family:var(--sans)}
+  figcaption{margin:0 0 .9rem;font-size:.96rem;font-weight:750}
+  .steps{margin:0;padding:0;list-style:none;display:grid;gap:.55rem}
+  .steps li{display:grid;grid-template-columns:1.7rem minmax(0,1fr);gap:.65rem;align-items:start;padding:.75rem .8rem;border:1px solid var(--line);background:var(--paper)}
+  .number{display:grid;place-items:center;width:1.55rem;height:1.55rem;border-radius:50%;background:var(--accent);color:var(--paper);font-size:.75rem;font-weight:750}
+  .steps div{display:grid;gap:.15rem;min-width:0}
+  .steps strong{font-size:.88rem}.steps span{font-size:.83rem;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+  small{margin-top:.25rem;font-size:.76rem;line-height:1.5;color:var(--muted)} small b{color:var(--ink)}
+  .runtime-diagram>p{margin:.85rem 0 0;font-size:.84rem;line-height:1.6;color:var(--muted)}
+  @media (min-width:640px){
+    .states,.responsibilities{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .states li:first-child{grid-column:span 2}
+    .streaming,.records{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .boundary{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .boundary li:last-child{grid-column:span 2}
+  }
+</style>
