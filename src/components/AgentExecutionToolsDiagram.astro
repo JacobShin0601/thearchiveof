@@ -3,7 +3,7 @@ interface Props { kind: 'workload' | 'hybrid' | 'ownership'; }
 const { kind } = Astro.props as Props;
 const captions: Record<Props['kind'], string> = {
   workload: '그림 1. 작업이 기다림인지 계산인지에 따라 실행 도구를 고른다',
-  hybrid: '그림 2. 하나의 에이전트 실행 안에서 비동기·스레드·프로세스를 함께 쓸 수 있다',
+  hybrid: '그림 2. 하나의 에이전트 실행 안에서 비동기·thread·프로세스를 함께 쓸 수 있다',
   ownership: '그림 3. 동시성 도구와 실행 수명 주기의 책임은 서로 다른 문제다',
 };
 ---
@@ -11,18 +11,18 @@ const captions: Record<Props['kind'], string> = {
   <figcaption>{captions[kind]}</figcaption>
   {kind === 'workload' && <div class="cards">
     <section><h3>논블로킹 I/O</h3><p>LLM · PostgreSQL · Redis</p><strong>비동기 태스크</strong><small>네트워크 응답을 기다리는 동안 실행권을 양보</small></section>
-    <section><h3>블로킹 I/O</h3><p>기존 동기식 SDK</p><strong>제한된 스레드 풀</strong><small>이벤트 루프 밖에서 대기하도록 격리</small></section>
+    <section><h3>블로킹 I/O</h3><p>기존 동기식 SDK</p><strong>제한된 thread 풀</strong><small>이벤트 루프 밖에서 대기하도록 격리</small></section>
     <section><h3>CPU 중심 계산</h3><p>대규모 계산 · 파싱 · 시뮬레이션</p><strong>프로세스 · 연산 서비스</strong><small>별도 CPU/GPU 자원에서 계산</small></section>
   </div>}
   {kind === 'hybrid' && <div class="hybrid">
     <div class="request">요청</div><b>↓</b><div class="loop">이벤트 루프 <small>결과를 모으고 다음 단계를 조율</small></div>
-    <div class="branches"><section><strong>비동기 I/O</strong><span>LLM API · PostgreSQL</span></section><section><strong>스레드 위임</strong><span>기존 SDK</span></section><section><strong>프로세스 위임</strong><span>위험 모델 · CPU 계산</span></section></div>
+    <div class="branches"><section><strong>비동기 I/O</strong><span>LLM API · PostgreSQL</span></section><section><strong>thread 위임</strong><span>기존 SDK</span></section><section><strong>프로세스 위임</strong><span>위험 모델 · CPU 계산</span></section></div>
     <b>↓</b><div class="result">결과 구성</div>
   </div>}
   {kind === 'ownership' && <div class="ownership">
-    <section><h3>동시성의 기본 요소</h3><strong>비동기 · 스레드 · 프로세스</strong><p>“작업을 어떻게 진행하고 계산하는가?”</p></section>
+    <section><h3>동시성의 기본 요소</h3><strong>비동기 · thread · 프로세스</strong><p>“작업을 어떻게 진행하고 계산하는가?”</p></section>
     <span>≠</span>
-    <section><h3>실행 수명 주기의 책임</h3><strong>API 프로세스 · 큐 · 워커</strong><p>“누가 작업을 끝까지 책임지는가?”</p></section>
+    <section><h3>실행 수명 주기의 책임</h3><strong>API 프로세스 · 큐 · Worker</strong><p>“누가 작업을 끝까지 책임지는가?”</p></section>
   </div>}
 </figure>
 <style>
