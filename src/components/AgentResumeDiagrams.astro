@@ -11,7 +11,7 @@ const ko = language === 'ko';
 const layers = ko
   ? [
       ['Graph checkpoint', '어디서 다시 시작할까?', 'state · next node · interrupt · checkpoint_id'],
-      ['Run record', '사용자에게 어떤 상태인가?', 'waiting_approval · resuming · terminal result'],
+      ['Run record', '사용자에게 어떤 state인가?', 'waiting_approval · resuming · terminal result'],
       ['Approval record', '누가 무엇을 결정했나?', 'action digest · reviewer · decision · expiry'],
       ['Execution ledger', '무엇이 이미 실행됐나?', 'tool_call_id · idempotency key · side effect result'],
     ]
@@ -81,7 +81,7 @@ const handoff = ko
       <div class="terminal">
         <span><code>rejected</code></span><span><code>expired</code></span><span><code>cancelled</code></span><span><code>succeeded</code></span>
       </div>
-      <footer>{ko ? 'Pause는 Worker를 세워 두는 상태가 아니라 실행 ownership을 반납한 durable 상태다.' : 'Pause is a durable state that releases execution ownership, not a worker left waiting.'}</footer>
+      <footer>{ko ? 'Pause는 Worker를 세워 두는 state가 아니라 실행 ownership을 반납한 durable state다.' : 'Pause is a durable state that releases execution ownership, not a worker left waiting.'}</footer>
     </div>
   )}
 

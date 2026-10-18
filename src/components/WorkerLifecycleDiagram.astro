@@ -4,7 +4,7 @@ const { kind } = Astro.props as Props;
 const captions: Record<Props['kind'], string> = {
   responsibility: '그림 1. 동시성 도구와 실행 수명 주기의 책임은 서로 다른 문제다',
   'api-lifetime': '그림 2. API 프로세스 안의 백그라운드 작업은 프로세스 수명을 넘을 수 없다',
-  'queue-lifecycle': '그림 3. 큐와 Worker는 안전하게 접수된 실행을 끝까지 처리한다',
+  'queue-lifecycle': '그림 3. queue와 Worker는 안전하게 접수된 실행을 끝까지 처리한다',
   'worker-models': '그림 4. Worker는 작업 부하에 맞는 내부 실행 모델을 조합할 수 있다',
 };
 ---
@@ -13,7 +13,7 @@ const captions: Record<Props['kind'], string> = {
   {kind === 'responsibility' && <div class="responsibility">
     <section><h3>동시성의 기본 요소</h3><strong>비동기 · thread · 프로세스</strong><p>작업을 어떻게 진행하고 계산하는가?</p></section>
     <span>≠</span>
-    <section><h3>실행 수명 주기의 책임</h3><strong>API · 큐 · Worker</strong><p>누가 작업을 끝까지 책임지는가?</p></section>
+    <section><h3>실행 수명 주기의 책임</h3><strong>API · queue · Worker</strong><p>누가 작업을 끝까지 책임지는가?</p></section>
   </div>}
   {kind === 'api-lifetime' && <div class="api-lifetime">
     <section class="api"><strong>API 프로세스</strong><span>HTTP 요청 처리</span><span>백그라운드 태스크 시작</span></section>
@@ -22,8 +22,8 @@ const captions: Record<Props['kind'], string> = {
   </div>}
   {kind === 'queue-lifecycle' && <ol class="lifecycle">
     <li><b>1</b><strong>API</strong><span>검증·권한 확인·실행 기록</span></li>
-    <li><b>2</b><strong>큐</strong><span>API 프로세스 밖에 실행 요청 보관</span></li>
-    <li><b>3</b><strong>Worker</strong><span>작업 확보 → 실행 → 진행 상태 갱신</span></li>
+    <li><b>2</b><strong>queue</strong><span>API 프로세스 밖에 실행 요청 보관</span></li>
+    <li><b>3</b><strong>Worker</strong><span>작업 확보 → 실행 → 진행 state 갱신</span></li>
     <li><b>4</b><strong>저장소</strong><span>결과를 안전하게 저장한 뒤 처리 완료 통지</span></li>
   </ol>}
   {kind === 'worker-models' && <div class="models">

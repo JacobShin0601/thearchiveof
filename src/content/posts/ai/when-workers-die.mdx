@@ -54,7 +54,7 @@ references:
 import AnswerBlock from '../../../components/AnswerBlock.astro';
 
 <AnswerBlock question="Worker가 job 실행 중 죽으면 그 작업은 어떻게 되는가?">
-  <strong>Consumer group으로 전달됐지만 아직 `XACK`되지 않은 job은 Pending Entries List에 남고, 충분히 오래 idle 상태인 entry를 정상 worker가 회수해 다시 실행할 수 있다.</strong> 다만 재전달은 중복 실행 가능성을 뜻한다. 따라서 결과를 durable store에 먼저 기록한 뒤 ack하고, 각 시도를 별도로 추적하며, tool의 부수 효과는 멱등하게 만들고, 최대 시도 횟수를 넘은 job은 격리해야 한다.
+  <strong>Consumer group으로 전달됐지만 아직 `XACK`되지 않은 job은 Pending Entries List에 남고, 충분히 오래 idle state인 entry를 정상 worker가 회수해 다시 실행할 수 있다.</strong> 다만 재전달은 중복 실행 가능성을 뜻한다. 따라서 결과를 durable store에 먼저 기록한 뒤 ack하고, 각 시도를 별도로 추적하며, tool의 부수 효과는 멱등하게 만들고, 최대 시도 횟수를 넘은 job은 격리해야 한다.
 </AnswerBlock>
 
 [Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/)에서는 worker를 concurrency primitive가 아니라 **실행 시도의 수명주기를 소유하는 역할**로 정의했다. 바로 앞의 [Conversation은 Run이 아니다](/ai/agents/conversation-is-not-a-run/)에서는 session 안의 각 실행을 별도 `run_id`로 식별했다.
@@ -116,10 +116,10 @@ messages = await redis.xreadgroup(
 
 Redis는 전달된 entry의 ID와 consumer를 group의 Pending Entries List, 즉 PEL에 기록한다. PEL은 “실행이 끝났다”는 기록이 아니라 **누군가에게 전달됐지만 아직 확인되지 않았다**는 기록이다.
 
-| 상태 | Stream/consumer group에서 보이는 의미 | 애플리케이션이 확인할 것 |
+| state | Stream/consumer group에서 보이는 의미 | 애플리케이션이 확인할 것 |
 | --- | --- | --- |
 | 아직 전달되지 않음 | group cursor 뒤의 새 entry | queue lag |
-| 전달됐지만 ack 전 | PEL의 pending entry | run/attempt 상태, idle time |
+| 전달됐지만 ack 전 | PEL의 pending entry | run/attempt state, idle time |
 | `XACK` 완료 | PEL에서 제거 | durable terminal result |
 | stream에서 삭제/trim | 원본 payload가 없을 수 있음 | 보존 정책과 PEL 참조 |
 
@@ -162,7 +162,7 @@ async def handle_entry(entry_id: str, fields: dict[bytes, bytes]) -> None:
 
 ## Worker crash는 pending entry를 남긴다
 
-Worker A가 entry를 받은 뒤 종료되면 그 entry는 A의 pending 항목으로 남는다. 다른 worker가 단순히 `>`로 새 메시지만 읽어서는 가져오지 못한다. 별도의 recovery loop가 오래 idle 상태인 pending 항목을 회수해야 한다.
+Worker A가 entry를 받은 뒤 종료되면 그 entry는 A의 pending 항목으로 남는다. 다른 worker가 단순히 `>`로 새 메시지만 읽어서는 가져오지 못한다. 별도의 recovery loop가 오래 idle state인 pending 항목을 회수해야 한다.
 
 ```python
 async def reclaim_stale_jobs() -> None:
@@ -211,7 +211,7 @@ WHERE run_id = $2
   AND status = 'running';
 ```
 
-영향받은 row가 0개면 해당 worker는 실행 권한을 잃은 오래된 attempt다. 결과를 버리고 queue 처리 상태를 다시 확인해야 한다.
+영향받은 row가 0개면 해당 worker는 실행 권한을 잃은 오래된 attempt다. 결과를 버리고 queue 처리 state를 다시 확인해야 한다.
 
 ## At-least-once는 부수 효과를 중복시킬 수 있다
 
@@ -222,10 +222,10 @@ WHERE run_id = $2
 | job 수신 전 | 다른 worker가 정상 수신 | 없음 |
 | tool 호출 전 | Agent 계산 재실행 | 비용/시도 제한 |
 | 외부 API 성공 후 기록 전 | 외부 부수 효과 중복 | idempotency key, execution ledger |
-| 결과 DB commit 후 ack 전 | 완료 run 재실행 | terminal 상태 확인, 멱등 완료 |
+| 결과 DB commit 후 ack 전 | 완료 run 재실행 | terminal state 확인, 멱등 완료 |
 | ack 후 | queue 기준 완료 | durable 결과가 이미 있어야 함 |
 
-Worker는 실행을 시작하기 전에 terminal 상태를 확인해야 한다.
+Worker는 실행을 시작하기 전에 terminal state를 확인해야 한다.
 
 ```python
 run = await run_store.get(run_id)
@@ -276,7 +276,7 @@ Dead-letter stream은 자동 재실행 목록이 아니라 **격리와 조사 �
 
 Redis Stream을 사용한다고 모든 서버 장애에서 job이 자동 보존되는 것은 아니다. Redis persistence, replication, failover와 백업 정책이 실제 요구 수준에 맞아야 한다. RDB snapshot과 AOF는 서로 다른 durability·성능 trade-off를 갖는다.
 
-또한 Stream retention을 PEL과 무관하게 공격적으로 줄이면 pending ID는 남았지만 원본 entry가 이미 trim된 상태가 생길 수 있다. 버전별 명령 semantics를 확인하고, 최소한 최대 복구 시간보다 긴 보존 기간을 둔다. Queue를 유일한 업무 기록으로 삼지 않고 PostgreSQL의 run과 attempt를 durable source of truth로 두는 이유이기도 하다.
+또한 Stream retention을 PEL과 무관하게 공격적으로 줄이면 pending ID는 남았지만 원본 entry가 이미 trim된 state가 생길 수 있다. 버전별 명령 semantics를 확인하고, 최소한 최대 복구 시간보다 긴 보존 기간을 둔다. Queue를 유일한 업무 기록으로 삼지 않고 PostgreSQL의 run과 attempt를 durable source of truth로 두는 이유이기도 하다.
 
 ## 운영에서는 새 job과 pending job을 함께 본다
 
@@ -319,13 +319,13 @@ async def test_crash_after_commit_does_not_repeat_tool(worker, queue, store):
     assert await queue.is_pending(job) is False
 ```
 
-이 테스트는 mock exception 하나보다 시스템의 실제 보장을 더 잘 드러낸다. 별도 process나 container로 worker를 실행하고 강제 종료해 PEL과 DB 상태를 함께 확인하는 통합 테스트가 필요하다.
+이 테스트는 mock exception 하나보다 시스템의 실제 보장을 더 잘 드러낸다. 별도 process나 container로 worker를 실행하고 강제 종료해 PEL과 DB state를 함께 확인하는 통합 테스트가 필요하다.
 
 ## 구현 체크리스트
 
 - `XREADGROUP`의 새 entry 읽기와 pending recovery loop가 모두 있는가?
 - PEL을 완료 목록이 아니라 미확인 전달 목록으로 이해하는가?
-- 최종 상태를 durable하게 저장한 뒤에만 `XACK`하는가?
+- 최종 state를 durable하게 저장한 뒤에만 `XACK`하는가?
 - `XACK`과 stream entry 삭제를 구분하는가?
 - Run과 attempt를 분리하고 stale worker write를 거부하는가?
 - reclaim timeout이 실제 작업 시간과 heartbeat 정책에 근거하는가?

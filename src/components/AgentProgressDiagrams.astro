@@ -28,7 +28,7 @@ const contractRows = ko
     <div class="planes">
       <header><span>{ko ? '전달면' : 'Plane'}</span><span>{ko ? '무엇을 말하나' : 'What it means'}</span><span>{ko ? '수명' : 'Lifetime'}</span></header>
       <section class="token"><strong>Token stream</strong><p>{ko ? '모델이 지금 생성한 텍스트 조각' : 'Text fragments the model emits now'}</p><code>token.delta</code><i>{ko ? '일시적 · 합칠 수 있음' : 'ephemeral · coalescible'}</i></section>
-      <section class="progress"><strong>Progress events</strong><p>{ko ? '실행 상태가 실제로 바뀐 사실' : 'Facts about execution state changes'}</p><code>step.started · approval.required</code><i>{ko ? '내구성 · 재생 가능' : 'durable · replayable'}</i></section>
+      <section class="progress"><strong>Progress events</strong><p>{ko ? '실행 state가 실제로 바뀐 사실' : 'Facts about execution state changes'}</p><code>step.started · approval.required</code><i>{ko ? '내구성 · 재생 가능' : 'durable · replayable'}</i></section>
       <section class="result"><strong>Result</strong><p>{ko ? '확정된 최종 산출물과 terminal state' : 'Committed output and terminal state'}</p><code>run.completed → result_ref</code><i>{ko ? '정본 · 조회 가능' : 'canonical · queryable'}</i></section>
       <footer>{ko ? '연결이 살아 있다는 사실도, token이 흐른다는 사실도, 작업 완료를 뜻하지 않는다.' : 'A live connection and flowing tokens are neither proof that work is progressing nor that it is complete.'}</footer>
     </div>
@@ -45,7 +45,7 @@ const contractRows = ko
         <p>{ko ? '허용된 event type과 payload만 UI로 투영' : 'Only allowed event types and payloads reach the UI'}</p>
         <code>visibility == "user"</code>
       </div>
-      <div class="ui"><span>{ko ? '상태 배지' : 'Status'}</span><span>{ko ? '단계 타임라인' : 'Timeline'}</span><span>{ko ? '승인 요청' : 'Approval'}</span><span>{ko ? '최종 결과' : 'Result'}</span></div>
+      <div class="ui"><span>{ko ? 'state 배지' : 'Status'}</span><span>{ko ? '단계 타임라인' : 'Timeline'}</span><span>{ko ? '승인 요청' : 'Approval'}</span><span>{ko ? '최종 결과' : 'Result'}</span></div>
     </div>
   )}
 

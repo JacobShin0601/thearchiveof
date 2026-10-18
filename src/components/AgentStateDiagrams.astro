@@ -46,7 +46,7 @@ const failures = ko
         <span>{ko ? '먼저 묻는다' : 'Ask first'}</span>
         <strong>{ko ? '이 값은 어떤 실패를 견뎌야 하는가?' : 'Which failures must this value survive?'}</strong>
       </header>
-      <ol aria-label={ko ? '상태 artifact와 물리적 저장 위치' : 'State artifacts and physical storage'}>
+      <ol aria-label={ko ? 'state artifact와 물리적 저장 위치' : 'State artifacts and physical storage'}>
         {artifacts.map(([name, meaning, location], index) => (
           <li>
             <span class="number">{String(index + 1).padStart(2, '0')}</span>
@@ -122,7 +122,7 @@ const failures = ko
       <article>
         <span>02 · Redis</span>
         <strong>Hot Projection</strong>
-        <p>{ko ? '화면과 운영 도구가 즉시 읽는 현재 상태' : 'The current view for UI and operations'}</p>
+        <p>{ko ? '화면과 운영 도구가 즉시 읽는 현재 state' : 'The current view for UI and operations'}</p>
         <small>{ko ? 'current step · progress · heartbeat' : 'current step · progress · heartbeat'}</small>
       </article>
       <article>
@@ -162,7 +162,7 @@ const failures = ko
       <div><b>1</b><strong>GET /runs/&#123;run_id&#125;</strong><small>{ko ? '요청 수신' : 'request'}</small></div>
       <div><b>2</b><strong>PostgreSQL</strong><small>{ko ? '권한 · 영속 status · 결과 확인' : 'authorization · durable status · result'}</small></div>
       <div><b>3</b><strong>Redis</strong><small>{ko ? '활성 Run에만 step · progress 보강' : 'active Run: add step · progress'}</small></div>
-      <div><b>4</b><strong>Response</strong><small>{ko ? '종료 상태는 DB를 우선' : 'terminal status: DB wins'}</small></div>
+      <div><b>4</b><strong>Response</strong><small>{ko ? '종료 state는 DB를 우선' : 'terminal status: DB wins'}</small></div>
     </div>
   )}
 
@@ -182,7 +182,7 @@ const failures = ko
       <div><span>{ko ? '재개 가능한 graph snapshot' : 'Resumable graph snapshot'}</span><b>Checkpointer</b></div>
       <div><span>{ko ? 'thread 밖 장기 메모리' : 'Long-term memory outside a thread'}</span><b>Store</b></div>
       <div><span>{ko ? '현재 progress 투영값' : 'Current progress projection'}</span><b>Application-managed Redis State</b></div>
-      <div><span>{ko ? '프로세스 안의 임시 상태' : 'Process-local temporary State'}</span><b>Runtime memory</b></div>
+      <div><span>{ko ? '프로세스 안의 임시 state' : 'Process-local temporary State'}</span><b>Runtime memory</b></div>
     </div>
   )}
 

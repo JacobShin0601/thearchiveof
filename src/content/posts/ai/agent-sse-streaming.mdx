@@ -66,7 +66,7 @@ Agent에게 기업 분석을 요청하고 40초 동안 로딩 표시만 본다�
 ! 비용 1,000달러 초과 action 승인 필요
 ```
 
-이전 글 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)에서는 승인 대기, 실행, `outcome_unknown` 같은 Tool action 상태를 안전하게 다루는 방법을 정리했다. [State는 Event가 아니다](/ai/agents/state-is-not-event/)에서 만든 Redis snapshot·Stream cursor 위에, 이제 그 event와 action 진행 상태를 HTTP 연결로 브라우저에 전달하는 문제가 남는다.
+이전 글 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)에서는 승인 대기, 실행, `outcome_unknown` 같은 Tool action state를 안전하게 다루는 방법을 정리했다. [State는 Event가 아니다](/ai/agents/state-is-not-event/)에서 만든 Redis snapshot·Stream cursor 위에, 이제 그 event와 action 진행 state를 HTTP 연결로 브라우저에 전달하는 문제가 남는다.
 
 여기서 세 개념이 자주 섞인다.
 
@@ -472,7 +472,7 @@ def validate_stream_cursor(value: str | None) -> str | None:
 
 ## Heartbeat는 애플리케이션 event가 아니다
 
-Agent가 30초 동안 LLM 응답을 기다리면 Stream에 새 event가 없을 수 있다. 그동안 proxy나 브라우저는 연결이 유휴 상태라고 판단할 수 있다.
+Agent가 30초 동안 LLM 응답을 기다리면 Stream에 새 event가 없을 수 있다. 그동안 proxy나 브라우저는 연결이 유휴 state라고 판단할 수 있다.
 
 `XREAD BLOCK 15000`이 timeout되면 SSE comment를 보낸다.
 
@@ -489,7 +489,7 @@ Agent가 30초 동안 LLM 응답을 기다리면 Stream에 새 event가 없을 �
 
 Heartbeat 간격은 proxy 유휴 timeout보다 짧아야 하지만 너무 잦으면 연결 수만큼 불필요한 트래픽이 생긴다. 15초는 예시일 뿐 배포 환경에 맞춰 측정해야 한다.
 
-Heartbeat를 Redis Stream에 `XADD`하지 않는 것도 중요하다. 연결 상태 신호는 도메인 event가 아니다. Viewer가 1,000명이면 각 연결이 독립적으로 heartbeat를 보내면 되고, 공유 event 이력을 오염시킬 이유가 없다.
+Heartbeat를 Redis Stream에 `XADD`하지 않는 것도 중요하다. 연결 state 신호는 도메인 event가 아니다. Viewer가 1,000명이면 각 연결이 독립적으로 heartbeat를 보내면 되고, 공유 event 이력을 오염시킬 이유가 없다.
 
 ## 연결 해제는 취소 protocol의 시작점이다
 

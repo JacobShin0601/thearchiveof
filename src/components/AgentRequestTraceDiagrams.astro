@@ -94,7 +94,7 @@ const failures = ko
       <div class="projection-grid">
         <section class="updates">
           <span class="stream-label">updates</span>
-          <strong>{ko ? '현재 상태의 변화' : 'Changes to current state'}</strong>
+          <strong>{ko ? '현재 state의 변화' : 'Changes to current state'}</strong>
           <code>status · progress · current_step</code>
           <i aria-hidden="true">↓</i>
           <b>HSET run:{'{id}'}:state</b>
@@ -119,7 +119,7 @@ const failures = ko
     <div class="failure-grid">
       <header>
         <span>{ko ? '장애 창' : 'Failure window'}</span>
-        <span>{ko ? '남는 상태' : 'State left behind'}</span>
+        <span>{ko ? '남는 state' : 'State left behind'}</span>
         <span>{ko ? '복구 기준' : 'Recovery rule'}</span>
       </header>
       {failures.map(([window, residue, recovery], index) => (
