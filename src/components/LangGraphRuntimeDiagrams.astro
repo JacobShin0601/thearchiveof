@@ -69,7 +69,11 @@ const diagrams = {
   },
 } as const;
 
-const diagram = diagrams[kind];
+const diagram = diagrams[kind] as {
+  caption: string;
+  items: readonly (readonly string[])[];
+  note: string;
+};
 ---
 <figure class="runtime-diagram" aria-labelledby={`runtime-${kind}`}>
   <figcaption id={`runtime-${kind}`}>{diagram.caption}</figcaption>
