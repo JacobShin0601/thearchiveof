@@ -1,0 +1,437 @@
+---
+title: "How Long Should an Agent Think? Timeouts, Deadlines, and Budgets"
+subtitle: "Separate one wait, end-to-end validity, and token, cost, and retry limits"
+description: "Design bounded agent runs by separating timeouts, deadlines, and resource budgets, then propagate remaining capacity through retries, tools, and child agents."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - timeouts
+  - deadlines
+  - token-budget
+  - retry-policy
+  - graceful-degradation
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "timeouts-deadlines-and-budgets"
+series: "Agent Engineering"
+seriesOrder: 13
+seriesPart: "safety"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "Coroutines and Tasks — Timeouts"
+    url: "https://docs.python.org/3/library/asyncio-task.html#timeouts"
+    publisher: "Python Documentation"
+  - title: "Deadlines"
+    url: "https://grpc.io/docs/guides/deadlines/"
+    publisher: "gRPC Documentation"
+  - title: "Timeouts, retries, and backoff with jitter"
+    url: "https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/"
+    publisher: "Amazon Builders' Library"
+  - title: "Control and limit retry calls"
+    url: "https://docs.aws.amazon.com/wellarchitected/latest/framework/rel_mitigate_interaction_failure_limit_retries.html"
+    publisher: "AWS Well-Architected Framework"
+  - title: "Jobs — activeDeadlineSeconds"
+    url: "https://kubernetes.io/docs/concepts/workloads/controllers/job/"
+    publisher: "Kubernetes Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AgentBudgetDiagrams from '../../../../components/AgentBudgetDiagrams.astro';
+
+<AnswerBlock question="Does an agent run need only one timeout?">
+  <strong>No. A timeout limits one wait, a deadline defines when the whole result stops being useful, and a budget limits consumable resources such as tokens, cost, and retries.</strong> The API should persist an absolute deadline and resource limits once. Workers then subtract queue time and pass only remaining capacity to each step and child.
+</AnswerBlock>
+
+The previous article, [Cancellation Is a Protocol, Not a Status](/en/ai/agents/cancellation-is-a-protocol/), propagated explicit user intent from the API through workers and remote operations.
+
+An agent must also stop without a user pressing Cancel. A search API can hang, an evaluator can keep requesting revisions, and parallel child agents can each spend what they believe is the full token allowance.
+
+A common starting point gives every call the same timeout.
+
+```python
+async def call_tool_with_retry():
+    for _ in range(3):
+        try:
+            async with asyncio.timeout(30):
+                return await call_tool()
+        except TimeoutError:
+            pass
+```
+
+Each attempt lasts at most 30 seconds, yet the function can exceed 90 seconds. Queue wait, retry backoff, and result persistence are outside that limit. Tokens and cost remain unbounded.
+
+Agent boundedness cannot end with `max_steps` or `timeout=30`.
+
+<AgentBudgetDiagrams
+  kind="taxonomy"
+  language="en"
+  caption="Figure 1. A timeout is a duration, a deadline is an instant, and a budget is a consumable balance."
+/>
+
+## Timeouts, deadlines, and budgets answer different questions
+
+Start with precise definitions.
+
+| Boundary | Question | Representation | Typical scope |
+| --- | --- | --- | --- |
+| Timeout | How long should this one operation wait? | Relative duration | Connect, read, tool attempt |
+| Deadline | Until when is the whole result useful? | Absolute instant | Run, request, business expiry |
+| Budget | How much may the run consume? | Decreasing balance | Tokens, cost, retries, steps |
+
+A timeout is a local policy. The same tool might receive five seconds in an interactive request and 60 seconds in an overnight batch.
+
+A deadline is an end-to-end contract. Its clock keeps moving after `202 Accepted` while the run waits in a queue. Giving the worker a fresh 120 seconds at startup erases queue latency from the contract.
+
+A budget does not have to be time. Input tokens, output tokens, retries, tool calls, and organizational cost limits decrease independently.
+
+## The API chooses one absolute run deadline
+
+Do not let clients request arbitrarily long execution. Server policy applies a maximum by product tier and workload type.
+
+```python
+from datetime import datetime, timedelta, timezone
+
+def choose_deadline(requested_seconds: int | None, tier: str) -> datetime:
+    maximum = 120 if tier == "interactive" else 900
+    duration = min(requested_seconds or maximum, maximum)
+    return datetime.now(timezone.utc) + timedelta(seconds=duration)
+```
+
+Persist the policy in the run-creation transaction.
+
+```sql
+INSERT INTO runs (
+    run_id,
+    status,
+    deadline_at,
+    token_budget,
+    cost_budget_micros,
+    retry_budget
+)
+VALUES ($1, 'submitting', $2, $3, $4, $5);
+```
+
+`deadline_at` belongs to the durable run, not worker memory. API crashes, queue redelivery, and worker reclaim all retain the same instant.
+
+Two kinds of clocks appear here.
+
+- Use a UTC absolute timestamp for storage and transport across systems.
+- Use a monotonic clock to measure elapsed time inside one process without wall-clock jumps.
+
+A worker can read the durable deadline, compute remaining time, and convert it to a local monotonic deadline. Passing a remaining duration to a child RPC instead of blindly copying wall-clock time also reduces clock-skew problems. gRPC deadline propagation similarly deducts time already elapsed.
+
+## Queue wait consumes the run deadline
+
+If a run spent 18 seconds in the queue, its worker does not receive a fresh 120 seconds.
+
+```python
+def remaining_seconds(deadline_at: datetime) -> float:
+    now = datetime.now(timezone.utc)
+    return max(0.0, (deadline_at - now).total_seconds())
+
+run = await run_store.get(run_id)
+remaining = remaining_seconds(run.deadline_at)
+
+if remaining <= 0:
+    await run_store.expire_before_start(run.id)
+    await append_event(run.id, "run_deadline_exceeded")
+    await queue.ack(entry_id)
+    return
+```
+
+Perform this check immediately after queue claim and after reclaim. A replacement worker should not begin a run whose value already expired.
+
+<AgentBudgetDiagrams
+  kind="propagation"
+  language="en"
+  caption="Figure 2. One deadline spans queueing through terminal commit; every stage receives only what remains."
+/>
+
+## Every step timeout must fit inside remaining run time
+
+A tool with a 30-second default cannot wait 30 seconds when the run has 11 seconds left. It must also reserve time to persist terminal state and publish events.
+
+```python
+def attempt_timeout(
+    *,
+    configured: float,
+    remaining: float,
+    settle_reserve: float = 2.0,
+) -> float:
+    available = remaining - settle_reserve
+    if available <= 0:
+        raise RunDeadlineExceeded
+    return min(configured, available)
+```
+
+Python's `asyncio.timeout()` delivers cancellation to the current task and converts it into a `TimeoutError` that can be caught outside the context manager.
+
+```python
+remaining = ctx.remaining_seconds()
+timeout = attempt_timeout(
+    configured=tool.default_timeout_seconds,
+    remaining=remaining,
+)
+
+try:
+    async with asyncio.timeout(timeout):
+        result = await tool.invoke(args)
+except TimeoutError:
+    raise StepTimedOut(tool=tool.name, timeout=timeout)
+```
+
+A local timeout does not prove the remote operation stopped. Use the provider's cancellation API where available and, as in the previous article, fence out late results where it is not.
+
+`asyncio.timeout_at()` can share an absolute monotonic deadline inside a process.
+
+```python
+loop = asyncio.get_running_loop()
+local_deadline = loop.time() + remaining
+
+async with asyncio.timeout_at(local_deadline):
+    await execute_graph(ctx)
+```
+
+Nested timeouts are safe: the nearest boundary expires first. If the step runs long, its timeout fires; if the whole run expires first, the outer boundary stops execution. Preserve distinct errors and events so operators know which boundary ended the work.
+
+## Delegate remaining budget instead of copying the original
+
+Giving three parallel agents `token_budget=20_000` each turns one limit into 60,000. Children can share a deadline, but token and cost balances require explicit allocation.
+
+```python
+@dataclass(frozen=True)
+class ChildAllocation:
+    deadline_at: datetime
+    max_input_tokens: int
+    max_output_tokens: int
+    max_cost_micros: int
+    max_attempts: int
+
+async def allocate_child(parent, weight: float) -> ChildAllocation:
+    return await budget_store.reserve(
+        run_id=parent.run_id,
+        deadline_at=parent.deadline_at,
+        input_tokens=int(parent.remaining_input_tokens * weight),
+        output_tokens=int(parent.remaining_output_tokens * weight),
+        cost_micros=int(parent.remaining_cost_micros * weight),
+        attempts=1,
+    )
+```
+
+`reserve` must be transactional or atomic. Concurrent children cannot read the same balance and allocate it twice.
+
+A budget ledger needs at least these transitions:
+
+```text
+reserved → consumed
+    └────→ released
+```
+
+When provider usage arrives, settle the reservation with actual tokens and cost, then release unused capacity. Since prices can change, record the provider, model, and price version applied to that run.
+
+## Retries improve success probability by spending the deadline
+
+A retry count alone is insufficient. Every attempt timeout and backoff consumes the same end-to-end clock.
+
+<AgentBudgetDiagrams
+  kind="retry"
+  language="en"
+  caption="Figure 3. Before honoring max attempts, ask whether the next attempt can finish inside the remaining deadline."
+/>
+
+Check three constraints before starting another attempt.
+
+```python
+def can_retry(ctx, policy, next_backoff: float) -> bool:
+    if ctx.retries_used >= policy.max_retries:
+        return False
+
+    required = (
+        next_backoff
+        + policy.attempt_timeout_seconds
+        + policy.settle_reserve_seconds
+    )
+    return ctx.remaining_seconds() >= required
+```
+
+Retry only errors that the policy considers transient.
+
+```python
+RETRYABLE = (TimeoutError, ConnectionError, RateLimited)
+
+async def call_with_budget(ctx, operation, policy):
+    while True:
+        try:
+            return await operation(timeout=ctx.next_timeout(policy))
+        except RETRYABLE:
+            backoff = policy.jittered_backoff(ctx.retries_used)
+            if not can_retry(ctx, policy, backoff):
+                raise RetryBudgetExhausted
+            await ctx.consume_retry()
+            await asyncio.sleep(backoff)
+```
+
+Jitter prevents many workers from retrying in lockstep, but the sleep is not free. Recheck the deadline afterward.
+
+A side-effecting tool also needs a stable idempotency key before retry. A timeout can mean “the response was not observed in time,” not “the remote action failed.”
+
+## Token and cost budgets are separate ledgers
+
+Token usage and cost are related, but they are not interchangeable. Model choice, cached input, batch pricing, and non-LLM tool charges can make equal token counts cost different amounts.
+
+Reserve capacity for later phases before research consumes the run.
+
+```python
+TOKEN_PLAN = {
+    "research": 8_000,
+    "analysis": 6_000,
+    "verification": 2_000,
+    "synthesis": 4_000,
+}
+
+assert sum(TOKEN_PLAN.values()) <= run.token_budget
+```
+
+Before sending a prompt, check estimated input, reserved output, and usage already settled.
+
+```python
+required = estimated_input + reserved_output
+
+if required > ledger.remaining_tokens:
+    raise TokenBudgetExhausted(
+        required=required,
+        remaining=ledger.remaining_tokens,
+    )
+```
+
+A provider's `max_output_tokens` caps one call. It does not replace the run ledger. If a tool invokes another model internally, that usage must be attributed to the same run.
+
+## Degrade through deterministic policies as capacity falls
+
+It is better to reduce the execution path while useful work remains than to run the full plan until a sudden failure.
+
+<AgentBudgetDiagrams
+  kind="degradation"
+  language="en"
+  caption="Figure 4. Predefine full, reduced, partial, and stop paths from remaining time and resources."
+/>
+
+```python
+def choose_mode(ctx) -> Literal["full", "reduced", "partial", "stop"]:
+    if ctx.expired or ctx.remaining_cost_micros <= 0:
+        return "stop"
+    if ctx.remaining_seconds < 8 or ctx.remaining_tokens < 1_000:
+        return "partial"
+    if ctx.remaining_seconds < 30 or ctx.remaining_tokens < 4_000:
+        return "reduced"
+    return "full"
+```
+
+Do not leave these thresholds to a prompt. Encode them in code or configuration from explicit product tradeoffs, and test them.
+
+A partial result must not disguise a failure. State exactly what completed and what did not.
+
+```json
+{
+  "status": "partial",
+  "reason": "run_deadline_exceeded",
+  "completed_sections": ["earnings", "margin"],
+  "omitted_sections": ["peer_valuation"],
+  "result": "..."
+}
+```
+
+Never expose unverified intermediate text merely because time ran out. Separate artifacts that are safe to return from scratch state that must be discarded.
+
+## Do not collapse every boundary into `failed`
+
+One generic status makes policy problems hard to diagnose.
+
+| Outcome | Meaning | Typical next action |
+| --- | --- | --- |
+| `step_timed_out` | One attempt exceeded its local wait | Check retry budget |
+| `run_deadline_exceeded` | End-to-end validity expired | Forbid retry; commit partial or expired |
+| `token_budget_exhausted` | Token balance is insufficient | Choose reduced or partial path |
+| `cost_budget_exhausted` | Cost ceiling was reached | Stop or request approval |
+| `retry_budget_exhausted` | Additional attempts are exhausted | Fall back or fail terminally |
+
+This taxonomy should reach user messages and operational metrics. A system defect and a designed boundary that worked correctly are different events.
+
+## A Kubernetes deadline does not replace the product deadline
+
+For Kubernetes Jobs, `activeDeadlineSeconds` limits total Job duration and terminates running Pods after the deadline. It cannot replace a per-run product deadline when one Worker Deployment processes many runs.
+
+Infrastructure limits are a final safety net.
+
+```text
+Tool attempt timeout
+    < Run deadline
+    < Worker shutdown grace / infrastructure limit
+```
+
+The application should persist a partial result, terminal reason, and budget ledger before Kubernetes has to terminate the process.
+
+## Tests should not wait for real clocks
+
+Inject a clock and usage meter so boundary tests complete without sleeping for seconds.
+
+```python
+async def test_queue_wait_consumes_run_deadline(fake_clock, worker):
+    run = await create_run(deadline_at=fake_clock.now() + seconds(30))
+
+    fake_clock.advance(seconds(31))
+    await worker.process(run.id)
+
+    stored = await run_store.get(run.id)
+    assert stored.status == "expired"
+    assert tool.calls == 0
+```
+
+The minimum test set includes:
+
+- deadline expiry while queued;
+- retry success after one step timeout;
+- total deadline expiry during backoff;
+- atomic reservation by parallel children;
+- provider usage exceeding the estimate;
+- refusal to consume synthesis reserve during research;
+- transitions from full to reduced and partial;
+- refusal to start a step without commit reserve;
+- preservation of the original deadline after worker reclaim; and
+- rejection of a late remote result after local timeout.
+
+## Implementation checklist
+
+- Are timeout, deadline, and budget represented as distinct fields and errors?
+- Does the API apply server policy once and durably persist `deadline_at`?
+- Do queue wait and backoff consume the total deadline?
+- Does in-process elapsed-time measurement use a monotonic clock?
+- Is every step timeout at most `remaining − settle reserve`?
+- Does each child reserve only a portion of remaining capacity?
+- Are token, cost, retry, and step budgets tracked independently?
+- Does retry check error class, retry balance, and remaining time?
+- Does backoff use jitter and recheck the deadline after sleeping?
+- Does a partial result declare completed scope, omissions, and stop reason?
+- Is the Kubernetes limit separate from the product run deadline?
+- Are boundary tests driven by a fake clock and usage meter?
+
+## After time limits comes safe continuation
+
+Stopping expired work and resuming work hours later seem like opposite goals. They meet at the same question: which state is durable, and how does the runtime avoid repeating a side effect that already finished?
+
+Human approval introduces another policy choice: should waiting consume the execution deadline, or should a paused run use a separate business expiry?
+
+The next article covers **checkpoints, resume, and durable human-in-the-loop workflows**: how to continue the same run at the correct point after a worker dies or an approval arrives much later.

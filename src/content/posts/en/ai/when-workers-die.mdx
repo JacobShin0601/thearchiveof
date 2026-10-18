@@ -1,0 +1,346 @@
+---
+title: "When Workers Die: Queues, XREADGROUP, XACK, and Retries"
+subtitle: "Separate delivery from completion and safely recover pending jobs from dead consumers"
+description: "How Redis Streams consumer groups, pending entries, acknowledgements, reclaiming, and retry policy make agent jobs recoverable after a worker fails."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - redis-streams
+  - consumer-groups
+  - retry
+  - fault-tolerance
+  - idempotency
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "when-workers-die"
+series: "Agent Engineering"
+seriesOrder: 11
+seriesPart: "safety"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "Redis Streams"
+    url: "https://redis.io/docs/latest/develop/data-types/streams/"
+    publisher: "Redis Documentation"
+  - title: "XREADGROUP"
+    url: "https://redis.io/docs/latest/commands/xreadgroup/"
+    publisher: "Redis Documentation"
+  - title: "XACK"
+    url: "https://redis.io/docs/latest/commands/xack/"
+    publisher: "Redis Documentation"
+  - title: "XPENDING"
+    url: "https://redis.io/docs/latest/commands/xpending/"
+    publisher: "Redis Documentation"
+  - title: "XAUTOCLAIM"
+    url: "https://redis.io/docs/latest/commands/xautoclaim/"
+    publisher: "Redis Documentation"
+  - title: "XINFO GROUPS"
+    url: "https://redis.io/docs/latest/commands/xinfo-groups/"
+    publisher: "Redis Documentation"
+  - title: "Redis Persistence"
+    url: "https://redis.io/docs/latest/management/persistence/"
+    publisher: "Redis Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+
+<AnswerBlock question="What happens when a worker dies while running a job?">
+  <strong>A job delivered through a consumer group but not yet acknowledged remains in the Pending Entries List, where a healthy worker can reclaim it after it has been idle long enough.</strong> Redelivery also creates duplicate-execution risk. Persist the terminal result before acknowledging, track each attempt separately, make tool side effects idempotent, and quarantine jobs that exhaust their retry budget.
+</AnswerBlock>
+
+[A Worker Is Not a Thread](/en/ai/agents/worker-is-not-thread/) defined a worker as the role that owns an execution attempt—not as a concurrency primitive. [A Conversation Is Not a Run](/en/ai/agents/conversation-is-not-a-run/) then gave every execution inside a session its own `run_id`.
+
+Now introduce the failure that matters most: a worker takes a job and its Pod terminates. The queue has delivered the message, but PostgreSQL has no terminal result. The system must not lose the job, pretend it succeeded, or retry it forever.
+
+```text
+queued → delivered → running → result persisted → acknowledged
+              │             │
+              └── crash ────┘
+                    ↓
+                  pending
+```
+
+The central rule is simple:
+
+> **Delivery is not completion.**
+
+## Consumer groups divide work and remember unfinished deliveries
+
+After creating a durable run row, the API adds a small execution instruction to a Redis Stream. Prefer a payload centered on the `run_id`, which lets the worker load authoritative data, over copying the entire conversation and secrets into the queue.
+
+```python
+message_id = await redis.xadd(
+    "agent:jobs",
+    {
+        "run_id": str(run_id),
+        "session_id": str(session_id),
+    },
+)
+```
+
+Create the consumer group once. Starting at `0` includes existing entries; `$` starts with entries added after group creation. That choice should be an explicit deployment policy.
+
+```python
+try:
+    await redis.xgroup_create(
+        "agent:jobs",
+        "agent-workers",
+        id="0",
+        mkstream=True,
+    )
+except ResponseError as error:
+    if "BUSYGROUP" not in str(error):
+        raise
+```
+
+Workers in the same group use `XREADGROUP` with `>` to divide entries that have not yet been delivered to that group.
+
+```python
+messages = await redis.xreadgroup(
+    groupname="agent-workers",
+    consumername=worker_id,
+    streams={"agent:jobs": ">"},
+    count=4,
+    block=5_000,
+)
+```
+
+Redis records the delivered entry ID and its consumer in the group's Pending Entries List, or PEL. Pending does not mean “the application is definitely still running it.” It means **Redis delivered the entry and has not received an acknowledgement**.
+
+| State | Stream/consumer-group meaning | Application concern |
+| --- | --- | --- |
+| Not delivered | New entry after the group cursor | Queue lag |
+| Delivered, not acknowledged | Pending entry in the PEL | Run state, attempt state, idle time |
+| `XACK` completed | Removed from the PEL | Durable terminal result |
+| Deleted or trimmed | Original payload may be gone | Retention policy and PEL references |
+
+## Acknowledge only after persisting the result
+
+A safe baseline order is:
+
+```text
+1. Receive job
+2. Create durable attempt
+3. Run the agent and tools
+4. Persist a terminal result or terminal failure
+5. XACK
+```
+
+```python
+async def handle_entry(entry_id: str, fields: dict[bytes, bytes]) -> None:
+    run_id = fields[b"run_id"].decode()
+    attempt = await run_store.start_attempt(run_id, worker_id)
+
+    try:
+        result = await execute_agent(run_id, attempt.id)
+        await run_store.complete_attempt(
+            run_id=run_id,
+            attempt_id=attempt.id,
+            result=result,
+        )
+    except RetryableError as error:
+        await run_store.mark_retryable_failure(attempt.id, error)
+        return  # Do not ack; the recovery loop can reclaim it later.
+    except Exception as error:
+        await run_store.fail_run(run_id, attempt.id, error)
+
+    await redis.xack("agent:jobs", "agent-workers", entry_id)
+```
+
+If the worker acknowledges first and result persistence fails, the entry leaves the PEL while the user has no result. If the worker commits the result and dies just before acknowledging, Redis may redeliver the entry. The second failure is recoverable, but the application must tolerate duplicates.
+
+`XACK` removes the PEL reference; it does not delete the entry from the Stream. Memory retention and deletion belong to `XTRIM`, `XDEL`, or another explicit retention policy.
+
+## A dead worker leaves a pending entry
+
+When Worker A exits after receiving an entry, that entry remains pending under A. Another worker reading only new entries with `>` will not receive it. A separate recovery loop must claim entries that have been idle long enough.
+
+```python
+async def reclaim_stale_jobs() -> None:
+    cursor = "0-0"
+
+    while True:
+        cursor, entries, deleted = await redis.xautoclaim(
+            "agent:jobs",
+            "agent-workers",
+            worker_id,
+            min_idle_time=120_000,
+            start_id=cursor,
+            count=20,
+        )
+
+        for entry_id, fields in entries:
+            await handle_entry(entry_id, fields)
+
+        if cursor == "0-0":
+            break
+```
+
+`XAUTOCLAIM`'s `min_idle_time` is not proof that the original worker is dead. A long tool call, process pause, or network problem can leave a healthy worker silent. Claim too early and two workers may execute the same run; claim too late and recovery becomes slow.
+
+Choose the threshold from observed execution-time distributions. Add heartbeats or a renewable lease for long-running work, and do not treat queue idle time as the only source of execution ownership.
+
+## Attempts and fencing reject late workers
+
+A run is the user-visible execution. An attempt is one worker's try.
+
+```text
+Run R1
+├─ Attempt 1 / Worker A / fence 41 / timed_out
+└─ Attempt 2 / Worker B / fence 42 / running
+```
+
+Suppose the system reassigns the job to B, then A resumes late. Last-write-wins would let the stale worker overwrite B's result. Issue a monotonically increasing fencing token for each attempt and accept writes only from the active token.
+
+```sql
+UPDATE runs
+SET status = 'succeeded',
+    result_json = $1,
+    finished_at = now()
+WHERE run_id = $2
+  AND active_fence = $3
+  AND status = 'running';
+```
+
+If zero rows change, that worker no longer owns the attempt. It must discard its result and re-check the queue state.
+
+## At-least-once delivery can duplicate side effects
+
+A redeliverable queue cannot promise that application code runs once.
+
+| Crash point | Possible result after redelivery | Defense |
+| --- | --- | --- |
+| Before job delivery | Another worker receives it normally | None |
+| Before a tool call | Agent computation repeats | Cost and attempt limits |
+| After external API succeeds, before recording | External side effect repeats | Idempotency key, execution ledger |
+| After DB result commit, before ack | Completed run is delivered again | Terminal-state check, idempotent completion |
+| After ack | Queue considers it complete | Result must already be durable |
+
+Before beginning execution, a worker should detect terminal runs.
+
+```python
+run = await run_store.get(run_id)
+if run.status in {"succeeded", "failed", "cancelled"}:
+    await redis.xack("agent:jobs", "agent-workers", entry_id)
+    return
+```
+
+That status check cannot prevent every external duplicate. Email, payment, ticketing, and other side-effecting tools need a stable key such as `(run_id, tool_call_id)`. This is the same boundary explored in [Can an Agent Tool Run Exactly Once?](/en/ai/agents/agent-tool-idempotency-approval-retry/).
+
+## Retry is policy, not merely re-raising an exception
+
+Retrying every error the same way amplifies outages.
+
+```python
+def classify(error: Exception) -> str:
+    if isinstance(error, (RateLimitError, TemporaryNetworkError)):
+        return "retryable"
+    if isinstance(error, (InvalidInputError, PermissionDenied)):
+        return "terminal"
+    return "unknown"
+```
+
+A useful retry policy includes:
+
+- a maximum attempt count and total elapsed-time budget;
+- exponential backoff with jitter;
+- error classification and provider-specific limits;
+- a replayable checkpoint;
+- idempotent side effects; and
+- a dead-letter or quarantine path after exhaustion.
+
+Leaving a poison job in the PEL forever makes the recovery loop repeat the same failure. Once the budget is exhausted, persist a terminal failure, retain the original entry ID, error classification, and attempt history for investigation, then acknowledge it.
+
+```python
+if attempt.number >= MAX_ATTEMPTS:
+    await run_store.fail_permanently(run_id, attempt.id, error)
+    await redis.xadd(
+        "agent:jobs:dead",
+        {"run_id": run_id, "source_id": entry_id, "reason": error.code},
+    )
+    await redis.xack("agent:jobs", "agent-workers", entry_id)
+```
+
+A dead-letter stream is an **isolation and investigation boundary**, not an automatic retry list. Requeue only after the underlying cause is understood or fixed.
+
+## Queue durability is a configuration choice
+
+Using a Redis Stream does not automatically preserve jobs through every Redis server failure. Persistence, replication, failover, and backup settings must match the required durability. RDB snapshots and AOF offer different performance and data-loss tradeoffs.
+
+Aggressive Stream trimming can also remove the original entry while a PEL reference remains, depending on version and command options. Check the semantics of the deployed Redis version and retain entries longer than the maximum recovery window. This is another reason to keep PostgreSQL runs and attempts as the durable source of truth instead of treating the queue as the only business record.
+
+## Operations must watch both new and pending jobs
+
+Queue length alone misses important failures. Group lag can be zero because every new entry was delivered while hundreds of jobs remain pending under dead consumers.
+
+```text
+New work waiting: group lag
+Delivered but unfinished: PEL count
+Recovery delay: oldest pending idle time
+Job health: attempt count / retry rate / terminal failure rate
+Performance: queue wait / run duration / end-to-end latency
+```
+
+Observe `XINFO GROUPS`, `XINFO CONSUMERS`, and `XPENDING` alongside application run metrics. Consumer names should identify deployment and instance clearly enough to trace a failed Pod.
+
+## Failure tests must actually kill the process
+
+Happy-path unit tests cannot validate recovery.
+
+| Test | Expected result |
+| --- | --- |
+| Kill worker immediately after delivery | Entry stays pending and another worker reclaims it |
+| Kill after result commit, before ack | Redelivered terminal run is not executed again and is acknowledged |
+| Kill immediately after tool side effect | Stable idempotency key prevents duplicate effect |
+| Reclaim a live, slow attempt too early | Fencing rejects the stale attempt's write |
+| Repeat retryable failure | Backoff, then quarantine at the attempt limit |
+| Terminal input error | Record failure and ack without pointless retries |
+| Trim original payload of pending ID | Detect, alert, and make recovery decision from durable run data |
+
+```python
+async def test_crash_after_commit_does_not_repeat_tool(worker, queue, store):
+    job = await queue.publish(run_id="R1")
+    await worker.run_until_result_committed(job)
+    await worker.kill_before_ack()
+
+    await recovery_worker.reclaim(job)
+
+    assert await store.run_status("R1") == "succeeded"
+    assert await store.tool_execution_count("R1") == 1
+    assert await queue.is_pending(job) is False
+```
+
+This integration test reveals more than injecting a mock exception. Run the worker as a separate process or container, terminate it, and inspect both the PEL and database state.
+
+## Implementation checklist
+
+- Are both new-entry consumption and pending-entry recovery implemented?
+- Is the PEL understood as unacknowledged delivery, not completed work?
+- Does `XACK` happen only after a durable terminal state?
+- Are acknowledgement and Stream entry deletion treated separately?
+- Are run and attempt separate, with stale-worker writes rejected?
+- Is reclaim timeout based on real durations and heartbeat policy?
+- Can a redelivered terminal run be acknowledged safely?
+- Does every external side effect use a stable idempotency key?
+- Are retry budgets and poison-job quarantine explicit?
+- Do Redis persistence and Stream retention satisfy recovery needs?
+- Do alerts include pending count and oldest idle time, not just lag?
+- Do integration tests kill workers before and after acknowledgement?
+
+## After recoverable queues comes the deployment lifecycle
+
+Consumer groups preserve execution intent when a worker process disappears and let another worker take ownership. Production still has to decide why Pods terminate, when a draining worker stops accepting new jobs, how many replicas to run, and how queue depth drives scaling.
+
+The next article separates API and worker Deployments on Kubernetes, then connects graceful shutdown, resource requests, bounded concurrency, and queue-based scaling. Starting from the fact that a worker is not a special Kubernetes object, it asks how to turn a recoverable execution role into a reliable deployment unit.

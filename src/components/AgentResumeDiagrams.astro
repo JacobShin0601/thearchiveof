@@ -1,0 +1,125 @@
+---
+interface Props {
+  kind: 'layers' | 'lifecycle' | 'handoff' | 'replay';
+  language?: 'ko' | 'en';
+  caption: string;
+}
+
+const { kind, language = 'ko', caption } = Astro.props;
+const ko = language === 'ko';
+
+const layers = ko
+  ? [
+      ['Graph checkpoint', '어디서 다시 시작할까?', 'state · next node · interrupt · checkpoint_id'],
+      ['Run record', '사용자에게 어떤 state인가?', 'waiting_approval · resuming · terminal result'],
+      ['Approval record', '누가 무엇을 결정했나?', 'action digest · reviewer · decision · expiry'],
+      ['Execution ledger', '무엇이 이미 실행됐나?', 'tool_call_id · idempotency key · side effect result'],
+    ]
+  : [
+      ['Graph checkpoint', 'Where should execution restart?', 'state · next node · interrupt · checkpoint_id'],
+      ['Run record', 'What is the product state?', 'waiting_approval · resuming · terminal result'],
+      ['Approval record', 'Who decided what?', 'action digest · reviewer · decision · expiry'],
+      ['Execution ledger', 'What already executed?', 'tool_call_id · idempotency key · side effect result'],
+    ];
+
+const lifecycle = ko
+  ? [
+      ['running', 'Worker가 graph 실행'],
+      ['pausing', 'checkpoint와 approval 기록'],
+      ['waiting_approval', 'Worker·delivery 해제'],
+      ['resume_queued', '결정 commit 후 새 job'],
+      ['resuming', '새 attempt가 cursor 검증'],
+      ['running', '승인 다음 경로 실행'],
+    ]
+  : [
+      ['running', 'Worker executes graph'],
+      ['pausing', 'Persist checkpoint and approval'],
+      ['waiting_approval', 'Release worker and delivery'],
+      ['resume_queued', 'New job after decision commit'],
+      ['resuming', 'New attempt validates cursor'],
+      ['running', 'Continue after the decision'],
+    ];
+
+const handoff = ko
+  ? [
+      ['1', 'Worker', 'interrupt()', 'graph state를 durable하게 저장'],
+      ['2', 'Product DB', 'approval = pending', 'action digest와 expiry를 기록'],
+      ['3', 'Queue', 'XACK current entry', '대기 중 Worker ownership을 해제'],
+      ['4', 'Reviewer API', 'decision + outbox', '권한 검증 후 한 번만 결정'],
+      ['5', 'Resume Worker', 'Command(resume=...)', '새 attempt로 같은 checkpoint 재개'],
+    ]
+  : [
+      ['1', 'Worker', 'interrupt()', 'Durably persist graph state'],
+      ['2', 'Product DB', 'approval = pending', 'Store action digest and expiry'],
+      ['3', 'Queue', 'XACK current entry', 'Release worker ownership while waiting'],
+      ['4', 'Reviewer API', 'decision + outbox', 'Authorize and decide exactly once'],
+      ['5', 'Resume Worker', 'Command(resume=...)', 'Continue checkpoint in a new attempt'],
+    ];
+---
+
+<figure class="resume-diagram" aria-label={caption}>
+  {kind === 'layers' && (
+    <div class="layers">
+      {layers.map(([name, question, contents], index) => (
+        <section>
+          <span>0{index + 1}</span><strong>{name}</strong><p>{question}</p><code>{contents}</code>
+        </section>
+      ))}
+      <footer>{ko ? 'Checkpoint 하나가 product truth, authorization, side-effect history를 모두 대신하지 않는다.' : 'A checkpoint does not replace product truth, authorization, or side-effect history.'}</footer>
+    </div>
+  )}
+
+  {kind === 'lifecycle' && (
+    <div class="lifecycle">
+      <ol>
+        {lifecycle.map(([state, detail], index) => (
+          <li class:list={{ waiting: state === 'waiting_approval', resume: state === 'resuming' }}>
+            <span>0{index + 1}</span><code>{state}</code><small>{detail}</small>
+          </li>
+        ))}
+      </ol>
+      <div class="terminal">
+        <span><code>rejected</code></span><span><code>expired</code></span><span><code>cancelled</code></span><span><code>succeeded</code></span>
+      </div>
+      <footer>{ko ? 'Pause는 Worker를 세워 두는 state가 아니라 실행 ownership을 반납한 durable state다.' : 'Pause is a durable state that releases execution ownership, not a worker left waiting.'}</footer>
+    </div>
+  )}
+
+  {kind === 'handoff' && (
+    <ol class="handoff">
+      {handoff.map(([number, owner, operation, detail]) => (
+        <li><span>{number}</span><strong>{owner}</strong><code>{operation}</code><p>{detail}</p></li>
+      ))}
+    </ol>
+  )}
+
+  {kind === 'replay' && (
+    <div class="replay">
+      <header><strong>{ko ? 'Resume은 node의 다음 줄이 아니라 node 시작점에서 replay한다' : 'Resume replays the node; it does not continue at the next source line'}</strong></header>
+      <div class="replay-grid">
+        <section class="unsafe">
+          <span>{ko ? '위험' : 'Unsafe'}</span>
+          <code>send_email()</code><i>↓</i><code>interrupt()</code><i>↓</i><b>{ko ? 'resume → 이메일 재발송' : 'resume → email sent again'}</b>
+        </section>
+        <section class="safe">
+          <span>{ko ? '안전' : 'Safe'}</span>
+          <code>approval_node</code><i>↓</i><code>interrupt()</code><i>↓</i><code>effect_node + ledger</code><i>↓</i><b>{ko ? '한 번만 실행' : 'execute once'}</b>
+        </section>
+      </div>
+      <footer>{ko ? 'Interrupt 이전 코드는 재실행 가능해야 하며, 비가역 side effect는 별도 node와 idempotency key로 보호한다.' : 'Code before an interrupt must be replay-safe; isolate irreversible effects behind a separate node and idempotency key.'}</footer>
+    </div>
+  )}
+
+  <figcaption>{caption}</figcaption>
+</figure>
+
+<style>
+  .resume-diagram{margin:2.5rem 0;padding:1.2rem;border:1px solid var(--line);border-radius:.9rem;background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.9rem;line-height:1.5}.resume-diagram figcaption{margin-top:1rem;color:var(--muted);font-size:.84rem;line-height:1.55}.resume-diagram code{overflow-wrap:anywhere;color:var(--ink);font-size:.71rem}
+  .layers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}.layers section{display:grid;grid-template-columns:auto 1fr;gap:.25rem .55rem;padding:.8rem;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:.5rem;background:var(--paper)}.layers section>span{grid-row:1/4;display:grid;place-items:center;align-self:start;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--accent);color:var(--paper-deep);font-size:.62rem;font-weight:800}.layers strong{font-size:.8rem}.layers p{margin:0;color:var(--muted);font-size:.69rem}.layers code{margin-top:.2rem}.layers footer{grid-column:1/-1;padding:.65rem;border:1px dashed var(--line);background:var(--paper);color:var(--muted);font-size:.71rem}
+  .lifecycle{display:grid;gap:.65rem}.lifecycle ol{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.35rem;margin:0;padding:0;list-style:none}.lifecycle li{position:relative;display:grid;gap:.3rem;padding:.7rem;border:1px solid var(--line);border-radius:.5rem;background:var(--paper)}.lifecycle li:not(:last-child):after{content:'→';position:absolute;z-index:1;right:-.48rem;top:45%;color:var(--accent)}.lifecycle li.waiting{border:2px solid var(--accent)}.lifecycle li.resume{background:color-mix(in srgb,var(--accent) 10%,var(--paper))}.lifecycle li>span{color:var(--muted);font-size:.61rem}.lifecycle li small{color:var(--muted);font-size:.64rem}.terminal{display:flex;flex-wrap:wrap;justify-content:center;gap:.4rem}.terminal span{padding:.25rem .5rem;border:1px dashed var(--line);background:var(--paper)}.lifecycle footer{padding:.65rem;border-left:3px solid var(--accent);background:var(--paper);color:var(--muted);font-size:.71rem}
+  .handoff{display:grid;gap:.4rem;margin:0;padding:0;list-style:none}.handoff li{display:grid;grid-template-columns:auto minmax(7rem,.65fr) minmax(9rem,.9fr) minmax(0,1.3fr);gap:.55rem .75rem;align-items:center;padding:.7rem;border:1px solid var(--line);border-radius:.5rem;background:var(--paper)}.handoff li>span{display:grid;place-items:center;width:1.55rem;height:1.55rem;border-radius:50%;background:var(--accent);color:var(--paper-deep);font-size:.66rem;font-weight:800}.handoff li strong{font-size:.76rem}.handoff li p{margin:0;color:var(--muted);font-size:.69rem}
+  .replay{display:grid;gap:.7rem}.replay>header{padding:.7rem;border-left:3px solid var(--accent);background:var(--paper)}.replay-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.replay-grid section{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.45rem;padding:.85rem;border:1px solid var(--line);border-radius:.55rem;background:var(--paper)}.replay-grid section>span{width:100%;color:var(--accent);font-size:.68rem;font-weight:800;text-transform:uppercase}.replay-grid i{color:var(--accent);font-style:normal}.replay-grid b{font-size:.7rem}.replay-grid .unsafe{border-style:dashed}.replay>footer{padding:.65rem;border:1px dashed var(--line);color:var(--muted);font-size:.71rem}
+  @media(max-width:760px){.lifecycle ol{grid-template-columns:1fr 1fr}.lifecycle li:after{display:none}.handoff li{grid-template-columns:auto 1fr}.handoff li code,.handoff li p{grid-column:2}.replay-grid{grid-template-columns:1fr}}
+  @media(max-width:520px){.resume-diagram{padding:.8rem}.layers{grid-template-columns:1fr}.layers footer{grid-column:1}.lifecycle ol{grid-template-columns:1fr}.handoff li{align-items:start}}
+  @media(prefers-color-scheme:dark){.resume-diagram{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
+</style>

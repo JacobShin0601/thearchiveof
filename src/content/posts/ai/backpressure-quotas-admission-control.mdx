@@ -1,0 +1,450 @@
+---
+title: "Worker를 더 늘리기 전에: Backpressure와 Agent Admission Control"
+subtitle: "Bounded queue, tenant quota와 downstream-aware concurrency로 과부하를 제어하는 법"
+description: "Agent backend의 admission control, bounded queue, tenant quota, 공정한 scheduling과 load shedding을 설계해 autoscaling만으로 해결되지 않는 과부하를 제어합니다."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - backpressure
+  - admission-control
+  - rate-limiting
+  - load-shedding
+  - keda
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "ko"
+translationKey: "backpressure-quotas-admission-control"
+series: "Agent Engineering"
+seriesOrder: 21
+seriesPart: "delivery"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "Handling Overload"
+    url: "https://sre.google/sre-book/handling-overload/"
+    publisher: "Google Site Reliability Engineering"
+  - title: "Addressing Cascading Failures"
+    url: "https://sre.google/sre-book/addressing-cascading-failures/"
+    publisher: "Google Site Reliability Engineering"
+  - title: "Using Load Shedding to Avoid Overload"
+    url: "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/"
+    publisher: "Amazon Builders' Library"
+  - title: "Redis XINFO GROUPS"
+    url: "https://redis.io/docs/latest/commands/xinfo-groups/"
+    publisher: "Redis Documentation"
+  - title: "KEDA ScaledObject Specification"
+    url: "https://keda.sh/docs/2.21/reference/scaledobject-spec/"
+    publisher: "KEDA Documentation"
+  - title: "RFC 6585 — Additional HTTP Status Codes"
+    url: "https://www.rfc-editor.org/rfc/rfc6585.html"
+    publisher: "RFC Editor"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import AgentBackpressureDiagrams from '../../../components/AgentBackpressureDiagrams.astro';
+
+<AnswerBlock question="Queue가 계속 늘어나면 Worker를 더 추가하면 되는가?">
+  <strong>아니다. Worker는 자신이 의존하는 DB connection, model provider quota와 tool API의 안전 처리량 안에서만 늘릴 수 있다.</strong> 그 경계를 넘은 autoscaling은 backlog를 더 빠르게 downstream으로 밀어 장애를 증폭한다. Admission control로 받을 일을 제한하고, bounded queue와 tenant별 quota·concurrency로 수용한 일을 공정하게 처리해야 한다.
+</AnswerBlock>
+
+앞선 글 [Agent를 디버깅하는 법](/ai/agents/agent-observability-trajectories/)에서는 queue wait, active run, retry와 downstream latency를 하나의 trajectory로 연결했다. Dashboard가 다음 상황을 보여 준다고 하자.
+
+```text
+arrival rate       12 runs/s
+completion rate     8 runs/s
+queue depth       2,400 runs
+oldest queue age     11 min
+deadline miss rate   27%
+```
+
+첫 반응은 Worker replica를 늘리는 것이다. 하지만 병목이 model provider의 tokens/minute나 PostgreSQL connection pool이라면 Worker만 늘릴수록 timeout과 retry가 많아진다. 완료율은 그대로인데 in-flight work와 비용만 늘어난다.
+
+Backpressure는 “느려졌다”는 monitoring signal이 아니다. **생산자가 소비자와 downstream의 안전 처리율을 넘지 않도록 수용량을 되돌려 주는 control protocol**이다.
+
+<AgentBackpressureDiagrams
+  kind="collapse"
+  language="ko"
+  caption="그림 1. 도착률이 처리율을 지속적으로 넘으면 unbounded queue가 지연을 숨길 뿐, 처리 능력을 만들지는 않는다."
+/>
+
+## Queue는 capacity가 아니라 시간의 빚이다
+
+도착률 `λ`가 처리율 `μ`보다 짧게 높아지는 burst는 Queue가 흡수할 수 있다. `λ > μ`가 지속되면 backlog는 계속 증가한다.
+
+안정 state에서 Little's Law는 다음 관계를 준다.
+
+```text
+L = λW
+
+L: 시스템 안의 평균 work 수
+λ: 평균 처리량
+W: 평균 체류 시간
+```
+
+이는 과부하를 예측하는 마법 공식이 아니라 관측값의 관계다. 예를 들어 안정적인 completion rate가 초당 8개인데 800개가 앞에 있다면, 아주 거칠게도 대기 시간은 100초 규모다. 각 run의 service time과 priority가 다르면 실제 분포는 더 넓어진다.
+
+Queue capacity는 저장 공간이 허용하는 최대 message 수로 정하지 않는다. 사용자가 받아들일 수 있는 최대 queue wait와 유효한 deadline에서 역산한다.
+
+```python
+def queue_is_admissible(*, depth: int, service_rate: float, max_wait: float) -> bool:
+    if service_rate <= 0:
+        return False
+
+    estimated_wait = depth / service_rate
+    return estimated_wait < max_wait
+```
+
+이 추정치는 admission의 한 input일 뿐이다. 실제 제어에는 operation별 service-time histogram, priority lane과 downstream saturation을 함께 사용한다.
+
+## 먼저 capacity를 하나의 숫자가 아니라 vector로 본다
+
+Agent run은 여러 제한 자원을 소비한다.
+
+| 자원 경계 | 대표 단위 | 포화 시 증상 |
+| --- | --- | --- |
+| API admission | request/s, burst | 429·503 증가 |
+| Queue | depth, oldest age | deadline 이전부터 만료 |
+| Worker | active run, CPU, memory | event-loop lag, OOM |
+| Database | connection, transaction/s | pool wait, lock timeout |
+| Model provider | request/min, token/min | throttle, long tail latency |
+| Tool provider | concurrency, request/s | 429, timeout, circuit open |
+| Tenant budget | token/day, cost/month | 한 고객이 비용 독점 |
+
+Global concurrency가 100이어도 model-heavy run 100개와 cached lookup 100개는 같은 부하가 아니다. Admission record에 `work_class`와 보수적인 `estimated_cost_units`를 부여하고 완료 후 실제 사용량으로 reconcile한다.
+
+```python
+def estimate_units(request: RunRequest) -> int:
+    units = 1
+    units += min(request.max_steps, 12)
+    units += request.attachment_bytes // 1_000_000
+    if request.operation == "deep_research":
+        units += 8
+    return units
+```
+
+정교하지 않은 추정치라도 모든 run을 동일한 한 건으로 세는 것보다 낫다. 단, 사용자가 조작할 수 있는 self-reported 값만 믿지 않고 server-side policy가 상한을 둔다.
+
+## Rate limit, quota, concurrency limit는 다른 경계다
+
+용어를 하나로 합치면 overload가 새어 나간다.
+
+| 제어 | 제한하는 것 | 예시 |
+| --- | --- | --- |
+| Rate limit | 짧은 시간의 도착 속도 | tenant당 10 run/min |
+| Burst limit | 순간 spike | token bucket capacity 5 |
+| Concurrency limit | 동시에 실행 중인 일 | tenant당 active run 4개 |
+| Queue limit | 대기 중인 일 | tenant당 queued run 20개 |
+| Usage quota | 기간 누적 소비 | 월 100M tokens, $1,000 |
+| Deadline admission | 완료 가능성 | 예상 queue wait가 남은 시간보다 짧음 |
+
+Token bucket은 일정 rate로 token을 채우고 burst만큼 잠시 모아 둔다. 사용 가능한 token이 없으면 기다리게 하지 말고 admission 단계에서 거절하거나 낮은 priority queue로 명시적으로 전환한다.
+
+Local in-memory limiter는 한 API process만 보호한다. 여러 Pod에서 tenant quota를 정확히 공유하려면 Redis의 atomic script나 database row처럼 distributed authority가 필요하다.
+
+```python
+async def reserve_admission(request, tenant, limiter, quota_store):
+    units = estimate_units(request)
+
+    if not await limiter.take(
+        key=f"rate:{tenant.id}:{request.operation}",
+        tokens=units,
+    ):
+        raise QuotaExceeded(retry_after=limiter.retry_after)
+
+    return await quota_store.reserve(
+        tenant_id=tenant.id,
+        units=units,
+        idempotency_key=request.idempotency_key,
+    )
+```
+
+Reservation은 성공 시 usage ledger로 정산하고, admission transaction이 실패하면 release한다. Worker crash 뒤에도 자동 만료나 reconciliation job이 reservation leak을 회수해야 한다.
+
+## Admission은 Queue에 넣기 전에 결정한다
+
+이미 durable run을 만들고 `202 Accepted`를 반환한 뒤 “사실 capacity가 없었다”고 조용히 버리면 안 된다. `202`는 시스템이 결과 또는 명시적인 terminal failure까지 ownership을 맡았다는 계약이다.
+
+<AgentBackpressureDiagrams
+  kind="gates"
+  language="ko"
+  caption="그림 2. Authentication부터 quota와 capacity까지 통과한 요청만 run·reservation·outbox를 원자적으로 기록한다."
+/>
+
+권장 순서는 다음과 같다.
+
+1. Tenant와 user identity, operation 권한을 확인한다.
+2. Idempotency key로 이미 수용한 같은 요청인지 먼저 찾는다.
+3. Rate, burst, 기간 usage quota를 확인하고 capacity를 reserve한다.
+4. Queue age, active concurrency와 downstream health를 확인한다.
+5. Run, quota reservation과 enqueue outbox를 하나의 transaction으로 commit한다.
+6. 그 뒤에만 `202 Accepted`와 `run_id`를 반환한다.
+
+```python
+async def admit_run(request: RunRequest, actor: Actor) -> AcceptedRun:
+    existing = await run_store.find_by_idempotency_key(
+        tenant_id=actor.tenant_id,
+        key=request.idempotency_key,
+    )
+    if existing:
+        return AcceptedRun.from_existing(existing)
+
+    decision = await admission_policy.evaluate(request, actor)
+    if not decision.accepted:
+        raise decision.as_http_error()
+
+    async with db.transaction():
+        reservation = await quota_store.reserve_for_update(decision)
+        run = await run_store.create(request, actor, reservation)
+        await outbox.append("run_queued", {"run_id": str(run.id)})
+
+    return AcceptedRun(run_id=run.id, status="queued")
+```
+
+Global load balancer의 429만으로는 tenant별 cost, operation별 deadline이나 downstream별 concurrency를 알 수 없다. Edge limit은 1차 방어선이고 application admission controller가 product semantics를 판단한다.
+
+## 429와 503은 같은 거절이 아니다
+
+Client가 다음 행동을 결정할 수 있게 원인을 구분한다.
+
+- `429 Too Many Requests`: 특정 user·tenant·API key의 rate나 quota를 넘음
+- `503 Service Unavailable`: 시스템 전체 또는 필수 downstream이 일시적으로 안전 capacity를 잃음
+- `202 Accepted`: durable run이 생성됐고 시스템이 lifecycle을 책임짐
+
+가능하면 `Retry-After`와 machine-readable reason을 보낸다.
+
+```json
+{
+  "error": "admission_rejected",
+  "reason": "tenant_concurrency_exhausted",
+  "retryable": true,
+  "retry_after_seconds": 12,
+  "limit": 4,
+  "active": 4
+}
+```
+
+Client는 같은 payload에 idempotency key를 유지하고, `Retry-After` 이후 exponential backoff와 jitter로 재시도한다. 거절된 모든 client가 정확히 같은 초에 재시도하면 recovery 순간에 새 spike를 만든다.
+
+Authentication failure나 invalid schema는 overload response로 숨기지 않는다. Retry해도 성공하지 않을 요청은 4xx로 빠르게 끝내야 capacity를 보호한다.
+
+## Semaphore는 Worker 내부 보호이고 global quota는 아니다
+
+한 process 안에서는 bounded semaphore가 model·tool 호출의 fan-out을 막는다.
+
+```python
+MODEL_LIMIT = asyncio.Semaphore(8)
+
+async def invoke_model(request):
+    async with MODEL_LIMIT:
+        return await model_client.invoke(request)
+```
+
+Pod가 10개면 최대 80개 호출이 나간다. Provider의 안전 한도가 40이라면 local semaphore 8은 충분하지 않다. Global limiter 또는 partition별 token lease를 추가하고 replica 수와 local limit의 곱을 검증한다.
+
+Tenant semaphore도 distributed counter나 lease로 구현해야 여러 Worker 사이에서 의미가 있다. Lease에는 owner, expiry와 fencing token을 두고 crash 후 capacity가 영원히 잠기지 않게 한다.
+
+```python
+async with capacity_lease(
+    resource="model:provider-a",
+    tenant_id=run.tenant_id,
+    units=run.estimated_units,
+    ttl=30,
+) as lease:
+    result = await invoke_with_fence(run, lease.fence)
+```
+
+TTL만 믿고 오래 실행하는 call의 lease가 중간에 만료되지 않도록 heartbeat와 maximum call timeout을 함께 설계한다.
+
+## 하나의 FIFO는 공정하지 않다
+
+Tenant A가 batch run 10,000개를 먼저 넣으면 Tenant B의 interactive run 한 개가 뒤에서 기다린다. FIFO가 arrival order에는 공정하지만 tenant와 user experience에는 공정하지 않은 상황이다.
+
+<AgentBackpressureDiagrams
+  kind="fairness"
+  language="ko"
+  caption="그림 3. Tenant와 work class별 lane을 두고 weight, priority, aging과 cost unit으로 실행 slot을 배분한다."
+/>
+
+Production scheduler는 다음 축을 함께 본다.
+
+- Tenant별 active·queued limit과 weight
+- Interactive, scheduled, batch 같은 work class
+- 요청 age와 deadline
+- 예상 cost unit
+- 같은 session의 serialization requirement
+- 특정 downstream의 남은 capacity
+
+Strict priority만 쓰면 batch가 영원히 실행되지 않는 starvation이 생긴다. Aging으로 오래 기다린 run의 effective priority를 올리거나 weighted fair queueing, deficit round robin처럼 cost가 다른 job을 공정하게 배분하는 정책을 사용한다.
+
+Priority는 고객이 임의 숫자로 보내는 field가 아니다. Entitlement와 operation policy에서 server가 계산한다.
+
+## Queue depth보다 oldest age와 lag를 함께 본다
+
+Queue depth 1,000은 job이 50ms인지 5분인지에 따라 의미가 다르다. 최소한 다음을 함께 관찰한다.
+
+- Ready backlog와 consumer lag
+- Pending/in-flight 수와 oldest pending age
+- Oldest ready job age
+- Completion rate와 service-time histogram
+- Deadline까지 남은 시간
+- Tenant·priority별 backlog
+
+Redis Streams에서 `XINFO GROUPS`의 `lag`는 아직 consumer에게 전달되지 않은 entry 수이고, `pending`은 전달됐지만 ack되지 않은 PEL entry 수다. 둘을 합쳐 하나의 “queue depth”라고 부르면 scale-out이 필요한 ready backlog와 느리거나 죽은 consumer의 pending work를 구분하지 못한다.
+
+```python
+async def queue_health(redis, stream: str, group: str) -> dict:
+    groups = await redis.xinfo_groups(stream)
+    info = next(item for item in groups if item["name"] == group)
+
+    return {
+        "ready_lag": info.get("lag"),
+        "pending": info["pending"],
+        "consumers": info["consumers"],
+    }
+```
+
+Oldest age는 별도 timestamp나 stream ID에서 계산하고, clock skew와 trimmed entry를 고려한다.
+
+## Load shedding은 실패가 아니라 더 큰 실패를 막는 선택이다
+
+모든 요청을 받았다가 전부 deadline을 넘기는 것보다 일부를 빠르게 거절하고 수용한 요청을 지키는 편이 낫다. 비용이 가장 적게 든 경계에서 shed한다.
+
+1. Invalid·unauthorized·expired work를 먼저 거절한다.
+2. 중복 idempotency key는 기존 run으로 합친다.
+3. Low-priority batch admission을 중단한다.
+4. Optional retrieval, evaluator, high-resolution context를 줄이는 degraded mode를 사용한다.
+5. 새 interactive request도 429·503으로 명시적으로 거절한다.
+
+이미 외부 side effect가 시작된 run, approval이 끝난 action이나 commit protocol 중인 work는 임의로 drop하지 않는다. Cancel·partial result·failed terminal state 중 하나로 lifecycle을 마감한다.
+
+Degradation은 “품질을 몰래 낮추기”가 아니다. 어떤 feature가 생략됐고 result confidence가 어떻게 달라졌는지 product contract와 event에 남긴다.
+
+## Autoscaling은 제한된 control loop다
+
+Queue lag 기반 KEDA scaling은 burst 뒤 Worker를 늘리는 데 유용하다. 하지만 polling, Pod scheduling, image pull과 warm-up 동안 backlog는 이미 자란다. 더 중요한 것은 `maxReplicaCount`가 capacity model에서 나와야 한다는 점이다.
+
+```yaml
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: agent-worker
+spec:
+  scaleTargetRef:
+    name: agent-worker
+  minReplicaCount: 2
+  maxReplicaCount: 12
+  pollingInterval: 15
+  cooldownPeriod: 180
+  triggers:
+    - type: redis-streams
+      metadata:
+        stream: agent-runs
+        consumerGroup: workers
+        pendingEntriesCount: "8"
+```
+
+실제 scaler metadata와 지원 field는 사용하는 KEDA 버전에서 확인한다. Architecture 관점의 규칙은 같다.
+
+```text
+max replicas
+≤ min(
+    database safe connections / connections per pod,
+    provider safe concurrency / calls per pod,
+    cluster CPU·memory capacity / pod request,
+    cost burn limit / expected burn per pod
+  )
+```
+
+CPU가 낮아도 Worker가 model response를 기다리며 provider concurrency를 모두 사용할 수 있다. Agent Worker는 CPU만이 아니라 ready lag, oldest age, active run과 downstream saturation으로 scale한다.
+
+<AgentBackpressureDiagrams
+  kind="control"
+  language="ko"
+  caption="그림 4. Admission, degradation, shedding과 autoscaling은 downstream safe envelope 안에서 동작하는 하나의 feedback loop다."
+/>
+
+## Retry는 backpressure를 존중해야 한다
+
+Overload가 발생할 때 client, Worker와 SDK가 각각 3회 retry하면 한 요청이 27개 downstream attempt로 번질 수 있다. Retry budget을 run 전체에 두고 계층 중 한 곳이 책임지게 한다.
+
+```python
+async def call_with_budget(operation, budget):
+    while budget.can_retry():
+        try:
+            return await operation()
+        except RetryableOverload as exc:
+            delay = max(exc.retry_after, budget.next_backoff_with_jitter())
+            await budget.sleep(delay)
+
+    raise RetryBudgetExhausted()
+```
+
+Deadline 이후 재시도, expired queue item 실행과 이미 cancel된 run의 retry는 admission capacity를 낭비한다. Worker가 call 직전 remaining deadline과 cancellation state를 다시 확인한다.
+
+## Failure test는 임계점 너머를 실행해야 한다
+
+정상 traffic load test만으로 overload policy를 검증할 수 없다.
+
+- Arrival rate를 처리율의 50%, 90%, 110%, 200%로 올렸을 때 queue age와 성공률
+- 한 tenant가 burst를 만들 때 다른 tenant의 p95 latency
+- Slow model provider와 DB pool exhaustion에서 replica 증가 효과
+- KEDA polling·cold start 동안 admission behavior
+- `maxReplicaCount` 도달 뒤 load shedding
+- Retry-After를 무시하는 client와 retry storm
+- Capacity reservation 뒤 API crash와 leak 회수
+- Worker crash 뒤 semaphore·lease release
+- High-priority traffic 지속 시 batch starvation과 aging
+- Queue item이 deadline을 넘었을 때 실행 전 expiry
+- Degraded mode result의 명시적인 metadata
+- Redis나 quota store 장애 시 fail-open·fail-closed 정책
+
+Quota authority 장애에서 무조건 fail-open하면 전체 시스템을 잃을 수 있고, 무조건 fail-closed하면 모든 고객을 막는다. Operation의 위험도와 cached entitlement의 freshness에 따라 정책을 명시한다.
+
+## 운영 dashboard와 alert
+
+최소한 다음 지표를 tenant와 work class의 bounded dimension으로 본다.
+
+- Admission accepted·rejected·degraded rate와 reason
+- Rate-limit token과 quota utilization
+- Ready lag, pending, oldest age와 deadline slack
+- Active concurrency와 capacity lease utilization
+- Completion rate와 service-time histogram
+- Downstream별 saturation, 429·timeout·circuit state
+- Replica count, desired replica와 `maxReplicaCount` 도달 시간
+- Retry amplification factor와 cost burn rate
+- Tenant별 fairness: throughput share와 wait-time distribution
+
+Queue depth 증가만 alert하지 않는다. `oldest_age / deadline`, completion rate 저하, downstream saturation과 admission rejection을 함께 보아 “burst를 흡수하는 중”과 “회복 불가능한 backlog”를 구분한다.
+
+## 구현 체크리스트
+
+- Load test로 operation별 안전 처리율과 downstream 한계를 측정했는가?
+- Queue가 저장 용량이 아니라 최대 허용 wait로 bounded되어 있는가?
+- Rate, burst, concurrency, queued work와 usage quota가 분리되어 있는가?
+- Idempotency 확인이 quota를 중복 소비하기 전에 실행되는가?
+- Run, reservation과 enqueue outbox가 원자적으로 commit되는가?
+- `202` 뒤에는 terminal state까지 lifecycle을 책임지는가?
+- 429와 503을 구분하고 `Retry-After`를 제공하는가?
+- Local semaphore와 global distributed limit의 관계가 계산되어 있는가?
+- Tenant와 work class 사이에 fairness와 starvation 방지 정책이 있는가?
+- Ready lag, pending과 oldest age를 구분해 관찰하는가?
+- Load shedding이 비싼 작업 전에 일어나는가?
+- Degraded result가 UI와 event에 명시되는가?
+- KEDA `maxReplicaCount`가 downstream safe envelope를 넘지 않는가?
+- Retry budget, backoff, jitter와 deadline 검증이 있는가?
+- Reservation·lease leak을 expiry와 reconciliation으로 회수하는가?
+- 임계점 너머의 overload와 noisy-neighbor를 테스트했는가?
+
+## 공정하게 수용했다면 병렬 실행의 구조를 그려야 한다
+
+Backpressure는 “몇 개를 실행할 것인가”를 결정한다. 다음 문제는 수용한 하나의 run이 research, data와 risk child agent로 fan-out할 때 그 concurrency와 budget을 누가 소유하는가다. Parent 하나가 child 열 개를 만들면 admission에서 한 건으로 계산한 capacity가 다시 깨질 수 있다.
+
+다음 글에서는 **Multi-Agent는 Agent를 여러 개 띄우는 것이 아니다: Parent Run, Fan-out, Fan-in**을 통해 parent-child run hierarchy, isolated context, partial failure와 cancellation·budget propagation을 다룬다.

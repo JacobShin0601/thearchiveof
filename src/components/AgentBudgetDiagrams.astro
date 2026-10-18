@@ -1,0 +1,137 @@
+---
+interface Props {
+  kind: 'taxonomy' | 'propagation' | 'retry' | 'degradation';
+  language?: 'ko' | 'en';
+  caption: string;
+}
+
+const { kind, language = 'ko', caption } = Astro.props;
+const ko = language === 'ko';
+
+const concepts = ko
+  ? [
+      ['Timeout', '기간', '한 번의 wait / attempt', '10초 이상 기다리지 않는다', 'TimeoutError'],
+      ['Deadline', '시점', '전체 run의 유효 시간', '14:03:30 이후 결과는 무의미하다', 'deadline_exceeded'],
+      ['Budget', '잔액', 'token · cost · retry · step', '남은 자원 안에서 경로를 선택한다', 'budget_exhausted'],
+    ]
+  : [
+      ['Timeout', 'Duration', 'One wait or attempt', 'Do not wait longer than 10 seconds', 'TimeoutError'],
+      ['Deadline', 'Instant', 'Validity of the whole run', 'A result after 14:03:30 has no value', 'deadline_exceeded'],
+      ['Budget', 'Balance', 'Tokens, cost, retries, steps', 'Choose a path within remaining resources', 'budget_exhausted'],
+    ];
+
+const phases = ko
+  ? [
+      ['접수', '120s', 'deadline_at 저장'],
+      ['Queue', '−18s', '대기도 시간을 소비'],
+      ['검색', '−22s', 'timeout = min(30s, remaining)'],
+      ['분석', '−47s', 'token · cost 동시 차감'],
+      ['정리', '33s', 'commit reserve를 남김'],
+    ]
+  : [
+      ['Admit', '120s', 'Persist deadline_at'],
+      ['Queue', '−18s', 'Waiting also consumes time'],
+      ['Search', '−22s', 'timeout = min(30s, remaining)'],
+      ['Analyze', '−47s', 'Debit token and cost together'],
+      ['Settle', '33s', 'Keep a commit reserve'],
+    ];
+
+const retries = ko
+  ? [
+      ['Attempt 1', '8s', 'timeout'],
+      ['Backoff', '2s', 'jitter'],
+      ['Attempt 2', '8s', 'timeout'],
+      ['Backoff', '4s', 'jitter'],
+      ['Attempt 3?', '6s 남음', '시작하지 않음'],
+    ]
+  : [
+      ['Attempt 1', '8s', 'timeout'],
+      ['Backoff', '2s', 'jitter'],
+      ['Attempt 2', '8s', 'timeout'],
+      ['Backoff', '4s', 'jitter'],
+      ['Attempt 3?', '6s left', 'Do not start'],
+    ];
+
+const modes = ko
+  ? [
+      ['충분', 'Full path', '검색 + 다중 분석 + 검증 + 종합'],
+      ['감소', 'Reduced path', '핵심 source + 단일 분석 + 종합'],
+      ['임계', 'Partial result', '검증된 중간 결과와 누락 항목 반환'],
+      ['소진', 'Stop', 'deadline/budget 원인과 terminal event 기록'],
+    ]
+  : [
+      ['Healthy', 'Full path', 'Search, parallel analysis, verify, synthesize'],
+      ['Reduced', 'Reduced path', 'Core sources, one analysis, synthesize'],
+      ['Critical', 'Partial result', 'Return verified work and list omissions'],
+      ['Exhausted', 'Stop', 'Persist the boundary and terminal event'],
+    ];
+---
+
+<figure class="budget-diagram" aria-label={caption}>
+  {kind === 'taxonomy' && (
+    <div class="taxonomy">
+      {concepts.map(([name, shape, scope, example, outcome], index) => (
+        <section>
+          <span>0{index + 1}</span><strong>{name}</strong><b>{shape}</b>
+          <p>{scope}</p><small>{example}</small><code>{outcome}</code>
+        </section>
+      ))}
+    </div>
+  )}
+
+  {kind === 'propagation' && (
+    <div class="propagation">
+      <header>
+        <strong>{ko ? '하나의 run deadline' : 'One run deadline'}</strong>
+        <code>remaining = deadline_at − now</code>
+      </header>
+      <ol>
+        {phases.map(([phase, delta, rule], index) => (
+          <li class:list={{ final: index === phases.length - 1 }}>
+            <span>0{index + 1}</span><strong>{phase}</strong><b>{delta}</b><small>{rule}</small>
+          </li>
+        ))}
+      </ol>
+      <footer>{ko ? 'Child는 원래 120초를 복사하지 않는다. Parent의 남은 시간과 자원만 위임받는다.' : 'A child does not copy the original 120 seconds. It receives only the parent’s remaining time and resources.'}</footer>
+    </div>
+  )}
+
+  {kind === 'retry' && (
+    <div class="retry">
+      <header><strong>{ko ? '30초 전체 deadline' : '30-second total deadline'}</strong><span>{ko ? '재시도도 같은 시간을 소비한다' : 'Retries spend the same clock'}</span></header>
+      <div class="retry-track">
+        {retries.map(([name, duration, result], index) => (
+          <section class:list={{ blocked: index === retries.length - 1 }}>
+            <span>{name}</span><b>{duration}</b><small>{result}</small>
+          </section>
+        ))}
+      </div>
+      <footer><code>remaining &lt; next_attempt + backoff + settle_reserve</code><b>{ko ? '→ retry 금지' : '→ reject retry'}</b></footer>
+    </div>
+  )}
+
+  {kind === 'degradation' && (
+    <div class="degradation">
+      <header><span>{ko ? '잔여 구간' : 'Remaining zone'}</span><span>{ko ? '실행 모드' : 'Execution mode'}</span><span>{ko ? '정책' : 'Policy'}</span></header>
+      {modes.map(([zone, mode, policy], index) => (
+        <section class:list={{ stop: index === modes.length - 1 }}>
+          <b>{index + 1}</b><strong>{zone}</strong><code>{mode}</code><p>{policy}</p>
+        </section>
+      ))}
+      <footer>{ko ? '품질 저하는 prompt의 임기응변이 아니라 사전에 정한 deterministic policy다.' : 'Degradation is a predefined deterministic policy, not prompt improvisation.'}</footer>
+    </div>
+  )}
+
+  <figcaption>{caption}</figcaption>
+</figure>
+
+<style>
+  .budget-diagram{margin:2.5rem 0;padding:1.2rem;border:1px solid var(--line);border-radius:.9rem;background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.9rem;line-height:1.5}.budget-diagram figcaption{margin-top:1rem;color:var(--muted);font-size:.84rem;line-height:1.55}.budget-diagram code{overflow-wrap:anywhere;color:var(--ink);font-size:.71rem}
+  .taxonomy{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem}.taxonomy section{display:grid;grid-template-columns:auto 1fr;gap:.3rem .55rem;padding:.85rem;border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:.55rem;background:var(--paper)}.taxonomy section>span{grid-row:1/3;display:grid;place-items:center;width:1.45rem;height:1.45rem;border-radius:50%;background:var(--accent);color:var(--paper-deep);font-size:.65rem;font-weight:800}.taxonomy strong{font-size:.88rem}.taxonomy b{color:var(--accent);font-size:.68rem}.taxonomy p,.taxonomy small,.taxonomy code{grid-column:2;margin:0}.taxonomy p{font-size:.72rem}.taxonomy small{color:var(--muted);font-size:.68rem}.taxonomy code{margin-top:.25rem;padding:.18rem .35rem;background:var(--paper-deep)}
+  .propagation{display:grid;gap:.65rem}.propagation>header{display:flex;justify-content:space-between;gap:.7rem;padding:.7rem;border-left:3px solid var(--accent);background:var(--paper)}.propagation ol{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.4rem;margin:0;padding:0;list-style:none}.propagation li{position:relative;display:grid;gap:.25rem;padding:.7rem;border:1px solid var(--line);border-radius:.5rem;background:var(--paper)}.propagation li:not(:last-child):after{content:'→';position:absolute;z-index:1;right:-.55rem;top:45%;color:var(--accent)}.propagation li>span{color:var(--muted);font-size:.62rem}.propagation li>b{color:var(--accent);font-size:.78rem}.propagation li>small{color:var(--muted);font-size:.66rem}.propagation li.final{border:2px solid var(--accent)}.propagation>footer{padding:.65rem;border:1px dashed var(--line);background:var(--paper);color:var(--muted);font-size:.71rem}
+  .retry{display:grid;gap:.7rem}.retry>header{display:flex;justify-content:space-between;gap:.6rem;padding:.7rem;background:var(--paper);border:1px solid var(--line)}.retry>header span{color:var(--muted);font-size:.7rem}.retry-track{display:flex;gap:.35rem;align-items:stretch}.retry-track section{display:grid;flex:1;gap:.25rem;padding:.7rem;border:1px solid var(--line);border-bottom:3px solid var(--accent);background:var(--paper)}.retry-track section>span{font-size:.7rem;font-weight:700}.retry-track b{font-size:.82rem}.retry-track small{color:var(--muted);font-size:.65rem}.retry-track section.blocked{border-style:dashed;opacity:.75}.retry>footer{display:flex;justify-content:center;gap:.6rem;align-items:center;padding:.65rem;border-left:3px solid var(--accent);background:var(--paper)}.retry>footer b{font-size:.72rem}
+  .degradation{display:grid;gap:.35rem}.degradation>header,.degradation>section{display:grid;grid-template-columns:minmax(6rem,.55fr) minmax(8rem,.75fr) minmax(0,1.6fr);gap:.55rem;align-items:center}.degradation>header{padding:0 .7rem;color:var(--muted);font-size:.67rem;font-weight:800}.degradation>section{position:relative;padding:.7rem .7rem .7rem 2.4rem;border:1px solid var(--line);border-radius:.5rem;background:var(--paper)}.degradation>section>b{position:absolute;left:.65rem;display:grid;place-items:center;width:1.25rem;height:1.25rem;border-radius:50%;background:var(--accent);color:var(--paper-deep);font-size:.63rem}.degradation>section strong{font-size:.75rem}.degradation p{margin:0;color:var(--muted);font-size:.69rem}.degradation>section.stop{border:2px solid var(--accent)}.degradation>footer{padding:.65rem;border:1px dashed var(--line);color:var(--muted);font-size:.71rem}
+  @media(max-width:760px){.taxonomy{grid-template-columns:1fr}.propagation ol{grid-template-columns:1fr 1fr}.propagation li:after{display:none}.retry-track{display:grid;grid-template-columns:1fr 1fr}.degradation>header{display:none}.degradation>section{grid-template-columns:1fr}.degradation>section strong,.degradation>section code,.degradation>section p{grid-column:1}.propagation>header,.retry>header{display:grid}}
+  @media(max-width:520px){.budget-diagram{padding:.8rem}.propagation ol,.retry-track{grid-template-columns:1fr}.retry>footer{display:grid}.taxonomy section{grid-template-columns:auto 1fr}}
+  @media(prefers-color-scheme:dark){.budget-diagram{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
+</style>

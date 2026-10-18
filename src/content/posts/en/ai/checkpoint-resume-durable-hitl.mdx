@@ -1,0 +1,559 @@
+---
+title: "Where Does an Agent Resume? Checkpoints, Recovery, and Durable HITL"
+subtitle: "Continue the same execution safely after worker failure or a long approval wait"
+description: "Separate checkpoints, product state, approval records, and execution ledgers so agent runs can resume after failures or HITL pauses without repeating side effects."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - checkpointing
+  - durable-execution
+  - human-in-the-loop
+  - langgraph
+  - idempotency
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "en"
+translationKey: "checkpoint-resume-durable-hitl"
+series: "Agent Engineering"
+seriesOrder: 14
+seriesPart: "safety"
+localization:
+  locale: "en-US"
+  strategy: "localized-adaptation"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "LangGraph Persistence"
+    url: "https://docs.langchain.com/oss/python/langgraph/persistence"
+    publisher: "LangChain Documentation"
+  - title: "LangGraph Interrupts"
+    url: "https://docs.langchain.com/oss/python/langgraph/interrupts"
+    publisher: "LangChain Documentation"
+  - title: "PostgreSQL SELECT — Locking Clause"
+    url: "https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE"
+    publisher: "PostgreSQL Documentation"
+  - title: "PostgreSQL Transaction Isolation"
+    url: "https://www.postgresql.org/docs/current/transaction-iso.html"
+    publisher: "PostgreSQL Documentation"
+  - title: "Redis XACK"
+    url: "https://redis.io/docs/latest/commands/xack/"
+    publisher: "Redis Documentation"
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import AgentResumeDiagrams from '../../../../components/AgentResumeDiagrams.astro';
+
+<AnswerBlock question="Can a paused agent resume safely by loading a checkpoint?">
+  <strong>No. A checkpoint restores graph position and state, but it does not prove authorization, product lifecycle, or which external side effects already happened.</strong> Safe resume validates the run, approval record, and execution ledger, then continues through a new worker attempt and fencing token.
+</AnswerBlock>
+
+The previous article, [How Long Should an Agent Think?](/en/ai/agents/timeouts-deadlines-and-budgets/), gave one run a deadline and token, cost, and retry budgets. It ended with a harder question.
+
+> Does an approval wait consume the deadline, and where does the run restart hours later?
+
+The simplest human-in-the-loop implementation waits inside a worker.
+
+```python
+async def send_report(state):
+    approved = await wait_for_human_approval(state["draft"])
+    if approved:
+        return await email_tool.send(state["draft"])
+```
+
+This holds a worker slot, database connection, queue delivery, and memory for the entire wait. A Pod replacement destroys the waiting coroutine. Starting over can regenerate work and repeat side effects.
+
+A durable HITL pause is not a sleeping coroutine. It is **durable state that can release execution ownership and still be found later**.
+
+<AgentResumeDiagrams
+  kind="layers"
+  language="en"
+  caption="Figure 1. Safe resume combines graph checkpoints with product runs, approval records, and an execution ledger."
+/>
+
+## A checkpoint matters, but it is not every source of truth
+
+A LangGraph checkpointer persists thread-scoped graph state. It supports conversation continuity, failure recovery, and interrupt resume. A store serves application-defined data beyond one thread.
+
+A production agent backend needs at least four records.
+
+| Record | Responsibility | Representative fields |
+| --- | --- | --- |
+| Graph checkpoint | Runtime state and next execution position | `thread_id`, `checkpoint_id`, state, pending task |
+| Run record | User-visible lifecycle | `run_id`, status, result, active attempt |
+| Approval record | Authorized, auditable, expiring decision | `approval_id`, action digest, decision, reviewer |
+| Execution ledger | External work that already happened | `tool_call_id`, idempotency key, remote result |
+
+A checkpoint does not mean the action was approved. An `approved` row cannot authorize a different action payload. A graph field such as `email_sent=True` cannot resolve a disagreement with the provider and execution ledger by itself.
+
+Checkpoint state is framework state. Do not hide the entire product lifecycle and authorization model inside the checkpointer.
+
+## Each identifier points to a different object
+
+Resume bugs often begin with one ID doing every job.
+
+| ID | Question |
+| --- | --- |
+| `session_id` | Which persistent conversation context? |
+| `run_id` | Which user-requested execution? |
+| `attempt_id` | Which worker try owns execution? |
+| `thread_id` | Which runtime history should the checkpointer load? |
+| `checkpoint_id` | Which snapshot in that history? |
+| `interrupt_id` | Which pause point is waiting for input? |
+| `approval_id` | Which product approval request? |
+| `tool_call_id` | Which external action execution? |
+
+With the series' one-active-run-per-session policy, `thread_id=session_id` can work. Store `run_id` in checkpoint metadata and verify that it remains the session's active run during resume.
+
+```python
+config = {
+    "configurable": {
+        "thread_id": str(run.session_id),
+    },
+    "metadata": {
+        "run_id": str(run.id),
+        "attempt_id": str(attempt.id),
+        "graph_version": GRAPH_VERSION,
+    },
+}
+```
+
+If a session permits concurrent runs, prefer a run-scoped `thread_id` or explicit checkpoint namespace. Whichever mapping you choose must be durable; a resume request should never infer it.
+
+## Pause is both a state transition and an ownership handoff
+
+Reaching `interrupt()` does not complete a safe pause. The system must be able to rediscover the checkpoint and product approval before it releases the current queue delivery.
+
+<AgentResumeDiagrams
+  kind="lifecycle"
+  language="en"
+  caption="Figure 2. Pause is a durable lifecycle between execution attempts; no worker owns the run while it waits."
+/>
+
+A useful lifecycle is:
+
+```text
+running
+  → pausing
+  → waiting_approval
+  → resume_queued
+  → resuming
+  → running
+  → succeeded | failed | cancelled
+
+waiting_approval
+  → rejected | expired | cancelled
+```
+
+`waiting_approval` does not mean a worker is waiting. It means the graph checkpoint and pending approval are durable and no worker attempt owns execution.
+
+## Freeze the action before requesting approval
+
+Storing only “Approve this email?” creates a time-of-check/time-of-use gap. Recipient or body could change before resume. Canonicalize the exact action and calculate a digest.
+
+```python
+import hashlib
+import json
+
+def action_digest(action: dict) -> str:
+    canonical = json.dumps(
+        action,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(canonical.encode()).hexdigest()
+```
+
+Persist both the human-review snapshot and machine-verifiable digest.
+
+```sql
+INSERT INTO approvals (
+    approval_id,
+    tenant_id,
+    run_id,
+    interrupt_id,
+    checkpoint_id,
+    action_type,
+    action_payload_json,
+    action_digest,
+    status,
+    expires_at
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9)
+ON CONFLICT (approval_id) DO NOTHING;
+```
+
+Derive a stable `approval_id` from `run_id + logical_action_id + action_version`. If the worker dies after checkpoint persistence and reaches the interrupt again, it upserts the same request.
+
+An edit creates a new action version, digest, and approval. Never attach a previous approval to a modified payload.
+
+## A LangGraph interrupt creates the pause point
+
+Compile the graph with a durable production checkpointer and stable `thread_id`.
+
+```python
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.types import interrupt
+
+async with AsyncPostgresSaver.from_conn_string(DB_URI) as checkpointer:
+    await checkpointer.setup()
+    graph = builder.compile(checkpointer=checkpointer)
+
+def approval_node(state: AgentState):
+    decision = interrupt({
+        "approval_id": state["approval_id"],
+        "action": state["pending_action"],
+        "action_digest": state["action_digest"],
+        "expires_at": state["approval_expires_at"],
+    })
+    return {"approval_decision": decision}
+```
+
+`InMemorySaver` disappears with the process and cannot provide production durability. Keep interrupt payloads JSON-serializable and compact. Carry references and a review snapshot rather than credentials or entire documents.
+
+When the graph returns an interrupt, the worker projects it into the application contract.
+
+```python
+result = await graph.ainvoke(input_state, config=config)
+
+if interrupts := result.get("__interrupt__"):
+    pending = interrupts[0]
+    await pause_run(
+        run=run,
+        attempt=attempt,
+        interrupt=pending,
+    )
+```
+
+The exact streaming projection can change between LangGraph versions, but the architecture boundary remains: convert a runtime interrupt into a durable product approval instead of treating it as UI authorization.
+
+## Acknowledge the current queue entry after pause becomes durable
+
+Leaving a Redis Stream entry in the PEL for hours represents unacknowledged delivery, not approval waiting. A reclaimer may take it and execute the graph again, while pending metrics become misleading.
+
+<AgentResumeDiagrams
+  kind="handoff"
+  language="en"
+  caption="Figure 3. Complete the current delivery after interrupt; the approval decision creates a separate resume delivery."
+/>
+
+The pause protocol is:
+
+```text
+1. Checkpointer durably stores interrupt state
+2. Product DB stores pending approval and waiting_approval run
+3. Append approval_requested event
+4. XACK the current queue entry
+5. Release the worker attempt
+```
+
+```python
+async with db.transaction():
+    approval = await approval_store.upsert_pending(
+        run=run,
+        interrupt=interrupt,
+        action_digest=interrupt.value["action_digest"],
+    )
+    await run_store.mark_waiting_approval(
+        run_id=run.id,
+        attempt_id=attempt.id,
+        fence=attempt.fence,
+        approval_id=approval.id,
+        checkpoint_id=approval.checkpoint_id,
+    )
+    await outbox.append("approval_requested", approval.to_event())
+
+await queue.ack(entry_id)
+```
+
+If the product transaction fails, do not acknowledge. A redelivered worker uses the stable approval ID to complete the pause protocol idempotently.
+
+## The approval API does not execute the graph
+
+The reviewer endpoint first authorizes and commits one decision atomically.
+
+```python
+@app.post("/runs/{run_id}/approvals/{approval_id}/decision")
+async def decide_approval(
+    run_id: UUID,
+    approval_id: UUID,
+    request: ApprovalDecision,
+    identity: Annotated[Identity, Depends(current_identity)],
+):
+    return await approval_service.decide(
+        tenant_id=identity.tenant_id,
+        reviewer=identity,
+        run_id=run_id,
+        approval_id=approval_id,
+        decision=request,
+    )
+```
+
+Inside a transaction, lock the pending approval and check:
+
+- reviewer authority for this action type and amount;
+- pending state and expiry;
+- a run still waiting for the same approval;
+- equality between the displayed and stored action digest; and
+- whether cancellation or another decision already committed.
+
+```sql
+SELECT *
+FROM approvals
+WHERE approval_id = $1
+  AND tenant_id = $2
+FOR UPDATE;
+```
+
+Write the decision and resume outbox in one transaction.
+
+```python
+async with db.transaction():
+    approval = await approval_store.lock(approval_id, tenant_id)
+    validate_decision(approval, run, reviewer, request)
+
+    await approval_store.commit_decision(
+        approval_id=approval.id,
+        decision=request.decision,
+        reviewer_id=reviewer.user_id,
+        note=request.note,
+    )
+    await run_store.mark_resume_queued(run.id, approval.id)
+    await outbox.append(
+        "run_resume_requested",
+        {"run_id": str(run.id), "approval_id": str(approval.id)},
+    )
+```
+
+The decision survives a dropped HTTP response. An outbox relay publishes the resume job. A repeated request returns the existing decision without creating another resume.
+
+## Resume starts a new worker attempt
+
+The API process that accepts approval does not continue the graph. A worker receiving the resume job acquires a new `attempt_id` and fence.
+
+```python
+run = await run_store.get_for_resume(run_id)
+approval = await approval_store.get(approval_id)
+
+assert run.status == "resume_queued"
+assert run.pending_approval_id == approval.id
+assert approval.action_digest == run.pending_action_digest
+
+attempt = await run_store.start_resume_attempt(
+    run_id=run.id,
+    checkpoint_id=approval.checkpoint_id,
+)
+```
+
+Then resume the same `thread_id` with the approved payload.
+
+```python
+from langgraph.types import Command
+
+config = {
+    "configurable": {"thread_id": run.thread_id},
+    "metadata": {
+        "run_id": str(run.id),
+        "attempt_id": str(attempt.id),
+        "fence": attempt.fence,
+    },
+}
+
+result = await graph.ainvoke(
+    Command(resume={
+        "approval_id": str(approval.id),
+        "decision": approval.decision,
+        "action_digest": approval.action_digest,
+    }),
+    config=config,
+)
+```
+
+Before invocation, verify plan, graph, and state-schema versions. If an old checkpoint is incompatible with the current deployment, choose an explicit migration, route to an older runtime, or fail as incompatible. Never resume silently against different graph semantics.
+
+## Resume replays the node instead of continuing at the next line
+
+LangGraph restarts an interrupted node from its beginning. Code before `interrupt()` runs again.
+
+<AgentResumeDiagrams
+  kind="replay"
+  language="en"
+  caption="Figure 4. Design for node replay: keep pre-interrupt code idempotent and isolate side effects in a separate node."
+/>
+
+This node is unsafe.
+
+```python
+def approval_node(state):
+    audit_id = audit_store.insert("approval_started")
+    email_tool.send("approval requested")
+
+    approved = interrupt({"action": state["pending_action"]})
+    return {"approved": approved, "audit_id": audit_id}
+```
+
+Resume can create another audit row and send another email. Let the approval node pause only, then isolate the effect.
+
+```python
+def approval_node(state):
+    decision = interrupt({
+        "approval_id": state["approval_id"],
+        "action": state["pending_action"],
+    })
+    return {"approval_decision": decision}
+
+async def execute_effect_node(state):
+    if state["approval_decision"]["decision"] != "approved":
+        return {"effect_status": "skipped"}
+
+    result = await execution_ledger.execute_once(
+        key=f'{state["run_id"]}:{state["logical_action_id"]}',
+        action=lambda: email_tool.send(state["pending_action"]),
+    )
+    return {"effect_status": result.status}
+```
+
+The checkpoint proves graph progress. The execution ledger proves external execution. Both are necessary because a worker can die after the side effect succeeds but before the next checkpoint.
+
+## Separate approval wait from execution time
+
+Silently extending the previous article's `deadline_at` destroys the original latency contract. Forcing a multi-hour workflow into a 120-second interactive deadline makes durable HITL impossible.
+
+Use two explicit clocks where the product requires long pauses.
+
+| Clock | Meaning | During pause |
+| --- | --- | --- |
+| Execution budget | Actual worker compute time available | Preserve or debit by explicit policy |
+| Business expiry | Latest instant this action and approval remain valid | Continues to advance |
+
+```python
+if approval.expires_at <= now:
+    await expire_approval(approval.id)
+    await run_store.mark_expired(run.id, reason="approval_expired")
+    return
+
+if run.remaining_execution_seconds <= MIN_RESUME_BUDGET:
+    await run_store.mark_expired(run.id, reason="execution_budget_exhausted")
+    return
+```
+
+An interactive run may retain one wall-clock deadline through pause. A long workflow may stop its active execution timer while preserving an immutable `expires_at`. Neither policy grants unlimited fresh time on resume.
+
+## Reject stale approvals and duplicate resumes
+
+An approval becomes stale when:
+
+- an edit creates a new action version;
+- the run is cancelled;
+- another reviewer decides first;
+- business expiry passes; or
+- a new checkpoint supersedes the interrupt.
+
+Let only one resume attempt win a conditional update.
+
+```sql
+UPDATE runs
+SET status = 'resuming',
+    active_attempt_id = $2,
+    active_fence = active_fence + 1
+WHERE run_id = $1
+  AND status = 'resume_queued'
+  AND pending_approval_id = $3
+  AND checkpoint_id = $4
+RETURNING active_fence;
+```
+
+Zero returned rows indicates a duplicate or stale resume. Reload durable state; acknowledge without execution when terminal, and do not compete with another active attempt.
+
+## Every failure window needs a recovery authority
+
+| Failure window | Durable residue | Recovery |
+| --- | --- | --- |
+| After checkpoint, before approval row | Interrupt checkpoint only | Redelivery upserts approval by stable ID |
+| After approval row, before `XACK` | Waiting state and pending delivery | Redelivery observes waiting and acknowledges |
+| After decision, before queue publish | Approved row and outbox | Relay publishes resume job |
+| After resume claim, before completion | Active attempt and pending job | Reclaim after lease/fence expiry |
+| After side effect, before checkpoint | Provider success, older graph state | Reuse execution-ledger result by idempotency key |
+
+Durable records—not a coroutine or worker hostname—decide the next action.
+
+## The UI restores approval from snapshot and events
+
+The browser may not be connected when the interrupt happens. Include the current pending approval in bootstrap.
+
+```json
+{
+  "run": {"status": "waiting_approval"},
+  "pending_approval": {
+    "approval_id": "A17...",
+    "action_type": "send_email",
+    "action_digest": "8ad1...",
+    "expires_at": "2026-10-13T09:00:00Z"
+  },
+  "cursor": "1731-0"
+}
+```
+
+Append `approval_requested`, `approval_decided`, `resume_queued`, and `run_resumed` to the event timeline. An SSE disconnect does not cancel approval; the reconnecting UI restores product state and resumes from its event cursor.
+
+## Durability tests must kill processes between pause stages
+
+An in-memory unit test cannot prove durable behavior. Use a persistent checkpointer and product database to test:
+
+- a different worker resuming after the interrupting worker exits;
+- failure before approval creation and stable-ID upsert;
+- failure after `waiting_approval` commit but before `XACK`;
+- failure after decision commit but before outbox publication;
+- repeated submission of the same decision;
+- two reviewers racing opposite decisions;
+- rejection of an old digest after action edit;
+- approval expiry racing cancellation;
+- duplicate resume deliveries;
+- failure after side-effect success but before checkpoint;
+- incompatible graph or state-schema version; and
+- restoration of pending approval by a browser that connects later.
+
+```python
+async def test_resume_does_not_repeat_effect(system):
+    run = await system.start_until_interrupt("R1")
+    await system.approve(run.pending_approval_id)
+
+    await system.worker.crash_after_tool_success()
+    await system.reclaim_and_resume(run.id)
+
+    assert await provider.calls(idempotency_key="R1:send-email") == 1
+    assert (await run_store.get(run.id)).status == "succeeded"
+```
+
+The assertion is not merely that a checkpoint loaded. It is that **the same decision applies to the same action, the side effect happens once, and one terminal result remains**.
+
+## Implementation checklist
+
+- Are checkpoint, run, approval, and execution-ledger responsibilities separate?
+- Is the `thread_id` to `run_id` mapping stored durably?
+- Does approval carry a stable ID, action version, and digest?
+- Is the interrupt payload compact and JSON-serializable?
+- Are checkpoint and product approval durable before `waiting_approval` completes?
+- Is the current queue entry acknowledged after durable pause?
+- Are decision and resume outbox written in one transaction?
+- Does decision authorization check tenant, role, action scope, and expiry?
+- Does resume run as a new worker attempt rather than in the API process?
+- Is all code before the interrupt replay-safe?
+- Are irreversible effects protected by a separate node and execution ledger?
+- Are graph and state-schema versions checked for compatibility?
+- Are execution budget and approval business expiry explicit policies?
+- Do conditional updates and fences reject duplicate or stale resumes?
+
+## A resumable system needs a complete trajectory
+
+After pause and resume, one run spans multiple worker attempts, checkpoints, approvals, and tool calls. Individual process logs cannot explain why an action executed two hours later.
+
+The next article, **Debugging Agent Systems: Trajectories Matter More Than Log Lines**, connects latency, tokens, cost, decisions, and tool results into one observable run trajectory.

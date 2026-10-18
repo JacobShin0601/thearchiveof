@@ -1,0 +1,416 @@
+---
+title: "Token Streaming Is Not Progress Streaming: Agent UI의 state 계약"
+subtitle: "텍스트 출력, 실행 진행, 최종 결과를 분리해 재연결 가능한 Agent 경험 만들기"
+description: "Token delta와 durable progress event, terminal result를 분리하고 sequence, replay, child aggregation과 UI reducer로 신뢰할 수 있는 Agent 진행 state를 설계합니다."
+publishedDate: 2026-10-12
+section: "AI & AX"
+subsection: "Agents"
+contentType: "foundation"
+topics:
+  - ai-agents
+primaryTopic: ai-agents
+tags:
+  - agent-streaming
+  - server-sent-events
+  - progress-events
+  - event-sourcing
+  - multi-agent
+author: "Jacob Shin"
+featured: false
+draft: true
+comments: true
+language: "ko"
+translationKey: "token-streaming-is-not-progress-streaming"
+series: "Agent Engineering"
+seriesOrder: 22
+seriesPart: "delivery"
+freshness: periodic
+lastReviewed: 2026-10-12
+nextReviewDate: 2027-01-12
+references:
+  - title: "HTML Standard — Server-sent events"
+    url: "https://html.spec.whatwg.org/multipage/server-sent-events.html"
+    publisher: "WHATWG"
+  - title: "OpenTelemetry — Traces"
+    url: "https://opentelemetry.io/docs/concepts/signals/traces/"
+    publisher: "OpenTelemetry"
+  - title: "W3C Trace Context"
+    url: "https://www.w3.org/TR/trace-context/"
+    publisher: "W3C"
+  - title: "Google Cloud — Long-running operations"
+    url: "https://docs.cloud.google.com/storage/docs/using-long-running-operations"
+    publisher: "Google Cloud Documentation"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import AgentProgressDiagrams from '../../../components/AgentProgressDiagrams.astro';
+
+<AnswerBlock question="Agent 답변이 실시간으로 출력되면 작업 진행률도 알 수 있는가?">
+  <strong>아니다. Token stream은 모델이 텍스트를 생성하고 있다는 신호일 뿐, 전체 작업의 state나 완료 여부를 증명하지 않는다.</strong> 실행 시스템은 token delta, durable progress event와 committed result를 서로 다른 계약으로 전달해야 한다. UI는 이를 run state로 reduce하고, 재연결할 때 snapshot과 event cursor로 복구해야 한다.
+</AnswerBlock>
+
+앞선 글 [Agent Security는 Prompt 문제가 아니다](/ai/agents/agent-security-permissions-credentials-tool-boundaries/)에서는 model output을 권한 없는 proposal로 다뤘다. 전달 계층에도 같은 원칙이 필요하다. Model이 내보낸 문장을 그대로 system state처럼 표시하면 다음과 같은 착시가 생긴다.
+
+```text
+"데이터 조회를 완료했습니다. 이제 보고서를 저장하겠습니다..."
+```
+
+이 문장은 database query가 commit됐다는 증거도, 파일이 저장됐다는 증거도 아니다. 반대로 model token이 20초 동안 멈춰 있어도 worker는 API polling, code execution이나 approval 대기를 정상 수행 중일 수 있다.
+
+사용자가 알아야 하는 것은 “글자가 나오고 있는가”가 아니라 다음 세 가지다.
+
+1. 지금 어떤 **실행 단계**인가?
+2. 무엇이 **완료되거나 실패했다는 사실**이 확정됐는가?
+3. 연결이 끊겨도 같은 state를 **다시 복구**할 수 있는가?
+
+<AgentProgressDiagrams
+  kind="planes"
+  language="ko"
+  caption="그림 1. Token stream, progress event와 final result는 의미와 내구성이 다른 세 개의 전달면이다."
+/>
+
+## 세 개의 전달면을 분리한다
+
+| 전달면 | 예시 | 의미 | 내구성 | UI 용도 |
+| --- | --- | --- | --- | --- |
+| Token stream | `token.delta` | 모델이 생성한 부분 텍스트 | 보통 일시적 | 답변을 빨리 읽게 함 |
+| Progress event | `step.started`, `tool.completed` | 실행 state가 바뀐 사실 | durable·replayable | 단계, 승인, 실패 표시 |
+| Result | `run.completed` + `result_ref` | 확정된 최종 산출물 | canonical | 새로고침·재조회 가능한 답변 |
+
+이 셋은 같은 SSE connection을 사용할 수 있다. 그러나 같은 connection을 쓴다고 같은 데이터 모델이어서는 안 된다.
+
+- Token delta는 작고 빈번하며 합치거나 일부 버릴 수 있다.
+- Progress event는 순서와 identity가 있고 중복 제거와 replay가 가능해야 한다.
+- Final result는 token을 이어 붙인 우연한 문자열이 아니라 저장된 정본이어야 한다.
+- Heartbeat는 연결 liveness일 뿐 work progress가 아니다.
+
+“streaming”은 transport의 성질이고 “progress”는 domain state의 성질이다.
+
+## Event는 문장이 아니라 사실이다
+
+Progress event의 이름은 화면 문구가 아니라 이미 발생한 domain fact를 표현한다.
+
+```python
+from datetime import datetime
+from typing import Any, Literal
+from pydantic import BaseModel
+
+class ProgressEvent(BaseModel):
+    schema_version: Literal[1] = 1
+    event_id: str
+    run_id: str
+    child_run_id: str | None = None
+    attempt: int
+    seq: int
+    type: str
+    stage: str | None = None
+    status: str | None = None
+    visibility: Literal["user", "operator", "private"]
+    occurred_at: datetime
+    payload: dict[str, Any]
+```
+
+`message: "거의 끝났습니다"`만 저장하면 의미, 순서와 접근 범위를 기계적으로 검증할 수 없다. 대신 event type과 payload schema를 versioning하고 UI 문구는 locale별 projection에서 만든다.
+
+```json
+{
+  "schema_version": 1,
+  "event_id": "01K7...Q9",
+  "run_id": "R22",
+  "child_run_id": "R22-data",
+  "attempt": 2,
+  "seq": 43,
+  "type": "tool.completed",
+  "stage": "evidence_collection",
+  "status": "succeeded",
+  "visibility": "user",
+  "occurred_at": "2026-10-12T12:40:13Z",
+  "payload": {"tool": "warehouse.query", "rows": 184}
+}
+```
+
+<AgentProgressDiagrams
+  kind="contract"
+  language="ko"
+  caption="그림 2. 내부 event envelope에서 사용자에게 허용된 projection만 UI state로 전달한다."
+/>
+
+필드에는 역할이 있다.
+
+- `event_id`: retry와 reconnect에서 같은 event를 식별하는 idempotency key
+- `run_id`, `child_run_id`: parent와 child execution의 소유 관계
+- `attempt`: worker retry 전후의 execution epoch 구분
+- `seq`: 한 run 안에서 관찰되는 단조 증가 순서
+- `type`: reducer가 해석하는 versioned contract
+- `visibility`: user, operator와 private data의 노출 경계
+- `occurred_at`: 분석용 event time이며 ordering의 유일한 근거는 아님
+
+서로 다른 worker의 wall clock은 완전히 일치하지 않는다. 따라서 timestamp만 정렬 기준으로 쓰지 않고, server가 부여한 cursor와 run별 sequence를 함께 사용한다.
+
+## Event taxonomy를 작게 유지한다
+
+수십 개의 화면 문구를 event type으로 만들기보다 state 전이에 필요한 최소 vocabulary를 정의한다.
+
+| 범주 | Event | 핵심 payload |
+| --- | --- | --- |
+| Run | `run.started` | input version, plan version |
+| Step | `step.started`, `step.completed`, `step.failed` | stage, attempt, error code |
+| Tool | `tool.started`, `tool.completed`, `tool.failed` | safe tool name, duration |
+| Human | `approval.required`, `approval.resolved` | approval ID, summary, expiry |
+| Child | `child.started`, `child.completed`, `child.failed` | child ID, role, weight |
+| Plan | `plan.rebased` | old/new milestone count, reason |
+| Terminal | `run.completed`, `run.failed`, `run.cancelled` | result or error reference |
+
+Token은 별도 namespace에 둔다.
+
+```python
+StreamMessage = (
+    TokenDelta          # ephemeral presentation data
+    | ProgressEvent     # durable domain fact
+    | StreamControl     # heartbeat, reconnect hint
+)
+```
+
+`thinking.delta`나 chain-of-thought를 public event로 정의하지 않는다. 내부 추론을 진행률처럼 노출하면 보안 경계를 흔들고, 사용자도 사실과 모델의 추측을 구분하기 어려워진다. 대신 “문서 4개 분석 완료”, “승인 대기”처럼 검증 가능한 milestone을 보낸다.
+
+## state가 먼저 commit되고 event가 따라야 한다
+
+가장 위험한 버그는 UI에 `run.completed`가 도착했지만 result row가 아직 없거나, DB에는 완료됐지만 event가 유실되는 dual write다. Run state와 outbox를 같은 transaction에 기록한 뒤 relay가 stream으로 전달한다.
+
+```python
+async def complete_run(tx, run_id: str, result: dict):
+    result_ref = await tx.results.insert(run_id=run_id, body=result)
+    await tx.runs.transition(
+        run_id,
+        expected="running",
+        target="completed",
+        result_ref=result_ref,
+    )
+    await tx.outbox.append(
+        aggregate_id=run_id,
+        event_type="run.completed",
+        payload={"result_ref": result_ref},
+    )
+    # The transaction commits all three or none.
+```
+
+Outbox relay가 같은 event를 두 번 publish할 수 있으므로 소비자는 `event_id`로 idempotent해야 한다. 분산 시스템에서 임의의 network failure까지 포함한 “정확히 한 번 보이는 UI”를 가정하기보다 **at-least-once delivery + idempotent reduction**을 설계한다.
+
+Terminal event의 순서도 계약이다.
+
+1. Result를 저장한다.
+2. Run state를 terminal로 전이한다.
+3. 같은 transaction에 terminal event를 기록한다.
+4. Client는 event의 `result_ref`로 정본을 조회한다.
+5. Terminal 이후 도착한 token이나 stale attempt event는 무시한다.
+
+## SSE는 재연결 수단이지 event store가 아니다
+
+HTML Server-Sent Events 표준은 event의 `id`를 기억하고 재연결 시 `Last-Event-ID`를 보낼 수 있게 한다. 하지만 browser가 cursor를 보내는 것만으로 유실 복구가 완성되지는 않는다. Server가 해당 cursor 이후의 durable event를 보관하고 재생할 수 있어야 한다.
+
+```python
+async def sse(run_id: str, last_event_id: str | None):
+    async for event in event_store.read_after(
+        run_id=run_id,
+        cursor=last_event_id,
+    ):
+        yield f"id: {event.event_id}\n"
+        yield f"event: {event.type}\n"
+        yield f"data: {event.model_dump_json()}\n\n"
+
+    while True:
+        event = await live_bus.next(run_id, timeout=15)
+        if event is None:
+            yield ": heartbeat\n\n"
+        else:
+            yield encode_sse(event)
+```
+
+Heartbeat comment는 proxy idle timeout을 피하고 연결 state를 감지하는 데 도움을 준다. 그러나 heartbeat가 100번 왔어도 business milestone이 진행됐다는 뜻은 아니다.
+
+<AgentProgressDiagrams
+  kind="reconnect"
+  language="ko"
+  caption="그림 3. Last-Event-ID 이후의 durable event를 재생하고, reducer가 중복과 terminal 이후 event를 제거한다."
+/>
+
+오래된 cursor가 retention 밖이라면 억지로 일부만 replay하지 않는다.
+
+```python
+if not event_store.can_resume(last_event_id):
+    snapshot = await run_store.get_public_snapshot(run_id)
+    yield encode_control("stream.reset", {
+        "snapshot_version": snapshot.version,
+        "next_cursor": snapshot.event_cursor,
+    })
+```
+
+Client는 snapshot을 교체한 뒤 새 cursor부터 이어받는다. Token delta를 모두 영구 저장하지 않는다면 reconnect 시 과거 token을 정확히 재현하려 하지 말고, 마지막으로 저장된 answer snapshot이나 final result를 사용한다.
+
+## Client는 문자열을 append하지 않고 state를 reduce한다
+
+UI가 event마다 임의로 DOM을 바꾸면 duplicate, retry와 out-of-order delivery에 취약하다. Pure reducer가 event를 run view model로 투영하게 한다.
+
+```typescript
+function reduceRun(state: RunView, event: ProgressEvent): RunView {
+  if (state.seen.has(event.event_id)) return state;
+  if (state.terminal && event.type !== "stream.reset") return state;
+  if (event.seq > state.nextSeq) return { ...state, gapAfter: state.nextSeq - 1 };
+  if (event.seq < state.nextSeq) return state;
+
+  const next = applyTypedEvent(state, event);
+  next.seen.add(event.event_id);
+  next.nextSeq = event.seq + 1;
+  return next;
+}
+```
+
+실제 구현에서는 gap을 표시만 하고 다음 event를 적용해서는 안 된다. 짧게 buffer한 뒤 누락된 구간을 요청하고, 복구하지 못하면 snapshot reset으로 전환한다. `seen` set도 무한히 키우지 않고 durable cursor와 bounded cache를 함께 쓴다.
+
+Token renderer는 별도다.
+
+```typescript
+function onToken(delta: TokenDelta) {
+  if (run.terminal || delta.attempt !== run.activeAttempt) return;
+  tokenBuffer.push(delta.text);
+  scheduleAnimationFrameFlush(); // coalesce UI updates
+}
+```
+
+느린 browser에 token 하나마다 render를 강요하면 server와 client 모두 backpressure를 받는다. Token은 frame이나 짧은 시간 창으로 합칠 수 있지만, approval이나 terminal event는 합치거나 버리면 안 된다.
+
+## Progress percentage는 계산할 수 있을 때만 쓴다
+
+Agent는 실행 중 새 문서, tool call과 child task를 발견한다. 전체 작업량을 모르는 state에서 `73%` 같은 숫자를 만들면 정밀해 보일 뿐 사실이 아니다.
+
+Progress를 표현하는 우선순위는 다음과 같다.
+
+1. **현재 phase**: planning, collecting, analyzing, reviewing
+2. **완료한 milestone**: 문서 4개 중 3개 분석
+3. **현재 state**: running, waiting for approval, retrying
+4. **예상 범위**: historical p50–p90, SLA deadline
+5. **Percentage**: denominator가 안정적일 때만
+
+고정된 작업 그래프라면 weighted progress를 계산할 수 있다.
+
+```python
+def weighted_progress(tasks) -> float | None:
+    if any(task.weight is None for task in tasks):
+        return None
+    total = sum(task.weight for task in tasks)
+    if total <= 0:
+        return None
+    earned = sum(task.weight * task.fraction for task in tasks)
+    return min(earned / total, 1.0)
+```
+
+여기서 `fraction`도 실제 milestone에서만 바뀌어야 한다. 경과 시간만으로 90%까지 올린 뒤 멈추는 progress bar는 wait animation이지 progress measurement가 아니다.
+
+새 task가 발견되어 denominator가 커지면 과거 percentage를 몰래 다시 계산하지 않는다. `plan.rebased` event로 작업 범위가 바뀌었다는 사실을 전달하거나, 처음부터 “3/5 milestones”와 “새 작업 2개 발견”을 함께 표시한다.
+
+## Multi-Agent progress는 parent가 투영한다
+
+각 child의 token을 한 channel에 섞으면 어느 답변인지 알 수 없고 private tool output이 노출될 수 있다. Child는 자신의 durable event를 만들고 parent projector가 사용자에게 허용된 state만 집계한다.
+
+```python
+async def project_child_event(parent, event):
+    child = parent.children[event.child_run_id]
+    child.apply(event)
+
+    public = aggregate_children(parent.children)
+    await emit_progress(
+        run_id=parent.run_id,
+        type="parent.progressed",
+        payload=public,
+        visibility="user",
+    )
+```
+
+<AgentProgressDiagrams
+  kind="aggregation"
+  language="ko"
+  caption="그림 4. Parent는 child token이 아니라 확정된 milestone과 waiting state를 사용자용 progress로 집계한다."
+/>
+
+Parent state는 단순 평균이 아니다.
+
+- 한 child가 approval을 기다리면 parent도 `waiting_for_approval`일 수 있다.
+- Optional child 실패는 경고로 남기고 parent가 계속될 수 있다.
+- Required child 실패는 parent terminal policy에 따라 실패나 보상으로 전이한다.
+- Cancelled parent의 child event는 audit에는 남겨도 user progress를 되살리지 않는다.
+- Child의 `private` event와 raw tool payload는 parent public stream에 복사하지 않는다.
+
+## Product event와 telemetry를 혼동하지 않는다
+
+OpenTelemetry trace는 root span과 child span을 연결하고, span event로 의미 있는 시점을 기록할 수 있다. W3C Trace Context의 `traceparent`는 service 간 trace 연속성을 제공한다. 이들은 운영자가 latency와 failure를 분석하는 데 유용하지만 UI progress ledger와 목적이 다르다.
+
+| Product progress | Observability telemetry |
+| --- | --- |
+| 사용자에게 약속한 state 계약 | 운영 진단용 signal |
+| 긴 retention과 replay가 필요할 수 있음 | sampling될 수 있음 |
+| access control과 localization 필요 | backend·operator 중심 |
+| business terminal state가 정본 | span status는 진단 표현 |
+
+같은 실행에서 함께 생성하되 한쪽을 다른 쪽의 유일한 저장소로 쓰지 않는다. `run_id`, `trace_id`, `event_id`를 상호 참조하면 사용자 문의에서 product event를 찾고 해당 trace로 drill-down할 수 있다.
+
+```python
+event = ProgressEvent(
+    event_id=new_ulid(),
+    run_id=run.id,
+    type="step.completed",
+    payload={"step": "analysis"},
+    # trace_id is correlation, not authorization.
+)
+span.add_event("step.completed", {"agent.run_id": run.id})
+```
+
+Trace ID를 access token처럼 사용하지 않는다. 상관관계 identifier는 권한을 부여하지 않으며, 외부 응답에 노출할 때는 추측·열거와 cross-tenant 조회를 막아야 한다.
+
+## 실패 시나리오로 contract를 검증한다
+
+- Token이 흐르지만 tool은 이미 실패한 경우
+- Tool은 진행 중이지만 model token이 없는 경우
+- SSE가 event 42 직후 끊기고 43부터 reconnect하는 경우
+- Relay가 같은 event를 두 번 publish하는 경우
+- Event 45가 44보다 먼저 도착하는 경우
+- Retention이 끝난 cursor로 reconnect하는 경우
+- Worker retry 후 이전 attempt의 token이 늦게 도착하는 경우
+- Result 저장 전에 `run.completed`를 보내려는 경우
+- Terminal 이후 child가 progress event를 보내는 경우
+- Approval 대기를 running percentage로 오해하는 경우
+- 동적 fan-out으로 denominator가 증가하는 경우
+- Slow client가 token을 소비하지 못하는 경우
+- Public stream에 private child payload가 섞이는 경우
+- Heartbeat 중단과 business timeout이 동시에 발생하는 경우
+- Client refresh 후 snapshot과 replay event가 겹치는 경우
+
+성공 기준은 “stream이 부드러워 보인다”가 아니다. 어떤 disconnect, duplicate와 retry에서도 UI가 **실제 durable run state와 수렴하는가**다.
+
+## 구현 체크리스트
+
+- Token, progress와 result가 별도 message type인가?
+- Progress event가 versioned schema와 stable `event_id`를 갖는가?
+- Run별 `seq`와 retry별 `attempt`가 있는가?
+- State transition과 outbox append가 같은 transaction인가?
+- Terminal event 전에 result가 commit되는가?
+- SSE `id`와 `Last-Event-ID`로 durable replay가 가능한가?
+- Cursor 만료 시 snapshot reset protocol이 있는가?
+- Reducer가 duplicate, gap, stale attempt와 late event를 처리하는가?
+- Token은 coalesce하고 critical event는 보존하는가?
+- Heartbeat를 progress로 계산하지 않는가?
+- Denominator를 모를 때 가짜 percentage를 표시하지 않는가?
+- Plan 변경을 `plan.rebased`로 명시하는가?
+- Parent가 child의 public milestone만 집계하는가?
+- Approval, retry, cancellation과 partial failure가 사용자 state에 보이는가?
+- Product event와 trace가 correlation ID로 연결되는가?
+- Raw prompt, private reasoning, credential과 민감 tool output을 stream하지 않는가?
+
+## Agent Engineering의 마지막 경계
+
+Agent system은 prompt에서 시작하지만 신뢰성은 prompt 밖에서 만들어진다. Conversation과 run을 분리하고, worker failure를 lease와 idempotency로 흡수하고, Kubernetes와 queue의 역할을 나누고, request trace·cancellation·deadline·checkpoint·observability·backpressure·multi-agent·security boundary를 설계해야 한다.
+
+마지막으로 그 모든 실행 사실을 사용자에게 정직하게 전달해야 한다.
+
+> Token은 “모델이 무엇을 쓰는가”를 보여준다. Progress event는 “시스템에서 무엇이 실제로 일어났는가”를 증명한다. Result는 “무엇이 최종적으로 확정됐는가”를 보존한다.
+
+이 세 가지를 분리하면 stream은 단순한 시각 효과가 아니라, 중단과 재시도에도 복구되는 product contract가 된다. 이것이 Agent Engineering 시리즈의 마지막 원칙이다.
