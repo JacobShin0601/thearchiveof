@@ -60,20 +60,31 @@ references:
 import AnswerBlock from '../../../components/AnswerBlock.astro';
 
 <AnswerBlock question="Conversation과 Run은 왜 분리해야 하는가?">
-  <strong>Conversation 또는 session은 여러 요청에 걸쳐 이어지는 context이고, run은 그 안에서 한 번 시작되어 끝나는 실행 instance다.</strong> 두 개를 같은 ID와 같은 state로 취급하면 동시 요청이 서로의 checkpoint를 덮어쓰고, 실패·재시도·승인 state를 구분하기 어려워지며, 다른 사용자의 run에 접근하는 권한검사도 흐려진다. 애플리케이션은 tenant → user → session → run의 소유 관계를 PostgreSQL에 남기고, 모든 조회와 streaming 전에 그 관계를 서버에서 검증해야 한다.
+  <strong>Conversation, 즉 session은 여러 요청에 걸쳐 이어지는 맥락이고, run은 그 안에서 한 번 시작해 끝나는 실행 단위다.</strong> 둘을 같은 ID와 같은 state로 취급하면 동시 요청이 서로의 checkpoint를 덮어쓰고, 실패·재시도·승인 state를 구분하기 어려워진다. 다른 사용자의 run에 접근하는 권한검사도 흐려진다. 애플리케이션은 tenant → user → session → run의 소유 관계를 PostgreSQL에 남기고, 모든 조회와 streaming 전에 그 관계를 서버에서 검증해야 한다.
 </AnswerBlock>
 
 앞선 [Agent State는 어디에 있어야 하는가](/ai/agents/where-agent-state-lives/)에서는 PostgreSQL의 durable record, Redis의 hot projection, runtime checkpoint를 분리했다. [State는 Event가 아니다](/ai/agents/state-is-not-event/)에서는 현재 snapshot과 시간순 event도 다른 데이터라고 설명했다.
 
-그 다음 질문은 **그 state가 누구의 어떤 대화에 속하고, 지금 보고 있는 실행은 정확히 무엇인가**다.
+그다음 질문은 **이 state가 누구의 어느 대화에 속하는지, 그리고 지금 보고 있는 실행이 정확히 무엇인지**다.
 
-사용자가 “NVIDIA를 분석해줘”라고 요청한 뒤 “방금 분석에 AMD도 비교해줘”라고 말한다. 두 번째 요청은 첫 번째 요청과 context를 공유하지만, 같은 실행은 아니다. 첫 번째 run은 이미 성공했을 수 있고, 두 번째 run은 새 tool call과 새 실패 가능성, 새 비용, 새 승인 state를 갖는다.
+사용자가 “NVIDIA를 분석해줘”라고 요청한 뒤 “방금 분석에 AMD도 비교해줘”라고 말한다. 두 번째 요청은 첫 번째 요청과 맥락을 공유하지만, 같은 실행은 아니다. 첫 번째 run은 이미 성공했을 수 있고, 두 번째 run에는 새로운 도구 호출, 실패 가능성, 비용, 승인 state가 생긴다.
 
-```text
-Session S1
-├─ Run R1: NVIDIA 분석        → succeeded
-└─ Run R2: AMD도 비교         → running
-```
+<svg viewBox="0 0 360 230" role="img" aria-label="하나의 session 안에 성공한 첫 번째 run과 실행 중인 두 번째 run이 분리되어 있는 구조" style="display:block; width:100%; max-width:360px; height:auto; margin:1.5rem auto;">
+  <defs><marker id="run-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#718096" /></marker></defs>
+  <rect x="18" y="14" width="324" height="48" rx="10" fill="#f2f5f7" stroke="#718096" />
+  <text x="38" y="44" fill="#1f2933" font-size="16" font-weight="700">Session S1</text>
+  <text x="144" y="44" fill="#52606d" font-size="13">공유되는 대화 맥락</text>
+  <path d="M180 62 V88 M92 88 H268" fill="none" stroke="#718096" stroke-width="1.5" />
+  <path d="M92 88 V103 M268 88 V103" fill="none" stroke="#718096" stroke-width="1.5" />
+  <rect x="18" y="104" width="148" height="104" rx="10" fill="#f3faf7" stroke="#3d8b6d" />
+  <text x="34" y="132" fill="#17644d" font-size="15" font-weight="700">Run R1</text>
+  <text x="34" y="157" fill="#354052" font-size="13">NVIDIA 분석</text>
+  <text x="34" y="184" fill="#17644d" font-size="13" font-weight="700">✓ succeeded</text>
+  <rect x="194" y="104" width="148" height="104" rx="10" fill="#fdf8ed" stroke="#b7791f" />
+  <text x="210" y="132" fill="#8a5714" font-size="15" font-weight="700">Run R2</text>
+  <text x="210" y="157" fill="#354052" font-size="13">AMD 비교</text>
+  <text x="210" y="184" fill="#8a5714" font-size="13" font-weight="700">● running</text>
+</svg>
 
 이 차이를 데이터 모델에 표현하지 않으면 “대화 기록”과 “실행 state”가 하나의 커다란 mutable object에 섞인다.
 
@@ -81,14 +92,30 @@ Session S1
 
 기본 계층은 다음과 같다.
 
-```text
-Tenant
-└─ User
-   └─ Session
-      ├─ Run 1
-      ├─ Run 2
-      └─ Run 3
-```
+<svg viewBox="0 0 360 352" role="img" aria-label="tenant, user, session, 여러 run으로 이어지는 소유 관계" style="display:block; width:100%; max-width:360px; height:auto; margin:1.5rem auto;">
+  <rect x="24" y="12" width="312" height="48" rx="10" fill="#eef4ff" stroke="#4c78a8" />
+  <text x="44" y="41" fill="#244b75" font-size="16" font-weight="700">Tenant</text>
+  <text x="147" y="41" fill="#52606d" font-size="13">조직의 경계</text>
+  <path d="M180 60 V79" stroke="#718096" stroke-width="1.5" />
+  <rect x="24" y="80" width="312" height="48" rx="10" fill="#f4f7fb" stroke="#718096" />
+  <text x="44" y="109" fill="#354052" font-size="16" font-weight="700">User</text>
+  <text x="147" y="109" fill="#52606d" font-size="13">요청하는 사람</text>
+  <path d="M180 128 V147" stroke="#718096" stroke-width="1.5" />
+  <rect x="24" y="148" width="312" height="48" rx="10" fill="#f7f5ff" stroke="#7b61a8" />
+  <text x="44" y="177" fill="#553c85" font-size="16" font-weight="700">Session</text>
+  <text x="147" y="177" fill="#52606d" font-size="13">지속되는 대화 맥락</text>
+  <path d="M180 196 V215 M73 215 H287" fill="none" stroke="#718096" stroke-width="1.5" />
+  <path d="M73 215 V229 M180 215 V229 M287 215 V229" fill="none" stroke="#718096" stroke-width="1.5" />
+  <rect x="20" y="230" width="106" height="92" rx="10" fill="#f2f5f7" stroke="#718096" />
+  <rect x="127" y="230" width="106" height="92" rx="10" fill="#f2f5f7" stroke="#718096" />
+  <rect x="234" y="230" width="106" height="92" rx="10" fill="#f2f5f7" stroke="#718096" />
+  <text x="42" y="264" fill="#354052" font-size="15" font-weight="700">Run 1</text>
+  <text x="149" y="264" fill="#354052" font-size="15" font-weight="700">Run 2</text>
+  <text x="256" y="264" fill="#354052" font-size="15" font-weight="700">Run 3</text>
+  <text x="42" y="293" fill="#52606d" font-size="12">한 번의 실행</text>
+  <text x="149" y="293" fill="#52606d" font-size="12">한 번의 실행</text>
+  <text x="256" y="293" fill="#52606d" font-size="12">한 번의 실행</text>
+</svg>
 
 | Entity | 답하는 질문 | 대표 수명주기 |
 | --- | --- | --- |
@@ -149,7 +176,7 @@ CREATE TABLE runs (
 
 실제 schema에서는 composite foreign key나 별도의 ownership invariant로 `tenant_id`, `user_id`, `session_id`의 일관성까지 강제할 수 있다. 중요한 점은 run row만 읽고 “현재 사용자와 아마 같은 tenant일 것”이라고 가정하지 않는 것이다.
 
-조회도 전체 테이블에서 `run_id` 하나로 찾은 다음 Python에서 비교하기보다, 처음부터 현재 identity의 범위 안에서 찾는 편이 안전하다.
+조회도 전체 테이블에서 `run_id` 하나로 찾은 다음 Python에서 비교하기보다, 처음부터 인증된 identity의 ownership scope 안에서 조회하는 편이 안전하다.
 
 ```python
 async def load_owned_run(
@@ -231,9 +258,9 @@ Redis state / events / result storage
 
 SSE도 예외가 아니다. 연결이 오래 유지된다고 해서 최초 인증만으로 충분한 것은 아니다. 연결을 열기 전에 run ownership을 검증하고, 토큰 만료나 권한 변경을 어떻게 처리할지 명시해야 한다.
 
-## LangGraph의 thread는 애플리케이션 session과 대응할 수 있다
+## LangGraph의 thread를 애플리케이션 session에 대응시킬 수 있다
 
-LangGraph checkpointer는 `thread_id`를 기준으로 checkpoint를 저장하고 이어 읽는다. 애플리케이션의 대화 context가 LangGraph state와 자연스럽게 대응한다면 `session_id`를 `thread_id`로 전달할 수 있다.
+LangGraph checkpointer는 `thread_id`를 기준으로 checkpoint를 저장하고 이어 읽는다. 애플리케이션의 대화 맥락이 LangGraph state와 자연스럽게 대응한다면 `session_id`를 `thread_id`로 전달할 수 있다.
 
 ```python
 config = {
@@ -281,12 +308,22 @@ checkpoint는 graph를 재개하기 위한 state이고, run row는 제품이 실
 
 두 요청이 거의 동시에 들어왔다고 하자.
 
-```text
-Session S1 checkpoint: messages=[A]
-
-Run R2 reads [A] ── appends B ── writes [A,B]
-Run R3 reads [A] ── appends C ── writes [A,C]
-```
+<svg viewBox="0 0 360 264" role="img" aria-label="같은 checkpoint에서 출발한 두 run이 서로 다른 결과를 덮어쓸 수 있는 경쟁 상태" style="display:block; width:100%; max-width:360px; height:auto; margin:1.5rem auto;">
+  <rect x="18" y="12" width="324" height="46" rx="10" fill="#f7f5ff" stroke="#7b61a8" />
+  <text x="34" y="40" fill="#553c85" font-size="15" font-weight="700">Session S1 checkpoint</text>
+  <text x="236" y="40" fill="#553c85" font-size="13">messages=[A]</text>
+  <path d="M180 58 V79 M104 79 H256" fill="none" stroke="#718096" stroke-width="1.5" />
+  <path d="M104 79 V92 M256 79 V92" fill="none" stroke="#718096" stroke-width="1.5" />
+  <rect x="18" y="94" width="150" height="66" rx="10" fill="#f2f7ff" stroke="#4c78a8" />
+  <text x="34" y="120" fill="#244b75" font-size="14" font-weight="700">Run R2</text>
+  <text x="34" y="144" fill="#354052" font-size="13">[A] → [A, B]</text>
+  <rect x="192" y="94" width="150" height="66" rx="10" fill="#fff7f2" stroke="#c05621" />
+  <text x="208" y="120" fill="#9c3f16" font-size="14" font-weight="700">Run R3</text>
+  <text x="208" y="144" fill="#354052" font-size="13">[A] → [A, C]</text>
+  <path d="M93 160 V182 H180 M267 160 V182 H180 V195" fill="none" stroke="#c05621" stroke-width="1.5" />
+  <rect x="18" y="196" width="324" height="48" rx="10" fill="#fff5f5" stroke="#c53030" />
+  <text x="34" y="225" fill="#9b2c2c" font-size="14" font-weight="700">마지막 write가 이기면 다른 turn이 사라질 수 있다</text>
+</svg>
 
 마지막 write가 이기면 한 turn이 사라질 수 있다. checkpointer가 충돌을 감지하더라도 어느 turn이 먼저여야 하는지 제품 semantics까지 정해주지는 않는다. tool side effect가 포함되면 문제는 state merge보다 더 커진다.
 
@@ -348,13 +385,20 @@ Redis lock이나 session queue를 추가할 수 있지만, 각각의 목적을 �
 
 동시 실행이 진짜 필요한 제품이라면 금지 규칙을 조용히 해제하지 않는다. session branch, parent checkpoint, merge policy를 명시적인 기능으로 설계한다.
 
-```text
-Session S1
-├─ Branch B1 → Run R2
-└─ Branch B2 → Run R3
-                 ↓
-          explicit comparison/merge
-```
+<svg viewBox="0 0 360 252" role="img" aria-label="동시 실행을 허용할 때 session branch와 명시적 병합 정책이 필요한 구조" style="display:block; width:100%; max-width:360px; height:auto; margin:1.5rem auto;">
+  <rect x="18" y="12" width="324" height="44" rx="10" fill="#f7f5ff" stroke="#7b61a8" />
+  <text x="36" y="39" fill="#553c85" font-size="16" font-weight="700">Session S1</text>
+  <path d="M180 56 V76 M86 76 H274 M86 76 V89 M274 76 V89" fill="none" stroke="#718096" stroke-width="1.5" />
+  <rect x="18" y="90" width="150" height="62" rx="10" fill="#f2f7ff" stroke="#4c78a8" />
+  <text x="34" y="116" fill="#244b75" font-size="14" font-weight="700">Branch B1 · Run R2</text>
+  <text x="34" y="140" fill="#52606d" font-size="12">독립된 실행 경로</text>
+  <rect x="192" y="90" width="150" height="62" rx="10" fill="#f2f7ff" stroke="#4c78a8" />
+  <text x="208" y="116" fill="#244b75" font-size="14" font-weight="700">Branch B2 · Run R3</text>
+  <text x="208" y="140" fill="#52606d" font-size="12">독립된 실행 경로</text>
+  <path d="M93 152 V174 H180 M267 152 V174 H180 V187" fill="none" stroke="#718096" stroke-width="1.5" />
+  <rect x="18" y="188" width="324" height="44" rx="10" fill="#fdf8ed" stroke="#b7791f" />
+  <text x="37" y="215" fill="#8a5714" font-size="14" font-weight="700">명시적인 비교·병합 정책</text>
+</svg>
 
 ## Redis key도 authorization boundary가 아니다
 
