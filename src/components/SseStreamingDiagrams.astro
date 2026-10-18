@@ -1,0 +1,96 @@
+---
+export interface Props {
+  kind: 'ownership' | 'reconnect' | 'disconnect';
+  language?: 'ko' | 'en';
+}
+
+const { kind, language = 'ko' } = Astro.props;
+
+const copy = {
+  ko: {
+    ownership: {
+      caption: '실행과 전달의 책임 경계',
+      steps: [
+        ['Worker', '실행하고 event를 기록'],
+        ['Redis', '현재 projection과 짧은 replay 제공'],
+        ['SSE API', 'cursor부터 읽어 HTTP로 전달'],
+        ['Browser', 'snapshot과 timeline을 화면에 반영'],
+      ],
+    },
+    reconnect: {
+      caption: '첫 연결과 재연결의 복구 계약',
+      steps: [
+        ['첫 연결', 'snapshot과 last_event_id 수신'],
+        ['연결 끊김', '브라우저가 마지막 event ID를 보관'],
+        ['재연결', 'Last-Event-ID 뒤의 event를 replay'],
+        ['cursor 만료', 'resync_required 뒤 snapshot을 다시 조회'],
+      ],
+    },
+    disconnect: {
+      caption: '연결 종료와 run 취소는 다른 사건이다',
+      steps: [
+        ['탭 닫힘', 'SSE 전송만 종료'],
+        ['Worker', 'run은 계속 실행 가능'],
+        ['명시적 취소', '별도 API가 durable cancellation request 기록'],
+      ],
+    },
+  },
+  en: {
+    ownership: {
+      caption: 'Execution and delivery responsibilities',
+      steps: [
+        ['Worker', 'Executes work and records events'],
+        ['Redis', 'Provides current projection and short replay'],
+        ['SSE API', 'Reads from a cursor and delivers over HTTP'],
+        ['Browser', 'Applies snapshot and timeline to the UI'],
+      ],
+    },
+    reconnect: {
+      caption: 'Recovery contract for first connection and reconnect',
+      steps: [
+        ['First connection', 'Receive snapshot and last event ID'],
+        ['Disconnect', 'Browser retains the latest event ID'],
+        ['Reconnect', 'Replay entries after Last-Event-ID'],
+        ['Expired cursor', 'Fetch a fresh snapshot after resync_required'],
+      ],
+    },
+    disconnect: {
+      caption: 'Connection close and run cancellation are different events',
+      steps: [
+        ['Tab closes', 'Only the SSE delivery ends'],
+        ['Worker', 'The run may continue'],
+        ['Explicit cancel', 'A separate API persists a durable cancellation request'],
+      ],
+    },
+  },
+} as const;
+
+const diagram = copy[language][kind];
+const figureId = `sse-streaming-${kind}-${language}`;
+---
+
+<figure class="sse-diagram" aria-labelledby={figureId}>
+  <figcaption id={figureId}>{diagram.caption}</figcaption>
+  <ol class="steps" data-kind={kind}>
+    {diagram.steps.map(([title, description], index) => (
+      <li>
+        <span class="number">{index + 1}</span>
+        <div>
+          <strong>{title}</strong>
+          <span>{description}</span>
+        </div>
+      </li>
+    ))}
+  </ol>
+</figure>
+
+<style>
+  .sse-diagram{margin:2rem 0;padding:1.15rem;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink);font-family:var(--sans)}
+  figcaption{margin:0 0 .85rem;font-weight:700;font-size:.93rem}
+  .steps{margin:0;padding:0;list-style:none;display:grid;gap:.55rem}
+  .steps li{display:grid;grid-template-columns:1.8rem minmax(0,1fr);gap:.65rem;align-items:start;padding:.72rem .8rem;border:1px solid var(--line);background:var(--paper)}
+  .number{display:grid;place-items:center;width:1.6rem;height:1.6rem;border-radius:50%;background:var(--accent);color:var(--paper);font-size:.78rem;font-weight:750}
+  .steps div{display:grid;gap:.13rem;min-width:0}
+  .steps strong{font-size:.87rem}.steps div span{font-size:.83rem;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+  @media (min-width:640px){.steps[data-kind='ownership'],.steps[data-kind='reconnect']{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
