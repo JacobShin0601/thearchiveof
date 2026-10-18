@@ -1,7 +1,7 @@
 ---
 title: "Conversation은 Run이 아니다: Session Isolation 설계"
 subtitle: "지속되는 대화와 한 번의 실행을 분리하고, tenant·user·session·run의 소유권을 지키는 법"
-description: "Agent backend에서 tenant, user, session, run을 분리하고 객체 단위 권한검사와 동시 실행 제약으로 여러 사용자의 대화 상태를 안전하게 격리하는 방법을 설명합니다."
+description: "Agent backend에서 tenant, user, session, run을 분리하고 객체 단위 권한검사와 동시 실행 제약으로 여러 사용자의 대화 state를 안전하게 격리하는 방법을 설명합니다."
 publishedDate: 2026-10-12
 section: "AI & AX"
 subsection: "Agents"
@@ -60,14 +60,14 @@ references:
 import AnswerBlock from '../../../components/AnswerBlock.astro';
 
 <AnswerBlock question="Conversation과 Run은 왜 분리해야 하는가?">
-  <strong>Conversation 또는 session은 여러 요청에 걸쳐 이어지는 context이고, run은 그 안에서 한 번 시작되어 끝나는 실행 instance다.</strong> 두 개를 같은 ID와 같은 state로 취급하면 동시 요청이 서로의 checkpoint를 덮어쓰고, 실패·재시도·승인 상태를 구분하기 어려워지며, 다른 사용자의 run에 접근하는 권한검사도 흐려진다. 애플리케이션은 tenant → user → session → run의 소유 관계를 PostgreSQL에 남기고, 모든 조회와 streaming 전에 그 관계를 서버에서 검증해야 한다.
+  <strong>Conversation 또는 session은 여러 요청에 걸쳐 이어지는 context이고, run은 그 안에서 한 번 시작되어 끝나는 실행 instance다.</strong> 두 개를 같은 ID와 같은 state로 취급하면 동시 요청이 서로의 checkpoint를 덮어쓰고, 실패·재시도·승인 state를 구분하기 어려워지며, 다른 사용자의 run에 접근하는 권한검사도 흐려진다. 애플리케이션은 tenant → user → session → run의 소유 관계를 PostgreSQL에 남기고, 모든 조회와 streaming 전에 그 관계를 서버에서 검증해야 한다.
 </AnswerBlock>
 
 앞선 [Agent State는 어디에 있어야 하는가](/ai/agents/where-agent-state-lives/)에서는 PostgreSQL의 durable record, Redis의 hot projection, runtime checkpoint를 분리했다. [State는 Event가 아니다](/ai/agents/state-is-not-event/)에서는 현재 snapshot과 시간순 event도 다른 데이터라고 설명했다.
 
 그 다음 질문은 **그 state가 누구의 어떤 대화에 속하고, 지금 보고 있는 실행은 정확히 무엇인가**다.
 
-사용자가 “NVIDIA를 분석해줘”라고 요청한 뒤 “방금 분석에 AMD도 비교해줘”라고 말한다. 두 번째 요청은 첫 번째 요청과 context를 공유하지만, 같은 실행은 아니다. 첫 번째 run은 이미 성공했을 수 있고, 두 번째 run은 새 tool call과 새 실패 가능성, 새 비용, 새 승인 상태를 갖는다.
+사용자가 “NVIDIA를 분석해줘”라고 요청한 뒤 “방금 분석에 AMD도 비교해줘”라고 말한다. 두 번째 요청은 첫 번째 요청과 context를 공유하지만, 같은 실행은 아니다. 첫 번째 run은 이미 성공했을 수 있고, 두 번째 run은 새 tool call과 새 실패 가능성, 새 비용, 새 승인 state를 갖는다.
 
 ```text
 Session S1
@@ -75,7 +75,7 @@ Session S1
 └─ Run R2: AMD도 비교         → running
 ```
 
-이 차이를 데이터 모델에 표현하지 않으면 “대화 기록”과 “실행 상태”가 하나의 커다란 mutable object에 섞인다.
+이 차이를 데이터 모델에 표현하지 않으면 “대화 기록”과 “실행 state”가 하나의 커다란 mutable object에 섞인다.
 
 ## 네 개의 ID가 서로 다른 질문에 답한다
 
@@ -97,7 +97,7 @@ Tenant
 | Session | 어떤 대화 또는 작업 context인가? | 여러 사용자 turn에 걸쳐 지속 |
 | Run | 한 번의 실행에서 무슨 일이 일어났는가? | queued → running → terminal |
 
-`session_id`는 context를 잇는다. `run_id`는 실행 한 번의 상태, 시도, event, 비용과 결과를 식별한다. 둘은 1:N 관계다.
+`session_id`는 context를 잇는다. `run_id`는 실행 한 번의 state, 시도, event, 비용과 결과를 식별한다. 둘은 1:N 관계다.
 
 ```python
 from dataclasses import dataclass
