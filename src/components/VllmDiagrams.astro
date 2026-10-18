@@ -29,7 +29,7 @@ const flows = {
     : ['Define workload distributions', 'Set SLOs and measure baseline', 'Form a bottleneck hypothesis', 'Change one parameter', 'Repeat the same load → iterate'],
 };
 
-const constraints = ko
+const flowSteps = kind === 'architecture' ? flows.architecture : kind === 'timeline' ? flows.timeline : kind === 'loop' ? flows.loop : [];\n\nconst constraints = ko
   ? [
       ['max_num_seqs', '한 반복 단계에서 처리할 sequence 수의 상한', '동시 처리 기회는 늘지만 KV 수요가 커질 수 있다.'],
       ['max_num_batched_tokens', '한 반복 단계에서 계산할 token 수의 상한', '프리필과 디코드가 같은 token 예산을 나눠 쓴다.'],
