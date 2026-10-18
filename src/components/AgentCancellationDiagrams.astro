@@ -29,7 +29,7 @@ const states = ko
       ['queued', '실행 전', 'Worker가 claim하기 전에 요청을 확인'],
       ['running', '실행 중', 'step와 tool 경계에서 요청을 확인'],
       ['cancelling', '중단 중', '원격 취소와 cleanup이 아직 진행 중'],
-      ['cancelled', '중단 확인', 'terminal record가 확정된 상태'],
+      ['cancelled', '중단 확인', 'terminal record가 확정된 state'],
     ]
   : [
       ['queued', 'Not started', 'Worker checks before claiming execution'],
