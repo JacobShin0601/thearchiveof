@@ -203,7 +203,7 @@ async def enrich_customer(customer_id: str):
 
 - 호출 자체에 시간 초과를 둔다.
 - 동시에 실행할 blocking 호출 수를 제한한다.
-- Thread에서 완료된 뒤에는 요청별 변경 가능 상태를 함부로 공유하지 않는다.
+- Thread에서 완료된 뒤에는 요청별 변경 가능 state를 함부로 공유하지 않는다.
 - SDK가 thread-safe한지 확인한다.
 - 취소 가능한 awaitable과 실제 thread 작업의 종료를 같은 것으로 가정하지 않는다.
 
@@ -226,7 +226,7 @@ Thread pool은 압력을 없애지 않는다. Event loop에서 thread queue로 �
 
 ## 공유 메모리는 편리하지만 공짜가 아니다
 
-Thread는 같은 process의 메모리를 공유한다. 이 특성은 큰 읽기 전용 설정이나 이미 만들어진 클라이언트를 함께 사용할 때 편리하다. 반대로 여러 thread가 같은 변경 가능 객체를 수정하면 경쟁 상태가 생길 수 있다.
+Thread는 같은 process의 메모리를 공유한다. 이 특성은 큰 읽기 전용 설정이나 이미 만들어진 클라이언트를 함께 사용할 때 편리하다. 반대로 여러 thread가 같은 변경 가능 객체를 수정하면 경쟁 state가 생길 수 있다.
 
 ```python
 from concurrent.futures import ThreadPoolExecutor
@@ -244,9 +244,9 @@ with ThreadPoolExecutor(max_workers=8) as pool:
     list(pool.map(collect_one, items))
 ```
 
-이 예시는 잠금으로 `results` 수정을 보호하지만, 가능하면 worker thread가 값을 반환하고 한 곳에서 결과를 합치는 구조가 더 단순하다. 공유 상태가 많아질수록 잠금 순서, 교착 상태, 경쟁 상태를 추론해야 하기 때문이다.
+이 예시는 잠금으로 `results` 수정을 보호하지만, 가능하면 worker thread가 값을 반환하고 한 곳에서 결과를 합치는 구조가 더 단순하다. 공유 state가 많아질수록 잠금 순서, 교착 state, 경쟁 state를 추론해야 하기 때문이다.
 
-Agent 상태를 Python 객체 하나에 모아 여러 thread가 함께 수정하는 설계는 특히 위험하다. Run 상태와 이벤트 이력은 명시적인 책임 주체와 저장소 경계를 가져야 한다. 이 시리즈의 상태 편에서 그 경계를 다시 다룬다.
+Agent state를 Python 객체 하나에 모아 여러 thread가 함께 수정하는 설계는 특히 위험하다. Run state와 이벤트 이력은 명시적인 책임 주체와 저장소 경계를 가져야 한다. 이 시리즈의 state 편에서 그 경계를 다시 다룬다.
 
 ## GIL: thread가 쓸모없다는 뜻은 아니다
 
@@ -359,9 +359,9 @@ async def execute_agent_run(request: dict) -> dict:
 
 Process 경계의 시작, IPC, 직렬화 비용이 실제 작업보다 커진다. I/O 대기는 async나 thread가 더 자연스럽다.
 
-### 4. 공유된 변경 가능 상태를 보호 없이 여러 thread가 수정한다
+### 4. 공유된 변경 가능 state를 보호 없이 여러 thread가 수정한다
 
-우연히 테스트가 통과해도 운영 환경의 동시 실행에서 상태 손상이나 재현하기 어려운 경쟁 상태가 나타날 수 있다. 값을 반환해 한 책임 주체가 합치거나, 불가피하면 명시적인 동기화 장치를 둔다.
+우연히 테스트가 통과해도 운영 환경의 동시 실행에서 state 손상이나 재현하기 어려운 경쟁 state가 나타날 수 있다. 값을 반환해 한 책임 주체가 합치거나, 불가피하면 명시적인 동기화 장치를 둔다.
 
 ### 5. Web request마다 process pool을 새로 만든다
 
@@ -383,7 +383,7 @@ Process 경계의 시작, IPC, 직렬화 비용이 실제 작업보다 커진다
 
 - HTTP request가 끊겨도 5분짜리 run은 계속되어야 하는가?
 - Process가 죽으면 누가 미완료 작업을 다시 가져가는가?
-- 재시도 중인 run의 상태와 진행 상황은 어디에 저장하는가?
+- 재시도 중인 run의 state와 진행 상황은 어디에 저장하는가?
 - 같은 session에서 동시에 들어온 두 run을 어떻게 제한하는가?
 - 배포 중에도 진행 중인 작업을 안전하게 끝낼 수 있는가?
 
