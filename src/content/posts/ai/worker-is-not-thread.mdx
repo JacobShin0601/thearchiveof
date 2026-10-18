@@ -1,5 +1,5 @@
 ---
-title: "워커는 스레드가 아니다: 에이전트 실행을 API 서버에서 분리하는 이유"
+title: "Worker는 thread가 아니다: 에이전트 실행을 API 서버에서 분리하는 이유"
 subtitle: "동시성 도구와 실행 수명 주기의 책임을 구분하는 에이전트 백엔드 설계"
 description: "Worker가 thread나 process의 다른 이름이 아닌 이유와 장시간 Agent run을 API 요청에서 queue와 worker로 넘기는 기준을 설명합니다."
 publishedDate: 2026-09-23
@@ -49,8 +49,8 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 import AgentBackendArchitectureMap from '../../../components/AgentBackendArchitectureMap.astro';
 import WorkerLifecycleDiagram from '../../../components/WorkerLifecycleDiagram.astro';
 
-<AnswerBlock question="에이전트 백엔드에서 워커란 무엇인가?">
-  워커는 스레드나 프로세스 같은 동시성 기본 요소가 아니라 <strong>작업 부하의 실행 수명 주기를 맡는 역할</strong>이다. API가 요청을 검증하고 실행을 접수한다면, 워커는 큐에서 작업을 가져와 상태를 갱신하고, 완료·실패·재시도 가능한 결과가 남을 때까지 현재 시도를 책임진다. 워커 프로세스 내부에서는 다시 비동기·스레드·프로세스를 조합할 수 있다.
+<AnswerBlock question="에이전트 백엔드에서 Worker란 무엇인가?">
+  Worker는 thread나 프로세스 같은 동시성 기본 요소가 아니라 <strong>작업 부하의 실행 수명 주기를 맡는 역할</strong>이다. API가 요청을 검증하고 실행을 접수한다면, Worker는 큐에서 작업을 가져와 상태를 갱신하고, 완료·실패·재시도 가능한 결과가 남을 때까지 현재 시도를 책임진다. Worker 프로세스 내부에서는 다시 비동기·thread·프로세스를 조합할 수 있다.
 </AnswerBlock>
 
 이전 글 [Async, Thread, Process](/ai/agents/async-thread-process-agent-backends/)에서는 작업 부하의 병목에 따라 실행 도구를 나눴다.
@@ -107,7 +107,7 @@ def start_local_task(coroutine) -> None:
 
 이 코드는 task 참조 관리 문제를 해결할 뿐이다. API process가 종료되면 집합과 task가 모두 사라진다.
 
-## API와 워커를 분리한다는 것은 무엇인가
+## API와 Worker를 분리한다는 것은 무엇인가
 
 “API와 worker를 분리한다”는 말에는 **논리적 책임**과 **배포 수명 주기** 두 층이 있다. 개발 환경에서는 API와 worker를 한 process나 한 Pod에 둘 수 있다. 그래도 HTTP 접수와 장시간 run 실행은 코드 경계로 나눌 수 있다.
 
@@ -182,11 +182,11 @@ async def create_run(request: RunRequest, user: User = Depends(current_user)):
 
 이 예시는 책임 이관을 보여주기 위한 최소 구조다. 데이터베이스 쓰기에는 성공했지만 queue 게시 직전에 process가 죽는 이중 쓰기 실패까지 원자적으로 해결하지는 않는다. 운영 환경에서는 트랜잭션 아웃박스처럼 접수 기록과 게시를 연결하는 방법이나, queue 자체를 기준 정보로 삼는 방법이 필요하다. 중요한 것은 `202`를 반환하기 전에 시스템이 **나중에 다시 발견할 수 있는 실행 의도**를 남기는 것이다.
 
-## 워커는 현재 시도의 수명 주기를 책임진다
+## Worker는 현재 시도의 수명 주기를 책임진다
 
 Worker는 queue에서 메시지를 읽는 process라는 구현 형태보다 그 메시지를 받은 뒤 수행하는 책임으로 정의하는 편이 정확하다.
 
-작업은 대기 상태에서 워커에 의해 확보되고, 실행·결과 저장·처리 완료 통지 순으로 진행한다. 실패하면 재시도 가능 여부와 최종 종료 상태를 별도로 기록해야 한다.
+작업은 대기 상태에서 Worker에 의해 확보되고, 실행·결과 저장·처리 완료 통지 순으로 진행한다. 실패하면 재시도 가능 여부와 최종 종료 상태를 별도로 기록해야 한다.
 
 일반적인 worker의 책임은 다음과 같다.
 
@@ -235,11 +235,11 @@ async def handle_message(message: JobMessage) -> None:
 
 여기서 중요한 순서는 `실행 → 최종 상태 저장 → 처리 완료 통지(ack)`다. 먼저 처리 완료를 통지(ack)한 뒤 결과 저장에 실패하면 queue에는 완료된 것으로 보이지만 사용자는 결과를 찾을 수 없다. 반대로 결과를 저장하고 처리 완료 통지(ack) 직전에 worker가 죽으면 같은 메시지가 다시 전달될 수 있다. 그래서 worker 아키텍처는 **최소 한 번 전달과 멱등성 문제를 없애는 것이 아니라 드러낸다.** 결과 저장과 ack 사이의 중복 가능성과 멱등 부수 효과는 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)에서 다룬다.
 
-## 워커 하나가 작업 하나만 실행해야 하는 것은 아니다
+## Worker 하나가 작업 하나만 실행해야 하는 것은 아니다
 
 Worker를 OS thread 하나와 동일시하면 worker process 안의 동시성을 설계하기 어렵다. I/O 중심 Agent라면 worker process 하나가 asyncio event loop를 실행하면서 여러 작업을 제한된 수만큼 진행할 수 있다.
 
-I/O 중심 워커 프로세스 하나는 이벤트 루프 안에서 여러 실행의 대기를 겹칠 수 있다. 각 실행은 외부 응답을 기다릴 때 실행권을 양보하고, 응답이 준비되면 다시 이어서 처리한다.
+I/O 중심 Worker 프로세스 하나는 이벤트 루프 안에서 여러 실행의 대기를 겹칠 수 있다. 각 실행은 외부 응답을 기다릴 때 실행권을 양보하고, 응답이 준비되면 다시 이어서 처리한다.
 
 동시 실행 수에는 반드시 상한이 있어야 한다. Queue에 메시지가 많다는 이유로 모두 task로 만들면 LLM 호출량 제한, 데이터베이스 연결 풀, 메모리가 먼저 고갈된다.
 
@@ -275,7 +275,7 @@ CPU-bound 작업 부하라면 같은 worker 역할을 다른 방식으로 구현
 
 즉 **worker는 역할이고 async/thread/process는 그 역할을 구현하는 도구**다.
 
-## API와 워커의 책임을 분리하면 무엇이 달라지는가
+## API와 Worker의 책임을 분리하면 무엇이 달라지는가
 
 | 책임 | API | Worker |
 | --- | --- | --- |
@@ -293,7 +293,7 @@ CPU-bound 작업 부하라면 같은 worker 역할을 다른 방식으로 구현
 
 API는 짧고 예측 가능한 요청 처리에 최적화할 수 있다. Worker는 긴 시간 초과, 도구 자격 증명, CPU/GPU 자원, 재시도 정책에 맞춰 따로 배포하고 확장할 수 있다. PDF 파싱 worker가 밀려도 상태 조회 엔드포인트와 SSE 연결까지 같이 고갈되지 않도록 실패 영역도 분리된다.
 
-## 워커가 자동으로 보장하지 않는 것
+## Worker가 자동으로 보장하지 않는 것
 
 Worker를 추가하면 architecture diagram은 그럴듯해지지만 다음 성질이 저절로 생기지는 않는다.
 
@@ -310,13 +310,13 @@ Worker를 추가하면 architecture diagram은 그럴듯해지지만 다음 성�
 
 이것이 queue와 worker를 `create_task()`의 더 무거운 버전으로 보면 안 되는 이유다. Worker 경계는 복구를 설계할 자리를 만들어주지만, 복구 정책 자체는 아니다.
 
-## Kubernetes에서 워커는 특별한 객체가 아니다
+## Kubernetes에서 Worker는 특별한 객체가 아니다
 
 Kubernetes에는 `Deployment`, `StatefulSet`, `Job` 같은 작업 부하 자원이 있다. 그러나 애플리케이션 아키텍처에서 말하는 worker는 Kubernetes 객체 이름이 아니다.
 
 API와 worker가 같은 container image를 사용해도 된다.
 
-| 구분 | API 배포 | 워커 배포 |
+| 구분 | API 배포 | Worker 배포 |
 | --- | --- | --- |
 | 시작 명령 | `uvicorn app.api:app` | `python -m app.worker` |
 | 확장 기준 | HTTP 요청량 | 큐 길이·실행 시간·외부 서비스 부하 |
@@ -331,7 +331,7 @@ Kubernetes 배포와 자동 확장은 11편에서 더 자세히 다룬다. 지�
 
 > 컨테이너가 worker인 것이 아니다. Queue에서 받은 실행 시도를 책임지는 애플리케이션 역할이 worker다.
 
-## 요청에서 워커로 책임을 넘기는 판단 기준
+## 요청에서 Worker로 책임을 넘기는 판단 기준
 
 최종적으로는 다음 질문으로 결정할 수 있다.
 
