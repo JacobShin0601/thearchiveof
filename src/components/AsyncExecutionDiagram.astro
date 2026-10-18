@@ -4,7 +4,7 @@ const { kind } = Astro.props as Props;
 const captions: Record<Props['kind'], string> = {
   latency: '그림 1. 순차 실행과 동시 실행: 대기 구간을 겹치면 가장 느린 작업 시간에 가까워진다',
   throughput: '그림 2. 한 실행이 대기하는 동안 다른 실행을 진행해 처리량을 높인다',
-  blocking: '그림 3. 블로킹 호출은 이벤트 루프 스레드를 붙잡고, 다른 작업의 진행을 막는다',
+  blocking: '그림 3. 블로킹 호출은 이벤트 루프 thread를 붙잡고, 다른 작업의 진행을 막는다',
   interleaving: '그림 4. 비동기 I/O에서는 대기 중인 작업이 실행권을 돌려준다',
   compare: '그림 5. 동시성과 병렬성은 서로 다른 질문에 답한다',
 };
@@ -14,7 +14,7 @@ const caption = captions[kind];
   <figcaption>{caption}</figcaption>
   {kind === 'latency' && <div class="lanes"><section class="lane-group"><h3>순차 실행 <span>약 6초</span></h3><div class="lane"><strong>문서 검색</strong><i>요청 · 대기 · 응답</i></div><div class="lane offset-1"><strong>웹 검색</strong><i>요청 · 대기 · 응답</i></div><div class="lane offset-2"><strong>DB 조회</strong><i>요청 · 대기 · 응답</i></div></section><section class="lane-group"><h3>동시 실행 <span>약 2초</span></h3><div class="lane"><strong>문서 검색</strong><i>요청 · 대기 · 응답</i></div><div class="lane"><strong>웹 검색</strong><i>요청 · 대기 · 응답</i></div><div class="lane"><strong>DB 조회</strong><i>요청 · 대기 · 응답</i></div></section></div>}
   {kind === 'throughput' && <ol class="run-stack"><li><strong>실행 A</strong><span>LLM 요청</span><i>대기</i><span>재개</span></li><li class="shift-1"><strong>실행 B</strong><span>DB 질의</span><i>대기</i><span>재개</span></li><li class="shift-2"><strong>실행 C</strong><span>Redis 읽기</span><i>대기</i><span>재개</span></li></ol>}
-  {kind === 'blocking' && <div class="blocking"><div>외부 서비스 호출</div><b>↓</b><div class="blocked">이벤트 루프 스레드가 응답까지 대기</div><b>↓</b><div class="muted">그동안 같은 스레드의 다른 코루틴도 진행하지 못함</div></div>}
+  {kind === 'blocking' && <div class="blocking"><div>외부 서비스 호출</div><b>↓</b><div class="blocked">이벤트 루프 thread가 응답까지 대기</div><b>↓</b><div class="muted">그동안 같은 thread의 다른 코루틴도 진행하지 못함</div></div>}
   {kind === 'interleaving' && <ol class="run-stack"><li><strong>작업 A</strong><span>LLM 요청</span><i>응답 대기 · 실행권 양보</i><span>재개</span></li><li class="shift-1"><strong>작업 B</strong><span>DB 질의</span><i>응답 대기 · 실행권 양보</i><span>재개</span></li><li class="shift-2"><strong>작업 C</strong><span>Redis 읽기</span><i>응답 대기 · 실행권 양보</i><span>재개</span></li></ol>}
   {kind === 'compare' && <div class="comparison"><section><h3>동시성</h3><p>여러 작업이 같은 시간 구간에 번갈아 진행되는가?</p><small>대표 사례: 비동기 I/O, 하나의 이벤트 루프</small></section><section><h3>병렬성</h3><p>여러 작업이 실제로 서로 다른 연산 자원에서 동시에 실행되는가?</p><small>대표 사례: 여러 CPU 코어, 별도 프로세스, GPU</small></section></div>}
 </figure>
