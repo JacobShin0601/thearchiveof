@@ -67,7 +67,9 @@ results = await asyncio.gather(
 
 API에서는 run 한 건만 수용했지만 model call, tool concurrency와 token cost는 세 배 이상으로 fan-out한다. Worker가 중간에 죽으면 어떤 child가 끝났는지 사라진다. 하나가 실패했을 때 나머지를 취소할지, 성공 결과만 합성할지도 코드의 우연한 예외 처리에 맡겨진다.
 
-Multi-Agent의 핵심은 Agent 수가 아니다. **하나의 목표를 여러 실행 단위로 분해하고, 다시 예측 가능한 제품 상태로 합치는 실행 규약**이다.\n\n`gather()`나 `TaskGroup`은 한 Worker attempt 안의 짧은 로컬 동시성을 다룬다. 반면 Parent Run과 Child Run은 Worker 재시작 뒤에도 다시 찾고, 재시도하고, 결과를 합쳐야 하는 영속적인 실행 수명 주기다.
+Multi-Agent의 핵심은 Agent 수가 아니다. **하나의 목표를 여러 실행 단위로 분해하고, 다시 예측 가능한 제품 상태로 합치는 실행 규약**이다.
+
+`gather()`나 `TaskGroup`은 한 Worker attempt 안의 짧은 로컬 동시성을 다룬다. 반면 Parent Run과 Child Run은 Worker 재시작 뒤에도 다시 찾고, 재시도하고, 결과를 합쳐야 하는 영속적인 실행 수명 주기다.
 
 <AgentMultiRunDiagrams
   kind="hierarchy"
@@ -125,7 +127,11 @@ CREATE TABLE agent_runs (
 
 Orchestrator가 child를 만든 직후 죽을 수 있다.
 
-<AgentMultiRunDiagrams\n  kind="creation"\n  language="ko"\n  caption="그림 2. Fan-out은 Child Run 생성, outbox 기록, queue 전달, Parent checkpoint를 함께 다뤄야 한다."\n/>
+<AgentMultiRunDiagrams
+  kind="creation"
+  language="ko"
+  caption="그림 2. Fan-out은 Child Run 생성, outbox 기록, queue 전달, Parent checkpoint를 함께 다뤄야 한다."
+/>
 
 Stable `child_key`와 unique constraint가 logical child의 중복 생성을 막는다. Parent state update, child rows와 enqueue outbox는 같은 transaction에서 기록한다.
 
