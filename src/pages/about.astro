@@ -28,7 +28,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         <h2>어떻게 쓰나요</h2>
         <p>글을 쓸 때는 AI의 도움을 적극적으로 받습니다. 다만 문제를 고르고 가설을 세우는 일은 제가 맡고, AI는 자료를 확인하고 반례를 찾으며 구조와 표현을 다듬는 동료에 가깝습니다. 질문을 먼저 두고, 설명하고, 사례나 모형으로 시험한 뒤, 말할 수 있는 범위만 적으려 합니다.</p>
         <div class="method-signature" aria-label="글을 쓰는 방식">
-          <span>Writing method</span>
+          <strong>Writing method</strong>
           <em>Explain → Model → Test → Interpret.</em>
         </div>
         <p>한국어가 원문입니다. 영어판은 같은 주장과 근거를 영어 독자가 자연스럽게 읽도록 다시 쓴 편집본입니다. 틀린 부분은 덮지 않고, 생각이 바뀌면 그 이유도 글 안에 남깁니다.</p>
@@ -43,29 +43,27 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   <style>
     .method-signature {
       display: grid;
-      gap: 10px;
-      margin: 28px 0 34px;
-      padding: 18px 20px;
-      border: 1px solid var(--line);
-      border-left: 3px solid var(--accent);
-      background: color-mix(in srgb, var(--paper-deep) 62%, transparent);
+      gap: 3px;
+      margin: 24px 0 30px;
+      padding-left: 15px;
+      border-left: 2px solid var(--accent);
     }
 
-    .method-signature span {
+    .method-signature strong {
       color: var(--accent);
       font-size: 10px;
-      font-weight: 700;
-      letter-spacing: .12em;
+      letter-spacing: .09em;
+      line-height: 1.4;
       text-transform: uppercase;
     }
 
     .method-signature em {
       color: var(--ink);
       font-family: var(--serif);
-      font-size: clamp(20px, 3vw, 26px);
+      font-size: clamp(16px, 2.25vw, 19px);
       font-style: italic;
-      letter-spacing: -.01em;
-      line-height: 1.35;
+      letter-spacing: -.005em;
+      line-height: 1.45;
     }
   </style>
 </BaseLayout>
