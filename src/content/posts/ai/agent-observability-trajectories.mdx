@@ -89,7 +89,7 @@ run accepted
 
 이 궤적은 세 질문에 답해야 한다.
 
-1. **무엇이 일어났나?** 상태 전이, model·tool 호출, retry와 decision
+1. **무엇이 일어났나?** state 전이, model·tool 호출, retry와 decision
 2. **왜 그렇게 됐나?** 부모-자식 관계, input version, policy와 error
 3. **얼마가 들었나?** queue wait, wall time, active time, token과 cost
 
@@ -359,4 +359,4 @@ Golden path screenshot만 확인하는 observability는 실제 장애에서 처�
 
 Trajectory를 연결하면 “느리다”는 현상이 queue wait, provider latency, approval wait, retry storm 중 어디에서 생겼는지 보인다. 하지만 backlog와 active run이 계속 증가하는데도 모든 요청을 받는다면 관찰은 사후 설명에 그친다.
 
-다음 글에서는 **Backpressure, Quotas, Admission Control**을 통해 tenant와 operation별 quota, bounded queue, concurrency limit와 overload response로 Agent backend가 과부하에서도 회복 가능한 상태를 유지하는 방법을 다룬다.
+다음 글에서는 **Backpressure, Quotas, Admission Control**을 통해 tenant와 operation별 quota, bounded queue, concurrency limit와 overload response로 Agent backend가 과부하에서도 회복 가능한 state를 유지하는 방법을 다룬다.
