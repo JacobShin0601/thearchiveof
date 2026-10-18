@@ -66,13 +66,13 @@ export const SERIES_PART_META: Record<
   },
   state: {
     index: 3,
-    title: { ko: '상태와 내구성', en: 'State and durability' },
+    title: { ko: 'state와 내구성', en: 'State and durability' },
     description: {
-      ko: '영속 상태, 실시간 투영, event와 session ownership의 경계를 구분합니다.',
+      ko: '영속 state, 실시간 투영, event와 session ownership의 경계를 구분합니다.',
       en: 'Separate durable state, live projections, events, and session ownership.',
     },
     question: {
-      ko: '실행 상태는 어디에 저장되고 누구에게 속하는가?',
+      ko: '실행 state는 어디에 저장되고 누구에게 속하는가?',
       en: 'Where does execution state live, and who owns it?',
     },
   },
