@@ -10,11 +10,11 @@ const ko = language === 'ko';
 
 const sequence = ko
   ? [
-      ['1', '접수', 'Browser → API', '인증·권한·입력 검증', '아직 실행하지 않는다.'],
-      ['2', '기록', 'API → PostgreSQL', 'run + outbox를 함께 기록', '요청이 재시작 뒤에도 남는다.'],
-      ['3', '전달', 'Relay → Redis Stream', '실행할 식별자만 게시', '전달 실패는 다시 시도할 수 있다.'],
-      ['4', '실행', 'Worker attempt → LangGraph', '이번 시도의 실행 권한 확인', '중복 delivery도 바로 재실행하지 않는다.'],
-      ['5', '확정', 'PostgreSQL → Redis → XACK', '결과를 먼저 확정하고 ack는 마지막', '장애 뒤에도 최종 상태를 다시 찾는다.'],
+      ['1', '접수', '브라우저 → API', '인증·권한·입력 검증', '이 단계에서는 아직 실행하지 않는다.'],
+      ['2', '기록', 'API → PostgreSQL', 'run과 outbox를 함께 기록', '서버가 다시 시작돼도 요청을 찾을 수 있다.'],
+      ['3', '전달', '릴레이 → Redis Stream', '실행에 필요한 식별자만 발행', '전달에 실패해도 다시 시도할 수 있다.'],
+      ['4', '실행', '워커 attempt → LangGraph', '이번 시도의 실행 권한 확인', '중복 전달돼도 바로 다시 실행하지 않는다.'],
+      ['5', '확정', 'PostgreSQL → Redis → XACK', '결과를 먼저 확정하고 ack는 마지막', '장애 뒤에도 최종 상태를 다시 찾을 수 있다.'],
     ]
   : [
       ['1', 'Admit', 'Browser → API', 'Authenticate, authorize, validate', 'Do not execute yet.'],
@@ -26,10 +26,10 @@ const sequence = ko
 
 const owners = ko
   ? [
-      ['API', '접수 책임', 'identity · authorization · validation', 'run과 outbox를 남기면 API의 책임은 끝난다.'],
-      ['Queue', '전달 책임', 'undelivered → pending', '아직 확인되지 않은 delivery를 기억한다.'],
-      ['Worker attempt', '실행 책임', 'graph · tool · checkpoint', 'lease와 fence 아래 한 번의 시도를 수행한다.'],
-      ['PostgreSQL', '최종 결과 책임', 'terminal status · result · audit', '재연결과 재전달의 최종 기준이다.'],
+      ['API', '접수 담당', '사용자 식별 · 권한 확인 · 입력 검증', 'run과 outbox를 남기면 API의 일은 끝난다.'],
+      ['Queue', '전달 담당', '미전달 → pending', '아직 확인되지 않은 전달을 기억한다.'],
+      ['Worker attempt', '실행 담당', '그래프 · 도구 · checkpoint', 'lease와 fence 아래에서 한 번의 시도를 수행한다.'],
+      ['PostgreSQL', '최종 결과 담당', '종료 상태 · 결과 · 감사 기록', '재연결과 재전달을 판단하는 최종 기준이다.'],
     ]
   : [
       ['API', 'Admission owner', 'identity · authorization · validation', 'Its responsibility ends after persisting run and outbox.'],
@@ -40,10 +40,10 @@ const owners = ko
 
 const failures = ko
   ? [
-      ['기록 전', '아무 run도 남지 않는다', '요청 실패를 반환하고 새 요청을 허용한다.'],
-      ['기록 후 · 전달 전', 'run과 outbox가 남는다', 'relay 또는 reconciler가 queue에 다시 게시한다.'],
-      ['결과 확정 후 · ack 전', 'terminal result가 남는다', '새 Worker는 재실행하지 않고 XACK만 한다.'],
-      ['SSE 연결 종료', '실행과 event가 남는다', 'cursor replay; 범위를 넘으면 snapshot을 다시 읽는다.'],
+      ['기록 전', '아무 run도 남지 않는다', '요청이 실패했다는 응답을 보내고, 새 요청을 받는다.'],
+      ['기록 후 · 전달 전', 'run과 outbox가 남는다', '릴레이 또는 reconciler가 큐에 다시 발행한다.'],
+      ['결과 확정 후 · ack 전', '최종 결과가 남는다', '새 워커는 다시 실행하지 않고 XACK만 한다.'],
+      ['SSE 연결 종료', '실행과 이벤트가 남는다', 'cursor로 놓친 이벤트를 다시 읽고, 범위를 넘으면 snapshot을 다시 읽는다.'],
     ]
   : [
       ['Before persistence', 'No run remains', 'Return failure and allow a fresh request.'],
@@ -94,28 +94,28 @@ const failures = ko
     <div class="projection">
       <section class="source">
         <span>RUNTIME</span>
-        <strong>LangGraph 실행 중 나온 값</strong>
-        <p>그래프 내부 state를 그대로 브라우저에 보내지 않는다.</p>
+        <strong>실행 중 생성된 값</strong>
+        <p>그래프 내부 상태를 그대로 브라우저에 보내지 않는다.</p>
       </section>
-      <div class="projection-arrow" aria-hidden="true">↓ 애플리케이션 contract로 번역</div>
+      <div class="projection-arrow" aria-hidden="true">↓ 애플리케이션 형식으로 변환</div>
       <div class="projection-branches">
         <section>
-          <span>현재 화면</span>
+          <span>화면 상태</span>
           <strong>UI snapshot</strong>
           <code>status · progress · current_step</code>
           <p>Redis Hash에 저장해 화면을 빠르게 복원한다.</p>
         </section>
         <section>
-          <span>시간순 기록</span>
+          <span>이벤트 시간순 기록</span>
           <strong>Event timeline</strong>
           <code>step_started · approval · completed</code>
-          <p>Redis Stream에 append해 SSE 재연결에 쓴다.</p>
+          <p>Redis Stream에 추가해 SSE를 다시 연결할 때 쓴다.</p>
         </section>
       </div>
       <div class="projection-arrow" aria-hidden="true">↓</div>
       <section class="destination">
         <strong>FastAPI SSE → Browser</strong>
-        <p>브라우저는 실행을 소유하지 않고, snapshot과 event를 관측한다.</p>
+        <p>브라우저는 실행을 맡지 않고, snapshot과 event를 받아 화면에 반영한다.</p>
       </section>
     </div>
   )}
