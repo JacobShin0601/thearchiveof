@@ -54,20 +54,22 @@ references:
 import AnswerBlock from '../../../components/AnswerBlock.astro';
 
 <AnswerBlock question="Worker가 job 실행 중 죽으면 그 작업은 어떻게 되는가?">
-  <strong>Consumer group으로 전달됐지만 아직 `XACK`되지 않은 job은 Pending Entries List에 남고, 충분히 오래 idle state인 entry를 정상 worker가 회수해 다시 실행할 수 있다.</strong> 다만 재전달은 중복 실행 가능성을 뜻한다. 따라서 결과를 durable store에 먼저 기록한 뒤 ack하고, 각 시도를 별도로 추적하며, tool의 부수 효과는 멱등하게 만들고, 최대 시도 횟수를 넘은 job은 격리해야 한다.
+  <strong>Consumer group으로 전달됐지만 아직 `XACK`되지 않은 job은 Pending Entries List에 남고, 충분히 오래 유휴 상태인 entry를 정상 worker가 회수해 다시 실행할 수 있다.</strong> 다만 재전달은 중복 실행 가능성을 뜻한다. 따라서 결과를 durable store에 먼저 기록한 뒤 ack하고, 각 시도를 별도로 추적하며, tool의 부수 효과는 멱등하게 만들고, 최대 시도 횟수를 넘은 job은 격리해야 한다.
 </AnswerBlock>
 
 [Worker는 Thread가 아니다](/ai/agents/worker-is-not-thread/)에서는 worker를 concurrency primitive가 아니라 **실행 시도의 수명주기를 소유하는 역할**로 정의했다. 바로 앞의 [Conversation은 Run이 아니다](/ai/agents/conversation-is-not-a-run/)에서는 session 안의 각 실행을 별도 `run_id`로 식별했다.
 
 이제 가장 중요한 실패를 넣어보자. Worker가 job을 가져간 뒤 Pod가 종료된다. Queue에는 이미 전달된 것으로 보이지만 PostgreSQL에는 최종 결과가 없다. 이때 시스템은 작업을 잃어도, 성공한 것으로 오해해도, 무한히 재실행해도 안 된다.
 
-```text
-queued → delivered → running → result persisted → acknowledged
-              │             │
-              └── crash ────┘
-                    ↓
-                  pending
-```
+<svg viewBox="0 0 360 240" role="img" aria-label="Worker가 job을 전달받은 뒤 죽고, pending entry를 다른 worker가 회수해 완료와 ACK까지 처리하는 흐름" style="display:block; width:100%; max-width:360px; height:auto; margin:1.5rem auto;"><defs><marker id="crash-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#718096" /></marker></defs>
+  <rect x="24" y="14" width="312" height="42" rx="9" fill="#eef4ff" stroke="#4c78a8"/><text x="43" y="40" fill="#244b75" font-size="15" font-weight="700">Queue</text><text x="133" y="40" fill="#52606d" font-size="13">새로운 job</text>
+  <path d="M180 56 V78" stroke="#718096" stroke-width="1.5" marker-end="url(#crash-arrow)"/>
+  <rect x="24" y="80" width="144" height="46" rx="9" fill="#fdf8ed" stroke="#b7791f"/><text x="39" y="108" fill="#8a5714" font-size="14" font-weight="700">Worker A</text><text x="39" y="121" fill="#8a5714" font-size="11">전달 후 종료</text>
+  <rect x="192" y="80" width="144" height="46" rx="9" fill="#fff4f4" stroke="#c05656"/><text x="210" y="108" fill="#9b2c2c" font-size="14" font-weight="700">PEL</text><text x="210" y="121" fill="#9b2c2c" font-size="11">ACK 전이면 남아 있음</text>
+  <path d="M168 103 H190" stroke="#718096" stroke-width="1.5" marker-end="url(#crash-arrow)"/><path d="M264 126 V151" stroke="#718096" stroke-width="1.5" marker-end="url(#crash-arrow)"/>
+  <rect x="192" y="153" width="144" height="44" rx="9" fill="#f3faf7" stroke="#3d8b6d"/><text x="209" y="180" fill="#17644d" font-size="14" font-weight="700">Worker B</text><text x="209" y="193" fill="#17644d" font-size="11">회수·재개</text>
+  <path d="M192 175 H145" stroke="#718096" stroke-width="1.5" marker-end="url(#crash-arrow)"/><rect x="24" y="153" width="120" height="44" rx="9" fill="#f4f7fb" stroke="#718096"/><text x="40" y="180" fill="#354052" font-size="13" font-weight="700">결과 저장</text>
+  <path d="M145 197 V217 H258" fill="none" stroke="#718096" stroke-width="1.5" marker-end="url(#crash-arrow)"/><text x="265" y="221" fill="#17644d" font-size="13" font-weight="700">XACK</text></svg>
 
 핵심은 한 문장이다.
 
@@ -75,7 +77,7 @@ queued → delivered → running → result persisted → acknowledged
 
 ## Consumer group은 일을 나누고 미완료 전달을 기억한다
 
-API는 durable run row를 만든 뒤 Redis Stream에 작은 실행 지시를 추가한다. Queue payload에 전체 대화와 비밀 정보를 복제하기보다 worker가 authoritative store에서 읽을 `run_id`를 중심으로 전달하는 편이 낫다.
+API는 durable run row를 만든 뒤 Redis Stream에 작은 실행 지시를 추가한다. Queue payload에 전체 대화와 비밀 정보를 복제하기보다 worker가 기준이 되는 영속 저장소에서 읽을 `run_id`를 중심으로 전달하는 편이 낫다.
 
 ```python
 message_id = await redis.xadd(
@@ -127,13 +129,12 @@ Redis는 전달된 entry의 ID와 consumer를 group의 Pending Entries List, 즉
 
 안전한 기본 순서는 다음과 같다.
 
-```text
-1. job 수신
-2. durable attempt 생성
-3. Agent와 tool 실행
-4. 최종 결과 또는 최종 실패 저장
-5. XACK
-```
+<svg viewBox="0 0 360 240" role="img" aria-label="job 수신부터 durable 결과 저장과 XACK까지의 안전한 처리 순서, 그리고 두 개의 crash window" style="display:block; width:100%; max-width:360px; height:auto; margin:1.5rem auto;"><defs><marker id="ack-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#718096" /></marker></defs>
+  <rect x="20" y="16" width="320" height="38" rx="9" fill="#eef4ff" stroke="#4c78a8"/><text x="36" y="40" fill="#244b75" font-size="13" font-weight="700">1. job 수신 · attempt 생성</text>
+  <path d="M180 54 V72" stroke="#718096" stroke-width="1.5" marker-end="url(#ack-arrow)"/><rect x="20" y="74" width="320" height="38" rx="9" fill="#fdf8ed" stroke="#b7791f"/><text x="36" y="98" fill="#8a5714" font-size="13" font-weight="700">2. Agent·tool 실행</text>
+  <path d="M180 112 V130" stroke="#718096" stroke-width="1.5" marker-end="url(#ack-arrow)"/><rect x="20" y="132" width="150" height="42" rx="9" fill="#f3faf7" stroke="#3d8b6d"/><text x="35" y="158" fill="#17644d" font-size="13" font-weight="700">3. 결과를 DB에 저장</text>
+  <rect x="190" y="132" width="150" height="42" rx="9" fill="#f3faf7" stroke="#3d8b6d"/><text x="230" y="158" fill="#17644d" font-size="13" font-weight="700">4. XACK</text><path d="M171 153 H188" stroke="#718096" stroke-width="1.5" marker-end="url(#ack-arrow)"/>
+  <text x="20" y="191" fill="#9b2c2c" font-size="11">DB 저장 전 crash: PEL에 남아 회수</text><text x="190" y="191" fill="#17644d" font-size="11">DB 저장 후 crash: 중복만 안전하게 처리</text></svg>
 
 ```python
 async def handle_entry(entry_id: str, fields: dict[bytes, bytes]) -> None:
@@ -142,27 +143,40 @@ async def handle_entry(entry_id: str, fields: dict[bytes, bytes]) -> None:
 
     try:
         result = await execute_agent(run_id, attempt.id)
-        await run_store.complete_attempt(
-            run_id=run_id,
-            attempt_id=attempt.id,
-            result=result,
-        )
-    except RetryableError as error:
-        await run_store.mark_retryable_failure(attempt.id, error)
-        return  # ack하지 않는다. recovery loop가 나중에 회수한다.
     except Exception as error:
-        await run_store.fail_run(run_id, attempt.id, error)
+        policy = classify(error)
+        await run_store.record_failure(attempt.id, error, policy=policy)
 
+        if policy == "retryable":
+            # retry_at을 durable store에 기록한다.
+            # 별도 scheduler가 준비된 시점에 새 job을 발행한다.
+            await run_store.schedule_retry(run_id, attempt.id, retry_at=next_retry_at())
+            await redis.xack("agent:jobs", "agent-workers", entry_id)
+            return
+
+        if policy == "terminal":
+            await run_store.fail_run(run_id, attempt.id, error)
+        else:
+            await run_store.quarantine(run_id, attempt.id, error)
+
+        await redis.xack("agent:jobs", "agent-workers", entry_id)
+        return
+
+    await run_store.complete_attempt(
+        run_id=run_id,
+        attempt_id=attempt.id,
+        result=result,
+    )
     await redis.xack("agent:jobs", "agent-workers", entry_id)
 ```
 
-먼저 ack하고 결과 저장에 실패하면 job은 PEL에서 사라졌는데 사용자는 결과를 찾을 수 없다. 반대로 결과 저장에 성공한 직후 process가 죽으면 ack되지 않은 entry가 재전달될 수 있다. 후자는 복구할 수 있지만 중복 실행을 받아들여야 한다.
+먼저 ack하고 결과 저장에 실패하면 job은 PEL에서 사라졌는데 사용자는 결과를 찾을 수 없다. 반대로 결과 저장에 성공한 직후 process가 종료되면 ack되지 않은 entry가 재전달될 수 있다. 후자는 중복을 안전하게 처리할 수 있다면 복구 가능하다. 반면 의도적인 재시도는 PEL에 그냥 남겨 두는 방식이 아니라, 다음 시도 시점과 attempt 수를 durable store에 기록한 뒤 별도의 scheduler가 다시 발행하도록 설계한다. PEL 회수는 **worker 장애로 확인되지 않은 전달을 복구하는 장치**이고, backoff는 **재시도 정책**의 책임이다.
 
 또한 `XACK`은 PEL의 참조를 제거하지, Stream entry 자체를 삭제하지 않는다. 메모리 보존과 삭제는 `XTRIM`, `XDEL` 또는 별도 retention 정책의 책임이다.
 
-## Worker crash는 pending entry를 남긴다
+## Worker가 죽으면 pending entry가 남는다
 
-Worker A가 entry를 받은 뒤 종료되면 그 entry는 A의 pending 항목으로 남는다. 다른 worker가 단순히 `>`로 새 메시지만 읽어서는 가져오지 못한다. 별도의 recovery loop가 오래 idle state인 pending 항목을 회수해야 한다.
+Worker A가 entry를 받은 뒤 종료되면 그 entry는 A의 pending 항목으로 남는다. 다른 worker가 단순히 `>`로 새 메시지만 읽어서는 가져오지 못한다. 별도의 recovery loop가 오래 유휴 상태인 pending 항목을 회수해야 한다.
 
 ```python
 async def reclaim_stale_jobs() -> None:
@@ -185,7 +199,7 @@ async def reclaim_stale_jobs() -> None:
             break
 ```
 
-`XAUTOCLAIM`의 `min_idle_time`은 “이 시간이 지나면 원래 worker가 반드시 죽었다”는 증명이 아니다. 일시적인 네트워크 지연이나 긴 tool call 때문에 살아 있는 worker가 여전히 실행 중일 수 있다. 너무 짧으면 같은 run을 두 worker가 동시에 실행하고, 너무 길면 복구가 늦어진다.
+`XAUTOCLAIM`의 `min_idle_time`은 “이 시간이 지나면 원래 worker가 반드시 죽었다”는 증명이 아니다. 일시적인 네트워크 지연이나 오래 걸리는 tool call 때문에 살아 있는 worker가 여전히 실행 중일 수 있다. 너무 짧으면 같은 run을 두 worker가 동시에 실행하고, 너무 길면 복구가 늦어진다.
 
 따라서 timeout은 관측한 실행 시간 분포를 바탕으로 정하고, 긴 작업에는 heartbeat나 lease 갱신을 추가한다. Queue의 idle time만으로 실행 소유권을 완전히 판단하지 말고 durable attempt에도 ownership을 둔다.
 
@@ -193,11 +207,11 @@ async def reclaim_stale_jobs() -> None:
 
 Run은 사용자 관점의 실행이고 attempt는 worker가 맡은 한 번의 시도다.
 
-```text
-Run R1
-├─ Attempt 1 / Worker A / lease 41 / timed_out
-└─ Attempt 2 / Worker B / lease 42 / running
-```
+<svg viewBox="0 0 360 240" role="img" aria-label="Worker A의 오래된 attempt와 Worker B의 새 attempt를 fencing token으로 구분해 늦은 write를 막는 흐름" style="display:block; width:100%; max-width:360px; height:auto; margin:1.5rem auto;"><defs><marker id="fence-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#718096" /></marker></defs>
+  <text x="28" y="25" fill="#52606d" font-size="12">시간 →</text><path d="M24 38 H336" stroke="#cbd5e0" stroke-width="1.5"/>
+  <text x="24" y="69" fill="#8a5714" font-size="14" font-weight="700">Worker A</text><rect x="105" y="48" width="96" height="38" rx="8" fill="#fdf8ed" stroke="#b7791f"/><text x="117" y="71" fill="#8a5714" font-size="12" font-weight="700">attempt 1</text><text x="122" y="82" fill="#8a5714" font-size="10">fence 41</text><path d="M201 67 H275" stroke="#c05656" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#fence-arrow)"/><text x="221" y="59" fill="#9b2c2c" font-size="10">늦은 write</text>
+  <text x="24" y="135" fill="#17644d" font-size="14" font-weight="700">Worker B</text><rect x="105" y="114" width="96" height="38" rx="8" fill="#f3faf7" stroke="#3d8b6d"/><text x="117" y="137" fill="#17644d" font-size="12" font-weight="700">attempt 2</text><text x="122" y="148" fill="#17644d" font-size="10">fence 42</text><path d="M201 133 H275" stroke="#3d8b6d" stroke-width="1.5" marker-end="url(#fence-arrow)"/>
+  <rect x="276" y="99" width="60" height="68" rx="8" fill="#f4f7fb" stroke="#718096"/><text x="286" y="124" fill="#354052" font-size="11" font-weight="700">runs</text><text x="284" y="143" fill="#17644d" font-size="10">42 허용</text><text x="284" y="157" fill="#9b2c2c" font-size="10">41 거부</text><text x="24" y="205" fill="#52606d" font-size="11">현재 fence와 일치하는 attempt만 결과를 기록한다.</text></svg>
 
 Worker A가 멈춘 것으로 판단해 B가 회수했는데 A가 늦게 다시 응답할 수 있다. “마지막 write가 이긴다”에 맡기면 오래된 A가 B의 결과를 덮어쓴다. 새 attempt마다 증가하는 fencing token을 발급하고, 현재 token과 일치하는 write만 허용할 수 있다.
 
@@ -236,9 +250,9 @@ if run.status in {"succeeded", "failed", "cancelled"}:
 
 하지만 status 확인만으로 외부 부수 효과의 중복을 막을 수는 없다. 이메일 전송, 결제, 티켓 생성처럼 process 밖에서 일어나는 tool은 `(run_id, tool_call_id)` 같은 안정적인 멱등성 키를 사용해야 한다. 이 경계는 [Agent Tool은 정확히 한 번 실행될 수 있을까](/ai/agents/agent-tool-idempotency-approval-retry/)에서 다룬 원칙과 같다.
 
-## Retry는 예외를 다시 던지는 기능이 아니라 정책이다
+## 재시도는 실패를 반복하는 기능이 아니라 정책이다
 
-모든 오류를 같은 방식으로 재시도하면 장애를 증폭시킨다.
+재시도는 실패를 반복하는 기능이 아니라, 어디까지·언제·어떻게 다시 시도할지 정하는 정책이다. 모든 오류를 같은 방식으로 재시도하면 장애를 증폭시킨다.
 
 ```python
 def classify(error: Exception) -> str:
@@ -258,7 +272,7 @@ def classify(error: Exception) -> str:
 - 부수 효과의 멱등성
 - 최대 횟수 이후 dead-letter 또는 quarantine 경로
 
-Poison job을 PEL에 영원히 남겨두면 recovery loop가 같은 실패를 반복한다. 최대 횟수를 넘으면 durable run을 최종 실패로 기록하고, 원본 entry ID·오류 분류·attempt history를 조사 가능한 저장소에 남긴 뒤 ack한다.
+계속 실패하는 작업을 PEL에 영원히 남겨두면 recovery loop가 같은 실패를 반복한다. 최대 횟수를 넘으면 durable run을 최종 실패로 기록하고, 원본 entry ID·오류 분류·attempt history를 조사 가능한 저장소에 남긴 뒤 ack한다.
 
 ```python
 if attempt.number >= MAX_ATTEMPTS:
@@ -282,13 +296,10 @@ Redis Stream을 사용한다고 모든 서버 장애에서 job이 자동 보존�
 
 Queue length 하나만 보면 장애를 놓친다. 새 entry가 모두 전달되어 queue lag는 0인데, 죽은 consumer 아래 pending job 수백 개가 남을 수 있다.
 
-```text
-새 작업 대기: group lag
-전달 후 미완료: PEL count
-복구 지연: oldest pending idle time
-작업 건강도: attempt count / retry rate / terminal failure rate
-처리 성능: queue wait / run duration / end-to-end latency
-```
+<svg viewBox="0 0 360 240" role="img" aria-label="Queue 운영에서 함께 봐야 하는 새 작업, pending 작업, 복구 지연, 실행 건강도 지표" style="display:block; width:100%; max-width:360px; height:auto; margin:1.5rem auto;"><rect x="18" y="16" width="156" height="72" rx="10" fill="#eef4ff" stroke="#4c78a8"/><text x="34" y="43" fill="#244b75" font-size="13" font-weight="700">새 작업 대기</text><text x="34" y="66" fill="#52606d" font-size="12">group lag</text>
+  <rect x="186" y="16" width="156" height="72" rx="10" fill="#fff4f4" stroke="#c05656"/><text x="202" y="43" fill="#9b2c2c" font-size="13" font-weight="700">미완료 전달</text><text x="202" y="66" fill="#52606d" font-size="12">PEL count</text>
+  <rect x="18" y="105" width="156" height="72" rx="10" fill="#fdf8ed" stroke="#b7791f"/><text x="34" y="132" fill="#8a5714" font-size="13" font-weight="700">복구 지연</text><text x="34" y="155" fill="#52606d" font-size="12">oldest pending idle</text>
+  <rect x="186" y="105" width="156" height="72" rx="10" fill="#f3faf7" stroke="#3d8b6d"/><text x="202" y="132" fill="#17644d" font-size="13" font-weight="700">실행 건강도</text><text x="202" y="155" fill="#52606d" font-size="12">retry · failure · duration</text><text x="18" y="211" fill="#52606d" font-size="11">queue lag가 0이어도 PEL에 장애가 남을 수 있다.</text></svg>
 
 `XINFO GROUPS`, `XINFO CONSUMERS`, `XPENDING`을 애플리케이션의 run 지표와 함께 관찰한다. Consumer 이름도 Pod의 임의 hostname만 쓰기보다 배포와 instance를 추적할 수 있게 정한다.
 
@@ -299,7 +310,7 @@ Queue length 하나만 보면 장애를 놓친다. 새 entry가 모두 전달되
 | Test | Expected result |
 | --- | --- |
 | job 수신 직후 worker 종료 | entry가 pending으로 남고 다른 worker가 회수 |
-| 결과 commit 직후, ack 전 종료 | 재전달되지만 terminal run은 재실행하지 않고 ack |
+| 결과 commit 직후, ack 전 종료 | 재전달되지만 종료 상태가 확정된 run은 재실행하지 않고 ack |
 | tool 부수 효과 직후 종료 | 같은 idempotency key로 중복 효과 방지 |
 | 살아 있는 긴 작업을 너무 일찍 reclaim | fencing이 오래된 attempt의 write를 거부 |
 | retryable 오류 반복 | backoff 후 최대 횟수에서 격리 |
@@ -329,15 +340,15 @@ async def test_crash_after_commit_does_not_repeat_tool(worker, queue, store):
 - `XACK`과 stream entry 삭제를 구분하는가?
 - Run과 attempt를 분리하고 stale worker write를 거부하는가?
 - reclaim timeout이 실제 작업 시간과 heartbeat 정책에 근거하는가?
-- terminal run이 재전달되면 안전하게 ack하는가?
+- 종료 상태가 확정된 run이 재전달되면 안전하게 ack하는가?
 - 모든 외부 부수 효과에 안정적인 idempotency key가 있는가?
 - retry budget과 poison-job 격리 경로가 있는가?
 - Redis persistence와 Stream retention이 복구 요구를 만족하는가?
 - queue lag뿐 아니라 pending count와 oldest idle time을 경보하는가?
 - ack 전후에 worker를 실제로 죽이는 통합 테스트가 있는가?
 
-## 복구 가능한 queue 다음에는 배포 수명주기가 온다
+## 다음은 취소 요청을 실행 경계까지 전달하는 일이다
 
-Consumer group은 worker process가 사라져도 실행 의도를 남기고 다른 worker가 가져갈 수 있게 한다. 그러나 실제 운영에서는 Pod가 왜 종료되는지, 종료 신호를 받은 worker가 언제 새 job 수신을 멈춰야 하는지, 몇 개의 replica를 둘지, queue depth로 어떻게 확장할지도 정해야 한다.
+Consumer group은 worker process가 사라져도 실행 의도를 남기고 다른 worker가 가져갈 수 있게 한다. 하지만 사용자가 실행 중인 작업을 멈춰 달라고 요청하면, 새 worker가 그것을 다시 회수해서는 안 된다. 취소 의도는 durable하게 남고, worker·원격 tool·queue가 같은 종료 상태를 보도록 연결되어야 한다.
 
-다음 글에서는 API와 worker를 Kubernetes의 서로 다른 Deployment로 운영하고, graceful shutdown·resource request·bounded concurrency·queue 기반 scaling을 연결한다. Worker가 특별한 Kubernetes 객체가 아니라는 사실에서 출발해 **복구 가능한 실행 역할을 어떻게 배포 단위로 만드는지** 살펴본다.
+다음 글에서는 **[Agent를 멈춘다는 것: Cancellation은 버튼이 아니라 Protocol이다](/ai/agents/cancellation-is-a-protocol/)**를 다룬다. 취소 요청부터 cooperative stop, 부수 효과, terminal race와 ACK 순서를 연결해, 복구 가능한 queue가 이미 취소된 작업을 되살리지 않게 만드는 방법을 살펴본다.
