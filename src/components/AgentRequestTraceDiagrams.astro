@@ -10,144 +10,151 @@ const ko = language === 'ko';
 
 const sequence = ko
   ? [
-      ['1', '접수', 'Browser → API', 'POST /sessions/{id}/runs', '인증 · 권한 · 입력 검증'],
-      ['2', '기록', 'API → PostgreSQL', 'run = submitting', '재시작 뒤에도 남는 실행 의도'],
-      ['3', '전달', 'API → Redis Stream', 'XADD agent:jobs', '202를 반환하기 전 queue 인계'],
-      ['4', '실행', 'Worker → LangGraph', 'XREADGROUP · astream', 'attempt가 graph와 tool을 소유'],
-      ['5', '관측', 'Worker → Redis → SSE', 'HSET · XADD · XREAD', 'snapshot과 event를 브라우저에 전달'],
-      ['6', '종료', 'Worker → PostgreSQL', 'result commit → XACK', '최종 결과가 먼저, ack는 마지막'],
+      ['1', '접수', '브라우저 → API', '인증·권한·입력 검증', '이 단계에서는 아직 실행하지 않는다.'],
+      ['2', '기록', 'API → PostgreSQL', 'run과 outbox를 함께 기록', '서버가 다시 시작돼도 요청을 찾을 수 있다.'],
+      ['3', '전달', '릴레이 → Redis Stream', '실행에 필요한 식별자만 발행', '전달에 실패해도 다시 시도할 수 있다.'],
+      ['4', '실행', '워커 attempt → LangGraph', '이번 시도의 실행 권한 확인', '중복 전달돼도 바로 다시 실행하지 않는다.'],
+      ['5', '확정', 'PostgreSQL → Redis → XACK', '결과를 먼저 확정하고 ack는 마지막', '장애 뒤에도 최종 상태를 다시 찾을 수 있다.'],
     ]
   : [
-      ['1', 'Admit', 'Browser → API', 'POST /sessions/{id}/runs', 'Authenticate, authorize, validate'],
-      ['2', 'Persist', 'API → PostgreSQL', 'run = submitting', 'Execution intent survives restarts'],
-      ['3', 'Dispatch', 'API → Redis Stream', 'XADD agent:jobs', 'Hand off before returning 202'],
-      ['4', 'Execute', 'Worker → LangGraph', 'XREADGROUP · astream', 'The attempt owns graph and tool work'],
-      ['5', 'Observe', 'Worker → Redis → SSE', 'HSET · XADD · XREAD', 'Deliver snapshot and events to browser'],
-      ['6', 'Settle', 'Worker → PostgreSQL', 'result commit → XACK', 'Terminal result first, ack last'],
+      ['1', 'Admit', 'Browser → API', 'Authenticate, authorize, validate', 'Do not execute yet.'],
+      ['2', 'Persist', 'API → PostgreSQL', 'Write run and outbox together', 'The request survives a restart.'],
+      ['3', 'Dispatch', 'Relay → Redis Stream', 'Publish only execution identifiers', 'A failed handoff can be retried.'],
+      ['4', 'Execute', 'Worker attempt → LangGraph', 'Confirm this attempt’s authority', 'A duplicate delivery does not rerun work.'],
+      ['5', 'Settle', 'PostgreSQL → Redis → XACK', 'Commit result first; ack last', 'Terminal state remains recoverable.'],
     ];
 
 const owners = ko
   ? [
-      ['API', '접수 소유', 'identity · authorization · validation', 'run_id 생성과 durable intent'],
-      ['Queue', '전달 소유', 'undelivered → pending', 'consumer group이 미확인 전달을 기억'],
-      ['Worker attempt', '실행 소유', 'graph · tool · checkpoint', 'lease/fence 아래 이번 시도를 수행'],
-      ['PostgreSQL', '결과 소유', 'terminal status · result · audit', '재연결과 재전달의 최종 판단 기준'],
+      ['API', '접수 담당', '사용자 식별 · 권한 확인 · 입력 검증', 'run과 outbox를 남기면 API의 일은 끝난다.'],
+      ['Queue', '전달 담당', '미전달 → pending', '아직 확인되지 않은 전달을 기억한다.'],
+      ['Worker attempt', '실행 담당', '그래프 · 도구 · checkpoint', 'lease와 fence 아래에서 한 번의 시도를 수행한다.'],
+      ['PostgreSQL', '최종 결과 담당', '종료 상태 · 결과 · 감사 기록', '재연결과 재전달을 판단하는 최종 기준이다.'],
     ]
   : [
-      ['API', 'Admission owner', 'identity · authorization · validation', 'Creates run_id and durable intent'],
-      ['Queue', 'Delivery owner', 'undelivered → pending', 'Consumer group remembers unacknowledged delivery'],
-      ['Worker attempt', 'Execution owner', 'graph · tools · checkpoints', 'Runs this attempt under lease/fence'],
-      ['PostgreSQL', 'Result owner', 'terminal status · result · audit', 'Final authority for reconnect and redelivery'],
+      ['API', 'Admission owner', 'identity · authorization · validation', 'Its responsibility ends after persisting run and outbox.'],
+      ['Queue', 'Delivery owner', 'undelivered → pending', 'It remembers delivery that is not yet acknowledged.'],
+      ['Worker attempt', 'Execution owner', 'graph · tool · checkpoint', 'It performs one attempt under a lease and fence.'],
+      ['PostgreSQL', 'Result owner', 'terminal status · result · audit', 'It is the final authority for reconnect and redelivery.'],
     ];
 
 const failures = ko
   ? [
-      ['DB commit 전', 'run이 생성되지 않음', '요청 실패를 반환하고 재요청 허용'],
-      ['DB commit 후 · XADD 전', 'submitting run이 고립', 'outbox/relay 또는 reconciler가 queue 게시'],
-      ['결과 commit 후 · XACK 전', 'terminal run이 재전달', 'status 확인 후 재실행 없이 ack'],
-      ['SSE disconnect', '실행은 계속됨', 'cursor replay, 만료 시 snapshot resync'],
+      ['기록 전', '아무 run도 남지 않는다', '요청이 실패했다는 응답을 보내고, 새 요청을 받는다.'],
+      ['기록 후 · 전달 전', 'run과 outbox가 남는다', '릴레이 또는 reconciler가 큐에 다시 발행한다.'],
+      ['결과 확정 후 · ack 전', '최종 결과가 남는다', '새 워커는 다시 실행하지 않고 XACK만 한다.'],
+      ['SSE 연결 종료', '실행과 이벤트가 남는다', 'cursor로 놓친 이벤트를 다시 읽고, 범위를 넘으면 snapshot을 다시 읽는다.'],
     ]
   : [
-      ['Before DB commit', 'No run exists', 'Return failure and allow a fresh request'],
-      ['After DB commit · before XADD', 'Submitting run is stranded', 'Outbox/relay or reconciler publishes it'],
-      ['After result commit · before XACK', 'Terminal run is redelivered', 'Check status; ack without re-execution'],
-      ['SSE disconnect', 'Execution continues', 'Replay cursor; resync snapshot if history expired'],
+      ['Before persistence', 'No run remains', 'Return failure and allow a fresh request.'],
+      ['After persistence · before dispatch', 'Run and outbox remain', 'A relay or reconciler publishes to the queue.'],
+      ['After result · before ack', 'Terminal result remains', 'A new worker ACKs without re-executing.'],
+      ['SSE disconnect', 'Execution and events remain', 'Replay by cursor; reread snapshot when needed.'],
     ];
 ---
 
 <figure class="request-trace" aria-label={caption}>
   {kind === 'sequence' && (
-    <ol class="sequence">
-      {sequence.map(([number, phase, path, operation, detail]) => (
+    <ol class="trace-flow">
+      {sequence.map(([number, phase, path, action, detail], index) => (
         <li>
-          <span class="number">{number}</span>
-          <div class="phase"><strong>{phase}</strong><small>{path}</small></div>
-          <code>{operation}</code>
-          <p>{detail}</p>
+          <article>
+            <span class="step">{number}</span>
+            <div>
+              <strong>{phase}</strong>
+              <small>{path}</small>
+            </div>
+            <p>{action}</p>
+            <em>{detail}</em>
+          </article>
+          {index < sequence.length - 1 && <span class="flow-arrow" aria-hidden="true">↓</span>}
         </li>
       ))}
     </ol>
   )}
 
   {kind === 'ownership' && (
-    <div class="ownership">
+    <ol class="owner-flow">
       {owners.map(([owner, role, state, detail], index) => (
-        <section>
-          <span class="owner-index">0{index + 1}</span>
-          <span class="role">{role}</span>
-          <strong>{owner}</strong>
-          <code>{state}</code>
-          <p>{detail}</p>
-          {index < owners.length - 1 && <i aria-hidden="true">→</i>}
-        </section>
+        <li>
+          <article>
+            <span class="owner-number">0{index + 1}</span>
+            <small>{role}</small>
+            <strong>{owner}</strong>
+            <code>{state}</code>
+            <p>{detail}</p>
+          </article>
+          {index < owners.length - 1 && <span class="handoff" aria-hidden="true">책임이 다음 주체에게 넘어간다 ↓</span>}
+        </li>
       ))}
-    </div>
+    </ol>
   )}
 
   {kind === 'projection' && (
     <div class="projection">
-      <header>
-        <span>LangGraph</span>
-        <strong>graph.astream()</strong>
-        <small>{ko ? 'runtime output를 UI contract로 번역' : 'Translate runtime output into the UI contract'}</small>
-      </header>
-      <div class="projection-grid">
-        <section class="updates">
-          <span class="stream-label">updates</span>
-          <strong>{ko ? '현재 state의 변화' : 'Changes to current state'}</strong>
+      <section class="source">
+        <span>RUNTIME</span>
+        <strong>실행 중 생성된 값</strong>
+        <p>그래프 내부 상태를 그대로 브라우저에 보내지 않는다.</p>
+      </section>
+      <div class="projection-arrow" aria-hidden="true">↓ 애플리케이션 형식으로 변환</div>
+      <div class="projection-branches">
+        <section>
+          <span>화면 상태</span>
+          <strong>UI snapshot</strong>
           <code>status · progress · current_step</code>
-          <i aria-hidden="true">↓</i>
-          <b>HSET run:{'{id}'}:state</b>
-          <p>{ko ? '브라우저의 현재 화면을 복원하는 snapshot' : 'Snapshot that restores the current screen'}</p>
+          <p>Redis Hash에 저장해 화면을 빠르게 복원한다.</p>
         </section>
-        <section class="custom">
-          <span class="stream-label">custom</span>
-          <strong>{ko ? '시간순으로 남길 사건' : 'Chronological domain events'}</strong>
-          <code>step_started · progress · approval</code>
-          <i aria-hidden="true">↓</i>
-          <b>XADD run:{'{id}'}:events</b>
-          <p>{ko ? 'SSE replay와 timeline을 위한 append-only event' : 'Append-only events for SSE replay and timeline'}</p>
+        <section>
+          <span>이벤트 시간순 기록</span>
+          <strong>Event timeline</strong>
+          <code>step_started · approval · completed</code>
+          <p>Redis Stream에 추가해 SSE를 다시 연결할 때 쓴다.</p>
         </section>
       </div>
-      <footer>
-        <span>Redis</span><i aria-hidden="true">→</i><span>FastAPI SSE</span><i aria-hidden="true">→</i><span>Browser</span>
-      </footer>
+      <div class="projection-arrow" aria-hidden="true">↓</div>
+      <section class="destination">
+        <strong>FastAPI SSE → Browser</strong>
+        <p>브라우저는 실행을 맡지 않고, snapshot과 event를 받아 화면에 반영한다.</p>
+      </section>
     </div>
   )}
 
   {kind === 'failure' && (
-    <div class="failure-grid">
-      <header>
-        <span>{ko ? '장애 창' : 'Failure window'}</span>
-        <span>{ko ? '남는 state' : 'State left behind'}</span>
-        <span>{ko ? '복구 기준' : 'Recovery rule'}</span>
-      </header>
-      {failures.map(([window, residue, recovery], index) => (
-        <section>
-          <b>{index + 1}</b>
-          <strong>{window}</strong>
-          <span>{residue}</span>
-          <p>{recovery}</p>
-        </section>
+    <ol class="failure-flow">
+      {failures.map(([window, record, recovery], index) => (
+        <li>
+          <span>{index + 1}</span>
+          <div>
+            <small>멈춘 지점</small>
+            <strong>{window}</strong>
+          </div>
+          <div>
+            <small>남는 기준</small>
+            <p>{record}</p>
+          </div>
+          <div>
+            <small>복구</small>
+            <p>{recovery}</p>
+          </div>
+        </li>
       ))}
-      <aside>
-        <strong>{ko ? '공통 원칙' : 'Common rule'}</strong>
-        <span>{ko ? 'process memory가 아니라 durable record와 replay cursor로 판단한다.' : 'Decide from durable records and replay cursors, not process memory.'}</span>
-      </aside>
-    </div>
+    </ol>
   )}
 
   <figcaption>{caption}</figcaption>
 </figure>
 
 <style>
-  .request-trace{margin:2.5rem 0;padding:1.2rem;border:1px solid var(--line);border-radius:.9rem;background:var(--paper-deep);color:var(--ink);font-family:var(--sans);font-size:.9rem;line-height:1.5}
-  .request-trace figcaption{margin-top:1rem;color:var(--muted);font-size:.84rem;line-height:1.55}.request-trace code{overflow-wrap:anywhere;color:var(--ink);font-size:.72rem}
-  .sequence{display:grid;gap:.4rem;margin:0;padding:0;list-style:none}.sequence li{display:grid;grid-template-columns:auto minmax(8rem,.75fr) minmax(10rem,1fr) minmax(0,1.2fr);gap:.55rem .8rem;align-items:center;padding:.7rem;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:.5rem;background:var(--paper)}.number{display:grid;place-items:center;width:1.65rem;height:1.65rem;border-radius:50%;background:var(--accent);color:var(--paper-deep);font-size:.72rem;font-weight:800}.phase{display:grid;gap:.05rem}.phase strong{font-size:.78rem}.phase small{color:var(--muted);font-size:.66rem}.sequence p{margin:0;color:var(--muted);font-size:.72rem}
-  .ownership{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.5rem}.ownership section{position:relative;display:flex;flex-direction:column;gap:.35rem;min-width:0;padding:.8rem;border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:.55rem;background:var(--paper)}.ownership .owner-index{color:var(--muted);font-size:.65rem;font-weight:800}.ownership .role{color:var(--accent);font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.ownership strong{font-size:.84rem}.ownership p{margin:0;color:var(--muted);font-size:.69rem}.ownership section>i{position:absolute;z-index:1;right:-.72rem;top:50%;display:grid;place-items:center;width:.95rem;height:.95rem;border:1px solid var(--line);border-radius:50%;background:var(--paper-deep);color:var(--accent);font-size:.65rem;font-style:normal}
-  .projection{display:grid;gap:.75rem}.projection>header{display:grid;grid-template-columns:auto 1fr;gap:.15rem .6rem;padding:.75rem;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:.5rem;background:var(--paper)}.projection>header span{grid-row:1/3;color:var(--accent);font-size:.7rem;font-weight:800;text-transform:uppercase;writing-mode:vertical-rl}.projection>header strong{font-size:.88rem}.projection>header small{color:var(--muted);font-size:.7rem}.projection-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.projection-grid section{display:grid;gap:.4rem;justify-items:start;padding:.85rem;border:1px solid var(--line);border-radius:.55rem;background:var(--paper)}.projection-grid .custom{border-style:dashed}.stream-label{padding:.12rem .42rem;border-radius:2rem;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);font-size:.68rem;font-weight:800}.projection-grid strong{font-size:.82rem}.projection-grid i{justify-self:center;color:var(--accent);font-style:normal}.projection-grid b{font-size:.72rem}.projection-grid p{margin:0;color:var(--muted);font-size:.7rem}.projection footer{display:flex;flex-wrap:wrap;justify-content:center;gap:.4rem;align-items:center;padding:.6rem;border:1px dashed var(--line);background:var(--paper);font-size:.72rem}.projection footer i{color:var(--accent);font-style:normal}
-  .failure-grid{display:grid;gap:.35rem}.failure-grid>header,.failure-grid>section{display:grid;grid-template-columns:minmax(9rem,.8fr) minmax(9rem,.8fr) minmax(0,1.35fr);gap:.55rem;align-items:center}.failure-grid>header{padding:0 .65rem;color:var(--muted);font-size:.68rem;font-weight:800}.failure-grid>section{position:relative;padding:.7rem .7rem .7rem 2.3rem;border:1px solid var(--line);border-radius:.5rem;background:var(--paper)}.failure-grid>section>b{position:absolute;left:.65rem;display:grid;place-items:center;width:1.2rem;height:1.2rem;border-radius:50%;background:var(--accent);color:var(--paper-deep);font-size:.62rem}.failure-grid>section strong{font-size:.76rem}.failure-grid>section span,.failure-grid>section p{margin:0;color:var(--muted);font-size:.7rem}.failure-grid aside{display:flex;gap:.6rem;margin-top:.4rem;padding:.7rem;border-left:3px solid var(--accent);background:var(--paper)}.failure-grid aside strong{flex:none;font-size:.74rem}.failure-grid aside span{color:var(--muted);font-size:.72rem}
-  @media(max-width:760px){.ownership{grid-template-columns:1fr 1fr}.ownership section>i{display:none}.sequence li{grid-template-columns:auto 1fr}.sequence code,.sequence p{grid-column:2}.failure-grid>header{display:none}.failure-grid>section{grid-template-columns:1fr}.failure-grid>section strong,.failure-grid>section span,.failure-grid>section p{grid-column:1}}
-  @media(max-width:520px){.request-trace{padding:.8rem}.ownership,.projection-grid{grid-template-columns:1fr}.failure-grid aside{display:grid}.projection>header span{writing-mode:initial;grid-row:auto}.projection>header{grid-template-columns:1fr}.sequence li{align-items:start}}
+  .request-trace{margin:2.25rem 0;padding:1rem;border:1px solid var(--line);border-radius:.9rem;background:var(--paper-deep);color:var(--ink);font-family:var(--sans);line-height:1.5}
+  .request-trace figcaption{margin-top:.85rem;color:var(--muted);font-size:.8rem;line-height:1.55}.request-trace code{overflow-wrap:anywhere;color:var(--ink);font-size:.72rem}
+  .trace-flow,.owner-flow,.failure-flow{display:grid;gap:.45rem;margin:0;padding:0;list-style:none}
+  .trace-flow li,.owner-flow li{display:grid;gap:.45rem}.trace-flow article{display:grid;grid-template-columns:auto minmax(7rem,.78fr) minmax(9rem,1fr) minmax(0,1.15fr);gap:.55rem .8rem;align-items:center;padding:.75rem;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:.55rem;background:var(--paper)}
+  .step{display:grid;place-items:center;width:1.65rem;height:1.65rem;border-radius:50%;background:var(--accent);color:var(--paper-deep);font-size:.72rem;font-weight:800}.trace-flow strong{display:block;font-size:.8rem}.trace-flow small,.trace-flow em{color:var(--muted);font-size:.69rem;font-style:normal}.trace-flow p{margin:0;font-size:.74rem}.flow-arrow,.projection-arrow{text-align:center;color:var(--accent);font-size:.88rem;font-weight:800}
+  .owner-flow article{display:grid;grid-template-columns:auto minmax(7rem,.8fr) minmax(9rem,1fr) minmax(0,1.2fr);gap:.5rem .75rem;align-items:center;padding:.75rem;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:.55rem;background:var(--paper)}.owner-number{color:var(--accent);font-size:.72rem;font-weight:800}.owner-flow small{color:var(--accent);font-size:.68rem;font-weight:800}.owner-flow strong{font-size:.82rem}.owner-flow p{margin:0;color:var(--muted);font-size:.71rem}.handoff{padding-left:1.1rem;color:var(--muted);font-size:.7rem}
+  .projection{display:grid;gap:.55rem}.projection section{display:grid;gap:.28rem;padding:.8rem;border:1px solid var(--line);border-radius:.55rem;background:var(--paper)}.projection span{color:var(--accent);font-size:.67rem;font-weight:800;letter-spacing:.04em}.projection strong{font-size:.84rem}.projection p{margin:0;color:var(--muted);font-size:.72rem}.projection-branches{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}.projection-branches section{border-top:3px solid var(--accent)}.destination{text-align:center}
+  .failure-flow li{display:grid;grid-template-columns:auto minmax(7rem,.8fr) minmax(8rem,1fr) minmax(10rem,1.3fr);gap:.55rem .75rem;align-items:center;padding:.75rem;border:1px solid var(--line);border-radius:.55rem;background:var(--paper)}.failure-flow li>span{display:grid;place-items:center;width:1.35rem;height:1.35rem;border-radius:50%;background:var(--accent);color:var(--paper-deep);font-size:.64rem;font-weight:800}.failure-flow small{display:block;color:var(--accent);font-size:.64rem;font-weight:800}.failure-flow strong{font-size:.78rem}.failure-flow p{margin:.1rem 0 0;color:var(--muted);font-size:.7rem}
+  @media(max-width:760px){.trace-flow article,.owner-flow article{grid-template-columns:auto 1fr}.trace-flow article>p,.trace-flow article>em,.owner-flow article>code,.owner-flow article>p{grid-column:2}.failure-flow li{grid-template-columns:auto 1fr}.failure-flow li>div{grid-column:2}.failure-flow li>span{grid-row:1/4}}
+  @media(max-width:520px){.request-trace{padding:.8rem}.projection-branches{grid-template-columns:1fr}.trace-flow article,.owner-flow article,.failure-flow li{padding:.7rem}.handoff{padding-left:.4rem}.trace-flow p,.owner-flow p,.failure-flow p{font-size:.72rem}}
   @media(prefers-color-scheme:dark){.request-trace{--paper:#202720;--paper-deep:#171d19;--ink:#edf1e9;--muted:#b8c3b6;--line:#465347;--accent:#a0ceac}}
 </style>

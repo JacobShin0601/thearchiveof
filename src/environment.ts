@@ -1,7 +1,7 @@
-const cloudflareBranch = import.meta.env.CF_PAGES_BRANCH as string | undefined;
-const explicitEnvironment = import.meta.env.DEPLOY_ENV as string | undefined;
+const cloudflareBranch = process.env.CF_PAGES_BRANCH ?? '';
+const explicitEnvironment = process.env.DEPLOY_ENV ?? '';
 
-export const DEPLOY_BRANCH = cloudflareBranch ?? '';
+export const DEPLOY_BRANCH = cloudflareBranch;
 export const IS_PREVIEW = explicitEnvironment === 'preview'
   || (Boolean(cloudflareBranch) && cloudflareBranch !== 'main');
 export const IS_PRODUCTION = !IS_PREVIEW;
