@@ -210,7 +210,7 @@ Graph가 결과를 냈다고 Queue 작업까지 끝난 것은 아니다. 완료�
 1. final result와 terminal status를 PostgreSQL에 확정한다.
 2. Redis의 화면용 state를 completed로 갱신한다.
 3. completion event를 append한다.
-4. 마지막에 Queue entry를 `XACK) 한다.
+4. 마지막에 Queue entry를 `XACK` 한다.
 
 ```python
 result = await execute_graph(run, attempt)
