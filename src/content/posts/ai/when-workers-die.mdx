@@ -332,4 +332,4 @@ async def test_crash_after_commit_does_not_repeat_tool(worker, queue, store):
 
 Consumer group은 worker process가 사라져도 실행 의도를 남기고 다른 worker가 가져갈 수 있게 한다. 하지만 사용자가 실행 중인 작업을 멈춰 달라고 요청하면, 새 worker가 그것을 다시 회수해서는 안 된다. 취소 의도는 durable하게 남고, worker·원격 tool·queue가 같은 종료 상태를 보도록 연결되어야 한다.
 
-다음 글에서는 **[Agent를 멈춘다는 것: Cancellation은 버튼이 아니라 Protocol이다](/ai/agents/cancellation-is-a-protocol/)**를 다룬다. 취소 요청부터 cooperative stop, 부수 효과, terminal race와 ACK 순서를 연결해, 복구 가능한 queue가 이미 취소된 작업을 되살리지 않게 만드는 방법을 살펴본다.
+다음 글에서는 **Agent를 멈춘다는 것: Cancellation은 버튼이 아니라 Protocol이다**를 다룬다. 취소 요청부터 cooperative stop, 부수 효과, terminal race와 ACK 순서를 연결해, 복구 가능한 queue가 이미 취소된 작업을 되살리지 않게 만드는 방법을 살펴본다.
