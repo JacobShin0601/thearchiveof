@@ -1,0 +1,307 @@
+---
+interface Props {
+  kind: 'recovery' | 'ack' | 'fencing' | 'metrics';
+}
+
+const { kind } = Astro.props;
+const labels = {
+  recovery: 'Worker 장애 뒤 pending entry가 회수되고 결과 저장 뒤 XACK되는 흐름',
+  ack: '결과 저장 뒤 XACK하는 안전한 처리 순서와 crash window',
+  fencing: '오래된 worker의 write를 fencing token으로 거부하는 흐름',
+  metrics: 'Queue 운영에서 함께 봐야 하는 네 가지 지표',
+} as const;
+---
+
+<section class="worker-diagram" aria-label={labels[kind]}>
+  {kind === 'recovery' && (
+    <div class="worker-diagram__flow">
+      <div class="worker-diagram__card worker-diagram__card--queue">
+        <span class="worker-diagram__eyebrow">01 · DELIVER</span>
+        <strong>Queue</strong>
+        <p>새 job을 Worker A에 전달</p>
+      </div>
+      <div class="worker-diagram__arrow" aria-hidden="true">↓</div>
+      <div class="worker-diagram__card worker-diagram__card--warning">
+        <span class="worker-diagram__eyebrow">02 · CRASH</span>
+        <strong>Worker A 종료</strong>
+        <p>아직 XACK하지 못한 전달</p>
+      </div>
+      <div class="worker-diagram__arrow" aria-hidden="true">↓</div>
+      <div class="worker-diagram__card worker-diagram__card--pel">
+        <span class="worker-diagram__eyebrow">03 · PENDING</span>
+        <strong>PEL에 남음</strong>
+        <p>“완료”가 아니라 “미확인 전달”</p>
+      </div>
+      <div class="worker-diagram__arrow" aria-hidden="true">↓</div>
+      <div class="worker-diagram__card worker-diagram__card--success">
+        <span class="worker-diagram__eyebrow">04 · RECLAIM</span>
+        <strong>Worker B가 회수</strong>
+        <p>유휴 시간이 충분히 긴 entry를 재개</p>
+      </div>
+      <div class="worker-diagram__arrow" aria-hidden="true">↓</div>
+      <div class="worker-diagram__card worker-diagram__card--result">
+        <span class="worker-diagram__eyebrow">05 · COMPLETE</span>
+        <strong>결과 저장 → XACK</strong>
+        <p>durable 결과를 남긴 뒤에만 PEL에서 제거</p>
+      </div>
+    </div>
+  )}
+
+  {kind === 'ack' && (
+    <div class="worker-diagram__flow">
+      <div class="worker-diagram__card worker-diagram__card--queue">
+        <span class="worker-diagram__eyebrow">01</span>
+        <strong>job 수신 · attempt 생성</strong>
+      </div>
+      <div class="worker-diagram__arrow" aria-hidden="true">↓</div>
+      <div class="worker-diagram__card worker-diagram__card--warning">
+        <span class="worker-diagram__eyebrow">02</span>
+        <strong>Agent · tool 실행</strong>
+      </div>
+      <div class="worker-diagram__note worker-diagram__note--danger">
+        <strong>여기서 종료되면</strong>
+        <span>PEL에 남아 다른 worker가 회수</span>
+      </div>
+      <div class="worker-diagram__arrow" aria-hidden="true">↓</div>
+      <div class="worker-diagram__card worker-diagram__card--success">
+        <span class="worker-diagram__eyebrow">03</span>
+        <strong>결과를 DB에 저장</strong>
+      </div>
+      <div class="worker-diagram__note worker-diagram__note--safe">
+        <strong>저장 뒤 종료돼도</strong>
+        <span>재전달 시 멱등하게 완료 처리 가능</span>
+      </div>
+      <div class="worker-diagram__arrow" aria-hidden="true">↓</div>
+      <div class="worker-diagram__card worker-diagram__card--result">
+        <span class="worker-diagram__eyebrow">04</span>
+        <strong>XACK</strong>
+        <p>이제 PEL의 전달 기록을 제거</p>
+      </div>
+    </div>
+  )}
+
+  {kind === 'fencing' && (
+    <div class="worker-diagram__flow">
+      <div class="worker-diagram__card worker-diagram__card--warning">
+        <span class="worker-diagram__eyebrow">ATTEMPT 1 · FENCE 41</span>
+        <strong>Worker A가 실행</strong>
+        <p>응답이 늦어져 실행 소유권이 불확실해짐</p>
+      </div>
+      <div class="worker-diagram__arrow" aria-hidden="true">↓</div>
+      <div class="worker-diagram__card worker-diagram__card--success">
+        <span class="worker-diagram__eyebrow">ATTEMPT 2 · FENCE 42</span>
+        <strong>Worker B가 회수</strong>
+        <p>더 새로운 fencing token을 받아 실행</p>
+      </div>
+      <div class="worker-diagram__arrow" aria-hidden="true">↓</div>
+      <div class="worker-diagram__decision" role="group" aria-label="데이터베이스 write 결정">
+        <div>
+          <span>늦은 Worker A write</span>
+          <strong>fence 41 → 거부</strong>
+        </div>
+        <div>
+          <span>현재 Worker B write</span>
+          <strong>fence 42 → 허용</strong>
+        </div>
+      </div>
+      <p class="worker-diagram__caption">DB는 active_fence와 일치하는 attempt의 결과만 기록한다.</p>
+    </div>
+  )}
+
+  {kind === 'metrics' && (
+    <div class="worker-diagram__metrics">
+      <div class="worker-diagram__metric worker-diagram__metric--blue">
+        <span>새 작업 대기</span>
+        <strong>group lag</strong>
+        <p>아직 consumer에 전달되지 않은 entry</p>
+      </div>
+      <div class="worker-diagram__metric worker-diagram__metric--red">
+        <span>미완료 전달</span>
+        <strong>PEL count</strong>
+        <p>전달됐지만 XACK되지 않은 entry</p>
+      </div>
+      <div class="worker-diagram__metric worker-diagram__metric--amber">
+        <span>복구 지연</span>
+        <strong>oldest pending idle</strong>
+        <p>가장 오래 멈춰 있는 pending entry</p>
+      </div>
+      <div class="worker-diagram__metric worker-diagram__metric--green">
+        <span>실행 건강도</span>
+        <strong>retry · failure · duration</strong>
+        <p>run·attempt 지표에서 보는 실행 상태</p>
+      </div>
+    </div>
+  )}
+</section>
+
+<style>
+  .worker-diagram {
+    max-width: 640px;
+    margin: 1.75rem auto;
+    color: #293241;
+    font-family: inherit;
+  }
+
+  .worker-diagram__flow {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+
+  .worker-diagram__card,
+  .worker-diagram__note,
+  .worker-diagram__decision,
+  .worker-diagram__metric {
+    box-sizing: border-box;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #f8fafc;
+  }
+
+  .worker-diagram__card {
+    padding: 0.85rem 1rem;
+  }
+
+  .worker-diagram__eyebrow {
+    display: block;
+    margin-bottom: 0.3rem;
+    color: #64748b;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.69rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+
+  .worker-diagram strong {
+    display: block;
+    color: #26374d;
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+
+  .worker-diagram p {
+    margin: 0.28rem 0 0;
+    color: #52606d;
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+
+  .worker-diagram__arrow {
+    align-self: center;
+    color: #64748b;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .worker-diagram__card--queue { background: #eef4ff; border-color: #8baed7; }
+  .worker-diagram__card--warning { background: #fffaf0; border-color: #d9aa5c; }
+  .worker-diagram__card--pel { background: #fff5f5; border-color: #db8991; }
+  .worker-diagram__card--success { background: #f0faf4; border-color: #76b897; }
+  .worker-diagram__card--result { background: #f4f7fb; border-color: #9caec4; }
+
+  .worker-diagram__note {
+    display: grid;
+    grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
+    gap: 0.45rem 1rem;
+    align-items: center;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.84rem;
+    line-height: 1.45;
+  }
+
+  .worker-diagram__note strong { font-size: 0.84rem; }
+  .worker-diagram__note--danger { background: #fff7f7; border-color: #edb1b1; }
+  .worker-diagram__note--danger strong { color: #9b2c2c; }
+  .worker-diagram__note--safe { background: #f2fbf6; border-color: #a6d9b8; }
+  .worker-diagram__note--safe strong { color: #17644d; }
+
+  .worker-diagram__decision {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: hidden;
+  }
+
+  .worker-diagram__decision > div {
+    padding: 0.9rem 1rem;
+  }
+
+  .worker-diagram__decision > div + div {
+    border-left: 1px solid #cbd5e1;
+    background: #f0faf4;
+  }
+
+  .worker-diagram__decision span {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: #64748b;
+    font-size: 0.78rem;
+    line-height: 1.35;
+  }
+
+  .worker-diagram__decision > div:first-child strong { color: #9b2c2c; }
+  .worker-diagram__decision > div:last-child strong { color: #17644d; }
+
+  .worker-diagram__caption {
+    margin-top: 0.15rem !important;
+    text-align: center;
+  }
+
+  .worker-diagram__metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .worker-diagram__metric {
+    min-height: 8.5rem;
+    padding: 1rem;
+  }
+
+  .worker-diagram__metric > span {
+    display: block;
+    margin-bottom: 0.45rem;
+    color: #52606d;
+    font-size: 0.83rem;
+    font-weight: 700;
+  }
+
+  .worker-diagram__metric strong {
+    font-size: 0.96rem;
+  }
+
+  .worker-diagram__metric--blue { background: #eef4ff; border-color: #8baed7; }
+  .worker-diagram__metric--red { background: #fff5f5; border-color: #db8991; }
+  .worker-diagram__metric--amber { background: #fffaf0; border-color: #d9aa5c; }
+  .worker-diagram__metric--green { background: #f0faf4; border-color: #76b897; }
+
+  @media (max-width: 480px) {
+    .worker-diagram {
+      margin: 1.35rem 0;
+    }
+
+    .worker-diagram__card {
+      padding: 0.8rem 0.9rem;
+    }
+
+    .worker-diagram__note,
+    .worker-diagram__decision,
+    .worker-diagram__metrics {
+      grid-template-columns: 1fr;
+    }
+
+    .worker-diagram__note {
+      gap: 0.2rem;
+    }
+
+    .worker-diagram__decision > div + div {
+      border-top: 1px solid #cbd5e1;
+      border-left: 0;
+    }
+
+    .worker-diagram__metric {
+      min-height: 0;
+    }
+  }
+</style>
