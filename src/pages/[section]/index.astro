@@ -15,6 +15,9 @@ interface Props { section: Section }
 const { section } = Astro.props;
 const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'ko' && data.section === section.name))
   .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
+const isAiAx = section.slug === 'ai';
+const agentEngineeringCount = posts.filter((post) => post.data.series === 'Agent Engineering').length;
+const enterpriseAxCount = posts.filter((post) => post.data.series === 'Enterprise AX').length;
 ---
 
 <BaseLayout title={section.name} description={section.description} alternateLanguageUrl={`/en/${section.slug}/`} indexable={posts.length > 0}>
@@ -29,6 +32,74 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
         ))}
       </nav>
     </header>
-    {posts.length > 0 ? <ArchiveList posts={posts} /> : <p class="empty-state">Articles for this section are being prepared.</p>}
+
+    {isAiAx && (
+      <section class="ai-ax-series-hub" aria-labelledby="ai-ax-series-heading">
+        <div class="ai-ax-series-intro">
+          <p class="eyebrow">Start here</p>
+          <h2 id="ai-ax-series-heading">AI를 만드는 일과, 일하는 방식을 바꾸는 일</h2>
+          <p>
+            이곳에서는 AI 시스템을 안정적으로 설계하고 운영하는 방법과,
+            그것을 실제 업무에 정착시켜 성과로 연결하는 방법을 함께 다룹니다.
+            지금 궁금한 지점에서 시작해도 좋습니다.
+          </p>
+        </div>
+
+        <div class="ai-ax-series-grid">
+          <article class="ai-ax-series-card">
+            <div class="ai-ax-series-card-header">
+              <span class="ai-ax-series-number">01</span>
+              <p class="eyebrow">Build and operate</p>
+            </div>
+            <h3>Agent Engineering</h3>
+            <p class="ai-ax-series-summary">
+              데모에서 멈추지 않고, 실패해도 다시 이어지는 에이전트 시스템을 만드는 과정을 다룹니다.
+            </p>
+            <ul>
+              <li>에이전트와 백엔드가 각각 맡아야 할 일을 나누는 설계</li>
+              <li>비동기 실행, 워커, 스트리밍으로 긴 작업을 다루는 방법</li>
+              <li>state, 재시도, 취소, 관측을 연결해 복구 가능한 시스템을 만드는 법</li>
+            </ul>
+            <div class="ai-ax-series-card-footer">
+              <span>{agentEngineeringCount}편의 글</span>
+              <a href="/series/agent-engineering/">시리즈 둘러보기 <span aria-hidden="true">→</span></a>
+            </div>
+          </article>
+
+          <article class="ai-ax-series-card">
+            <div class="ai-ax-series-card-header">
+              <span class="ai-ax-series-number">02</span>
+              <p class="eyebrow">Redesign the work</p>
+            </div>
+            <h3>Enterprise AX</h3>
+            <p class="ai-ax-series-summary">
+              AI를 도입하는 데서 한 걸음 더 나아가, 조직의 업무와 의사결정 방식을 다시 설계하는 이야기를 다룹니다.
+            </p>
+            <ul>
+              <li>무엇부터 풀어야 하는지, 고가치 업무를 고르는 방법</li>
+              <li>도메인 전문가가 도구의 주인이 되도록 워크플로를 설계하는 법</li>
+              <li>사용자 정착, 효과 측정, 확장까지 이어지는 운영의 기준</li>
+            </ul>
+            <div class="ai-ax-series-card-footer">
+              <span>{enterpriseAxCount}편의 글</span>
+              <a href="/series/enterprise-ax/">시리즈 둘러보기 <span aria-hidden="true">→</span></a>
+            </div>
+          </article>
+        </div>
+      </section>
+    )}
+
+    {posts.length > 0 ? (
+      isAiAx ? (
+        <section class="ai-ax-latest" aria-labelledby="ai-ax-latest-heading">
+          <div class="ai-ax-latest-heading">
+            <p class="eyebrow">Latest notes</p>
+            <h2 id="ai-ax-latest-heading">최근 AI &amp; AX 글</h2>
+            <p>시리즈 밖의 실험과 해설까지, 새로 쓴 순서대로 모았습니다.</p>
+          </div>
+          <ArchiveList posts={posts} />
+        </section>
+      ) : <ArchiveList posts={posts} />
+    ) : <p class="empty-state">Articles for this section are being prepared.</p>}
   </section>
 </BaseLayout>
