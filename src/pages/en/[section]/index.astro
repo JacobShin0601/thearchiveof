@@ -15,6 +15,9 @@ interface Props { section: Section }
 const { section } = Astro.props;
 const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) && data.language === 'en' && data.section === section.name))
   .sort((a, b) => b.data.publishedDate.valueOf() - a.data.publishedDate.valueOf());
+const isAiAx = section.slug === 'ai';
+const agentEngineeringCount = posts.filter((post) => post.data.series === 'Agent Engineering').length;
+const enterpriseAxCount = posts.filter((post) => post.data.series === 'Enterprise AX').length;
 ---
 
 <BaseLayout
@@ -35,6 +38,74 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
         ))}
       </nav>
     </header>
-    {posts.length > 0 ? <ArchiveList posts={posts} /> : <p class="empty-state">English articles for this section are being prepared.</p>}
+
+    {isAiAx && (
+      <section class="ai-ax-series-hub" aria-labelledby="ai-ax-series-heading">
+        <div class="ai-ax-series-intro">
+          <p class="eyebrow">Start here</p>
+          <h2 id="ai-ax-series-heading">Building AI systems, and changing how work gets done</h2>
+          <p>
+            This is a place for both: how to design and operate reliable AI systems,
+            and how to embed them in real work so they create a durable result.
+            Start with the question most useful to you now.
+          </p>
+        </div>
+
+        <div class="ai-ax-series-grid">
+          <article class="ai-ax-series-card">
+            <div class="ai-ax-series-card-header">
+              <span class="ai-ax-series-number">01</span>
+              <p class="eyebrow">Build and operate</p>
+            </div>
+            <h3>Agent Engineering</h3>
+            <p class="ai-ax-series-summary">
+              How to build agent systems that keep going after a failure, rather than stopping at the demo.
+            </p>
+            <ul>
+              <li>Drawing a clear boundary between the agent and the backend</li>
+              <li>Handling long-running work with async execution, workers, and streaming</li>
+              <li>Connecting state, retries, cancellation, and observability into a recoverable system</li>
+            </ul>
+            <div class="ai-ax-series-card-footer">
+              <span>{agentEngineeringCount} articles</span>
+              <a href="/en/series/agent-engineering/">Explore the series <span aria-hidden="true">→</span></a>
+            </div>
+          </article>
+
+          <article class="ai-ax-series-card">
+            <div class="ai-ax-series-card-header">
+              <span class="ai-ax-series-number">02</span>
+              <p class="eyebrow">Redesign the work</p>
+            </div>
+            <h3>Enterprise AX</h3>
+            <p class="ai-ax-series-summary">
+              Going beyond AI adoption to redesign the work and decisions that make up an organization.
+            </p>
+            <ul>
+              <li>Choosing the high-value work worth solving first</li>
+              <li>Designing workflows in which domain experts own the tool</li>
+              <li>Turning adoption, measurement, and expansion into an operating discipline</li>
+            </ul>
+            <div class="ai-ax-series-card-footer">
+              <span>{enterpriseAxCount} articles</span>
+              <a href="/en/series/enterprise-ax/">Explore the series <span aria-hidden="true">→</span></a>
+            </div>
+          </article>
+        </div>
+      </section>
+    )}
+
+    {posts.length > 0 ? (
+      isAiAx ? (
+        <section class="ai-ax-latest" aria-labelledby="ai-ax-latest-heading">
+          <div class="ai-ax-latest-heading">
+            <p class="eyebrow">Latest notes</p>
+            <h2 id="ai-ax-latest-heading">Recent AI &amp; AX writing</h2>
+            <p>Experiments and notes outside the two series, collected in reverse chronological order.</p>
+          </div>
+          <ArchiveList posts={posts} />
+        </section>
+      ) : <ArchiveList posts={posts} />
+    ) : <p class="empty-state">English articles for this section are being prepared.</p>}
   </section>
 </BaseLayout>
