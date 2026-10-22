@@ -224,25 +224,24 @@ export async function onRequest(context) {
      WHERE key = 'clientRefererHost'`,
   ).first().catch(() => null);
 
-  const usefulResult = await env.DB.prepare(
-    `SELECT article_slug AS article, COUNT(*) AS active_useful
-     FROM article_reactions
-     WHERE reaction_type = 'useful' AND actor_type = 'human'
-     GROUP BY article_slug
-     ORDER BY active_useful DESC, article_slug
-     LIMIT 50`,
-  ).all();
-  const eventResult = await env.DB.prepare(
-    `SELECT event_name AS event, article_slug AS article, COUNT(*) AS total
-     FROM interaction_events
-     WHERE actor_type = 'human'
-       AND created_at >= ?
-       AND created_at < ?
-       AND event_name IN ('reaction_added', 'reaction_removed', 'code_run', 'language_switch')
-     GROUP BY event_name, article_slug
-     ORDER BY total DESC, event_name, article_slug
-     LIMIT 500`,
-  ).bind(`${bounds.currentStart}T00:00:00.000Z`, `${bounds.currentEnd}T00:00:00.000Z`).all();
+  // Production and Preview are different D1 databases. Read only aggregates
+  // mirrored daily by CI; never mistake Preview reactions for Production data.
+  const engagementState = await env.DB.prepare(
+    `SELECT refreshed_at, range_start, range_end
+     FROM analytics_engagement_sync_state WHERE source = 'production-d1-aggregate'`,
+  ).first().catch(() => null);
+  const usefulResult = engagementState ? await env.DB.prepare(
+    `SELECT article_slug AS article, active_useful
+     FROM analytics_useful_snapshot
+     ORDER BY active_useful DESC LIMIT 200`,
+  ).all() : { results: [] };
+  const eventResult = engagementState ? await env.DB.prepare(
+    `SELECT event_name AS event, article_slug AS article, language, SUM(total) AS total
+     FROM analytics_engagement_daily
+     WHERE day >= ? AND day < ?
+     GROUP BY event_name, article_slug, language
+     ORDER BY total DESC LIMIT 2000`,
+  ).bind(bounds.currentStart, bounds.currentEnd).all() : { results: [] };
 
   const pathRows = results(pathResult).map((row) => ({
     path: row.path,
@@ -286,6 +285,7 @@ export async function onRequest(context) {
   const eventRows = results(eventResult).map((row) => ({
     event: row.event,
     article: row.article,
+    language: row.language || null,
     count: Number(row.total ?? 0),
   }));
 
@@ -331,6 +331,15 @@ export async function onRequest(context) {
       windowEnd: bounds.currentEnd,
       privacy: 'Aggregated daily metrics only; no raw IP, fingerprint, full user-agent, or visitor identifier.',
       capabilities: {
+        engagement: {
+          available: Boolean(engagementState),
+          source: 'production-d1-aggregate',
+          refreshedAt: engagementState?.refreshed_at ?? null,
+          throughDay: engagementState?.range_end ?? null,
+          detail: engagementState
+            ? 'Production D1 grouped counts; no raw interactions copied.'
+            : 'Production D1 not synced. Empty engagement is unavailable, NOT measured zero.',
+        },
         referrers: {
           available: referrerAvailable,
           detail: capability?.detail
@@ -404,6 +413,10 @@ export async function onRequest(context) {
       candidates,
     },
     engagement: {
+      available: Boolean(engagementState),
+      source: 'production-d1-aggregate',
+      refreshedAt: engagementState?.refreshed_at ?? null,
+      throughDay: engagementState?.range_end ?? null,
       allTimeActiveUseful: usefulRows,
       // Backward-compatible alias for all-time active Useful.
       activeUseful: usefulRows,
@@ -419,7 +432,7 @@ export async function onRequest(context) {
       periodUsefulAdded: 'Useful reactions added during the selected window.',
       periodUsefulRemoved: 'Useful reactions removed during the selected window.',
       signals: 'Zone visits, search-crawler requests, and AI-crawler requests (training / user-fetch / agent) kept as separate layers.',
-      impact: 'Reference-only period impact: periodUsefulAdded×3 + code_run×2 + language_switch. Not an SEO rank and not based on all-time Useful.',
+      impact: 'Reference-only period impact: periodUsefulAdded×3 + (lab_start + legacy_code_run)×2 + language_switch. Not an SEO rank and not based on all-time Useful.',
       change: 'Decimal change versus the immediately preceding window of equal length when dataQuality.comparisonComplete is true; otherwise null.',
       dataQuality: 'Coverage of synced UTC days for the current and previous windows.',
       candidates: 'Rule-based editorial candidates only. They do not replace judgment.',

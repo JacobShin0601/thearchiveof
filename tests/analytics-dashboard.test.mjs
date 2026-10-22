@@ -17,6 +17,7 @@ function fakeAnalyticsD1({
   referrersAvailable = true,
   currentCoverageDays = 1,
   previousCoverageDays = 1,
+  engagementAvailable = true,
 } = {}) {
   return {
     prepare(sql) {
@@ -35,6 +36,13 @@ function fakeAnalyticsD1({
               range_end: '2026-10-09',
               schema_version: 3,
             };
+          }
+          if (sql.includes('analytics_engagement_sync_state')) {
+            return engagementAvailable ? {
+              refreshed_at: '2026-10-09T02:20:00Z',
+              range_start: '2026-07-01',
+              range_end: '2026-10-09',
+            } : null;
           }
           if (sql.includes('analytics_capability')) {
             return referrersAvailable
@@ -125,12 +133,12 @@ function fakeAnalyticsD1({
               results: [{ path: '/investing/markets/sterling-infrastructure-fair-value/', requests: 1 }],
             };
           }
-          if (sql.includes('FROM article_reactions')) {
+          if (sql.includes('FROM analytics_useful_snapshot')) {
             return {
               results: [{ article: 'sterling-infrastructure-fair-value', active_useful: 10 }],
             };
           }
-          if (sql.includes('FROM interaction_events')) {
+          if (sql.includes('FROM analytics_engagement_daily')) {
             return {
               results: [
                 { event: 'reaction_added', article: 'sterling-infrastructure-fair-value', total: 1 },
@@ -152,6 +160,7 @@ function context({
   referrersAvailable = true,
   currentCoverageDays = 1,
   previousCoverageDays = 1,
+  engagementAvailable = true,
 } = {}) {
   return {
     request: new Request(`https://develop.thearchiveof.pages.dev/api/ops/analytics?days=${days}`, {
@@ -160,7 +169,7 @@ function context({
     env: {
       DEPLOY_ENV: deploy,
       ANALYTICS_READ_TOKEN: 'read-secret',
-      DB: fakeAnalyticsD1({ referrersAvailable, currentCoverageDays, previousCoverageDays }),
+      DB: fakeAnalyticsD1({ referrersAvailable, currentCoverageDays, previousCoverageDays, engagementAvailable }),
     },
   };
 }
@@ -169,6 +178,15 @@ describe('analytics dashboard API', () => {
   it('is unavailable in production even with a valid token', async () => {
     const response = await onRequest(context({ deploy: 'production' }));
     assert.equal(response.status, 404);
+  });
+
+  it('does not misreport Preview reactions as Production when sync is absent', async () => {
+    const response = await onRequest(context({ engagementAvailable: false }));
+    const body = await response.json();
+    assert.equal(body.engagement.available, false);
+    assert.equal(body.engagement.throughDay, null);
+    assert.deepEqual(body.engagement.allTimeActiveUseful, []);
+    assert.deepEqual(body.engagement.periodEvents, []);
   });
 
   it('requires the independent read token', async () => {
@@ -186,6 +204,7 @@ describe('analytics dashboard API', () => {
     assert.equal(body.overview.visits.change, null);
     assert.equal(body.overview.visits.changeUnavailableReason, 'insufficient_coverage');
     assert.equal(body.signals.zone.visits, 10);
+    assert.equal(body.engagement.available, true);
     assert.equal(body.strategy.articles[0].allTimeActiveUseful, 10);
     assert.equal(body.strategy.articles[0].periodUsefulAdded, 1);
     assert.equal(body.strategy.articles[0].impact.periodUsefulAddRate, 1 / 8);

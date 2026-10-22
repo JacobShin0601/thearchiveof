@@ -187,9 +187,12 @@ export function buildArticleRows({
   const eventsByKey = new Map();
   for (const row of eventRows) {
     if (!row.article) continue;
-    const current = eventsByKey.get(row.article) ?? {};
-    current[row.event] = Number(row.count ?? 0);
-    eventsByKey.set(row.article, current);
+    const key = row.language === 'ko' || row.language === 'en'
+      ? `${row.article}|${row.language}`
+      : row.article;
+    const current = eventsByKey.get(key) ?? {};
+    current[row.event] = Number(current[row.event] ?? 0) + Number(row.count ?? 0);
+    eventsByKey.set(key, current);
   }
 
   const paths = new Set([
@@ -211,7 +214,7 @@ export function buildArticleRows({
     const aiReferrerVisits = referrerByPath.get(path)?.visits ?? referrerByPath.get(normalized)?.visits ?? 0;
     const errorRequests = errorsByPath.get(path)?.requests ?? errorsByPath.get(normalized)?.requests ?? 0;
     const allTimeActiveUseful = usefulByKey.get(meta.key)?.count ?? 0;
-    const events = eventsByKey.get(meta.key) ?? {};
+    const events = { ...(eventsByKey.get(meta.key) ?? {}), ...(eventsByKey.get(`${meta.key}|${meta.language}`) ?? {}) };
     const periodUsefulAdded = Number(events.reaction_added ?? 0);
     const periodUsefulRemoved = Number(events.reaction_removed ?? 0);
     const article = {
@@ -242,6 +245,7 @@ export function buildArticleRows({
       useful: allTimeActiveUseful,
       events: {
         code_run: Number(events.code_run ?? 0),
+        lab_start: Number(events.lab_start ?? 0),
         language_switch: Number(events.language_switch ?? 0),
         reaction_added: periodUsefulAdded,
         reaction_removed: periodUsefulRemoved,
@@ -264,7 +268,7 @@ export function articleImpact(article) {
   const periodUsefulAdded = Number(
     article?.periodUsefulAdded ?? article?.events?.reaction_added ?? 0,
   );
-  const codeRun = Number(article?.events?.code_run ?? 0);
+  const codeRun = Number(article?.events?.code_run ?? 0) + Number(article?.events?.lab_start ?? 0);
   const languageSwitch = Number(article?.events?.language_switch ?? 0);
   const visits = Number(article?.periodVisits ?? article?.visits ?? 0);
   const score = periodUsefulAdded * 3 + codeRun * 2 + languageSwitch;
