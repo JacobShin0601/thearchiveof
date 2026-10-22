@@ -38,6 +38,18 @@ references:
   - title: "2025 Information Security Industry Survey"
     url: "https://eiec.kdi.re.kr/policy/materialView.do?num=273123"
     publisher: "MSIT and KISIA"
+  - title: "SaaS exception to network-separation rules for financial institutions"
+    url: "https://www.fsc.go.kr/no010101/86745"
+    publisher: "Financial Services Commission"
+  - title: "Netskope DSPM Architecture"
+    url: "https://docs.netskope.com/en/netskope-dspm-architecture/"
+    publisher: "Netskope"
+  - title: "78ResearchLab AI-driven BAS announcement"
+    url: "https://78researchlab.com/notice/?bmode=view&idx=174139026"
+    publisher: "78ResearchLab"
+  - title: "Cybersecurity Market Update"
+    url: "https://www.capstonepartners.com/insights/article-cybersecurity-market-update/"
+    publisher: "Capstone Partners"
 ---
 
 import AnswerBlock from '../../../../components/AnswerBlock.astro';
@@ -79,6 +91,18 @@ Monoly’s approximately KRW 18 billion seed financing in 2022 is public. It is 
 
 The upside case is a reusable control plane: policy, audit, and data-location decisions remain useful as a customer expands SaaS and AI use. The bear case is custom integration: revenue grows with engineers and maintenance workload. Both can create customer value; only one has software-like operating leverage.
 
+### Data sovereignty is the start of differentiation, not proof of a moat
+
+Global platforms already address part of the same problem. Netskope’s DSPM architecture, for example, describes an on-premises classification design in which classification results—not sensitive source data—leave the customer network, while its product covers cloud, SaaS, and on-premises discovery. It is not the same product architecture as Monoly Enclave. It is, however, a useful warning: keeping data under customer control is not alone a differentiated investment claim. [Netskope DSPM Architecture](https://docs.netskope.com/en/netskope-dspm-architecture/)
+
+The diligence test should therefore be economic. Does Monoly control a materially different storage or processing boundary than CASB/DSPM alternatives? Does it reduce implementation time for Korean financial-sector audit and network-separation requirements? Does each new SaaS or AI integration require fewer engineering hours? Is the customer’s total cost of ownership lower than running the controls directly? A control layer becomes switching cost only if customers would buy it without a regulatory mandate.
+
+### Network-separation reform is both catalyst and substitution risk
+
+From April 20, 2026, Korea’s Financial Services Commission allowed financial institutions to use qualifying SaaS inside internal networks without a separate innovative-finance review. The rule also retains requirements for access controls, monitoring of important information, and limits on unnecessary sharing. [FSC](https://www.fsc.go.kr/no010101/86745)
+
+More SaaS and AI use can expand the surface that needs policy and data control. But a customer that bought a gateway only to clear a regulatory hurdle may find native controls and regulatory relief sufficient. The decisive counterfactual is: **would this customer still buy Monoly’s control layer if network-separation regulation did not exist?**
+
 ## 78ResearchLab: does research compound into a product curve?
 
 78ResearchLab presents PurpleHound as a BAS platform that simulates attacker techniques to validate an organization’s defensive posture. In a company-hosted 2026 interview, management said 2025 revenue grew more than 50%, PurpleHound launched at the end of 2024, and the product won its first financial-sector deployment in 2025. Those are company statements—not audited ARR, retention, or independently validated performance data. [78ResearchLab interview](https://78researchlab.com/news/?bmode=view&idx=170005464&q=YToxOntzOjEyOiJrZXl3b3JkX3R5cGUiO3M6MzoiYWxsIjt9&t=board)
@@ -93,11 +117,23 @@ Consulting is not necessarily the enemy of productization. It can be the learnin
 
 One public distribution signal is clearer. eNsecure announced a December 2025 partnership covering PurpleHound’s technology, sales, and marketing. It supports a channel hypothesis; it does not establish contract value, exclusivity, or sourced revenue. [eNsecure](https://ensecure.tistory.com/133?category=842444)
 
+### Local scenario depth can help adoption; it does not prove international scale
+
+PurpleHound’s published materials include MITRE ATT&CK-based scenarios designed with Korean software environments such as HWP and ALZIP in mind. That can be a tangible reason for local customers to choose the product. It can also become a cost of expansion if every new geography needs its own software, regulatory, and threat-content layer. [PurpleHound](https://78researchlab.com/purplehound)
+
+The company has described linking PatchHawk, MARS, and ARGUS to PurpleHound’s attack-content generation infrastructure. That supports a productization direction, not proof of the actual integration scope, accuracy, or unattended operation. Better operating metrics are validated scenarios per researcher, time from vulnerability disclosure to product coverage, automation rate, and support hours per customer. [78ResearchLab](https://78researchlab.com/notice/?bmode=view&idx=174139026)
+
+There is also a market-structure objection: simulating an attack and helping a customer operate a continuous validation program are different jobs. Gartner now groups BAS and automated penetration testing under the wider Adversarial Exposure Validation category. Picus’ integrations with CrowdStrike illustrate that validation can complement a defensive platform, but also that 78ResearchLab’s long-term competitor set is global AEV vendors—not merely local penetration-testing firms. [Picus](https://www.picussecurity.com/use-case/adversarial-exposure-validation) · [CrowdStrike Marketplace](https://marketplace.crowdstrike.com/listings/picus-security-validation-platform/)
+
 ## A growing Korean market is not the same thing as a global exit
 
 The Korean government and KISIA survey puts 2024 domestic information-security revenue at roughly KRW 7.12 trillion, up 15.9% year over year. Information-security exports, however, were about KRW 124.2 billion, down 15.9%. That does not prove demand is weak, nor does it prove Korean cybersecurity is automatically undervalued. Domestic demand, product mix, international distribution, support cost, and exit liquidity are separate variables. [2025 Information Security Industry Survey](https://eiec.kdi.re.kr/policy/materialView.do?num=273123)
 
 Strategic acquirers tend to buy a hard-to-build product capability, an installed workflow, or a channel that accelerates distribution. A global cybersecurity multiple is therefore an outcome of comparable ARR quality, growth, margin, and customer durability—not a starting assumption for an early private company.
+
+Public comparables and M&A references make the same point. First Analysis’ March 2026 cybersecurity table includes both premium public names and markedly lower-revenue-multiple businesses such as Netskope, Varonis, and Check Point. Capstone Partners cites a long-run cybersecurity M&A average of roughly 4.6× EV/revenue and 11.6× EV/EBITDA. Neither is a target multiple for an early company: the samples mix business models and stages. [First Analysis](https://www.firstanalysis.com/research/cybersecurity-mar-2026/) · [Capstone Partners](https://www.capstonepartners.com/insights/article-cybersecurity-market-update/)
+
+The Lab now places revenue-multiple and EBITDA-multiple exit lenses side by side. If a revenue multiple implies an extreme EBITDA multiple at exit, the scenario already assumes that the market will reward future margin quality—not merely revenue growth. Strategic exits are possible, but their company-specific probability rises only with evidence of product integration, recurring revenue, and international distribution.
 
 <ValuationLabLinkCard
   href="/en/coding/experiments/cybersecurity-venture-productization-lab/"
@@ -112,8 +148,8 @@ Strategic acquirers tend to buy a hard-to-build product capability, an installed
 
 | Hypothesis | Current assessment | What would change the assessment |
 | :-- | :-- | :-- |
-| Monoly’s software moat | Conditionally supported | Integration hours, expansion within existing accounts, maintenance cost |
-| 78ResearchLab’s service-to-product transition | Conditionally supported | Product ARR mix, renewal and expansion, automated scenario coverage, deployment cost |
+| Monoly’s software moat | Conditionally supported | Purchase intent without the regulation, integration hours, account expansion, TCO |
+| 78ResearchLab’s service-to-product transition | Conditionally supported | Product ARR mix, renewal and expansion, vulnerability-to-scenario time, support cost |
 | Global value realization | Insufficient evidence | Overseas revenue, channel-sourced sales, support cost, credible strategic fit |
 
 The interesting feature of these companies is not simply that security is important. One may become a common enterprise data-control layer; the other may turn offensive research into repeatable product IP. An investment conclusion should wait for recurring revenue, gross profit, customer expansion, and diluted ownership to confirm that potential.
