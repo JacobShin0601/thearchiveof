@@ -17,6 +17,34 @@ test('higher entry price reduces return without changing the operating result', 
   assert.ok(expensive.exitProceeds < cheap.exitProceeds);
 });
 
+test('separates revenue and EBITDA exit lenses and does not invent an EBITDA multiple while loss-making', () => {
+  const profitable = calculateCybersecurityVenture(cybersecurityVentureScenarios.gateway.bull);
+  assert.ok(profitable.exitEnterpriseValueFromEbitda !== null);
+  assert.ok(profitable.impliedExitEbitdaMultiple !== null);
+  assert.equal(profitable.exitEnterpriseValue, profitable.terminalRevenue * profitable.exitRevenueMultiple);
+
+  const lossMaking = calculateCybersecurityVenture({ ...cybersecurityVentureScenarios.bas.bear, operatingExpenseRatio: 2 });
+  assert.ok(lossMaking.ebitda < 0);
+  assert.equal(lossMaking.exitEnterpriseValueFromEbitda, null);
+  assert.equal(lossMaking.impliedExitEbitdaMultiple, null);
+});
+
+test('partner distribution cost reduces EBITDA without changing gross profit', () => {
+  const base = cybersecurityVentureScenarios.gateway.base;
+  const direct = calculateCybersecurityVenture({ ...base, partnerCommissionRate: 0 });
+  const channel = calculateCybersecurityVenture({ ...base, partnerCommissionRate: .2 });
+  assert.equal(channel.grossProfit, direct.grossProfit);
+  assert.ok(channel.partnerDistributionCost > 0);
+  assert.ok(channel.ebitda < direct.ebitda);
+});
+
+test('exit revenue keeps separate annual customer cohorts rather than treating year-one customers as one terminal pool', () => {
+  const result = calculateCybersecurityVenture({ ...cybersecurityVentureScenarios.gateway.base, yearsToExit: 3, annualCustomerGrowth: .5, retentionAndExpansion: 1 });
+  assert.equal(result.exitYearNewCustomers, 54);
+  assert.equal(result.terminalCustomers, 114);
+  assert.equal(result.customerCohortRevenueUnits, 114);
+});
+
 test('negative equity value has no hidden positive return and flags an infeasible target', () => {
   const result = calculateCybersecurityVenture({ ...cybersecurityVentureScenarios.bas.bear, netDebt: 1e9 });
   assert.equal(result.exitProceeds, 0);
