@@ -1,9 +1,27 @@
 export const ARTICLE_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const VIEWER_ID = /^[A-Za-z0-9_-]{8,128}$/;
 export const REACTIONS = new Set(['useful']);
-export const EVENTS = new Set(['code_run', 'language_switch']);
+export const EVENTS = new Set(['code_run', 'lab_start', 'language_switch']);
 export const LANGUAGES = new Set(['ko', 'en']);
-export const COMPONENTS = new Set(['language-switch', 'pareto-explorer-v1']);
+// Explicitly allow known first-party interactive components. Never accept arbitrary names.
+export const COMPONENTS = new Set([
+  'language-switch',
+  'pareto-explorer-v1',
+  'ai-handoff-queue-lab-v1',
+  'apld-valuation-lab-v1',
+  'bloom-valuation-lab-v1',
+  'clobe-valuation-lab-v1',
+  'contact-center-queue-explorer-v1',
+  'cybersecurity-venture-lab-v1',
+  'everyday-queue-explorer-v1',
+  'hii-valuation-lab-v1',
+  'pe-ax-value-creation-lab-v1',
+  'poisson-demand-inventory-lab-v1',
+  'poisson-inventory-explorer-v1',
+  'salesforce-valuation-simulator-v1',
+  'samsung-earnings-lab-v1',
+  'sterling-valuation-lab-v1',
+]);
 export const MAX_BODY_BYTES = 2048;
 
 export function isArticleKey(value) {

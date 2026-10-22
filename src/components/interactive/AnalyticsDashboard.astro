@@ -47,6 +47,7 @@
         <p>같은 기간의 신호를 겹치지 않게 분리합니다. Zone visits를 고유 방문자로 단정하지 마세요.</p>
       </div>
       <p class="quality-banner" data-quality hidden></p>
+      <p class="quality-banner" data-engagement-quality hidden></p>
       <dl class="signal-grid">
         <div>
           <dt>Zone visits</dt>
@@ -222,7 +223,7 @@
                 <th class="col-num">Useful∞</th>
                 <th class="col-num">+Useful</th>
                 <th class="col-tag">Impact</th>
-                <th class="col-num">Code</th>
+                <th class="col-num">Lab Starts</th>
                 <th class="col-num">Lang</th>
                 <th class="col-tag">검토</th>
               </tr>
@@ -259,7 +260,7 @@
     allTimeActiveUseful?: number;
     periodUsefulAdded?: number;
     reviewState: string;
-    events: { code_run: number; language_switch: number };
+    events: { code_run: number; lab_start?: number; language_switch: number };
     impact: { score: number; usefulRate: number; periodUsefulAddRate?: number; label: string };
   };
   type Candidate = {
@@ -281,6 +282,7 @@
       refreshedAt: string;
       capabilities?: { referrers?: { available: boolean; detail: string } };
     };
+    engagement?: { available: boolean; refreshedAt: string | null; throughDay: string | null };
     dataQuality: {
       requestedDays: number;
       currentCoverageDays: number;
@@ -511,6 +513,13 @@
       metric('requests', payload.overview.requests);
       metric('bytes', payload.overview.bytes, compact);
       renderQuality(payload.dataQuality);
+      const engagementNote = root?.querySelector<HTMLElement>('[data-engagement-quality]');
+      if (engagementNote) {
+        engagementNote.hidden = false;
+        engagementNote.textContent = payload.engagement?.available
+          ? `Useful/Lab: 운영 DB 집계 · 동기화 ${payload.engagement.refreshedAt ?? 'unknown'} (전날 UTC까지)`
+          : 'Useful/Lab: 운영 DB 집계 미연동 — 0건이 아니라 측정 불가입니다.';
+      }
       renderSignals(payload.signals, payload.overview.visits);
       renderTrend(payload.daily);
 
@@ -617,7 +626,7 @@
         { className: 'col-num', value: (row) => number.format(row.allTimeActiveUseful ?? row.useful) },
         { className: 'col-num', value: (row) => number.format(row.periodUsefulAdded ?? 0) },
         { className: 'col-tag', value: (row) => impactLabel(row), title: (row) => `period useful add ${((row.impact.periodUsefulAddRate ?? row.impact.usefulRate) * 100).toFixed(0)}%` },
-        { className: 'col-num', value: (row) => number.format(row.events.code_run) },
+        { className: 'col-num', value: (row) => number.format((row.events.lab_start ?? 0) + (row.events.code_run ?? 0)) },
         { className: 'col-num', value: (row) => number.format(row.events.language_switch) },
         { className: 'col-tag', value: (row) => reviewLabel(row.reviewState) },
       ]);

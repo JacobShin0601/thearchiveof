@@ -35,6 +35,25 @@ openssl rand -hex 32
 
 The dashboard is built only for Preview at `/ops/analytics/`. The API returns 404 when `DEPLOY_ENV` is not `preview`. After adding or rotating `ANALYTICS_READ_TOKEN`, redeploy the latest `develop` build so the Pages Function receives the updated secret.
 
+## Production engagement (Analytics v2)
+
+A daily GitHub Actions step queries Production D1 **only for grouped counts**:
+`date(created_at), article_slug, language, event_name, COUNT(*)`, plus
+a current grouped Useful snapshot. Aggregates are written into Preview D1
+(migration `0007_production_engagement_aggregates.sql`). No IP, actor hashes,
+viewer IDs or raw events are transported. The generated SQL file is removed after sync.
+
+The private Preview Analytics API shows `engagement.available=false` until
+the first successful Production sync, rather than presenting Preview test
+events as production results. Existing Cloudflare visitor and crawler data
+remain unchanged. No extra Worker, database, paid product or per-view write
+is required. A first deliberate Lab interaction produces at most one
+`lab_start` per article/component in a page session, including presets.
+
+Verify `npm test`, Preview API state, and Cloudflare Workers/D1 quotas.
+In a paid account, set billing alerts and request-rate safeguards; budget
+notifications are not hard billing limits.
+
 ## Collected strategy signals
 
 Daily sync stores:
