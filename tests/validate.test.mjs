@@ -6,6 +6,7 @@ import { isAllowedOrigin } from '../functions/lib/http.js';
 import {
   isArticleKey,
   isEventName,
+  COMPONENTS,
   isReaction,
   isViewerId,
   parseJsonObject,
@@ -24,6 +25,12 @@ describe('article keys', () => {
 });
 
 describe('reactions and events', () => {
+  it('supports known Lab components but rejects arbitrary names', () => {
+    assert.equal(COMPONENTS.has('hii-valuation-lab-v1'), true);
+    assert.equal(COMPONENTS.has('bloom-valuation-lab-v1'), true);
+    assert.equal(COMPONENTS.has('unknown-bot'), false);
+  });
+
   it('allows only useful', () => {
     assert.equal(isReaction('useful'), true);
     assert.equal(isReaction('dislike'), false);
@@ -31,6 +38,7 @@ describe('reactions and events', () => {
 
   it('allows only public client events', () => {
     assert.equal(isEventName('code_run'), true);
+    assert.equal(isEventName('lab_start'), true);
     assert.equal(isEventName('language_switch'), true);
     assert.equal(isEventName('reaction_click'), false);
     assert.equal(isEventName('reaction_added'), false);

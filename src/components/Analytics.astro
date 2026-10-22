@@ -13,3 +13,48 @@ const token = IS_PRODUCTION ? integrations.cloudflareWebAnalyticsToken : '';
     data-cf-beacon={JSON.stringify({ token })}
   ></script>
 )}
+
+// Lightweight delegated tracking: capture the FIRST deliberate interaction
+// per Lab/article, including preset clicks. No passive views or slider spam.
+<script>
+  import { track } from '../scripts/track';
+
+  const labComponents: Array<[string, string]> = [
+    ['[data-apld-lab]', 'apld-valuation-lab-v1'],
+    ['[data-bloom-lab]', 'bloom-valuation-lab-v1'],
+    ['[data-clobe-lab]', 'clobe-valuation-lab-v1'],
+    ['[data-venture-lab]', 'cybersecurity-venture-lab-v1'],
+    ['[data-hii-lab]', 'hii-valuation-lab-v1'],
+    ['[data-pe-lab]', 'pe-ax-value-creation-lab-v1'],
+    ['[data-poisson-lab]', 'poisson-demand-inventory-lab-v1'],
+    ['[data-salesforce-lab]', 'salesforce-valuation-simulator-v1'],
+    ['[data-samsung-lab]', 'samsung-earnings-lab-v1'],
+    ['[data-sterling-lab]', 'sterling-valuation-lab-v1'],
+    ['[data-component="ai-handoff-queue-lab-v1"]', 'ai-handoff-queue-lab-v1'],
+    ['[data-component="contact-center-queue-explorer-v1"]', 'contact-center-queue-explorer-v1'],
+    ['[data-component="everyday-queue-explorer-v1"]', 'everyday-queue-explorer-v1'],
+    ['[data-component="pareto-explorer-v1"]', 'pareto-explorer-v1'],
+    ['[data-component="poisson-inventory-explorer-v1"]', 'poisson-inventory-explorer-v1'],
+  ];
+
+  const selector = labComponents.map(([css]) => css).join(', ');
+  function handleInteraction(event: Event) {
+    if (!(event.target instanceof Element)) return;
+    const control = event.target.closest('input, select, button');
+    if (!control) return;
+    // A click on a toggle/slider input is followed by input/change; deduped.
+    const root = control.closest<HTMLElement>(selector);
+    const article = control.closest<HTMLElement>('.article-page[data-article-key]');
+    if (!root || !article?.dataset.articleKey) return;
+    const component = labComponents.find(([css]) => root.matches(css))?.[1];
+    if (!component) return;
+    track('lab_start', {
+      articleSlug: article.dataset.articleKey,
+      language: root.dataset.language === 'en' ? 'en' : 'ko',
+      component,
+    });
+  }
+  document.addEventListener('input', handleInteraction, true);
+  document.addEventListener('change', handleInteraction, true);
+  document.addEventListener('click', handleInteraction, true);
+</script>
