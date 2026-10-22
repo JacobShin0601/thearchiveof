@@ -1,0 +1,56 @@
+---
+title: "Cybersecurity Venture Lab: 소프트웨어 전환율과 Exit 가치의 민감도"
+subtitle: "제품화·반복 구축비·희석이 VC 수익률에 닿는 경로를 직접 바꿔 본다"
+description: "데이터 통제 게이트웨이와 BAS 제품화라는 가상 사업 구조에서 제품 매출 비중, 구축비, Exit 배수와 희석이 VC 수익률에 미치는 영향을 계산한다."
+publishedDate: 2026-10-22
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, enterprise-ai]
+primaryTopic: portfolio
+tags: [cybersecurity, private-markets, valuation, saas, simulation]
+author: "Jacob Shin"
+draft: true
+comments: true
+language: "ko"
+translationKey: "cybersecurity-venture-productization-lab"
+freshness: time-sensitive
+lastReviewed: 2026-10-22
+nextReviewDate: 2027-01-22
+dataThrough: 2026-10-22
+methodology: "순수 TypeScript 모델로 가상의 고객·매출 믹스·원가·Exit·투자조건을 계산한다. 실제 회사의 ARR, 마진, 투자조건, Cap table 또는 우선주 권리를 나타내지 않는 illustrative common-equivalent 모델이다."
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import CybersecurityVentureLab from '../../../components/interactive/CybersecurityVentureLab.astro';
+
+<AnswerBlock question="보안 제품의 ‘해자’는 어떻게 VC 수익률로 연결되는가?">
+  제품 매출 비중이 오르고 고객별 반복 구축비가 줄면 같은 고객 성장에서도 혼합 총이익률이 개선될 수 있다. 그러나 Exit 배수와 희석, 진입가격이 그 이익을 모두 상쇄할 수 있다. 이 Lab은 그 경로를 가정으로 분해한다. 실제 기업의 가치평가 결과가 아니다.
+</AnswerBlock>
+
+이 도구는 [모놀리(Monoly)와 78리서치랩(78ResearchLab) 리서치](/investing/markets/korean-cybersecurity-startup-moats/)에 연결된 가상 VC Method 실험이다. ‘데이터 통제 게이트웨이’와 ‘BAS 제품화’는 두 회사의 실제 재무모델이 아니라 서로 다른 단위경제를 이해하기 위한 archetype이다.
+
+<CybersecurityVentureLab />
+
+## 무엇을 계산하는가
+
+종료연도 매출은 고객 수와 고객당 매출의 함수다. 제품·구독 매출과 서비스 매출을 구분하고, 각각 다른 총이익률을 적용한 뒤 플랫폼 고정비와 고객별 반복 구축·지원비를 뺀다.
+
+$$
+Exit\ proceeds = \max(Exit\ EV - Net\ debt, 0) \times \frac{Investment}{Pre\text{-}money + Investment} \times (1-Dilution)
+$$
+
+목표 IRR을 만족하는 최대 Pre-money는 종료 지분가치와 희석, 보유기간을 역산한다. 종료 지분가치가 음수이거나 너무 작으면 결과를 0으로 숨기지 않고 ‘충족 불가’로 표시한다.
+
+## 읽는 법
+
+1. 먼저 Bear/Base/Bull을 고른다. 이는 사실 예측이 아니라 서로 다른 반증 조건이다.
+2. 제품 매출 비중과 고객당 반복 구축·지원비를 바꾼다. 이것이 해자가 마진으로 바뀌는 지점이다.
+3. Exit EV/Revenue, 후속 희석, 진입 Pre-money를 바꾼다. 사업이 같아도 투자 가격은 달라진다.
+4. 민감도 표에서 제품화가 충분해도 어떤 Exit 조건과 진입가가 필요한지 확인한다.
+
+## 모델이 하지 않는 것
+
+이 모델은 청산우선권, 참여권, 옵션풀의 실제 시점, 세금, 거래비용, 현금흐름, 고객 집중도, 보안사고 및 채권 조건을 반영하지 않는다. 따라서 ‘최대 Pre-money’는 계약 협상 가격표가 아니라, 더 높은 수준의 실사를 시작하기 위한 역산값이다.
+
+Disclosure: 개인 연구용 도구이며 투자 권유가 아니다.
