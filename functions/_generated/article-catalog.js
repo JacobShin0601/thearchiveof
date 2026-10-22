@@ -11,7 +11,7 @@ export const ARTICLE_CATALOG = {
     "freshness": "evergreen",
     "lastReviewed": "2026-10-05",
     "nextReviewDate": "2027-10-05",
-    "title": "Agent Backend 한 장 지도: API, Queue, Worker, State, SSE는 어떻게 연결되는가",
+    "title": "에이전트 백엔드 한 장 지도: API·queue·Worker·state·SSE는 어떻게 연결되는가",
     "path": "/ai/agents/agent-backend-architecture-map/"
   },
   "/ai/agents/agent-pattern-design/": {
@@ -26,8 +26,23 @@ export const ARTICLE_CATALOG = {
     "freshness": "evergreen",
     "lastReviewed": "2026-10-04",
     "nextReviewDate": "2027-10-04",
-    "title": "에이전트 패턴 설계: Tool Use부터 Planner, Parallel, HITL, Reflection까지",
+    "title": "에이전트 설계의 여섯 가지 패턴: 도구 호출부터 사람의 승인까지",
     "path": "/ai/agents/agent-pattern-design/"
+  },
+  "/ai/agents/agent-request-end-to-end/": {
+    "key": "agent-request-end-to-end",
+    "slug": "agent-request-end-to-end",
+    "language": "ko",
+    "section": "AI & AX",
+    "subsection": "Agents",
+    "contentType": "foundation",
+    "topics": "- ai-agents",
+    "primaryTopic": "ai-agents",
+    "freshness": "periodic",
+    "lastReviewed": "2026-10-12",
+    "nextReviewDate": "2027-01-12",
+    "title": "사용자 요청이 에이전트에서 처리되기까지",
+    "path": "/ai/agents/agent-request-end-to-end/"
   },
   "/ai/agents/agent-sse-streaming/": {
     "key": "agent-sse-streaming",
@@ -71,7 +86,7 @@ export const ARTICLE_CATALOG = {
     "freshness": "evergreen",
     "lastReviewed": "2026-10-05",
     "nextReviewDate": "2027-10-04",
-    "title": "Async, Thread, Process: Agent Worker를 이해하기 전에 알아야 할 것",
+    "title": "비동기·thread·프로세스: 에이전트 Worker를 이해하기 전에 알아야 할 것",
     "path": "/ai/agents/async-thread-process-agent-backends/"
   },
   "/ai/ax/ax-is-transformation/": {
@@ -112,6 +127,21 @@ export const ARTICLE_CATALOG = {
     "nextReviewDate": "2027-03-21",
     "title": "AX는 좁고 날카로워야 한다",
     "path": "/ai/ax/ax-should-start-narrow/"
+  },
+  "/ai/agents/conversation-is-not-a-run/": {
+    "key": "conversation-is-not-a-run",
+    "slug": "conversation-is-not-a-run",
+    "language": "ko",
+    "section": "AI & AX",
+    "subsection": "Agents",
+    "contentType": "foundation",
+    "topics": "- ai-agents",
+    "primaryTopic": "ai-agents",
+    "freshness": "periodic",
+    "lastReviewed": "2026-10-12",
+    "nextReviewDate": "2027-01-12",
+    "title": "Conversation은 Run이 아니다: Session Isolation 설계",
+    "path": "/ai/agents/conversation-is-not-a-run/"
   },
   "/ai/ax/from-retrieval-engineering-to-task-engineering/": {
     "key": "from-retrieval-engineering-to-task-engineering",
@@ -160,7 +190,7 @@ export const ARTICLE_CATALOG = {
     "freshness": "periodic",
     "lastReviewed": "2026-10-12",
     "nextReviewDate": "2027-01-12",
-    "title": "Multi-Agent는 Agent를 여러 개 띄우는 것이 아니다: Parent Run, Fan-out, Fan-in",
+    "title": "Multi-Agent는 Agent 여러 개를 띄우는 일이 아니다: Parent Run, Fan-out, Fan-in",
     "path": "/ai/agents/multi-agent-parent-run-fan-out-fan-in/"
   },
   "/ai/agents/state-is-not-event/": {
@@ -178,6 +208,26 @@ export const ARTICLE_CATALOG = {
     "title": "State는 Event가 아니다: 실시간 Agent UI 설계법",
     "path": "/ai/agents/state-is-not-event/"
   },
+  "/ai/ax/the-future-of-ax-domain-experts-software-owners/": {
+    "key": "the-future-of-ax-domain-experts-software-owners",
+    "slug": "the-future-of-ax-domain-experts-software-owners",
+    "language": "ko",
+    "section": "AI & AX",
+    "subsection": "AX",
+    "contentType": "perspective",
+    "topics": [
+      "ax",
+      "enterprise-ai",
+      "ai-agents",
+      "evaluation"
+    ],
+    "primaryTopic": "ax",
+    "freshness": "periodic",
+    "lastReviewed": "2026-10-14",
+    "nextReviewDate": "2027-04-14",
+    "title": "AX의 미래: 도메인 전문가가 소프트웨어를 소유할 때",
+    "path": "/ai/ax/the-future-of-ax-domain-experts-software-owners/"
+  },
   "/ai/ai-engineering/vllm-troubleshooting-metrics/": {
     "key": "vllm-troubleshooting-metrics",
     "slug": "vllm-troubleshooting-metrics",
@@ -194,7 +244,7 @@ export const ARTICLE_CATALOG = {
     "freshness": "periodic",
     "lastReviewed": "2026-09-22",
     "nextReviewDate": "2026-12-22",
-    "title": "vLLM은 왜 느려졌을까?",
+    "title": "vLLM이 느려졌을 때: TTFT·TPOT·KV cache로 병목을 진단하는 법",
     "path": "/ai/ai-engineering/vllm-troubleshooting-metrics/"
   },
   "/ai/ai-engineering/vllm-tuning-limited-gpus/": {
@@ -236,6 +286,21 @@ export const ARTICLE_CATALOG = {
     "title": "우리의 에이전트 플랫폼은 왜 처음엔 삐걱댔을까",
     "path": "/ai/ax/we-built-the-agent-platform-too-early/"
   },
+  "/ai/agents/when-workers-die/": {
+    "key": "when-workers-die",
+    "slug": "when-workers-die",
+    "language": "ko",
+    "section": "AI & AX",
+    "subsection": "Agents",
+    "contentType": "foundation",
+    "topics": "- ai-agents",
+    "primaryTopic": "ai-agents",
+    "freshness": "periodic",
+    "lastReviewed": "2026-10-12",
+    "nextReviewDate": "2027-01-12",
+    "title": "Worker가 죽으면 어떻게 되는가: Queue, XREADGROUP, XACK, Retry",
+    "path": "/ai/agents/when-workers-die/"
+  },
   "/ai/agents/where-agent-state-lives/": {
     "key": "where-agent-state-lives",
     "slug": "where-agent-state-lives",
@@ -248,7 +313,7 @@ export const ARTICLE_CATALOG = {
     "freshness": "evergreen",
     "lastReviewed": "2026-10-05",
     "nextReviewDate": "2027-10-04",
-    "title": "Agent State는 어디에 있어야 하는가: PostgreSQL, Redis, Checkpoint",
+    "title": "Agent State는 어디에 있어야 할까: PostgreSQL, Redis, Checkpoint",
     "path": "/ai/agents/where-agent-state-lives/"
   },
   "/ai/ax/who-disappears-first-ai-or-business-teams/": {
@@ -282,7 +347,7 @@ export const ARTICLE_CATALOG = {
     "freshness": "evergreen",
     "lastReviewed": "2026-10-05",
     "nextReviewDate": "2027-10-04",
-    "title": "에이전트는 왜 Async가 필요한가: 기다리는 동안 다른 일을 시키는 법",
+    "title": "에이전트 시스템에 비동기가 필요한 이유: 기다리는 동안 다른 일을 진행하는 법",
     "path": "/ai/agents/why-agent-systems-need-async/"
   },
   "/ai/ax/why-i-am-removing-langgraph-from-agent-building/": {
@@ -335,7 +400,7 @@ export const ARTICLE_CATALOG = {
     "freshness": "evergreen",
     "lastReviewed": "2026-10-04",
     "nextReviewDate": "2027-10-04",
-    "title": "Worker는 Thread가 아니다: Agent 실행을 API 서버에서 분리하는 이유",
+    "title": "Worker는 thread가 아니다: 에이전트 실행을 API 서버에서 분리하는 이유",
     "path": "/ai/agents/worker-is-not-thread/"
   },
   "/coding/experiments/ai-handoff-queue-lab/": {
@@ -454,6 +519,23 @@ export const ARTICLE_CATALOG = {
     "nextReviewDate": "2026-11-16",
     "title": "Sterling Infrastructure Valuation Lab: 현재 주가가 요구하는 성장률",
     "path": "/coding/experiments/sterling-infrastructure-valuation-lab/"
+  },
+  "/coding/experiments/v-ic-clobe-ai-series-a-valuation-lab/": {
+    "key": "v-ic-clobe-ai-series-a-valuation-lab",
+    "slug": "v-ic-clobe-ai-series-a-valuation-lab",
+    "language": "ko",
+    "section": "Lab",
+    "subsection": "Experiments",
+    "contentType": "implementation",
+    "topics": [
+      "portfolio"
+    ],
+    "primaryTopic": "portfolio",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-14",
+    "nextReviewDate": "2026-11-14",
+    "title": "V-IC (Clobe AI) Valuation Lab: Series A에서 얼마에 투자해야 하는가",
+    "path": "/coding/experiments/v-ic-clobe-ai-series-a-valuation-lab/"
   },
   "/en/ai/agents/agent-backend-architecture-map/": {
     "key": "agent-backend-architecture-map",
@@ -633,6 +715,26 @@ export const ARTICLE_CATALOG = {
     "nextReviewDate": "2027-10-04",
     "title": "State Is Not an Event: Designing Real-Time Agent UIs",
     "path": "/en/ai/agents/state-is-not-event/"
+  },
+  "/en/ai/ax/the-future-of-ax-domain-experts-software-owners/": {
+    "key": "the-future-of-ax-domain-experts-software-owners",
+    "slug": "the-future-of-ax-domain-experts-software-owners",
+    "language": "en",
+    "section": "AI & AX",
+    "subsection": "AX",
+    "contentType": "perspective",
+    "topics": [
+      "ax",
+      "enterprise-ai",
+      "ai-agents",
+      "evaluation"
+    ],
+    "primaryTopic": "ax",
+    "freshness": "periodic",
+    "lastReviewed": "2026-10-14",
+    "nextReviewDate": "2027-04-14",
+    "title": "The Future of AX: When Domain Experts Become Software Owners",
+    "path": "/en/ai/ax/the-future-of-ax-domain-experts-software-owners/"
   },
   "/en/ai/ai-engineering/vllm-troubleshooting-metrics/": {
     "key": "vllm-troubleshooting-metrics",
@@ -929,6 +1031,25 @@ export const ARTICLE_CATALOG = {
     "title": "Applied Digital Corporation: $36 Billion in AI Data Center Leases, but How Much Value Reaches Shareholders?",
     "path": "/en/investing/markets/applied-digital-corporation-ai-data-center-value/"
   },
+  "/en/investing/markets/bloom-energy-ai-power-valuation/": {
+    "key": "bloom-energy-ai-power-valuation",
+    "slug": "bloom-energy-ai-power-valuation",
+    "language": "en",
+    "section": "Investing",
+    "subsection": "Markets",
+    "contentType": "research",
+    "topics": [
+      "portfolio",
+      "supply-chain",
+      "enterprise-ai"
+    ],
+    "primaryTopic": "portfolio",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-16",
+    "nextReviewDate": "2026-10-23",
+    "title": "Bloom Energy: An AI Power Bottleneck Winner, but How Much Success Is Already Priced In?",
+    "path": "/en/investing/markets/bloom-energy-ai-power-valuation/"
+  },
   "/en/investing/markets/efficient-markets-bayesian-lens/": {
     "key": "efficient-markets-bayesian-lens",
     "slug": "efficient-markets-bayesian-lens",
@@ -1187,6 +1308,25 @@ export const ARTICLE_CATALOG = {
     "title": "Applied Digital Corporation: 360억 달러의 AI 데이터센터 계약, 그런데 주주에게 남는 돈은 얼마일까?",
     "path": "/investing/markets/applied-digital-corporation-ai-data-center-value/"
   },
+  "/investing/markets/bloom-energy-ai-power-valuation/": {
+    "key": "bloom-energy-ai-power-valuation",
+    "slug": "bloom-energy-ai-power-valuation",
+    "language": "ko",
+    "section": "Investing",
+    "subsection": "Markets",
+    "contentType": "research",
+    "topics": [
+      "portfolio",
+      "supply-chain",
+      "enterprise-ai"
+    ],
+    "primaryTopic": "portfolio",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-16",
+    "nextReviewDate": "2026-10-23",
+    "title": "Bloom Energy: AI 전력 부족의 최대 수혜주인가, 기대를 너무 많이 반영한 주식인가?",
+    "path": "/investing/markets/bloom-energy-ai-power-valuation/"
+  },
   "/investing/markets/efficient-markets-bayesian-lens/": {
     "key": "efficient-markets-bayesian-lens",
     "slug": "efficient-markets-bayesian-lens",
@@ -1285,6 +1425,23 @@ export const ARTICLE_CATALOG = {
     "nextReviewDate": "2026-11-16",
     "title": "Sterling Infrastructure: 이제 팔고 나가야 할 주식? 좋은 회사지만 지금은 적정가 수준이다",
     "path": "/investing/markets/sterling-infrastructure-fair-value/"
+  },
+  "/investing/markets/v-ic-clobe-ai-series-a-valuation/": {
+    "key": "v-ic-clobe-ai-series-a-valuation",
+    "slug": "v-ic-clobe-ai-series-a-valuation",
+    "language": "ko",
+    "section": "Investing",
+    "subsection": "Markets",
+    "contentType": "research",
+    "topics": [
+      "portfolio"
+    ],
+    "primaryTopic": "portfolio",
+    "freshness": "time-sensitive",
+    "lastReviewed": "2026-10-14",
+    "nextReviewDate": "2026-11-14",
+    "title": "V-IC (Clobe AI): 매출 1,000억을 꿈꾸는 30명짜리 금융 플랫폼의 적정가치는?",
+    "path": "/investing/markets/v-ic-clobe-ai-series-a-valuation/"
   },
   "/investing/markets/will-rogo-eat-financial-ai/": {
     "key": "will-rogo-eat-financial-ai",
