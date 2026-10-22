@@ -14,7 +14,7 @@ export function renderEngagementSql({daily, useful, start, end, now}) {
   if (!Array.isArray(daily) || !Array.isArray(useful) || daily.length > 20000 || useful.length > 5000)
     throw new Error('Refusing unexpectedly large D1 aggregate sync');
   const result = [
-    `DELETE FROM analytics_engagement_daily WHERE day >= ${quote(start)} AND day < ${quote(end)};`,
+    `DELETE FROM analytics_engagement_daily WHERE day < ${quote(start)};`,
     'DELETE FROM analytics_useful_snapshot;',
   ];
   for (const row of daily) {
@@ -23,7 +23,7 @@ export function renderEngagementSql({daily, useful, start, end, now}) {
         || !events.has(row.event) || !['ko','en',''].includes(row.language ?? '')) {
       throw new Error('Invalid grouped event');
     }
-    result.push(`INSERT INTO analytics_engagement_daily (day,article_slug,language,event_name,total) VALUES (${quote(row.day)},${quote(row.article)},${quote(row.language ?? '')},${quote(row.event)},${count(row.total)});`);
+    result.push(`INSERT INTO analytics_engagement_daily (day,article_slug,language,event_name,total) VALUES (${quote(row.day)},${quote(row.article)},${quote(row.language ?? '')},${quote(row.event)},${count(row.total)}) ON CONFLICT(day,article_slug,language,event_name) DO UPDATE SET total=excluded.total WHERE total <> excluded.total;`);
   }
   for (const row of useful) {
     if (!slug.test(row.article ?? '') || row.article.length > 80) throw new Error('Invalid Useful slug');

@@ -9,7 +9,8 @@ const params={
 describe('privacy-safe Production engagement sync',()=>{
   it('copies only daily grouped counts and marks sync complete last',()=>{
     const sql=renderEngagementSql(params);
-    assert.match(sql,/lab_start',3\);/);
+    assert.match(sql,/lab_start',3\) ON CONFLICT/);
+    assert.match(sql,/WHERE total <> excluded.total/);
     assert.match(sql,/analytics_useful_snapshot/);
     assert.equal(sql.trim().split('\n').at(-1).startsWith('INSERT OR REPLACE INTO analytics_engagement_sync_state'),true);
     assert.doesNotMatch(sql,/actor_hash|viewer_id|ip_address/);
