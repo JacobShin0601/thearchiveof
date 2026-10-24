@@ -5,7 +5,7 @@ const en = language === 'en';
 ---
 <section class="venture-lab" data-venture-lab data-language={language} aria-labelledby="venture-lab-title">
   <header class="intro">
-    <div><p>THE ARCHIVE / PRIVATE MARKETS LAB</p><h3 id="venture-lab-title">{en ? 'From productization to venture returns' : '소프트웨어 전환이 VC 수익률로 이어지는 조건'}</h3><span>{en ? 'An illustrative common-equivalent model. It does not describe either company’s financing, ARR, margin, or cap table.' : '모든 값은 예시 가정입니다. 어느 회사의 투자조건·ARR·마진·Cap table도 나타내지 않습니다.'}</span></div>
+    <div><p>THE ARCHIVE / PRIVATE MARKETS LAB</p><h3 id="venture-lab-title">{en ? 'From productization to venture returns' : '제품화가 VC 수익률로 이어지는 조건'}</h3><span>{en ? 'An illustrative common-equivalent model. It does not describe either company’s financing, ARR, margin, or cap table.' : '모든 값은 예시 가정입니다. 어느 회사의 투자 조건·ARR·마진·자본구조를 나타내지 않습니다.'}</span></div>
     <span class="assumption">{en ? 'Illustrative only' : '가정 기반'}</span>
   </header>
 
@@ -18,7 +18,7 @@ const en = language === 'en';
   <div class="preset" role="group" aria-label={en ? 'Scenario presets' : '시나리오 프리셋'}><span>{en ? 'Scenario' : '시나리오'}</span><button data-preset="bear">Bear</button><button class="active" data-preset="base">Base</button><button data-preset="bull">Bull</button></div>
 
   <div class="results" aria-live="polite">
-    <div class="hero"><span>{en ? 'Maximum pre-money for target IRR' : '목표 IRR 기준 최대 Pre-money'}</span><strong data-out="maxPreMoney">—</strong><small data-out="feasibility"></small></div>
+    <div class="hero"><span>{en ? 'Maximum pre-money for target IRR' : '목표 IRR 기준 최대 투자 전 기업가치'}</span><strong data-out="maxPreMoney">—</strong><small data-out="feasibility"></small></div>
     <div><span>IRR / MOIC</span><strong data-out="irr">—</strong><small data-out="moic">—</small></div>
     <div><span>{en ? 'Terminal revenue' : '종료연도 매출'}</span><strong data-out="revenue">—</strong><small data-out="mix">—</small></div>
     <div><span>{en ? 'Blended gross margin' : '혼합 총이익률'}</span><strong data-out="gm">—</strong><small data-out="exitValue">—</small></div>
@@ -26,31 +26,31 @@ const en = language === 'en';
   <section class="valuation-compare" aria-live="polite">
     <div><span>{en ? 'Revenue-based EV' : '매출배수 기준 EV'}</span><strong data-out="revenueEv">—</strong><small data-out="impliedEbitdaMultiple">—</small></div>
     <div><span>{en ? 'EBITDA-based EV' : 'EBITDA 배수 기준 EV'}</span><strong data-out="ebitdaEv">—</strong><small data-out="ebitdaStatus">—</small></div>
-    <p>{en ? 'These are two exit lenses, not two values to add together. The revenue method remains the return calculation; the EBITDA method makes its embedded profitability expectation visible.' : '둘은 더하는 두 개의 가치가 아니라 서로 다른 Exit 렌즈다. 투자자 수익률은 매출배수 기준으로 계산하고, EBITDA 기준은 그 가정에 내재된 수익성 기대를 드러낸다.'}</p>
+    <p>{en ? 'These are two exit lenses, not two values to add together. The revenue method remains the return calculation; the EBITDA method makes its embedded profitability expectation visible.' : '두 값은 합산하는 것이 아니라 서로 다른 Exit 관점이다. 투자자 수익률은 매출배수 기준으로 계산하고, EBITDA 기준은 그 가정에 담긴 수익성 기대를 보여 준다.'}</p>
   </section>
 
   <div class="controls">
     <section><h4>{en ? '01 / Investor terms' : '01 / 투자 조건'}</h4>
-      <label><span>{en ? 'Entry pre-money' : '진입 Pre-money'} <output data-value="entryPreMoney"></output></span><input name="entryPreMoney" type="range" min="0" max="5000" step="100" value="1200" /></label>
+      <label><span>{en ? 'Entry pre-money' : '진입 시 투자 전 기업가치'} <output data-value="entryPreMoney"></output></span><input name="entryPreMoney" type="range" min="0" max="5000" step="100" value="1200" /></label>
       <label><span>{en ? 'Investment' : '투자금'} <output data-value="investment"></output></span><input name="investment" type="range" min="50" max="500" step="10" value="200" /></label>
-      <label><span>{en ? 'Future dilution' : '후속·ESOP 희석'} <output data-value="cumulativeDilution"></output></span><input name="cumulativeDilution" type="range" min="0" max="70" step="5" value="30" /></label>
+      <label><span>{en ? 'Future dilution' : '후속 투자·스톡옵션 희석'} <output data-value="cumulativeDilution"></output></span><input name="cumulativeDilution" type="range" min="0" max="70" step="5" value="30" /></label>
       <label><span>{en ? 'Target IRR' : '목표 IRR'} <output data-value="targetIrr"></output></span><input name="targetIrr" type="range" min="15" max="60" step="5" value="30" /></label>
       <label><span>{en ? 'Exit revenue multiple' : 'Exit EV/Revenue'} <output data-value="exitRevenueMultiple"></output></span><input name="exitRevenueMultiple" type="range" min="1" max="15" step="1" value="6" /></label>
       <label><span>{en ? 'Exit EBITDA multiple' : 'Exit EV/EBITDA'} <output data-value="exitEbitdaMultiple"></output></span><input name="exitEbitdaMultiple" type="range" min="6" max="30" step="1" value="18" /></label>
     </section>
-    <section><h4>{en ? '02 / Commercial engine' : '02 / 사업 엔진'}</h4>
+    <section><h4>{en ? '02 / Commercial engine' : '02 / 매출 구조'}</h4>
       <label><span>{en ? 'New customers (year 1)' : '신규 고객 (1년차)'} <output data-value="newCustomers"></output></span><input name="newCustomers" type="range" min="5" max="60" step="1" value="24" /></label>
-      <label><span>{en ? 'Annual customer growth' : '연 고객 증가율'} <output data-value="annualCustomerGrowth"></output></span><input name="annualCustomerGrowth" type="range" min="0" max="70" step="5" value="35" /></label>
-      <label><span>{en ? 'Renewal + expansion factor' : '갱신·확대 계수'} <output data-value="retentionAndExpansion"></output></span><input name="retentionAndExpansion" type="range" min="80" max="120" step="1" value="104" /></label>
+      <label><span>{en ? 'Annual customer growth' : '연간 신규 고객 증가율'} <output data-value="annualCustomerGrowth"></output></span><input name="annualCustomerGrowth" type="range" min="0" max="70" step="5" value="35" /></label>
+      <label><span>{en ? 'Renewal + expansion factor' : '갱신·확대율'} <output data-value="retentionAndExpansion"></output></span><input name="retentionAndExpansion" type="range" min="80" max="120" step="1" value="104" /></label>
       <label><span>{en ? 'Subscription/product mix' : '구독·제품 매출 비중'} <output data-value="productRevenueMix"></output></span><input name="productRevenueMix" type="range" min="0" max="100" step="5" value="70" /></label>
       <label><span>{en ? 'Reusable delivery cost per customer' : '고객당 반복 구축·지원비'} <output data-value="deliveryCostPerCustomer"></output></span><input name="deliveryCostPerCustomer" type="range" min="0" max="3" step=".1" value=".5" /></label>
-      <label><span>{en ? 'Partner distribution cost' : '파트너 유통·지원비'} <output data-value="partnerCommissionRate"></output></span><input name="partnerCommissionRate" type="range" min="0" max="30" step="1" value="10" /></label>
+      <label><span>{en ? 'Partner distribution cost' : '파트너 판매·지원 비용'} <output data-value="partnerCommissionRate"></output></span><input name="partnerCommissionRate" type="range" min="0" max="30" step="1" value="10" /></label>
     </section>
   </div>
 
-  <section class="bridge"><h4>{en ? '03 / The moat-to-return bridge' : '03 / 해자에서 수익률로 가는 브리지'}</h4>
-    <div><article><b>{en ? 'Reusable workflow' : '재사용 가능한 워크플로'}</b><span>{en ? 'Higher product mix / lower delivery burden' : '제품 매출 비중↑ / 반복 구축비↓'}</span></article><i>→</i><article><b>{en ? 'Gross profit' : '총이익'}</b><span data-out="grossProfit">—</span></article><i>→</i><article><b>{en ? 'Exit equity value' : 'Exit 지분가치'}</b><span data-out="equityValue">—</span></article><i>→</i><article><b>VC return</b><span data-out="proceeds">—</span></article></div>
-    <p>{en ? 'The model deliberately does not turn a “moat score” into a valuation. It models a path through customer economics, margin, an assumed exit multiple, and ownership.' : '이 모델은 ‘해자 점수’를 가치로 바꾸지 않습니다. 고객 경제성→마진→가정된 Exit 배수→투자자 지분의 경로만 계산합니다.'}</p>
+  <section class="bridge"><h4>{en ? '03 / The moat-to-return bridge' : '03 / 해자가 수익률로 이어지는 경로'}</h4>
+    <div><article><b>{en ? 'Reusable workflow' : '재사용 가능한 업무 흐름'}</b><span>{en ? 'Higher product mix / lower delivery burden' : '제품 매출 비중 증가 / 반복 구축·지원비 감소'}</span></article><i>→</i><article><b>{en ? 'Gross profit' : '총이익'}</b><span data-out="grossProfit">—</span></article><i>→</i><article><b>{en ? 'Exit equity value' : 'Exit 시점 지분가치'}</b><span data-out="equityValue">—</span></article><i>→</i><article><b>VC return</b><span data-out="proceeds">—</span></article></div>
+    <p>{en ? 'The model deliberately does not turn a “moat score” into a valuation. It models a path through customer economics, margin, an assumed exit multiple, and ownership.' : '이 모델은 ‘해자 점수’를 곧바로 기업가치로 바꾸지 않습니다. 고객 경제성, 마진, 가정한 Exit 배수, 투자자 지분으로 이어지는 경로만 계산합니다.'}</p>
   </section>
 
   <section class="sensitivity"><h4>{en ? '04 / Sensitivity: product mix × exit multiple' : '04 / 민감도: 제품 매출 비중 × Exit 배수'}</h4><div class="table-wrap"><table><thead data-sensitivity-head></thead><tbody data-sensitivity-body></tbody></table></div></section>
