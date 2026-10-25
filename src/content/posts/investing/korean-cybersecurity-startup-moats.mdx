@@ -1,0 +1,166 @@
+---
+title: "모놀리(Monoly)와 78리서치랩(78ResearchLab): 한국 사이버보안 스타트업의 소프트웨어 해자와 기업가치"
+subtitle: "좋은 보안 기술이 반복매출과 글로벌 Exit로 이어지려면 무엇이 확인되어야 할까"
+description: "모놀리와 78리서치랩이 고객별 용역을 재사용 가능한 소프트웨어 사업으로 전환할 수 있는지, 공개 근거와 반증 조건으로 검토한다."
+publishedDate: 2026-10-22
+section: "Investing"
+subsection: "Markets"
+contentType: "research"
+topics: [portfolio, enterprise-ai]
+primaryTopic: portfolio
+tags: [cybersecurity, private-markets, valuation, saas, research]
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "ko"
+translationKey: "korean-cybersecurity-startup-moats"
+freshness: time-sensitive
+lastReviewed: 2026-10-22
+nextReviewDate: 2027-01-22
+dataThrough: 2026-10-22
+methodology: "회사 공식 자료, 정부 통계, 공개 언론 보도와 파트너 공지를 분리해 읽었다. 공개되지 않은 ARR·마진·고객 수·투자조건은 사실로 추정하지 않았으며, Lab의 모든 수치는 반증 가능한 예시 가정이다."
+references:
+  - title: "Monoly 공식 사이트"
+    url: "https://www.monoly.com/"
+    publisher: "Monoly"
+  - title: "모놀리, 신규 투자 유치"
+    url: "https://marketin.edaily.co.kr/News/Read?newsId=04247606645320016"
+    publisher: "이데일리 마켓in"
+  - title: "모놀리, 180억원 시드 투자"
+    url: "https://www.newsis.com/view/NISX20221014_0002048499"
+    publisher: "뉴시스"
+  - title: "78리서치랩 신년 인터뷰"
+    url: "https://78researchlab.com/news/?bmode=view&idx=170005464&q=YToxOntzOjEyOiJrZXl3b3JkX3R5cGUiO3M6MzoiYWxsIjt9&t=board"
+    publisher: "78ResearchLab"
+  - title: "엔시큐어·78리서치랩 파트너십"
+    url: "https://ensecure.tistory.com/133?category=842444"
+    publisher: "eNsecure"
+  - title: "2025 정보보호산업 실태조사"
+    url: "https://eiec.kdi.re.kr/policy/materialView.do?num=273123"
+    publisher: "과학기술정보통신부·KISIA"
+  - title: "금융회사의 SaaS 망분리 예외 적용"
+    url: "https://www.fsc.go.kr/no010101/86745"
+    publisher: "금융위원회"
+  - title: "Netskope DSPM Architecture"
+    url: "https://docs.netskope.com/en/netskope-dspm-architecture/"
+    publisher: "Netskope"
+  - title: "78리서치랩 AI 기반 BAS 공개"
+    url: "https://78researchlab.com/notice/?bmode=view&idx=174139026"
+    publisher: "78ResearchLab"
+  - title: "Cybersecurity Market Update"
+    url: "https://www.capstonepartners.com/insights/article-cybersecurity-market-update/"
+    publisher: "Capstone Partners"
+---
+
+import AnswerBlock from '../../../components/AnswerBlock.astro';
+import ValuationLabLinkCard from '../../../components/ValuationLabLinkCard.astro';
+
+<AnswerBlock question="모놀리와 78리서치랩은 좋은 보안 기술인가, 그리고 좋은 VC 투자 후보인가?">
+  두 회사 모두 고객별 프로젝트를 넘어 소프트웨어 해자를 만들 수 있는 출발점은 보인다. 모놀리는 데이터 통제 계층이 여러 SaaS·AI 도입에 재사용되는지, 78리서치랩은 공격 연구가 PurpleHound의 반복 매출과 낮은 고객별 원가로 축적되는지가 핵심이다. 그러나 공개 자료만으로 ARR, 총이익률, 갱신률, 해외 판매 경제성을 확인할 수 없다. 지금의 결론은 ‘조건부 지지’이며, 좋은 기술과 좋은 사업, 좋은 가격은 아직 서로 다른 질문이다.
+</AnswerBlock>
+
+비상장 보안기업을 볼 때 가장 쉬운 실수는 기술 설명을 곧바로 사업성으로 해석하는 것이다. 보안이 중요하다고 해서 모든 프로젝트 매출이 고마진 반복매출이 되는 것은 아니다. 반대로 아직 작은 제품이라도 고객의 데이터·업무 흐름·유통채널에 깊이 자리 잡으면 시간이 갈수록 강한 사업이 될 수 있다.
+
+이 글은 익명의 산업 스터디에서 출발한 두 가지 관찰을 공개 자료로 다시 검증한다. 첫째, 모놀리(Monoly)는 또 하나의 SaaS가 아니라 고객이 선택한 저장소와 정책을 바탕으로 SaaS·AI 사용을 통제하는 공통 계층이 될 수 있는가. 둘째, 78리서치랩(78ResearchLab)은 공격 연구와 현장 검증 경험을 PurpleHound의 제품 IP로 축적할 수 있는가. 비공개 투자 검토, 가격, 특정 고객 계약은 이 글의 근거에 포함하지 않았다.
+
+## 투자 질문을 먼저 좁히기
+
+| 질문 | 지지하는 관찰 | 반증 조건 |
+| :-- | :-- | :-- |
+| 모놀리의 통제 계층이 재사용되는가 | 같은 정책·저장소·감사 구조를 여러 사용 사례에 적용 | 고객마다 새 커넥터·구축 인력이 비례해 증가 |
+| 78리서치랩의 연구가 제품 IP가 되는가 | 공격 시나리오가 자동화되고 갱신·확대 매출이 증가 | 핵심 연구자 투입 없이는 매번 같은 서비스를 팔 수 없음 |
+| 글로벌 가치실현 경로가 있는가 | 반복매출, 높은 GM, 채널과 해외 고객의 재현성 | 해외 영업·인증·지원비가 제품 마진을 소진 |
+
+이 표의 목적은 ‘누가 더 나은가’를 단정하는 데 있지 않다. 서로 다른 해자 후보가 실제 **단위경제**로 이어지는지 점검하는 데 있다.
+
+## 모놀리: SaaS를 대체하는가, 아니면 SaaS와 기업 데이터를 잇는가
+
+모놀리는 공식적으로 고객이 선택한 클라우드 환경의 안전한 데이터 보관소에 SaaS 데이터를 저장·관리하고, 자체 접근 정책과 감사 추적을 적용할 수 있다고 설명한다. Monoly Enclave는 Secure SaaS Gateway로 제시되며, 공식 자료는 데이터 이동·관리·공유와 데이터 저장 위치 제어를 강조한다. [Monoly 공식 자료](https://www.monoly.com/)
+
+```text
+기업이 고른 저장소·정책
+          ↓
+Monoly Enclave (통제·감사·공유 기록)
+          ↓
+기존 SaaS / 외부 AI 사용
+```
+
+위 도식은 확인된 제품 설명을 간략히 정리한 것이다. 모든 SaaS·AI와의 범용 연동이 이미 구현됐다는 뜻은 아니다. 투자 관점에서 더 중요한 질문은 게이트웨이 자체의 존재가 아니라, 한 고객을 위해 만든 정책·커넥터·운영 절차를 다음 고객에게 얼마나 재사용할 수 있느냐다.
+
+2026년 보도에 따르면 모놀리는 Pre-A 투자를 유치했고, 스톤브릿지벤처스와 LF인베스트먼트가 신규 참여했으며 기존 투자자도 후속 투자했다. 같은 보도는 2025년 제로트러스트 실증 사업과 금융권 망분리 환경의 SaaS 보안 구축을 언급한다. 이는 까다로운 고객 환경에서의 레퍼런스라는 점에서 의미가 있다. 다만 라운드 규모·기업가치·반복매출은 공개되지 않았다. [이데일리 마켓in](https://marketin.edaily.co.kr/News/Read?newsId=04247606645320016)
+
+2022년 약 180억원 시드 투자 유치는 공개 사실이다. 이는 **유치 금액**이며 그 당시 또는 현재의 기업가치가 아니다. [뉴시스](https://www.newsis.com/view/NISX20221014_0002048499)
+
+### 모놀리의 해자는 ‘커넥터 수’가 아니라 재사용률일 수 있다
+
+가장 낙관적인 경로는 데이터 통제 계층이 한 번 설치된 뒤 여러 SaaS와 AI 사용 사례로 확장되는 경우다. 고객은 데이터 위치·접근정책·감사 구조를 다시 설계하는 비용을 피하고, 회사는 새 고객마다 동일한 통제 모듈을 다시 판다. 이때 전환비용은 계약서의 락인이 아니라 운영·감사·정책의 누적에서 나온다.
+
+반대 경로도 분명하다. 보안·규제 요구가 고객마다 달라 커넥터와 통합 프로젝트를 매번 새로 만들어야 한다면, 매출이 늘어도 구축 인력과 유지보수 비용이 함께 늘어난다. 좋은 프로젝트 회사가 될 수는 있어도, SaaS 수준의 밸류에이션을 정당화할 사업과는 다르다.
+
+### 데이터 주권은 차별화의 출발점이지, 그 자체로 해자는 아니다
+
+글로벌 보안 플랫폼도 고객 환경에 민감 데이터를 두고 외부 보안 기능을 쓰게 하는 문제를 다룬다. 예를 들어 Netskope DSPM은 온프레미스 분류에서 민감 원본이 아니라 분류 결과만 네트워크 밖으로 나가도록 하는 구조와, 클라우드·SaaS·온프레미스 데이터 발견을 설명한다. 이는 Monoly Enclave와 같은 제품 구조라는 뜻은 아니다. 다만 “데이터를 고객 통제 아래 둔다”는 설명만으로는 차별성을 입증하기 어렵다는 중요한 반론이다. [Netskope DSPM Architecture](https://docs.netskope.com/en/netskope-dspm-architecture/)
+
+따라서 실사 질문은 기능 목록이 아니라 경제성으로 옮겨가야 한다. 기존 CASB·DSPM보다 저장·처리 위치의 통제 범위가 넓은지, 금융권의 감사·망분리 요건을 만족시키는 구축 시간이 짧은지, 신규 SaaS·AI 연결에 필요한 엔지니어 시간이 줄어드는지, 그리고 고객 자체 운영 대비 총소유비용(TCO)이 낮은지가 핵심이다. 규제 없이도 고객이 이 통제 계층을 선택할 이유가 있어야 전환비용이 된다.
+
+### 망분리 완화는 수요 촉매이자 대체 위험이다
+
+금융위원회는 2026년 4월 20일부터 일정 보안 규율 아래 금융회사의 내부 업무망 SaaS 활용에 망분리 예외를 적용했다. 기존에 개별 혁신금융서비스 심사를 거쳐야 했던 업무지원 SaaS의 도입 장벽은 낮아졌지만, 중요정보 입력·처리·유출 모니터링, 최소권한, 불필요한 공유 방지 등 통제 의무는 남는다. [금융위원회](https://www.fsc.go.kr/no010101/86745)
+
+이 변화는 일방적인 호재가 아니다. SaaS·AI 사용이 늘면 관리해야 할 데이터와 정책의 범위도 넓어질 수 있다. 반대로 고객이 규제 준수만을 위해 게이트웨이를 도입했다면, 기본 보안 기능과 제도 완화가 대체재가 될 수 있다. 그래서 Monoly의 가장 중요한 반증 질문은 **“망분리 규제가 없더라도 이 고객은 같은 통제 계층을 구매하는가”**다.
+
+## 78리서치랩: 공격 연구가 제품의 학습 곡선으로 남는가
+
+78리서치랩은 PurpleHound를 실제 공격 기법을 모사하는 BAS(Breach and Attack Simulation) 기반 보안 인프라 진단 솔루션으로 소개한다. 회사가 수록한 2026년 인터뷰는 2025년 매출 50% 이상 성장, 2024년 말 PurpleHound 출시, 2025년 금융권 첫 도입과 제품 매출 발생을 언급한다. 이는 **회사 발표**이며 ARR이나 독립 검증된 성능 지표는 아니다. [78리서치랩 인터뷰](https://78researchlab.com/news/?bmode=view&idx=170005464&q=YToxOntzOjEyOiJrZXl3b3JkX3R5cGUiO3M6MzoiYWxsIjt9&t=board)
+
+```text
+공격 연구 → 공격 시나리오 → PurpleHound 자동화
+     ↑                              ↓
+현장 검증 ← 고객 피드백·탐지 공백 ← 반복 실행
+```
+
+이 선순환이 작동하면 컨설팅은 제품의 적이 아니라 학습 자산이 된다. 연구자가 새 공격 경로를 발견하고 이를 시나리오 라이브러리와 자동 실행·보고 기능에 반영하면, 다음 고객의 도입 시간은 줄어든다. 제품 매출 비중과 총이익률이 함께 높아질 때 비로소 이 설명은 사업성이 된다.
+
+공개 자료로 확인되는 유통 신호도 하나 있다. 엔시큐어는 2025년 12월 PurpleHound의 기술·영업·마케팅 협력을 위한 파트너십을 발표했다. 이는 유통 경로가 작동할 수 있다는 근거이지만, 계약 매출이나 독점권을 보여 주는 증거는 아니다. [엔시큐어 공지](https://ensecure.tistory.com/133?category=842444)
+
+### 국내 특화는 초기 진입장벽이지만, 글로벌 확장성의 증거는 아니다
+
+PurpleHound의 공식 자료는 MITRE ATT&CK 기반 시나리오와 함께 한컴오피스(HWP), 알집(ALZIP) 등 국내 ICT 환경을 고려한 시나리오를 제시한다. 한국 고객의 실제 공격 표면을 더 잘 반영한다면 국내 도입의 이유가 될 수 있다. 그러나 해외로 갈수록 현지 소프트웨어·규제·위협 환경에 맞춘 콘텐츠를 반복해야 한다면 그 비용은 오히려 커진다. [PurpleHound](https://78researchlab.com/purplehound)
+
+회사 발표에 따르면 PatchHawk·MARS·ARGUS를 PurpleHound의 공격 콘텐츠 자동화 체계와 연결하려는 방향도 제시됐다. 이는 제품화 가설을 뒷받침하지만, 실제 통합 범위·정확도·무인 운영 수준은 독립적으로 확인되지 않았다. 여기서 봐야 할 지표는 시나리오의 총개수가 아니라 연구자 1인당 검증된 시나리오 수, 신규 취약점 공개 후 반영 시간, 자동 실행 비중, 고객별 지원 시간이다. [78리서치랩 AI 기반 BAS 공개](https://78researchlab.com/notice/?bmode=view&idx=174139026)
+
+BAS는 공격을 재현하는 것과 고객이 그것을 반복 운영하게 하는 것이 다른 제품이다. Gartner가 BAS와 자동화된 침투 테스트를 더 넓은 AEV(Adversarial Exposure Validation) 범주로 묶는 흐름도 이 경쟁이 단순 시나리오 라이브러리보다 넓어졌음을 보여준다. Picus가 CrowdStrike Falcon과 연동해 기존 방어 도구의 탐지·차단을 검증하는 사례는 BAS가 보완재가 될 수 있음을 뒷받침하지만, 동시에 글로벌 플랫폼과 경쟁해야 한다는 뜻이기도 하다. [Picus](https://www.picussecurity.com/use-case/adversarial-exposure-validation) · [CrowdStrike Marketplace](https://marketplace.crowdstrike.com/listings/picus-security-validation-platform/)
+
+## 한국 보안시장의 성장과 글로벌 Exit는 같은 숫자가 아니다
+
+과기정통부·KISIA 조사에서 2024년 국내 정보보안 매출은 약 7조 1,244억원으로 전년 대비 15.9% 성장했다. 그러나 정보보안 수출은 약 1,242억원으로 전년 대비 15.9% 감소했다. 국내 수요가 없다는 결론도, 한국 보안기업이 자동으로 저평가된다는 결론도 여기서 나오지 않는다. 시장 성장, 제품 믹스, 해외 유통, 고객 지원비, 회수시장은 각각 따로 봐야 한다. [2025 정보보호산업 실태조사](https://eiec.kdi.re.kr/policy/materialView.do?num=273123)
+
+글로벌 전략적 인수자는 보통 기술 이름보다 세 가지를 산다. 스스로 만들기 어려운 제품 IP, 고객의 업무 흐름에 이미 들어가 있는 배포 기반, 그리고 인수 후 매출을 더 빨리 키울 유통 경로다. 따라서 ‘해외 M&A 배수’는 목표가 아니라, ARR의 질·총이익률·성장률·고객 집중도가 비교 가능한 수준에 이르렀을 때만 참고할 수 있는 결과다.
+
+상장 비교기업과 M&A 참고치는 더 조심스럽게 읽어야 한다. First Analysis의 2026년 3월 표본에는 Cloudflare·CrowdStrike처럼 높은 매출배수를 받는 기업도 있고, Netskope·Varonis·Check Point처럼 훨씬 낮은 배수를 받는 기업도 있다. Capstone Partners는 최근 사이버보안 M&A의 장기 평균을 약 4.6배 EV/Revenue와 11.6배 EV/EBITDA로 제시한다. 이 숫자는 소프트웨어와 서비스 기업이 섞인 참고치일 뿐, 초기 기업의 목표 배수가 아니다. [First Analysis](https://www.firstanalysis.com/research/cybersecurity-mar-2026/) · [Capstone Partners](https://www.capstonepartners.com/insights/article-cybersecurity-market-update/)
+
+따라서 Lab은 매출배수 Exit와 EBITDA 배수 Exit를 나란히 보여준다. 매출배수 가정이 높은데 종료 EBITDA가 낮으면, 그 시나리오는 성장이 아니라 미래 수익성에 대한 강한 기대를 이미 가격에 넣고 있는 셈이다. 글로벌 전략적 인수 경로는 존재하지만, 개별 기업의 실현 확률은 제품 통합성·반복매출·해외 유통의 증거가 쌓일 때만 올라간다.
+
+## 해자를 가격으로 연결하는 방법
+
+<ValuationLabLinkCard
+  href="/coding/experiments/cybersecurity-venture-productization-lab/"
+  company="Cybersecurity venture"
+  focusKo="제품 매출 비중·고객 증가·반복 구축비·Exit 배수·희석을 바꾸며, 소프트웨어 전환이 총이익률과 VC IRR에 미치는 경로를 직접 시험합니다."
+  focusEn="Change product mix, customer growth, delivery cost, exit multiple and dilution to test how productization travels into gross margin and VC IRR."
+  tone="navy"
+/>
+
+Lab은 모놀리형 데이터 통제 게이트웨이와 78리서치랩형 BAS 제품화를 **가상의 사업 유형**으로만 모델링한다. 두 회사의 실제 재무나 투자 조건을 반영하지 않는다. 핵심은 제품 매출 비중을 높이고 고객별 반복 구축비를 낮추는 변화가 총이익률, Exit 가치, 투자자 회수금까지 이어지는지를 보는 것이다.
+
+## 지금 확인할 수 있는 결론
+
+| 가설 | 현재 판단 | 다음에 필요한 관찰 |
+| :-- | :-- | :-- |
+| 모놀리의 소프트웨어 해자 | 조건부 지지 | 규제 없이도 구매하는지, 신규 연결 시간, 기존 고객 확장, 자체 운영 대비 TCO |
+| 78리서치랩의 서비스→제품 전환 | 조건부 지지 | 제품 ARR 비중, 갱신·확대, 취약점 반영 속도, 고객별 배포·운영 원가 |
+| 글로벌 가치실현 | 근거 부족 | 해외 실판매, 채널 소싱 매출, 해외 지원비, 전략적 구매자의 실제 적합성 |
+
+현재 두 회사가 흥미로운 이유는 ‘보안이 중요해서’가 아니다. 하나는 기업 데이터 통제의 공통 계층이 될 수 있고, 다른 하나는 공격 연구를 반복 가능한 제품 IP로 만들 수 있기 때문이다. 하지만 투자 판단은 그 가능성의 설명이 아니라, 반복매출·총이익·고객 확장·희석 후 지분이라는 숫자가 그 가능성을 따라오는지에서 끝나야 한다.
+
+Disclosure: 이 글은 공개 자료와 저자의 가설을 바탕으로 한 개인 연구이며, 유가증권 또는 비상장지분의 매수·매도 권유가 아니다.
