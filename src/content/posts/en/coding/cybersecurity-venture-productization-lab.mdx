@@ -1,0 +1,57 @@
+---
+title: "Cybersecurity Venture Lab: From Productization to VC Returns"
+subtitle: "Stress-test how revenue mix, reusable delivery, dilution, and exit value travel into a venture return"
+description: "An illustrative VC-return model for a data-control gateway and a BAS productization archetype. Change product mix, customer growth, delivery cost, exit multiple, and dilution."
+publishedDate: 2026-10-22
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, enterprise-ai]
+primaryTopic: portfolio
+tags: [cybersecurity, private-markets, valuation, saas, simulation]
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "en"
+translationKey: "cybersecurity-venture-productization-lab"
+freshness: time-sensitive
+lastReviewed: 2026-10-22
+nextReviewDate: 2027-01-22
+dataThrough: 2026-10-22
+methodology: "A pure TypeScript model calculates illustrative customer, revenue-mix, cost, exit, and ownership assumptions. It does not represent either company’s ARR, margin, financing, cap table, or preferred-share terms."
+---
+
+import AnswerBlock from '../../../../components/AnswerBlock.astro';
+import CybersecurityVentureLab from '../../../../components/interactive/CybersecurityVentureLab.astro';
+
+<AnswerBlock question="How does a cybersecurity moat become a venture return?">
+  A rising product mix and lower recurring delivery, support, and partner-distribution cost can improve economics at the same level of customer growth. But exit multiple, dilution, and entry price can still erase that improvement. This Lab decomposes the path with explicit assumptions; it is not a valuation of either company.
+</AnswerBlock>
+
+This is the companion to [Monoly and 78ResearchLab](/en/investing/markets/korean-cybersecurity-startup-moats/). “Data-control gateway” and “BAS productization” are business archetypes, not private financial models for either company.
+
+<CybersecurityVentureLab language="en" />
+
+## What it calculates
+
+Terminal revenue comes from annual customer cohorts and revenue per customer. Each cohort receives the renewal-and-expansion factor, after which product/subscription and services revenue use separate gross-margin assumptions; platform fixed cost, recurring delivery/support cost, and illustrative partner-distribution cost are then deducted. The channel cost is not a claim about any specific partner agreement.
+
+$$
+Exit\ proceeds = \max(Exit\ EV - Net\ debt, 0) \times \frac{Investment}{Pre\text{-}money + Investment} \times (1-Dilution)
+$$
+
+The maximum pre-money is the reverse calculation for a target IRR. When terminal equity value is negative or too small, the Lab says the target is infeasible instead of concealing the result at zero. It also places revenue-multiple and EBITDA-multiple exit values side by side. They are not additive: the first remains the return calculation, while the second exposes the profitability expectation embedded in the revenue-multiple case.
+
+## How to use it
+
+1. Pick Bear, Base, or Bull. They are falsifiable assumption bundles, not forecasts.
+2. Change product mix and recurring delivery cost. This is where a moat must turn into margin.
+3. Read exit EV/revenue and EV/EBITDA together. When EBITDA is negative, the latter is explicitly not meaningful.
+4. Change partner distribution cost, dilution, and entry pre-money. A better company is not automatically a better-priced investment.
+5. Read the sensitivity table to see what exit condition the productization story actually needs.
+
+## What it excludes
+
+The common-equivalent model excludes liquidation preferences, participation rights, option-pool timing, tax, transaction cost, cash flow, customer concentration, security incidents, and contract-specific terms. “Maximum pre-money” is a reverse-engineering prompt for deeper diligence, not a negotiated term sheet.
+
+Disclosure: Personal research tool, not investment advice.
