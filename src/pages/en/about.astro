@@ -2,7 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 ---
 
-<BaseLayout title="About" description="Notes from Jacob Shin in Seoul on real-world problems and the interests he keeps exploring." language="en" alternateLanguageUrl="/about/">
+<BaseLayout title="About" description="Notes from Jacob Shin in Seoul on agent engineering, enterprise AX, investing, and mathematics." language="en" alternateLanguageUrl="/about/">
   <article class="prose-page shell">
     <header>
       <p class="eyebrow">About</p>
@@ -11,22 +11,59 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     <div class="prose-grid">
       <aside>
         <p>Jacob Shin</p>
-        <p>Data scientist / AX</p>
+        <p>Agent Engineering / Enterprise AX</p>
         <p>Seoul</p>
         <p>Est. 2026</p>
       </aside>
       <div class="prose">
         <p class="lead">I am Jacob Shin, based in Seoul.</p>
-        <p>I was a data scientist. These days I work on enterprise AX, and I keep a close interest in finance. The Archive is where I keep the judgments I form in that space, so I can open them again later.</p>
-        <p>It is not a feed built to publish more often. I built it to keep what I saw, what I assumed, and what would make me change my mind. The longer version of that argument is in <a href="/en/misc/essays/why-this-archive-is-open/">Why I Keep Research as an Archive, Not a Feed</a>.</p>
-        <p>I currently keep the work in five places. Investing holds markets, positions, and the claims they rest on. AI &amp; AX holds transformation as I see it at work. Lab holds experiments and code you can rerun. Mathematics holds the language of decisions. Perspectives holds views that are still taking shape.</p>
-        <p>Each piece starts with a question. I explain, then try the idea in a model or an example, then write only what I can still stand behind. <strong>Explain → Model → Test → Interpret.</strong> Korean is the source edition. The English pages are edited from the same argument and evidence, not translated line by line. I do not bury mistakes, and when a view changes I leave the reason in the text.</p>
+        <p>I tend to connect the problems I encounter at work with questions I have been following for much longer. The work I go deepest on is <strong>agent engineering</strong> and <strong>enterprise AX</strong>. I also keep a sustained interest in investing and early-stage companies, while statistics, probability, and optimization remain subjects I return to whenever I am learning something new.</p>
+        <p>The Archive is my personal record of the judgments and questions that build up along the way. It is less a feed designed to publish more often than a place to preserve what I saw, the hypotheses I formed, and what would make me change my mind. I explain that choice at greater length in <a href="/en/misc/essays/why-this-archive-is-open/">Why I Keep Research as an Archive, Not a Feed</a>.</p>
+        <h2>What I write about</h2>
+        <p><strong>Agent Engineering</strong> gathers cases drawn from problems I have worked through: why a design became more complex, which choices proved useful, and what had to be revised once a system met operations. I aim to make the lessons concrete without disclosing what should remain private.</p>
+        <p><strong>Enterprise AX</strong> captures the ideas and observations that come from solving problems with internal stakeholders. I am interested not only in the technology, but in how change is received inside an organization and becomes part of an everyday workflow.</p>
+        <p><strong>Public-equity investing</strong> begins with companies or positions I am genuinely following. I form the hypothesis myself, then use AI to help check sources, search for counterexamples, and repeat the validation process. The goal is not to recommend a trade, but to make the evidence and uncertainty behind a judgment visible.</p>
+        <p><strong>Early- and growth-stage companies</strong> are a personal research interest. I enjoy examining what a business can grow into and how its strategy changes under real constraints.</p>
+        <p><strong>Mathematics</strong> is where I connect statistics, probability, and optimization to everyday questions. I do not claim mastery; I simply enjoy the moment when a concept learned through data science becomes useful in work or ordinary life, and I write down new ideas in the form I understand them.</p>
+        <h2>How I write</h2>
+        <p>I use AI actively in the writing process, but choosing the problem and forming the hypothesis remain my work. AI is closer to a research partner: checking material, looking for counterexamples, and helping refine structure and expression. I start with a question, explain it, test it against an example or model, and write only what I can support.</p>
+        <div class="method-signature" aria-label="Writing method">
+          <strong>Writing method</strong>
+          <em>Explain → Model → Test → Interpret.</em>
+        </div>
+        <p>Korean is the source edition. The English pages are edited from the same argument and evidence for a natural English reading experience, not translated line by line. I do not bury mistakes; when a view changes, I leave the reason in the text.</p>
         <h2>Contact Jacob Shin</h2>
-        <p>For thoughts on an article or a collaboration, email <a href="mailto:yunchae.cfa@gmail.com">yunchae.cfa@gmail.com</a>.</p>
+        <p>If you have a different reading of an article, a challenge, a question, or a better source, email <a href="mailto:yunchae.cfa@gmail.com">yunchae.cfa@gmail.com</a>. I welcome conversations worth thinking through together.</p>
         <div class="about-notes">
           <p>Investing pieces are for research and record-keeping. They are not investment advice. Judgment and risk stay with the reader.</p>
         </div>
       </div>
     </div>
   </article>
+  <style>
+    .method-signature {
+      display: grid;
+      gap: 3px;
+      margin: 24px 0 30px;
+      padding-left: 15px;
+      border-left: 2px solid var(--accent);
+    }
+
+    .method-signature strong {
+      color: var(--accent);
+      font-size: 10px;
+      letter-spacing: .09em;
+      line-height: 1.4;
+      text-transform: uppercase;
+    }
+
+    .method-signature em {
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: clamp(16px, 2.25vw, 19px);
+      font-style: italic;
+      letter-spacing: -.005em;
+      line-height: 1.45;
+    }
+  </style>
 </BaseLayout>
