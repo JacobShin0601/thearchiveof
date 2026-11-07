@@ -64,7 +64,7 @@ import AgentRequestTraceDiagrams from '../../../../components/AgentRequestTraceD
   <strong>The API authenticates and validates the request, creates a durable run, and hands execution intent to a queue. A worker owns a separate attempt and runs LangGraph and its tools.</strong> Runtime output is projected into current state and chronological events in Redis, while SSE relays observation to the browser. The worker commits the terminal result to PostgreSQL first and acknowledges the queue message last.
 </AnswerBlock>
 
-Earlier articles deliberately separated the system. [A Conversation Is Not a Run](/en/ai/agents/conversation-is-not-a-run/) split persistent context from individual execution. [When Workers Die](/en/ai/agents/when-workers-die/) split delivery from completion. [Running Agents on Kubernetes](/en/ai/agents/running-agents-on-kubernetes/) split API and worker deployment lifecycles.
+Earlier articles deliberately separated the system. [A Conversation Is Not a Run](/en/ai/agents/conversation-is-not-a-run/) split persistent context from individual execution. [When Workers Die](/en/ai/agents/when-workers-die/) explains the split between delivery and completion. The same separation also shapes how API and worker deployment lifecycles should be operated.
 
 This article reconnects them. Start when a user asks:
 
