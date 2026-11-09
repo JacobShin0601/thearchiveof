@@ -6,6 +6,7 @@
 
 - 출처: Seoul Restaurants, https://seoulrestaurants.com/data/ (제공자 표기 CC BY 4.0). 원천 플랫폼의 재사용 권리는 별도 확인이 필요하다.
 - 원본 `updated`: August 2026. 다운로드 2026-11-09 KST; 파일 크기 571,239 bytes; SHA-256 `d773be04b93421ec2c70186a6260f3e461781918b4f7964a111d75dff18f9901`. 원본은 이후 갱신될 수 있으므로 다른 해시의 결과를 같은 스냅샷으로 표시하지 않는다.
+- 별도 다운로드한 CSV는 115,445 bytes, SHA-256 `8834a9bb9b54a350cb0be57ddf6ddaa9d153cbc225e660ce9d49fd2f9637b4e3`. JSON·CSV는 각 352개, ID 집합 동일, 중복 ID 0이며 공통 28개 필드의 값은 모두 일치했다. `menus`는 JSON에만 있다. `python validate_exports.py --json /path/to/restaurants.json --csv /path/to/restaurants.csv --output /path/to/export-check.json`으로 재검증한다. 둘의 다운로드 시각이 완전히 동일한 것은 아니므로 제공자가 파일을 갱신했다면 다시 맞춰 확인해야 한다.
 - 352 레코드, 중복 ID 0, 이름과 도로명 주소 중복 0. 모든 `verified`는 2026-08-12이나 이것이 플랫폼별 평점 수집시점과 동일한지는 알 수 없다.
 - 네이버 6개 결측, 3개 범위 밖(0 두 건, 0.5 한 건). 유효범위 밖은 분석에서 결측 처리한다. 0이 결측 표식인지는 미확인이다.
 - 점수 공식의 오차 허용치 0.015 기준 Local Score 불일치 2건: `sr-1827198361`, `sr-1738156523`; 둘 다 네이버 점수 0이며 Local Score는 카카오 점수와 같다. Gap Score 불일치 0건. 계산은 원본 수치 기준이다.
