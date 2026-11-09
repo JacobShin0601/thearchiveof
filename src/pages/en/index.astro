@@ -11,7 +11,7 @@ const posts = (await getCollection('posts', ({ data }) => isVisiblePost(data) &&
 const activeSeries = sortSeriesNames(catalogTopLevelSeriesNames(new Set(posts.flatMap((post) => post.data.series ? [post.data.series] : []))));
 ---
 
-<BaseLayout language="en" alternateLanguageUrl="/">
+<BaseLayout language="en" alternateLanguageUrl="/" description="A research journal exploring AI agents, enterprise AI transformation, investing, and mathematics through data and models to understand complexity and make better decisions.">
   <section class="hero shell">
     <div class="hero-brand">
       <img class="hero-serif-a" src="/marks/serif-a.png" alt="" width="280" height="360" aria-hidden="true" />
