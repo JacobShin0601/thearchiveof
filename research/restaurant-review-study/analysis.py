@@ -108,15 +108,17 @@ def main():
         entry={'platform':k,'n':int(s.size),'mean':round(float(s.mean()),4) if len(s) else None,
                'median':round(float(s.median()),4) if len(s) else None,
                'std':round(float(s.std()),4) if len(s)>1 else None,
-               'q10':round(float(s.quantile(.1)),4) if len(s) else None,
-               'q90':round(float(s.quantile(.9)),4) if len(s) else None}
+               **{f'q{int(q*100)}':round(float(s.quantile(q)),4) if len(s) else None for q in [.1,.25,.5,.75,.9]},
+               'min':float(s.min()) if len(s) else None, 'max':float(s.max()) if len(s) else None,
+               **{f'pct_ge_{t}':round(float((s>=t).mean()*100),2) if len(s) else None for t in [3.0,3.5,4.0,4.5]}}
         ratings.append(entry)
     pd.DataFrame(ratings).to_csv(out/'platform_summary.csv',index=False,encoding='utf-8-sig')
     metric['platforms']=ratings
     pairs={}
     for a,b in [('naver','kakao'),('google','kakao'),('naver','google')]:
         sub=df[[RATING[a],RATING[b]]].dropna()
-        difference=(sub[RATING[a]]-sub[RATING[b]]).to_numpy()
+        # Scores are displayed to hundredths; avoid floating-point false non-ties.
+        difference=np.round((sub[RATING[a]]-sub[RATING[b]]).to_numpy(), 8)
         pos=int(np.sum(difference>0)); neg=int(np.sum(difference<0)); zero=int(np.sum(difference==0))
         rho,p_rho=stats.spearmanr(sub[RATING[a]],sub[RATING[b]]) if len(sub)>2 else (np.nan,np.nan)
         try: p_w=float(stats.wilcoxon(difference).pvalue) if np.any(difference) else 1.0
@@ -125,12 +127,14 @@ def main():
              'median':round(float(np.median(difference)),4) if len(difference) else None,
              'bootstrap_95pct_CI':ci_mean(difference),'positive':pos,'negative':neg,'ties':zero,
              'positive_pct':round(100*pos/len(difference),2) if len(difference) else None,
+             'std':round(float(np.std(difference,ddof=1)),4) if len(difference)>1 else None,
+             'sign_test_p':float(stats.binomtest(pos,pos+neg,.5).pvalue) if pos+neg else None,
              'spearman_rho':round(float(rho),4) if np.isfinite(rho) else None,
              'spearman_p':safe_number(p_rho),'wilcoxon_p':p_w}
     metric['paired_comparisons']=pairs
     cutoff=[]
     for n in [0,10,30,100,300]:
-        sub=df.loc[df['kakao_rating_count']>=n,'kakao_rating'].dropna()
+        sub=(df['kakao_rating'].dropna() if n==0 else df.loc[df['kakao_rating_count']>=n,'kakao_rating'].dropna())
         if len(sub)==0: continue
         less=(sub<3.5).sum(); equal=(sub==3.5).sum(); greater=(sub>3.5).sum()
         cutoff.append({'min_kakao_rating_count':n,'n':len(sub),'mean':round(float(sub.mean()),4),
@@ -139,6 +143,11 @@ def main():
             'pct_at_least_3_5':round(100*(equal+greater)/len(sub),2)})
     pd.DataFrame(cutoff).to_csv(out/'kakao_35_threshold.csv',index=False,encoding='utf-8-sig')
     metric['kakao_threshold_3_5']=cutoff
+    threshold_rows=[]
+    for t in [3.0,3.5,4.0]:
+        s=df['kakao_rating'].dropna()
+        threshold_rows.append({'threshold':t,'n':len(s),'below':int((s<t).sum()),'equal':int((s==t).sum()),'above':int((s>t).sum()),'at_least':int((s>=t).sum()),'ecdf_strict':float((s<t).mean()),'ecdf_inclusive':float((s<=t).mean())})
+    pd.DataFrame(threshold_rows).to_csv(out/'kakao_thresholds.csv',index=False,encoding='utf-8-sig')
     correlations=[]
     for k in RATING:
         sub=df[[RATING[k],VOLUME[k]]].dropna()
