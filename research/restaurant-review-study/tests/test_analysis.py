@@ -5,9 +5,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from analysis import ci_mean
+from robustness import valid_score, summarize
 
 
 class AnalysisTests(unittest.TestCase):
+    def test_invalid_scores_and_paired_summary(self):
+        for invalid in [None, 0, 0.5, 5.1, True, '4.5']:
+            self.assertFalse(valid_score(invalid))
+        self.assertTrue(valid_score(1))
+        self.assertTrue(valid_score(5))
+        sample = [{'naver_visitor_score': 4.5, 'kakao_rating': 4.0},
+                  {'naver_visitor_score': 3.5, 'kakao_rating': 4.0}]
+        self.assertEqual(summarize(sample), {'n': 2, 'mean_gap': 0.0, 'median_gap': 0.0, 'positive_pct': 50.0})
+        self.assertEqual(summarize([])['n'], 0)
+
     def test_bootstrap_constant_and_seed(self):
         self.assertEqual(ci_mean([0.5, 0.5, 0.5]), [0.5, 0.5])
         self.assertEqual(ci_mean([0.1, 0.4, 0.7]), ci_mean([0.1, 0.4, 0.7]))
