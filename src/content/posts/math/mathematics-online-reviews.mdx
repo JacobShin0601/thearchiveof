@@ -36,6 +36,7 @@ import AnswerBlock from '../../../components/AnswerBlock.astro';
 import ReviewThresholdChart from '../../../components/ReviewThresholdChart.astro';
 import ReviewPlatformComparison from '../../../components/ReviewPlatformComparison.astro';
 import ReviewVolumeChart from '../../../components/ReviewVolumeChart.astro';
+import ReviewPairedChart from '../../../components/ReviewPairedChart.astro';
 
 <AnswerBlock question="높은 별점과 많은 리뷰 중 무엇을 믿어야 할까?">
 별점은 리뷰를 남긴 사람들의 평가를 요약하고, 리뷰 수는 그 요약에 쌓인 정보의 양을 보여줍니다. 다만 리뷰를 남긴 사람들이 모든 방문객을 대표하는지는 별개의 질문입니다.
@@ -60,6 +61,8 @@ Schoenmueller, Netzer, Stahl의 연구는 25개 온라인 플랫폼의 2억 8천
 <ReviewPlatformComparison />
 
 이 중 제공자의 네이버 점수와 카카오 점수가 모두 있고 두 값이 1~5점 범위인 식당은 342곳이었다. 같은 식당의 두 점수를 빼보니 제공자가 기록한 네이버 점수가 평균 약 0.53점 높았다. 342곳 가운데 308곳에서 네이버 쪽 숫자가 더 높았다. 이 식당들을 다시 뽑는 부트스트랩 계산에서 평균 차이의 95% 구간은 약 0.49~0.58점이었다. 이 구간은 선정된 자료 안에서의 변동을 보여줄 뿐 서울 전체의 대표성을 보장하지 않는다.
+
+<ReviewPairedChart />
 
 이 차이가 일부 식당에 크게 좌우되는지도 살펴봤다. 제공자의 매칭 신뢰도 점수가 0.9 이상인 289곳에서는 평균 차이가 여전히 약 0.53점이었다. 반면 차이의 절댓값이 1점을 넘는 식당을 빼면 295곳의 평균 차이는 약 0.41점으로 줄었다. 이 필터는 점수가 많이 다른 식당을 의도적으로 제외하므로 제외된 값이 오류라는 뜻은 아니다. 매칭 신뢰도 점수 또한 실제 매칭 정확도로 검증된 확률이 아니다.
 
