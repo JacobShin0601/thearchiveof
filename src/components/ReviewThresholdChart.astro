@@ -1,0 +1,28 @@
+---
+// Counts are from the pinned August 2026 snapshot. Keep in sync with the analysis output.
+const rows = [
+  { label: '3.5점 미만', count: 51, pct: '14.5%', width: 14.53, cls: 'below' },
+  { label: '정확히 3.5점', count: 14, pct: '4.0%', width: 3.99, cls: 'equal' },
+  { label: '3.5점 초과', count: 286, pct: '81.5%', width: 81.48, cls: 'above' },
+];
+---
+<figure class="review-chart" aria-labelledby="review-chart-title">
+  <figcaption id="review-chart-title"><strong>카카오 3.5점, 이 자료에서는 어디쯤일까?</strong><span>점수가 유효한 식당 351곳 · 2026년 8월 자료</span></figcaption>
+  <div class="bars">
+    {rows.map((row) => <div class="row"><div class="label"><span>{row.label}</span><strong>{row.pct} · {row.count}곳</strong></div><div class="track"><div class:list={['bar', row.cls]} style={`width:${row.width}%`}></div></div></div>)}
+  </div>
+  <p>3.5점 이상은 동점 14곳을 포함한 300곳(85.5%)입니다. 선정된 식당 내 분포이며 서울 전체 순위나 식당의 실제 품질을 의미하지 않습니다.</p>
+  <small>출처: <a href="https://seoulrestaurants.com/data/">Seoul Restaurants Open Data</a> · 카카오 점수 기준, 리뷰 수 제한 없음</small>
+</figure>
+<style>
+  .review-chart { margin: 2rem 0; padding: 1.35rem; border: 1px solid var(--border, #d8d8d8); border-radius: 12px; }
+  figcaption strong, figcaption span { display: block; }
+  figcaption span, small { color: var(--muted, #666); font-size: .86rem; margin-top: .3rem; }
+  .bars { display: grid; gap: 1rem; margin: 1.4rem 0; }
+  .label { display: flex; justify-content: space-between; gap: .5rem; font-size: .9rem; }
+  .track { height: .65rem; background: #ececec; border-radius: 1rem; margin-top: .3rem; }
+  .bar { height: 100%; border-radius: 1rem; min-width: .35rem; }
+  .below { background: #9e735d; } .equal { background: #ba8f48; } .above { background: #315f68; }
+  .review-chart p { font-size: .9rem; margin: .6rem 0; }
+  @media (max-width: 400px) { .review-chart { padding: 1rem; } .label { font-size: .82rem; } }
+</style>
