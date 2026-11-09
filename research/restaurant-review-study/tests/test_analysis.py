@@ -6,9 +6,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from analysis import ci_mean
 from robustness import valid_score, summarize
+from review_volume import summarize as summarize_volume
 
 
 class AnalysisTests(unittest.TestCase):
+    def test_review_volume_band_boundaries(self):
+        rows = [{'score': 4.0, 'count': 9}, {'score': 4.5, 'count': 10},
+                {'score': 4.0, 'count': 30}, {'score': 5.0, 'count': 100},
+                {'score': 4.0, 'count': 300}, {'score': 0, 'count': 10},
+                {'score': 4.0, 'count': -1}]
+        out = summarize_volume(rows, 'score', 'count')
+        self.assertEqual(out['n'], 5)
+        self.assertEqual([band['n'] for band in out['bands']], [1, 1, 1, 1, 1])
+        self.assertEqual(out['count_median'], 30)
+
     def test_invalid_scores_and_paired_summary(self):
         for invalid in [None, 0, 0.5, 5.1, True, '4.5']:
             self.assertFalse(valid_score(invalid))
