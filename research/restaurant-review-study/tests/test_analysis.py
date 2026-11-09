@@ -7,9 +7,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from analysis import ci_mean
 from robustness import valid_score, summarize
 from review_volume import summarize as summarize_volume
+from validate_exports import equal
 
 
 class AnalysisTests(unittest.TestCase):
+    def test_export_field_normalization(self):
+        self.assertTrue(equal(None, ''))
+        self.assertTrue(equal(True, 'True'))
+        self.assertTrue(equal(4.0, '4'))
+        self.assertTrue(equal(['myeongdong'], 'myeongdong'))
+        self.assertFalse(equal(4.1, '4.2'))
+
     def test_review_volume_band_boundaries(self):
         rows = [{'score': 4.0, 'count': 9}, {'score': 4.5, 'count': 10},
                 {'score': 4.0, 'count': 30}, {'score': 5.0, 'count': 100},
