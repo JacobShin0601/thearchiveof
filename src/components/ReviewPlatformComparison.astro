@@ -1,0 +1,30 @@
+---
+// Aggregate counts only, from the snapshot pinned in research/restaurant-review-study/README.md.
+const rows = [
+  { label: '자료 제공자 네이버 점수', n: 343, counts: [0, 0, 0, 3, 140, 200] },
+  { label: '카카오 점수', n: 351, counts: [0, 8, 43, 86, 142, 72] },
+  { label: '구글 점수', n: 348, counts: [0, 1, 4, 27, 189, 127] },
+];
+const bins = ['1~2 미만', '2~3 미만', '3~3.5 미만', '3.5~4 미만', '4~4.5 미만', '4.5~5'];
+---
+<figure class="platform-chart" aria-labelledby="platform-chart-title">
+  <figcaption id="platform-chart-title"><strong>같은 5점 만점, 다른 점수 분포</strong><span>제공자가 선정한 서울 식당 · 자료 기준 2026년 8월</span></figcaption>
+  <p class="intro">각 줄에서 식당 100곳에 해당하는 비율을 점수 구간별로 나눴습니다.</p>
+  {rows.map(row => <div class="platform-row"><div class="platform-label"><strong>{row.label}</strong><span>{row.n}곳</span></div><div class="stack" aria-hidden="true">{row.counts.map((count, i) => <div class:list={['segment', `bin-${i}`]} style={`width:${100 * count / row.n}%`}></div>)}</div></div>)}
+  <div class="legend" aria-hidden="true">{bins.map((label,i) => <span><i class:list={[`bin-${i}`]}></i>{label}</span>)}</div>
+  <details><summary>점수 구간별 식당 수 보기</summary><div class="table-wrap"><table><thead><tr><th>플랫폼</th>{bins.map(label => <th>{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr><th>{row.label}</th>{row.counts.map(count => <td>{count}</td>)}</tr>)}</tbody></table></div></details>
+  <p>네이버 수록 점수는 유효값 343곳 중 200곳이 4.5점 이상입니다. 각 줄의 식당 수가 다르며, 같은 식당만 짝지어 비교한 결과와는 다릅니다.</p>
+  <small>출처: <a href="https://seoulrestaurants.com/data/">Seoul Restaurants Open Data</a>. 네이버 수록 점수의 산출 경로와 기간은 확인되지 않았습니다. 서울 전체 대표 표본이 아닙니다.</small>
+</figure>
+<style>
+  .platform-chart { margin: 2rem 0; padding: 1.35rem; border: 1px solid var(--border, #d8d8d8); border-radius: 12px; }
+  figcaption strong, figcaption span { display: block; }
+  figcaption span, small { color: var(--muted, #666); font-size: .86rem; margin-top: .3rem; }
+  .intro, .platform-chart p { font-size: .9rem; margin: .8rem 0; }
+  .platform-row { margin: 1rem 0; } .platform-label { display: flex; justify-content: space-between; gap: 1rem; font-size: .86rem; }
+  .stack { height: 1.15rem; display: flex; overflow: hidden; border-radius: .3rem; margin-top: .35rem; }
+  .segment { height: 100%; } .bin-0 { background:#7d4854; } .bin-1 { background:#a66355; } .bin-2 { background:#c08b67; } .bin-3 { background:#d2b47c; } .bin-4 { background:#91a990; } .bin-5 { background:#315f68; }
+  .legend { display: flex; flex-wrap: wrap; gap: .4rem .8rem; font-size: .74rem; } .legend span { white-space: nowrap; } .legend i { display:inline-block; width:.7rem; height:.7rem; margin-right:.3rem; }
+  details { margin: 1rem 0; font-size: .85rem; } summary { cursor:pointer; } .table-wrap { overflow-x:auto; } table { min-width: 550px; font-size:.8rem; } th, td { padding:.35rem; text-align:right; } th:first-child { text-align:left; }
+  @media (max-width: 400px) { .platform-chart { padding: 1rem; } .platform-label { font-size: .8rem; } }
+</style>
