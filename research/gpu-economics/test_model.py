@@ -10,6 +10,17 @@ class TestModel(unittest.TestCase):
  def test_contract(self):
   a=Inputs(contract_type='take_or_pay',utilization=.2);b=replace(a,utilization=.8)
   self.assertEqual(cashflows(a)[1],cashflows(b)[1]);self.assertLess(cashflows(a)[4],cashflows(b)[4])
+ def test_linked_price_and_supplier_threshold(self):
+  p=breakeven_old_price(4,40,120)
+  a=replace(Inputs(),hourly_rent=p)
+  self.assertAlmostEqual(npv(cashflows(a),a.discount_rate),-46871.065134,places=4)
+  b=replace(a,contract_type='take_or_pay')
+  self.assertAlmostEqual(npv(cashflows(b),b.discount_rate),-39016.116155,places=4)
+  for item in (a,b):
+   n0=npv(cashflows(replace(item,hourly_rent=0)),item.discount_rate)
+   n1=npv(cashflows(replace(item,hourly_rent=1)),item.discount_rate)
+   threshold=-n0/(n1-n0)
+   self.assertAlmostEqual(npv(cashflows(replace(item,hourly_rent=threshold)),item.discount_rate),0,places=7)
  def test_zero_discount(self):
   self.assertEqual(npv([-5,2,4],0),1)
 if __name__=='__main__':unittest.main()
