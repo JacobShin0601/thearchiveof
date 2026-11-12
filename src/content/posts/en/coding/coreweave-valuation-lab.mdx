@@ -1,7 +1,7 @@
 ---
 title: "CoreWeave Valuation Lab: What Is $132.5 Billion of Backlog Worth Per Share?"
-subtitle: "Change backlog margins, prepayments, renewal value, discount rates and dilution to test value per share."
-description: "Change backlog margins, prepayments, renewal value, discount rates and dilution to test value per share."
+subtitle: "Change backlog, GPU renewal and new investment assumptions to examine the value needed to support the reference close."
+description: "Change backlog, GPU renewal and new investment assumptions to examine the value needed to support the reference close."
 publishedDate: 2026-11-12
 section: "Lab"
 subsection: "Experiments"
@@ -31,32 +31,36 @@ import EquityDecisionChart from '../../../../components/interactive/EquityDecisi
 import CoreWeaveValuationLab from '../../../../components/interactive/CoreWeaveValuationLab.astro';
 import decision from '../../../../data/equity-decisions/crwv-2026-11-11.json';
 
-<EquityDecisionChart decision={decision} language="en" />
+<EquityDecisionChart neutralResearch={true} decision={decision} language="en" />
 
-The **preliminary research stance is neutral / wait**. The existing decision card labels this “Hold” for consistency with the site's format; it does not assert ownership or a trade on November 11. The fixed reference is the November 11, 2026 adjusted close of \$60.77. A Base estimate of \$54.64 is about 10.1% lower, but the unusually wide assumption range does not justify a sell decision on that difference alone.
+The **preliminary research stance is neutral / wait**. The research view does not imply a position or executed trade. The reference close is \$60.77 on November 11, 2026. We withdraw the prior \$54.64 estimate because it depended on \$60 billion of assumed other business value.
 
-This Lab explores the inputs in the [CoreWeave investment research](/en/investing/markets/coreweave-backlog-shareholder-value/). The reference close is November 11 and the balance sheet is September 30.
+This Lab separates existing backlog, GPU renewals and new investment cohorts in the [investment research](/en/investing/markets/coreweave-backlog-shareholder-value/). **Partial value per share is not whole-company fair value**, because business outside the modeled horizon remains.
 
 <CoreWeaveValuationLab language="en" />
 
-## Three illustrative cases
+## Three illustrative paths
 
-| Assumption | Bear | Base | Bull |
+| Component · USD billions | Bear | Base | Bull |
 | --- | ---: | ---: | ---: |
-| Backlog unlevered cash-flow margin | 10% | 20% | 30% |
-| Net PV of other business | \$35B | \$60B | \$90B |
-| Discount rate | 12% | 12% | 12% |
-| Assumed shares | 559M | 559M | 559M |
-| Estimated value per share | \$0.00 | \$54.64 | \$124.56 |
+| Backlog | 4.49 | 13.94 | 24.51 |
+| GPU renewals | 0.36 | 2.41 | 9.77 |
+| New cohort NPV | -4.29 | 27.15 | 119.19 |
+| Net debt and finance leases | -43.40 | -43.40 | -43.40 |
+| Net unmodeled value required at reference | 76.82 | 33.87 | -76.09 |
 
-These are analyst assumptions, not company forecasts. **Bear's zero applies an equity floor to a negative modeled result; it is not a bankruptcy prediction.** The \$35B, \$60B and \$90B net values for renewals and new business are explicitly assumed, not independently observed. At 12%, the Base \$60B is equivalent to about \$10.6B per year in net cash flows for ten years; this is an illustration, not a forecast. Other-business PV must exclude cash flows already counted in backlog and include associated incremental investment and costs.
+These are assumptions, not management guidance. A negative Bull residual means modeled value exceeds the reference. The fraction of expiring GPUs excluded as overlap, paid utilization, price and operating costs are not disclosed contract inputs.
 
-## Method and limits
+## Existing backlog and prepayments
 
-Disclosed backlog recognition buckets are 36%, 38%, and 26%. We assume even recognition within each, and place the last bucket in years five through eight. At 12%, the revenue PV is about \$90.85B. Applying a 20% hypothetical unlevered cash margin and subtracting the \$4.23B discounted value of an assumed \$5B already collected yields backlog cash-flow PV of about \$13.95B.
+We use the company's 36% / 38% / 26% recognition buckets, assume even allocations within them and assign the final bucket to years five through eight. A \$5 billion assumed prior collection, recognized evenly in years one and two, is discounted and subtracted from hypothetical unlevered cash flow. It is not a verified balance; individual customer cash timing is unknown.
 
-Add the assumed \$60B of other business and subtract \$43.40B of net debt including finance leases. That yields \$30.54B of equity, divided by 559M proxy shares. The cash-flow measure excludes financing payments; operating lease costs remain in operating expenses, so operating leases are not separately subtracted as debt.
+## Renewals and new investment
 
-**559M shares is not current shares outstanding.** It is a proxy for Q3 weighted-average basic shares. Convertible and share compensation dilution, capital payables, customer-specific prepayments, receivables and remaining deployment costs are not fully identifiable. The \$5B prepayment input is a hypothetical allocation, not a verified balance. Modeling note conversion requires also removing the corresponding debt claim.
+Management identified more than 130,000 GPUs coming off contract in 2027 and approximately 170,000 in 2028. Annual renewal revenue equals GPU count × eligible fraction × 8,760 hours × paid utilization × realized hourly price. Cash begins in 2028 and 2029 respectively, for the selected duration and margin. GPU mix, realized prices and backlog overlap are not disclosed, so this is a scenario rather than a forecast.
 
-Changing the discount rate leaves the separate other-business PV input fixed, so this is not a fully integrated DCF sensitivity. Scenarios simplify correlated changes in renewal pricing, utilization and financing. Later price moves inform the analysis; they are not account returns or an automatic score of this tentative decision.
+New investments start in 2028 and produce unlevered annual cash beginning the following year. Annual cash yield is after operating costs, taxes and maintenance; initial investment is subtracted separately. New investment must exclude already contracted backlog and re-leased GPUs. Future cash flows—not historical book value—are discounted.
+
+## Outside the model
+
+The Base \$33.87 billion residual is the unmodeled net PV required to match the reference close, not an observed value or forecast. Future cohorts after the modeled period, salvage and omitted capital claims affect it. The 559M share input is a Q3 weighted-average proxy and excludes conversion dilution. Update assumptions when more disclosures are available. Subsequent price movement is information, not account return.

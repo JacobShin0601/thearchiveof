@@ -1,4 +1,5 @@
-"""Illustrative reverse valuation; USD bn, valuation date proxy 2026-09-30.
+"""LEGACY superseded model, kept for audit only; do not use for current Lab.
+Current model: src/lib/coreweave-valuation.ts. USD bn, date 2026-09-30.
 Run: python3 research/coreweave-2026/model.py
 Revenue timing is management's Q3 2026 backlog buckets; within-bucket allocations,
 prepayments and unlevered margins are hypothetical. No price target.

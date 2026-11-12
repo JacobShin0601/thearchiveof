@@ -37,10 +37,9 @@ import CoreWeaveResearchCharts from '../../../../components/CoreWeaveResearchCha
 import EquityStance from '../../../../components/EquityStance.astro';
 import decision from '../../../../data/equity-decisions/crwv-2026-11-11.json';
 
-<EquityStance decision={decision} language="en" labHref="/en/coding/experiments/coreweave-valuation-lab/" />
+<EquityStance neutralResearch={true} decision={decision} language="en" labHref="/en/coding/experiments/coreweave-valuation-lab/" />
 
-**Preliminary stance: neutral / wait.** The reference close is \$60.77 on November 11, 2026; illustrative Base value is \$54.64 and Bear–Bull range is \$0–124.56. The 559M share input is a weighted-average proxy, not verified current outstanding shares. The 'Hold' card is the site's format and does not imply ownership or an executed trade. [Change the assumptions in the Lab](/en/coding/experiments/coreweave-valuation-lab/).
-
+**Preliminary stance: neutral / wait.** The reference close is \$60.77 on November 11, 2026. We withdraw the previous \$54.64 Base estimate because it depended on a directly assumed \$60 billion of future business value. The revised model separates renewals and new investment; because business outside the model remains, its partial per-share output is not whole-company fair value. This is a research view, not a position or executed trade. [Explore the assumptions in the Lab](/en/coding/experiments/coreweave-valuation-lab/).
 
 As an AI engineer, I often face a practical question: which work actually needs the most capable model? Difficult architecture and reasoning can justify a frontier model. Routine implementation or repeated agent tasks may be better served by a smaller, cheaper one. The relevant objective is **successful work at an acceptable cost and latency**, not raw model performance alone.
 
@@ -94,10 +93,12 @@ Revenue backlog includes remaining performance obligations (RPO) plus other esti
 | --- | --- | --- |
 | Backlog | Company's estimate of future contract revenue | Broader than RPO; conditional on delivery |
 | RPO | Transaction price allocated to undelivered obligations | Includes billed and unbilled amounts |
-| Deferred revenue | Consideration received before service | Creates an obligation to perform |
+| Deferred revenue | Billed or received consideration before service | Not necessarily all cash prepayments |
 | Equity cash flow | Cash after costs, reinvestment and creditor claims | Cannot be read from backlog alone |
 
 The [Q3 presentation, pages 13 and 15](https://s205.q4cdn.com/133937190/files/content_files/CoreWeave-3Q26-Earnings-Presentation-Final.pdf), breaks the September backlog into **\$132.3 billion of RPO** and \$0.2 billion of other estimated revenue. Management expects 36% of backlog to be recognized within 24 months, 38% in months 25–48 and 26% thereafter. This is expected revenue recognition, not a schedule of cash receipts.
+
+Consider an **illustrative**, not actual, five-year \$1 billion contract with \$600 million in build cost and \$200 million of operating cost. A \$300 million prepayment reduces funding pressure but cannot be collected again when service is delivered. Re-leasing can add value after expiry; replacement costs can reduce it. This simplified example is not a full after-tax financing IRR.
 
 Like shipbuilders, CoreWeave uses long contracts to underpin substantial investment and financing. Unlike shipbuilders delivering a vessel, it retains the equipment and provides services. The residual equipment may be re-leased, but its future price and costs are uncertain. The economic chain is **contract → deployment → service → collections → operating costs and reinvestment → capital providers → equity**.
 
@@ -150,22 +151,25 @@ The [November 11 close was \$60.77](https://stockanalysis.com/stocks/crwv/histor
 
 Annualizing Q3 revenue and adjusted EBITDA produces multiples of approximately 5.28 and 8.57 times. Annualization is not a forecast. Including operating leases in debt requires consistent adjustments to lease expense and cash flow.
 
-### Scenarios and value per share
+### Separate the value drivers
 
-The model uses the disclosed 36% / 38% / 26% backlog recognition buckets and assumes annual allocations within each. At 12%, revenue PV is \$90.85B. After an illustrative deduction for \$5B assumed to have been prepaid, backlog cash-flow PV is \$4.86B, \$13.95B or \$23.03B at 10%, 20% or 30% unlevered margins. **The \$5B is not a verified prepayment balance.**
+The prior \$54.64 estimate depended on a directly assumed \$60 billion of other business value; we withdraw it. Instead, the illustrative model separates backlog, GPU renewals and incremental investment. Values below are USD billions, not company guidance.
 
-| Assumption | Bear | Base | Bull |
+| Component | Bear | Base | Bull |
 | --- | ---: | ---: | ---: |
-| Backlog cash-flow margin | 10% | 20% | 30% |
-| Net PV of business outside backlog | \$35B | \$60B | \$90B |
-| Discount rate | 12% | 12% | 12% |
-| Estimated value per proxy share | \$0 | **\$54.64** | \$124.56 |
+| Existing backlog | 4.49 | 13.94 | 24.51 |
+| Existing GPU renewals | 0.36 | 2.41 | 9.77 |
+| New investment cohort NPV | -4.29 | 27.15 | 119.19 |
+| Net debt and finance leases | -43.40 | -43.40 | -43.40 |
+| Unmodeled net value required at reference close | 76.82 | 33.87 | -76.09 |
 
-The calculation uses 559M Q3 weighted-average basic shares as a proxy and subtracts \$43.40B net debt including finance leases. Bear is floored at zero, not a bankruptcy prediction. The margins and future-business values are analyst assumptions, not management guidance. The Base \$60B in particular depends on undisclosed renewal and new-contract economics.
+Base assumes 65% of expiring GPUs are eligible without overlap with backlog, 70% paid utilization, \$2.50 per GPU-hour, a 40% cash-flow margin and three years of renewal. Cash flows begin in 2028 and 2029 respectively for the 2027 and 2028 expiry groups. These are assumptions, not disclosed contract prices. Management's near-\$4 billion and near-\$10 billion annualized opportunities at current pricing are conditional revenue opportunities, not guaranteed profit or necessarily price uplift.
 
-The reference close of \$60.77 requires about \$63.43B in additional net business value in the Base model. The estimated gap is about −10.1%, but uncertain shares, remaining deployment costs and renewals make it too imprecise to serve as a mechanical sell signal. The draft research stance is **neutral / wait**. Explore assumptions in the [Lab](/en/coding/experiments/coreweave-valuation-lab/).
+New investments are assumed to be incremental to both backlog and renewals: \$20 billion per year for six cohorts starting in 2028, each generating annual unlevered cash inflows equal to 38% of initial cost for five years from the following year. Cash inflows are after operating costs, tax and maintenance; initial investment is subtracted separately. Later renewals and salvage value are set to zero. The \$7.6 billion annual inflow per \$20 billion cohort is a critical hypothetical assumption, not a verified contract return.
 
-Prepayment allocation is unknown. Avoid deducting investment twice when it is already in the backlog margin, or counting re-leasing both inside and outside backlog. Convertible claims, capital payables and up-to-date shares require subsequent filing review.
+Under Base inputs, the \$60.77 reference close requires **\$33.87 billion of additional net present value outside the modeled cohorts**. It includes future investments and residual assets less unmodeled claims. A negative Bull residual means modeled value exceeds the reference price. Because later business is omitted, partial equity per share is not a full-company target or a sell signal.
+
+Backlog margins of 10%, 20% and 30% and discount rates of 14%, 12% and 10% are assumptions. The \$5 billion assumed already collected is unverified. Avoid counting future contract investment or renewals twice. Convertible dilution, capital payables and actual prepayment allocation remain uncertain. Explore inputs in the [Lab](/en/coding/experiments/coreweave-valuation-lab/).
 
 ## What to watch
 

@@ -12,8 +12,9 @@ interface Props {
   decision: unknown;
   language?: EquityLanguage;
   labHref?: string;
+  neutralResearch?: boolean;
 }
-const { decision, language = 'ko', labHref } = Astro.props;
+const { decision, language = 'ko', labHref, neutralResearch = false } = Astro.props;
 const prepared = prepareEquityDecision(decision);
 const ko = language === 'ko';
 const field = priceFieldLabel(prepared.priceField, language);
@@ -22,7 +23,7 @@ const field = priceFieldLabel(prepared.priceField, language);
 <aside class="equity-stance" aria-label={ko ? '이 글의 매매 의견' : 'Position stated in this note'}>
   <p class="equity-stance-kicker">{ko ? 'Position / 의견' : 'Position'}</p>
   <p class="equity-stance-line">
-    <strong>{stanceLabel(prepared.stance, language)}</strong>
+    <strong>{neutralResearch ? (ko ? '중립·관망' : 'Neutral / wait') : stanceLabel(prepared.stance, language)}</strong>
     <span>{prepared.ticker}</span>
     <span>{prepared.venue}</span>
   </p>
@@ -30,7 +31,7 @@ const field = priceFieldLabel(prepared.priceField, language);
     {formatDate(prepared.decisionDate, language)} {field} {formatPrice(prepared.currency, prepared.decisionClose)}
     · {ko ? prepared.name.ko : prepared.name.en}
   </p>
-  <p class="equity-stance-note">{ko ? '개인 기록이다. 매수나 매도를 권하지 않는다.' : 'A personal record. Not a recommendation to buy or sell.'}</p>
+  <p class="equity-stance-note">{neutralResearch ? (ko ? '잠정 연구 의견이며 실제 보유나 거래를 뜻하지 않는다.' : 'A provisional research view, not an actual position or trade.') : (ko ? '개인 기록이다. 매수나 매도를 권하지 않는다.' : 'A personal record. Not a recommendation to buy or sell.')}</p>
   {labHref && <p class="equity-stance-lab"><a href={labHref}>{ko ? '이후 가격은 Lab에서 갱신한다' : 'The Lab keeps the price since this decision'} <span aria-hidden="true">→</span></a></p>}
 </aside>
 

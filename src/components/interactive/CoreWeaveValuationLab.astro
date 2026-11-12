@@ -1,56 +1,36 @@
 ---
-import {coreweaveValue, cwPresets} from '../../lib/coreweave-valuation';
-interface Props { language?: 'ko' | 'en' }
-const {language='ko'}=Astro.props;
-const ko=language==='ko';
-const base=coreweaveValue(cwPresets.base);
+import {coreweaveValue,cwPresets} from '../../lib/coreweave-valuation';
+interface Props {language?:'ko'|'en'}
+const {language='ko'}=Astro.props;const ko=language==='ko';const b=coreweaveValue(cwPresets.base);
+const fields=[
+ ['margin',ko?'백로그 현금흐름 마진':'Backlog cash margin',0,40,1,20,'%'],
+ ['discount',ko?'할인율':'Discount rate',8,18,.5,12,'%'],
+ ['prepaid',ko?'백로그 기수취 대금 · 가정':'Assumed collected prepayments',0,15,.5,5,'B'],
+ ['eligible',ko?'재계약 대상 · 기존 백로그 중복 제외':'Eligible renewal fraction',0,100,5,65,'%'],
+ ['utilization',ko?'재계약 유료 가동률':'Paid GPU utilization',0,100,5,70,'%'],
+ ['hourly',ko?'GPU 시간당 실현 임대료 · 가정':'Realized hourly rent / GPU',0,8,.25,2.5,'$/h'],
+ ['renewalMargin',ko?'재계약 현금흐름 마진':'Renewal cash margin',0,80,5,40,'%'],
+ ['renewalYears',ko?'재계약 지속 기간':'Renewal cash-flow years',1,6,1,3,ko?'년':'years'],
+ ['annualCapex',ko?'연간 신규 투자 · 백로그 외':'Annual incremental investment',0,40,1,20,'B'],
+ ['cashYield',ko?'투자액 대비 연간 무차입 현금유입':'Annual unlevered inflow / investment',0,70,1,38,'%'],
+ ['cohortLife',ko?'신규 투자 코호트 현금유입 기간':'New cohort cash-flow years',1,8,1,5,ko?'년':'years'],
+ ['cohortCount',ko?'신규 투자 코호트 수':'New investment cohorts',0,10,1,6,ko?'개':'cohorts'],
+ ['shares',ko?'주식수 대용치':'Proxy shares',550,700,1,559,'M']
+] as const;
 ---
-<section class="cw-lab" data-cw-lab data-language={language} aria-label={ko?'CoreWeave 가치평가 계산기':'CoreWeave valuation calculator'}>
-  <p class="kicker">THE ARCHIVE / EQUITY VALUATION LAB</p>
-  <h3>{ko?'가정을 바꾸면 주당 가치는 어떻게 달라질까?':'How do assumptions change the value per share?'}</h3>
-  <p>{ko?'공시된 백로그에서 시작해 아직 들어오지 않은 대금과 향후 투자, 기존 부채, 미래 사업의 가치를 구분합니다. 모든 가격은 예시입니다.':'Start with disclosed backlog, then separate future collections and investment, existing debt, and value from future business. All outputs are illustrative.'}</p>
-  <div class="buttons" role="group" aria-label={ko?'시나리오':'Scenarios'}><button type="button" data-preset="bear">Bear</button><button type="button" data-preset="base" aria-pressed="true">Base</button><button type="button" data-preset="bull">Bull</button></div>
-  <div class="results" aria-live="polite">
-    <div class="primary"><span>{ko?'가정 기준 주당 가치':'Estimated value per share'}</span><strong data-out="price">${base.fairPrice.toFixed(2)}</strong><small>{ko?'음수 주주가치는 0으로 표시':'Negative equity is shown as zero'}</small></div>
-    <div><span>{ko?'기준 종가':'Reference close'}</span><strong>$60.77</strong><small>2026-11-11</small></div>
-    <div><span>{ko?'기준 종가 대비':'Against reference close'}</span><strong data-out="upside">{base.gapPercent.toFixed(1)}%</strong><small>{ko?'목표 수익률이 아님':'Not a forecast return'}</small></div>
-    <div><span>{ko?'현재가에 필요한 추가 사업가치':'Other net value required'}</span><strong data-out="required">${base.requiredOther.toFixed(2)}B</strong><small>{ko?'재계약·신규계약 등':'Renewals and new business'}</small></div>
-  </div>
-  <div class="grid">
-    <div class="controls"><h4>{ko?'가정 조정':'Change assumptions'}</h4>
-      <label><span>{ko?'백로그 잉여현금흐름 마진':'Backlog unlevered cash margin'} <output data-value="margin">20%</output></span><input name="margin" type="range" min="0" max="40" step="1" value="20" /></label>
-      <label><span>{ko?'할인율':'Discount rate'} <output data-value="discount">12%</output></span><input name="discount" type="range" min="8" max="18" step="0.5" value="12" /></label>
-      <label><span>{ko?'이미 수취한 백로그 대금 · 가정':'Backlog already collected · assumed'} <output data-value="prepaid">$5.0B</output></span><input name="prepaid" type="range" min="0" max="15" step="0.5" value="5" /></label>
-      <label><span>{ko?'신규·재계약 등 순현재가치 · 가정':'Other business net PV · assumed'} <output data-value="otherPv">$60B</output></span><input name="otherPv" type="range" min="0" max="120" step="1" value="60" /></label>
-      <label><span>{ko?'가정 주식수':'Assumed shares'} <output data-value="shares">559M</output></span><input name="shares" type="range" min="550" max="700" step="1" value="559" /></label>
-    </div>
-    <div class="bridge" aria-live="polite"><h4>{ko?'계약에서 주주가치까지':'From backlog to equity'}</h4><dl>
-      <div><dt>{ko?'백로그 매출 현재가치':'Backlog revenue PV'}</dt><dd data-out="pvRevenue">${base.pvRevenue.toFixed(2)}B</dd></div>
-      <div><dt>{ko?'수취분 차감 후 백로그 현금흐름 가치':'Backlog cash flow PV, after prepayments'}</dt><dd data-out="backlog">${base.backlog.toFixed(2)}B</dd></div>
-      <div><dt>{ko?'신규·재계약 등 순현재가치':'Other business net PV'}</dt><dd data-out="other">$60.00B</dd></div>
-      <div><dt>{ko?'순차입금 및 금융리스 차감':'Net debt and finance leases'}</dt><dd>−${base.netDebt.toFixed(2)}B</dd></div>
-      <div><dt>{ko?'보통주 가치 · 0 하한 전':'Equity value before zero floor'}</dt><dd data-out="equity">${base.rawEquity.toFixed(2)}B</dd></div>
-    </dl><p>{ko?'마진에는 해당 계약의 미집행 설비투자·운영비·세금이 포함됩니다. 신규·재계약 가치는 같은 현금흐름을 재차 포함하지 않는 순현재가치로 가정합니다.':'The margin includes remaining contract capex, operating costs and taxes. Other business PV must exclude any cash flows already included in backlog.'}</p></div>
-  </div>
-  <p class="note">{ko?'559백만 주는 3분기 가중평균 기본주식수에 근거한 대용치로 실제 발행·희석주식수가 아닙니다. 할인율 변경 시 ‘신규·재계약 등 순현재가치’는 별도 입력으로 유지됩니다. 전환사채 희석·미지급 자본지출·비지배지분 등은 완전 반영하지 않았습니다. 의견과 수치는 잠정적인 분석가 가정이며 실제 거래 내역이 아닙니다.':'559 million is a proxy based on Q3 weighted-average basic shares, not actual outstanding or diluted shares. Other business PV stays fixed when the discount rate changes. Convertible dilution, capital payables and other claims are not fully modeled. The stance and outputs are preliminary research assumptions, not an executed trade.'}</p>
+<section class="lab" data-cw-lab data-language={language} aria-label={ko?'CoreWeave 코호트 모델':'CoreWeave cohort model'}>
+<p class="kicker">THE ARCHIVE / COHORT VALUATION LAB</p><h3>{ko?'백로그에서 주주가치까지':'From backlog to equity value'}</h3>
+<p>{ko?'실제 계약별 정보가 공개되지 않아 모든 가격·가동률·투자 수익성은 가정입니다. 모델 바깥 사업가치는 별도 항목으로 역산합니다.':'Contract-level terms are not disclosed; prices, utilization and investment returns are assumptions. Value outside modeled cohorts is solved separately.'}</p>
+<div class="buttons"><button data-preset="bear">Bear</button><button data-preset="base" aria-pressed="true">Base</button><button data-preset="bull">Bull</button></div>
+<div class="results" aria-live="polite"><div><span>{ko?'기존 백로그':'Existing backlog'}</span><strong data-out="backlog">${b.backlog.toFixed(2)}B</strong></div><div><span>{ko?'GPU 재계약':'GPU renewals'}</span><strong data-out="renewal">${b.renewal.toFixed(2)}B</strong></div><div><span>{ko?'신규 투자 NPV':'New investment NPV'}</span><strong data-out="newInvestment">${b.newInvestment.toFixed(2)}B</strong></div><div><span>{ko?'기준가를 위한 미모델 가치':'Residual needed at reference'}</span><strong data-out="requiredResidual">${b.requiredResidual.toFixed(2)}B</strong></div></div>
+<p class="note">{ko?'기준 종가 $60.77 · 2026-11-11. 부채·현금은 2026-09-30 기준. 이후 종가는 위 차트에서 확인합니다.':'Reference close $60.77 on 2026-11-11; debt and cash are as of 2026-09-30. See the chart above for later closes.'}</p>
+<div class="grid"><div><h4>{ko?'가정 조정':'Assumptions'}</h4>{fields.map(([name,label,min,max,step,value,unit])=><label><span>{label}<output data-value={name}>{value}{unit}</output></span><input name={name} type="range" min={min} max={max} step={step} value={value} /></label>)}</div><div class="bridge" aria-live="polite"><h4>{ko?'가치 연결':'Value bridge'}</h4><dl><div><dt>{ko?'백로그 매출 PV':'Backlog revenue PV'}</dt><dd data-out="pvRevenue">${b.pvRevenue.toFixed(2)}B</dd></div><div><dt>{ko?'기수취 대금 PV':'PV of prior collections'}</dt><dd data-out="pvPrepaid">${b.pvPrepaid.toFixed(2)}B</dd></div><div><dt>{ko?'모형 내 가치 합계 − 순차입금':'Modeled value less net debt'}</dt><dd data-out="partialEquity">${b.partialEquity.toFixed(2)}B</dd></div><div><dt>{ko?'모형에 포함된 부분의 주당 가치':'Modeled partial value per share'}</dt><dd data-out="partialPerShare">${b.partialPerShare.toFixed(2)}</dd></div><div><dt>{ko?'기준가에 필요한 미모델 순가치':'Unmodeled net value required'}</dt><dd data-out="requiredResidual2">${b.requiredResidual.toFixed(2)}B</dd></div></dl><p>{ko?'부분 주당 가치는 회사 전체 적정가가 아닙니다. 미모델 가치는 추가 미래 코호트·잔존가치·미포함 청구권의 순액입니다. 음수라면 입력 가정의 모형 내 가치가 기준가를 초과한다는 뜻입니다.':'Partial value per share is not whole-company fair value. The residual is net of future cohorts, residual values and excluded claims; a negative residual indicates the modeled inputs exceed the reference value.'}</p></div></div>
+<p class="note">{ko?'기존 코호트의 재계약 대상 비율은 이미 백로그에 포함된 용량과의 중복을 제거하기 위한 가정입니다. 2027·2028 계약종료 GPU의 수금은 편의상 각각 2028·2029부터 시작합니다. 신규 코호트는 2028년부터 해마다 투자하고 다음 해부터 수금하며, 백로그와 재계약을 중복하지 않는다고 가정합니다. 신규 투자의 현금유입률에는 운영비·세금·유지투자가 포함되지만 최초 투자비는 별도 차감됩니다. 잔존가치는 0입니다. 주식수는 3분기 가중평균 대용치이며 전환 희석·미지급 자본비용은 완전 반영되지 않았습니다.':'The eligible fraction excludes assumed overlap with backlog. Renewal cash starts in 2028 and 2029 for the 2027 and 2028 cohorts. New investments begin in 2028 with receipts the following year and must not overlap backlog or renewals. Cash yield is after operating costs, tax and maintenance, before financing; initial investment is subtracted separately. Residual value is zero. Shares are a quarterly average proxy; dilution and capital payables are incomplete.'}</p>
 </section>
 <script>
 import {coreweaveValue,cwPresets,type CoreWeaveInputs} from '../../lib/coreweave-valuation';
-document.querySelectorAll<HTMLElement>('[data-cw-lab]').forEach(root=>{
-  const names=['margin','discount','prepaid','otherPv','shares'] as const;
-  const inp=(n:string)=>root.querySelector<HTMLInputElement>(`input[name="${n}"]`)!;
-  const out=(n:string,s:string)=>{const e=root.querySelector<HTMLElement>(`[data-out="${n}"]`);if(e)e.textContent=s;};
-  const render=()=>{
-    const i={...cwPresets.base,...Object.fromEntries(names.map(n=>[n,Number(inp(n).value)]))} as CoreWeaveInputs;
-    const x=coreweaveValue(i);
-    names.forEach(n=>{const e=root.querySelector<HTMLOutputElement>(`[data-value="${n}"]`);if(e)e.value=n==='margin'||n==='discount'?`${i[n]}%`:n==='shares'?`${i[n]}M`:`$${i[n].toFixed(n==='prepaid'?1:0)}B`;});
-    out('price',`$${x.fairPrice.toFixed(2)}`);out('upside',`${x.gapPercent>=0?'+':''}${x.gapPercent.toFixed(1)}%`);out('required',`$${x.requiredOther.toFixed(2)}B`);out('pvRevenue',`$${x.pvRevenue.toFixed(2)}B`);out('backlog',`$${x.backlog.toFixed(2)}B`);out('other',`$${i.otherPv.toFixed(2)}B`);out('equity',`${x.rawEquity<0?'−':''}$${Math.abs(x.rawEquity).toFixed(2)}B`);
-  };
-  root.querySelectorAll<HTMLInputElement>('input').forEach(e=>e.addEventListener('input',()=>{root.querySelectorAll('button[data-preset]').forEach(b=>b.setAttribute('aria-pressed','false'));render();}));
-  root.querySelectorAll<HTMLButtonElement>('button[data-preset]').forEach(b=>b.addEventListener('click',()=>{const p=cwPresets[b.dataset.preset as keyof typeof cwPresets];names.forEach(n=>inp(n).value=String(p[n]));root.querySelectorAll('button[data-preset]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render();}));
-  render();
-});
+document.querySelectorAll<HTMLElement>('[data-cw-lab]').forEach(root=>{const names=['margin','discount','prepaid','eligible','utilization','hourly','renewalMargin','renewalYears','annualCapex','cashYield','cohortLife','cohortCount','shares'] as const;const input=(n:string)=>root.querySelector<HTMLInputElement>(`input[name="${n}"]`)!;const write=(n:string,v:number,dollar=true)=>{const e=root.querySelector<HTMLElement>(`[data-out="${n}"]`);if(e)e.textContent=`${v<0?'−':''}$${Math.abs(v).toFixed(2)}${dollar?'B':''}`;};const render=()=>{const i={...cwPresets.base,...Object.fromEntries(names.map(n=>[n,Number(input(n).value)]))} as CoreWeaveInputs;const x=coreweaveValue(i);for(const n of names){const e=root.querySelector<HTMLOutputElement>(`[data-value="${n}"]`);if(e){const units:Record<string,string>={margin:'%',discount:'%',prepaid:'B',eligible:'%',utilization:'%',hourly:'$/h',renewalMargin:'%',renewalYears:'yr',annualCapex:'B',cashYield:'%',cohortLife:'yr',cohortCount:'',shares:'M'};e.value=String(i[n])+units[n];}}for(const n of ['backlog','renewal','newInvestment','requiredResidual','pvRevenue','pvPrepaid','partialEquity'] as const)write(n,x[n]);write('partialPerShare',x.partialPerShare,false);write('requiredResidual2',x.requiredResidual);};root.querySelectorAll<HTMLInputElement>('input').forEach(e=>e.addEventListener('input',()=>{root.querySelectorAll('button[data-preset]').forEach(b=>b.setAttribute('aria-pressed','false'));render()}));root.querySelectorAll<HTMLButtonElement>('button[data-preset]').forEach(b=>b.addEventListener('click',()=>{const p=cwPresets[b.dataset.preset as keyof typeof cwPresets];for(const n of names)input(n).value=String(p[n]);root.querySelectorAll('button[data-preset]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render()}));render();});
 </script>
 <style>
-.cw-lab{box-sizing:border-box;max-width:100%;margin:2rem 0;padding:clamp(1rem,3vw,1.8rem);border:1px solid #d0d8e5;border-radius:18px;background:#f5f8fc;color:#24324a;font-family:var(--sans)}.cw-lab *{box-sizing:border-box;min-width:0}.kicker{font-size:.7rem;letter-spacing:.1em;font-weight:700;color:#50749a}.cw-lab h3{font-size:1.45rem;margin:.2rem 0}.cw-lab>p{line-height:1.6}.buttons{display:flex;gap:.5rem;margin:1rem 0;flex-wrap:wrap}.buttons button{padding:.5rem .9rem;border:1px solid #9db0c6;border-radius:8px;background:#fff;color:#24324a;cursor:pointer}.buttons [aria-pressed=true]{background:#234b70;color:white}.results{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem}.results>div{padding:.8rem;border:1px solid #d0d8e5;border-radius:10px;background:white}.results .primary{background:#234b70;color:#fff}.results span,.results small{display:block;font-size:.72rem;line-height:1.4}.results strong{display:block;font-size:1.4rem;margin:.35rem 0;font-variant-numeric:tabular-nums}.grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-top:1rem}.controls,.bridge{background:#fff;padding:1rem;border:1px solid #d0d8e5;border-radius:10px}.cw-lab h4{margin:0 0 1rem}.controls label{display:block;margin:1rem 0;font-size:.8rem;font-weight:700}.controls label span{display:flex;justify-content:space-between;gap:.5rem}.controls output{font-variant-numeric:tabular-nums}.controls input{width:100%;accent-color:#426f9c}.bridge dl{margin:0}.bridge dl>div{display:flex;justify-content:space-between;gap:.5rem;border-bottom:1px solid #e2e7ee;padding:.55rem 0;font-size:.8rem}.bridge dd{margin:0;font-weight:700;text-align:right;white-space:nowrap}.bridge p,.note{font-size:.75rem;line-height:1.55}.note{opacity:.8;margin-bottom:0}@media(max-width:700px){.results{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}}:global(html.dark) .cw-lab{background:#1d2632;color:#edf2f9;border-color:#48566b}:global(html.dark) .results>div,:global(html.dark) .controls,:global(html.dark) .bridge{background:#263342;border-color:#48566b}:global(html.dark) .results .primary{background:#244b70}:global(html.dark) .buttons button{background:#263342;color:#edf2f9}:global(html.dark) .buttons [aria-pressed=true]{background:#426f9c}
+.lab{max-width:100%;margin:2rem 0;padding:clamp(1rem,3vw,1.8rem);border:1px solid #cbd6e4;border-radius:16px;background:#f5f8fc;color:#24324a;font-family:var(--sans)}.lab *{box-sizing:border-box;min-width:0}.kicker{font-size:.7rem;letter-spacing:.1em;color:#50749a}.buttons{display:flex;gap:.5rem;margin:1rem 0}.buttons button{padding:.5rem .9rem;border:1px solid #9db0c6;border-radius:8px;background:#fff;color:#24324a;cursor:pointer}.buttons [aria-pressed=true]{background:#234b70;color:#fff}.results{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem}.results>div,.grid>div{padding:.8rem;border:1px solid #d0d8e5;border-radius:10px;background:#fff}.results span{display:block;font-size:.75rem}.results strong{display:block;font-size:1.3rem;margin:.4rem 0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}.grid label{display:block;margin:1rem 0;font-size:.8rem;font-weight:700}.grid label span{display:flex;justify-content:space-between;gap:.6rem}.grid input{width:100%;accent-color:#426f9c}.bridge dl>div{display:flex;justify-content:space-between;gap:.5rem;border-bottom:1px solid #dce4ed;padding:.5rem 0;font-size:.8rem}.bridge dd{margin:0;font-weight:700}.bridge p,.note{font-size:.75rem;line-height:1.6}@media(max-width:700px){.results{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}}:global(html.dark) .lab{background:#1d2632;color:#edf2f9;border-color:#48566b}:global(html.dark) .results>div,:global(html.dark) .grid>div{background:#263342;border-color:#48566b}:global(html.dark) .buttons button{background:#263342;color:#edf2f9}:global(html.dark) .buttons [aria-pressed=true]{background:#426f9c}
 </style>
