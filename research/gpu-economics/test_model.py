@@ -24,3 +24,15 @@ class TestModel(unittest.TestCase):
  def test_zero_discount(self):
   self.assertEqual(npv([-5,2,4],0),1)
 if __name__=='__main__':unittest.main()
+
+class TestContinuation(unittest.TestCase):
+ def test_continue_matches_known_example(self):
+  from model import continuation_value
+  self.assertAlmostEqual(continuation_value(), -682.3357325, places=5)
+ def test_continue_price_and_sale(self):
+  from model import continuation_value
+  self.assertLess(continuation_value(hourly_rent=2),4000)
+  self.assertGreater(continuation_value(hourly_rent=3),4000)
+ def test_validation(self):
+  from model import continuation_value
+  with self.assertRaises(ValueError): continuation_value(renewal_probability=1.1)

@@ -53,3 +53,24 @@ def breakeven_old_price(new_price,old_tps,new_tps):
 
 if __name__=='__main__':
  i=Inputs(); f=cashflows(i); print('flows', [round(x,2) for x in f]);print('NPV',round(npv(f,i.discount_rate),2),'payback',payback(f));print('hypothetical breakeven hourly',breakeven_old_price(4,40,120))
+
+def continuation_value(hourly_rent=1.65, utilization=.7, renewal_probability=.7,
+                       annual_price_decline=.12, cash_opex=6500, maintenance=1000,
+                       discount_rate=.12, years=3, terminal_salvage=3000):
+    """Time-zero value conditional on keeping the installed asset, before debt and tax.
+
+    Renewal probability scales revenue for the full renewal period; fixed operating
+    and maintenance costs are incurred even if the renewal does not materialize.
+    Initial acquisition costs are sunk. Compare to cash proceeds from sale now;
+    financing, working capital, sale tax, alternative uses and optimal timing omitted.
+    """
+    if not (0 <= utilization <= 1 and 0 <= renewal_probability <= 1 and
+            0 <= annual_price_decline <= 1 and hourly_rent >= 0 and
+            cash_opex >= 0 and maintenance >= 0 and discount_rate > -1 and
+            years > 0 and terminal_salvage >= 0):
+        raise ValueError('invalid continuation assumptions')
+    flows=[0.0]
+    for year in range(1, years+1):
+        revenue=8760*utilization*renewal_probability*hourly_rent*(1-annual_price_decline)**(year-1)
+        flows.append(revenue-cash_opex-maintenance+(terminal_salvage if year==years else 0))
+    return npv(flows, discount_rate)
