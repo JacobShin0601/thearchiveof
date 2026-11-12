@@ -1,0 +1,62 @@
+---
+title: "CoreWeave Valuation Lab: 1,325억 달러의 백로그는 주당 얼마의 가치일까?"
+subtitle: "백로그 마진·선급금·재계약 가치·할인율·희석을 바꿔 적정가와 현재가의 차이를 점검한다."
+description: "백로그 마진·선급금·재계약 가치·할인율·희석을 바꿔 적정가와 현재가의 차이를 점검한다."
+publishedDate: 2026-11-12
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, enterprise-ai]
+primaryTopic: portfolio
+tags: [coreweave, valuation, gpu, ai, scenario-analysis]
+author: "Jacob Shin"
+draft: true
+comments: true
+language: "ko"
+translationKey: "coreweave-valuation-lab"
+freshness: time-sensitive
+lastReviewed: 2026-11-12
+dataThrough: 2026-11-11
+methodology: "Illustrative unlevered backlog cash-flow bridge and separately assumed future-business value. Shares, prepayment allocation and margins are uncertain and adjustable."
+references:
+  - title: "CoreWeave Q3 2026 earnings presentation"
+    url: "https://s205.q4cdn.com/133937190/files/content_files/CoreWeave-3Q26-Earnings-Presentation-Final.pdf"
+    publisher: "CoreWeave"
+  - title: "CoreWeave Q3 2026 earnings release"
+    url: "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000461/coreweave3q26earningspress.htm"
+    publisher: "CoreWeave / SEC"
+---
+
+import EquityDecisionChart from '../../../components/interactive/EquityDecisionChart.astro';
+import CoreWeaveValuationLab from '../../../components/interactive/CoreWeaveValuationLab.astro';
+import decision from '../../../data/equity-decisions/crwv-2026-11-11.json';
+
+<EquityDecisionChart decision={decision} language="ko" />
+
+**잠정 의견은 중립·관망**이다. 기존 기록 양식상 위 카드는 ‘유지’로 표시되지만, 이는 실제 주식 보유나 11월 11일 매매를 뜻하지 않는다. 2026년 11월 11일 조정 종가 60.77달러를 기준가격으로 고정하고 이후 종가를 추적한다. Base 추정 주당 가치 54.64달러는 그보다 약 10.1% 낮지만, 가정의 폭이 넓어 작은 차이만으로 매도 결론을 내리지는 않는다.
+
+이 Lab은 [CoreWeave 투자 분석](/investing/markets/coreweave-backlog-shareholder-value/)의 가정을 직접 바꿔보는 도구다. 의사결정 기준일은 11월 11일 종가이고 재무자료는 9월 말 기준이다.
+
+<CoreWeaveValuationLab language="ko" />
+
+## 세 가지 시나리오
+
+| 가정 | Bear | Base | Bull |
+| --- | ---: | ---: | ---: |
+| 백로그 무차입 현금흐름 마진 | 10% | 20% | 30% |
+| 백로그 밖 사업의 순현재가치 | 350억 달러 | 600억 달러 | 900억 달러 |
+| 할인율 | 12% | 12% | 12% |
+| 주식수 대용치 | 5.59억 주 | 5.59억 주 | 5.59억 주 |
+| 주당 추정가 | 0.00달러 | 54.64달러 | 124.56달러 |
+
+모두 애널리스트의 가상 입력이며 회사의 예상치가 아니다. **Bear의 0달러는 음수로 계산된 주주가치에 적용한 0 하한이지 파산 예측이 아니다.** 재계약·신규계약의 현재가치 350억·600억·900억 달러는 독립 검증된 관측치가 아니라, 핵심 미공개 변수를 드러내는 가정이다. Base의 600억 달러는 12%에서 10년간 매년 약 106억 달러의 순현금흐름이 발생하는 단순 연금과 같은 크기다. 실제로 그런 현금흐름이 발생한다는 예측은 아니다. 이 값에는 기존 백로그와 중복되지 않는 미래 재계약·신규사업에서 추가 투자와 운영비 등을 차감한 금액만 넣어야 한다.
+
+## 계산 방법과 주의할 점
+
+백로그 1,325억 달러의 인식 비중은 회사가 제시한 36%·38%·26%를 따르되, 각 구간 안에서는 균등, 마지막 구간은 5~8년 차라는 가정을 사용한다. 12% 할인 시 매출 현재가치는 약 908.5억 달러다. Base 마진 20%를 적용한 뒤, 이미 받은 대금 50억 달러가 첫 2년간 인식된다는 **가정**의 현재가치 약 42.3억 달러를 빼면 기존 백로그의 무차입 현금흐름 가치는 약 139.5억 달러다.
+
+여기에 별도로 가정한 미래 사업 600억 달러를 더하고, 9월 말 차입금과 금융리스에서 현금을 뺀 434.0억 달러를 차감하면 약 305.4억 달러다. 이를 5.59억 주로 나눈다. 계산은 무차입 현금흐름이므로 이자를 다시 차감하지 않는다. 영업리스 비용은 운영비에 남겨두고 부채에서 다시 빼지 않는다.
+
+**5.59억 주는 실제 발행주식수가 아니다.** 3분기 가중평균 기본주식수를 추정 대용치로 쓴 것이다. 전환사채와 주식보상에 따른 희석, 자산 관련 미지급금과 고객별 선급금·미수금·잔여 투자비를 완전히 식별하지 못했다. 이연매출 전액을 선급금으로 보지 않으며, 선급금 50억 달러 역시 확인된 잔액이 아니다. 전환사채를 주식 전환으로 처리하려면 관련 부채도 함께 조정해야 한다.
+
+할인율을 조정해도 ‘미래 사업의 순현재가치’ 입력은 고정되므로, 전체 사업의 통합 DCF 민감도는 아니다. 각 시나리오는 미래 재계약 단가·가동률·차입 조건이 함께 바뀔 수 있는 관계를 단순화한다. 이 도구는 가격목표의 정밀함보다 무엇이 가격을 움직이는지 보여준다. 향후 주가 변화는 이 예비 판단에 대한 정보일 뿐 계좌 수익률이나 판단의 자동 채점이 아니다.

@@ -1,0 +1,14 @@
+{
+  "id": "crwv-2026-11-11",
+  "ticker": "CRWV",
+  "name": { "ko": "CoreWeave", "en": "CoreWeave" },
+  "venue": "NASDAQ",
+  "currency": "USD",
+  "stance": "hold",
+  "decisionDate": "2026-11-11",
+  "decisionClose": 60.77,
+  "priceField": "adjclose",
+  "feed": { "kind": "yahoo", "symbol": "CRWV" },
+  "source": { "name": "Stock Analysis", "url": "https://stockanalysis.com/stocks/crwv/history/" },
+  "closes": [{ "date": "2026-11-11", "close": 60.77 }]
+}

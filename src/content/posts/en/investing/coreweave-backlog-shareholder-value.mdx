@@ -34,6 +34,13 @@ references:
 ---
 
 import CoreWeaveResearchCharts from '../../../../components/CoreWeaveResearchCharts.astro';
+import EquityStance from '../../../../components/EquityStance.astro';
+import decision from '../../../../data/equity-decisions/crwv-2026-11-11.json';
+
+<EquityStance decision={decision} language="en" labHref="/en/coding/experiments/coreweave-valuation-lab/" />
+
+**Preliminary stance: neutral / wait.** The reference close is \$60.77 on November 11, 2026; illustrative Base value is \$54.64 and Bear–Bull range is \$0–124.56. The 559M share input is a weighted-average proxy, not verified current outstanding shares. The 'Hold' card is the site's format and does not imply ownership or an executed trade. [Change the assumptions in the Lab](/en/coding/experiments/coreweave-valuation-lab/).
+
 
 As an AI engineer, I often face a practical question: which work actually needs the most capable model? Difficult architecture and reasoning can justify a frontier model. Routine implementation or repeated agent tasks may be better served by a smaller, cheaper one. The relevant objective is **successful work at an acceptable cost and latency**, not raw model performance alone.
 
@@ -139,25 +146,26 @@ Both observations can coexist. Frontier training, smaller models and repetitive 
 
 ## What expectations are embedded in the price?
 
-The [November 11 close was \$60.77 and externally reported equity market capitalization approximately \$33.52 billion](https://stockanalysis.com/stocks/crwv/statistics/). Adding September 30 simple net debt of \$42.751 billion produces an approximate enterprise value of **\$76.271 billion**, excluding finance and operating leases; including finance leases produces \$76.920 billion. The dates differ, and the external market capitalization appears to use 551.54 million shares, matching the July disclosure; Q3 weighted-average basic shares were 559 million. The market capitalization may therefore use stale shares. Dilution, subsequent financing and other claims require further work.
+The [November 11 close was \$60.77](https://stockanalysis.com/stocks/crwv/history/). Multiplying by the 559M Q3 weighted-average basic share proxy gives equity value of about \$33.97B. Adding September net debt including finance leases of \$43.40B gives an approximate enterprise value of **\$77.37B**. Dates differ and 559M is not actual shares outstanding. An external estimate uses around 551.5M shares, matching July disclosure; current shares, potential dilution and other claims require further verification.
 
-Using annualized Q3 revenue and adjusted EBITDA produces approximate multiples of 5.21 times and 8.45 times. Annualization is not a forecast. Including operating leases as debt is another valid convention only if lease expenses and cash flows are adjusted consistently.
+Annualizing Q3 revenue and adjusted EBITDA produces multiples of approximately 5.28 and 8.57 times. Annualization is not a forecast. Including operating leases in debt requires consistent adjustments to lease expense and cash flow.
 
-This is **reverse valuation, not a target price**. Use management's recognition buckets of 36% within two years, 38% in years three and four, and 26% thereafter. For illustration, allocate each bucket evenly across its years, with the last bucket in years five through eight, and discount at 12%. This gives backlog revenue a present value of \$90.85 billion. The annual allocations and the eight-year endpoint are analyst assumptions.
+### Scenarios and value per share
 
-To expose the prepayment problem, assume \$5 billion of this backlog was already collected and is recognized evenly in years one and two. The \$5 billion is an illustrative input, not a verified prepayment balance: the approximately \$10 billion deferred-revenue balance cannot simply be equated with cash prepayments in this backlog. Subtract its \$4.23 billion present value to avoid counting already-received amounts as future collections.
+The model uses the disclosed 36% / 38% / 26% backlog recognition buckets and assumes annual allocations within each. At 12%, revenue PV is \$90.85B. After an illustrative deduction for \$5B assumed to have been prepaid, backlog cash-flow PV is \$4.86B, \$13.95B or \$23.03B at 10%, 20% or 30% unlevered margins. **The \$5B is not a verified prepayment balance.**
 
-| Scenario | Assumed unlevered cash margin on revenue | PV of backlog | Other net business value required to reach EV |
+| Assumption | Bear | Base | Bull |
 | --- | ---: | ---: | ---: |
-| Bear | 10% | \$4.86B | \$71.41B |
-| Base | 20% | \$13.95B | \$62.33B |
-| Bull | 30% | \$23.03B | \$53.24B |
+| Backlog cash-flow margin | 10% | 20% | 30% |
+| Net PV of business outside backlog | \$35B | \$60B | \$90B |
+| Discount rate | 12% | 12% | 12% |
+| Estimated value per proxy share | \$0 | **\$54.64** | \$124.56 |
 
-The hypothetical margin includes tax, operating costs and future remaining deployment, maintenance and replacement investment; it excludes financing payments because net debt is treated separately. Operating lease expense stays in operating costs; finance leases and other claims are excluded from this simplified EV. The margins are analytical assumptions, not company forecasts. Do not subtract a deployment cost again if it is already included in the margin.
+The calculation uses 559M Q3 weighted-average basic shares as a proxy and subtracts \$43.40B net debt including finance leases. Bear is floored at zero, not a bankruptcy prediction. The margins and future-business values are analyst assumptions, not management guidance. The Base \$60B in particular depends on undisclosed renewal and new-contract economics.
 
-At the same 20% margin, 10%, 12% and 14% discount rates imply other net business value of \$61.38 billion, \$62.33 billion and \$63.18 billion respectively. That amount must come from future contracts, renewals and residual assets after related investments and obligations. Unresolved receivables, prepayments, capital payables and other claims mean this is **not a complete equity valuation**.
+The reference close of \$60.77 requires about \$63.43B in additional net business value in the Base model. The estimated gap is about −10.1%, but uncertain shares, remaining deployment costs and renewals make it too imprecise to serve as a mechanical sell signal. The draft research stance is **neutral / wait**. Explore assumptions in the [Lab](/en/coding/experiments/coreweave-valuation-lab/).
 
-An optimistic investor may expect durable re-leasing prices and efficient incremental investment. A pessimistic investor may expect price compression, delayed delivery and more expensive replacement capital. Available disclosures do not establish cohort-specific cash receipts, costs or renewal outcomes well enough to decide between them.
+Prepayment allocation is unknown. Avoid deducting investment twice when it is already in the backlog margin, or counting re-leasing both inside and outside backlog. Convertible claims, capital payables and up-to-date shares require subsequent filing review.
 
 ## What to watch
 
