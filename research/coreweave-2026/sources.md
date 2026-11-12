@@ -13,3 +13,6 @@ USD billions except where specified. Data collected 2026-11-12 for a 2026-11-11 
 - [Reuters on Bloomberg reporting](https://www.reuters.com/business/microsoft-is-winding-down-oracle-deal-rent-ai-cloud-capacity-bloomberg-news-2026-11-06/): specific Oracle-Microsoft arrangement; Oracle's response included.
 
 Model outputs are deterministic, illustrative and not company projections. Actual backlog receipts versus revenue, customer capital contribution, remaining contracted capital, capital payables and lease structures require further disclosure; PV scenarios cannot be converted to a reliable price target.
+
+
+2026-11-12 update: the old standalone model.py is archived for comparison only; the current cohort Lab uses src/lib/coreweave-valuation.ts. The prior $54.64 per-share result and arbitrary $60bn future business PV were withdrawn. The cohort assumptions are hypothetical and are not independently verified company economics.
