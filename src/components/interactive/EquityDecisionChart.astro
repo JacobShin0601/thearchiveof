@@ -18,8 +18,9 @@ import {
 interface Props {
   decision: unknown;
   language?: EquityLanguage;
+  neutralResearch?: boolean;
 }
-const { decision, language = 'ko' } = Astro.props;
+const { decision, language = 'ko', neutralResearch = false } = Astro.props;
 const prepared = prepareEquityDecision(decision);
 const ko = language === 'ko';
 const layout = equityChartLayout(prepared.closes, prepared.decisionClose);
@@ -37,6 +38,7 @@ const clientSpec = {
   decisionDate: prepared.decisionDate,
   decisionClose: prepared.decisionClose,
   language,
+  neutralResearch,
 };
 const series = layout.points.map((point) => ({
   date: point.date,
@@ -48,8 +50,8 @@ const series = layout.points.map((point) => ({
   y: Number(point.y.toFixed(1)),
 }));
 const chartLabel = ko
-  ? `${prepared.ticker} ${stanceLabel(prepared.stance, language)}. ${formatDate(prepared.decisionDate, language)} ${field} ${formatPrice(prepared.currency, prepared.decisionClose)}. 그 다음 종가는 페이지를 열 때 불러오고, 표에도 채워진다.`
-  : `${prepared.ticker} ${stanceLabel(prepared.stance, language)}. Decision ${field} ${formatPrice(prepared.currency, prepared.decisionClose)} on ${formatDate(prepared.decisionDate, language)}. Later closes load when the page opens and fill the table.`;
+  ? `${prepared.ticker} ${neutralResearch ? (ko ? '중립·관망' : 'Neutral / wait') : stanceLabel(prepared.stance, language)}. ${formatDate(prepared.decisionDate, language)} ${field} ${formatPrice(prepared.currency, prepared.decisionClose)}. 그 다음 종가는 페이지를 열 때 불러오고, 표에도 채워진다.`
+  : `${prepared.ticker} ${neutralResearch ? (ko ? '중립·관망' : 'Neutral / wait') : stanceLabel(prepared.stance, language)}. Decision ${field} ${formatPrice(prepared.currency, prepared.decisionClose)} on ${formatDate(prepared.decisionDate, language)}. Later closes load when the page opens and fill the table.`;
 const method = prepared.priceField === 'adjclose'
   ? (ko
     ? '조정 종가다. 분할과 배당이 가격 시계열에 반영되어 있다. 거래비용, 세금, 실제 보유 비중은 없다. 계좌 수익률이 아니며 매매 권유가 아니다.'
@@ -64,7 +66,7 @@ const pointLabel = (point: EquityChartPoint) => `${point.date} ${formatPrice(pre
   <script type="application/json" data-equity-decision set:html={JSON.stringify(clientSpec)} />
   <script type="application/json" data-equity-series set:html={JSON.stringify(series)} />
   <p class="equity-kicker">{ko ? 'Lab / 의사결정 이후 가격' : 'Lab / Price since the decision'}</p>
-  <p class="equity-stance-line"><strong>{stanceLabel(prepared.stance, language)}</strong> <span>{prepared.ticker}</span> <span>{prepared.venue}</span></p>
+  <p class="equity-stance-line"><strong>{neutralResearch ? (ko ? '중립·관망' : 'Neutral / wait') : stanceLabel(prepared.stance, language)}</strong> <span>{prepared.ticker}</span> <span>{prepared.venue}</span></p>
   <p class={`equity-return ${changeClass}`} data-return>{changeText}</p>
   <p class="equity-outcome" data-outcome></p>
   <p class="equity-direction" data-direction>{ko ? '의사결정 종가는 아래에 있다. 그 다음 가격은 페이지를 열 때, 이미 끝난 장의 종가로 채워진다.' : 'The decision close is below. Prices after it load when this page opens, and only after that session has finished.'}</p>
@@ -149,6 +151,7 @@ const pointLabel = (point: EquityChartPoint) => `${point.date} ${formatPrice(pre
     decisionDate: string;
     decisionClose: number;
     language: EquityLanguage;
+    neutralResearch?: boolean;
   }
   interface SeriesPoint { dateLabel: string; price: string; change: string; tone: string; x: number; y: number }
 
@@ -217,7 +220,7 @@ const pointLabel = (point: EquityChartPoint) => `${point.date} ${formatPrice(pre
       const labels = new Set(xLabelIndexes(layout.points.length));
       const last = layout.points[layout.points.length - 1];
       const change = closes.length === 1 ? null : last.close / spec.decisionClose - 1;
-      const reading = decisionReading(spec.stance, change, spec.language);
+      const reading = spec.neutralResearch && change !== null ? { label: spec.language === 'ko' ? '기준일 이후 종가 변화' : 'Price change since reference', sentence: spec.language === 'ko' ? '기준 종가 대비 변화이며 실제 보유 수익률이 아니다.' : 'Change versus reference close; not a position return.' } : decisionReading(spec.stance, change, spec.language);
       const tone = change === null || change === 0 ? 'flat' : change > 0 ? 'up' : 'down';
       headline.textContent = change === null ? reading.label : formatChange(change);
       headline.classList.remove('waiting', 'up', 'down', 'flat');

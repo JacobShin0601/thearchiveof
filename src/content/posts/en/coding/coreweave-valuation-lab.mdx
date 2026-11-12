@@ -1,0 +1,76 @@
+---
+title: "CoreWeave Valuation Lab: What Is $132.5 Billion of Backlog Worth Per Share?"
+subtitle: "Change backlog, GPU renewal and new investment assumptions to examine the value needed to support the reference close."
+description: "Change backlog, GPU renewal and new investment assumptions to examine the value needed to support the reference close."
+publishedDate: 2026-11-12
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, enterprise-ai]
+primaryTopic: portfolio
+tags: [coreweave, valuation, gpu, ai, scenario-analysis]
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "en"
+translationKey: "coreweave-valuation-lab"
+freshness: time-sensitive
+lastReviewed: 2026-11-12
+dataThrough: 2026-11-11
+methodology: "Illustrative unlevered backlog cash-flow bridge and separately assumed future-business value. Shares, prepayment allocation and margins are uncertain and adjustable."
+references:
+  - title: "CoreWeave Q3 2026 earnings presentation"
+    url: "https://s205.q4cdn.com/133937190/files/content_files/CoreWeave-3Q26-Earnings-Presentation-Final.pdf"
+    publisher: "CoreWeave"
+  - title: "CoreWeave Q3 2026 earnings release"
+    url: "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000461/coreweave3q26earningspress.htm"
+    publisher: "CoreWeave / SEC"
+---
+
+import EquityDecisionChart from '../../../../components/interactive/EquityDecisionChart.astro';
+import CoreWeaveValuationLab from '../../../../components/interactive/CoreWeaveValuationLab.astro';
+import decision from '../../../../data/equity-decisions/crwv-2026-11-11.json';
+
+<EquityDecisionChart neutralResearch={true} decision={decision} language="en" />
+
+The **preliminary research stance is neutral / wait**. The research view does not imply a position or executed trade. The reference close is \$60.77 on November 11, 2026. We withdraw the prior \$54.64 estimate because it depended on \$60 billion of assumed other business value.
+
+This Lab separates existing backlog, GPU renewals and new investment cohorts in the [investment research](/en/investing/markets/coreweave-backlog-shareholder-value/). **Base value is \$36.31 per share** after an explicit assumption for post-2035 business. Partial value remains distinct from the whole-company estimate.
+
+<CoreWeaveValuationLab language="en" />
+
+## Three illustrative paths
+
+| Component · USD billions | Bear | Base | Bull |
+| --- | ---: | ---: | ---: |
+| Backlog | 4.49 | 13.94 | 24.51 |
+| GPU renewals | 0.36 | 2.41 | 9.77 |
+| New cohort NPV | -4.29 | 27.15 | 119.19 |
+| PV of distinct post-2035 business | 5.84 | 20.19 | 58.31 |
+| Net debt and finance leases | -43.40 | -43.40 | -43.40 |
+| Total scenario value per share | \$0 | \$36.31 | \$301.21 |
+| Net unmodeled value required at reference | 76.82 | 33.87 | -76.09 |
+
+These are assumptions, not management guidance. A negative Bull residual means modeled value exceeds the reference. The fraction of expiring GPUs excluded as overlap, paid utilization, price and operating costs are not disclosed contract inputs.
+
+## Existing backlog and prepayments
+
+We use the company's 36% / 38% / 26% recognition buckets, assume even allocations within them and assign the final bucket to years five through eight. A \$5 billion assumed prior collection, recognized evenly in years one and two, is discounted and subtracted from hypothetical unlevered cash flow. It is not a verified balance; individual customer cash timing is unknown.
+
+## Renewals and new investment
+
+Management identified more than 130,000 GPUs coming off contract in 2027 and approximately 170,000 in 2028. Annual renewal revenue equals GPU count × eligible fraction × 8,760 hours × paid utilization × realized hourly price. Cash begins in 2028 and 2029 respectively, for the selected duration and margin. GPU mix, realized prices and backlog overlap are not disclosed, so this is a scenario rather than a forecast.
+
+New investments start in 2028 and produce unlevered annual cash beginning the following year. Annual cash yield is after operating costs, taxes and maintenance; initial investment is subtracted separately. New investment must exclude already contracted backlog and re-leased GPUs. Future cash flows—not historical book value—are discounted.
+
+## Whole-company scenario with ongoing business
+
+Assume distinct business not overlapping existing cohorts produces unlevered cash after operating costs, taxes and reinvestment starting in 2035. Initial annual cash flow is \$2B, \$5B and \$10B in Bear, Base and Bull, growing perpetually at 2%. Discounted to September 2026 at 14%, 12% and 10%, these assumptions yield present values of \$5.84B, \$20.19B and \$58.31B.
+
+Base equity value is \$20.30B after the \$43.40B net debt and finance lease deduction. Dividing by 559 million proxy shares gives **\$36.31 per share**. Bear is floored at zero; Bull is \$301.21. Zero is not a bankruptcy forecast.
+
+The \$5B annual Base cash flow is an analyst assumption, not an observed result. It must exclude cash flows from cohorts already modeled. The timing and perpetual 2% growth rate are assumptions; the range is not a probability interval. Given uncertainty over investment, renewal economics, dilution and capital payables, the preliminary stance remains neutral / wait despite the Base estimate below the reference close.
+
+## Outside the model
+
+The Base \$33.87 billion residual is the unmodeled net PV required to match the reference close, not an observed value or forecast. Future cohorts after the modeled period, salvage and omitted capital claims affect it. The 559M share input is a Q3 weighted-average proxy and excludes conversion dilution. Update assumptions when more disclosures are available. Subsequent price movement is information, not account return.
