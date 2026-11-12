@@ -1,0 +1,37 @@
+---
+title: "GPU Economics Lab: 구형 GPU는 얼마에 경쟁할 수 있을까?"
+subtitle: "토큰당 비용, 손익분기 임대료와 자산 현금흐름의 가상 실험"
+description: "토큰당 비용, 손익분기 임대료와 자산 현금흐름의 가상 실험"
+publishedDate: 2026-11-12
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, enterprise-ai]
+primaryTopic: enterprise-ai
+tags: [gpu, inference, valuation, research]
+author: "Jacob Shin"
+draft: true
+comments: true
+language: "ko"
+translationKey: "gpu-economics-lab"
+freshness: time-sensitive
+lastReviewed: 2026-11-12
+dataThrough: 2026-09-30
+methodology: "Reconstructed public price series; hypothetical inference and unlevered investment cases."
+references:
+  - title: "GPU Price History"
+    url: "https://github.com/rahilmittal1/gpu-price-history"
+    publisher: "Rahil Mittal"
+---
+
+import GpuEconomicsLab from '../../../components/interactive/GpuEconomicsLab.astro';
+
+관측 가격과 가상 실험을 구분한다. [연구 본문](/investing/research/gpu-economic-life-obsolescence/)의 비교 가능성과 한계를 먼저 읽자. 아래 임대료와 처리량은 실측 벤치마크가 아니다.
+
+<GpuEconomicsLab language="ko" />
+
+## 공개 가격의 단일 상품 사례
+
+Lambda 미국 동부 A100 80GB SXM 8-GPU 상품의 재구성된 공개가격은 2023년 3월 시간당 1.50달러에서 2026년 9월 2.79달러였다. 다섯 관측 월이 비고 일부 스냅샷은 30일 이상 오래됐다. 출처: [Mittal, GPU Price History](https://github.com/rahilmittal1/gpu-price-history), CC BY 4.0, 원천 이용조건 별도. 이는 체결가격이 아니며 시장 전체를 대표하지 않는다.
+
+이 초안에는 전체 가격 탐색기, 관측된 동일조건 성능 비교, IRR과 최적 처분가치 계산이 아직 없다. 현재 자산 NPV는 대안 투자나 차입금 현금흐름을 포함하지 않는 교육용 무차입 모델이다.
