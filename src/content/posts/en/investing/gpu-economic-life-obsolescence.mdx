@@ -37,7 +37,7 @@ import GpuPriceSample from '../../../../components/GpuPriceSample.astro';
 
 As an AI engineer, I often choose between model capability and the cost of completing a task. Frontier models can be valuable for difficult architecture and ambiguous reasoning; a smaller model may suffice for a well-specified implementation or repetitive extraction. The objective is **the total cost of a successfully completed task at an acceptable quality and latency**. Personal experience motivates the question; it does not establish an industry-wide result.
 
-Could older GPUs therefore generate cash for longer? Perhaps. But if newer hardware serves the same work much faster, its higher hourly price can still produce a lower cost per task. **Technical usefulness and attractive investment returns are different claims.** This companion to the [CoreWeave analysis](/en/investing/markets/coreweave-backlog-shareholder-value/) does not assume a conclusion about that company's shares.
+Could older GPUs therefore generate cash for longer? Perhaps. But if newer hardware serves the same work much faster, its higher hourly price can still produce a lower cost per task. **Technical usefulness and attractive investment returns are different claims.** This **second article in the series**, a companion to the [CoreWeave analysis](/en/investing/markets/coreweave-backlog-shareholder-value/) does not assume a conclusion about that company's shares.
 
 The [GPU Economics Lab](/en/coding/experiments/gpu-economics-lab/) lets readers change the hypothetical throughput, prices and investment assumptions.
 
@@ -79,22 +79,41 @@ Lower spend on an external API does not identify the GPU serving it. Infrastruct
 
 This is evidence against an assumption that every old-GPU price must fall, not evidence that all A100 prices rose. Market supply, provider policies, product configuration and measurement may all matter. The data used here do not identify a causal split between obsolescence and market-wide supply.
 
+### Expanding the comparison across providers
+
+To track the same offering, I matched GPU, form factor, pricing segment, provider, region, source and instance configuration at both endpoints. Both snapshots must be no more than 30 days old at the start of the respective month. The September 2024 to September 2026 sample contains **38 product-region combinations across three providers**. The table shows the median change within each provider group.
+
+| GPU / pricing | Provider | Matched combinations | Median two-year change |
+| --- | --- | ---: | ---: |
+| A100 80GB SXM / on-demand | AWS | 3 | −33.0% |
+| A100 80GB SXM / on-demand | Google Cloud | 5 | 0.0% |
+| A100 80GB SXM / on-demand | Lambda | 12 | +55.9% |
+| H100 PCIe / on-demand | Lambda | 12 | +32.1% |
+| H100 SXM / on-demand | AWS | 1 | −44.0% |
+| A100 80GB SXM / spot | Google Cloud | 5 | +40.5% |
+
+Source: [GPU Price History, pinned version](https://github.com/rahilmittal1/gpu-price-history/tree/ee8820dd90d7715d8bb57cee03fb0882706d76c5), CC BY 4.0. Regional rows can share a catalog and are not independent providers. Some Google Cloud rows aggregate multiple instance SKUs, so they need not represent one product price. Matched endpoints do not imply a continuous monthly series. Spot and on-demand are separate markets. No H200 or B200 records passed this strict endpoint filter. This is neither a market-wide price index nor a causal estimate of obsolescence.
+
+The earlier 2023–2026 example is a separate exploratory series that includes older snapshots; its dates and filter differ. These comparisons cannot isolate technology from supply and demand.
+
 ## Break-even rent depends on throughput
 
-Assume, purely illustratively, an old GPU delivers 40 tokens per second, a new GPU delivers 120, and the new GPU rents for \$4/hour. At equal quality, input/output composition and latency, the old GPU breaks even on token cost at approximately **\$1.33/hour**. Above that price, the new one is cheaper per token in this simplified example. None of those performance values are measured here.
+Assume, purely illustratively, an old GPU delivers 40 tokens per second, a new GPU delivers 120, and the new GPU rents for \$4/hour. At equal quality, input/output composition and latency, the old GPU breaks even on token cost at approximately **\\$1.33/hour**. Above that price, the new one is cheaper per token in this simplified example. None of those performance values are measured here.
 
 Cost per million tokens is `1,000,000 × hourly price / (3,600 × effective tokens per second)`. System-level throughput must be matched to system-level cost. Prefill and decode, batching, latency targets and failures matter.
 
-I reviewed [MLPerf Inference v6.0](https://mlcommons.org/2026/04/mlperf-inference-v6-0-results/) but did not establish a directly comparable A100/H100/B200 sample with matching workloads, settings and prices for this draft. I therefore do not rank real GPUs by token cost. Dividing an optimized system submission by its GPU count does not establish the performance of one independently served GPU.
+I reviewed [MLPerf Inference v6.0](https://mlcommons.org/2026/04/mlperf-inference-v6-0-results/) but did not establish a directly comparable A100/H100/B200 sample with matching workloads, settings and prices for this draft. That round includes B200 system results for Llama 3.1 8B Offline, but I could not link comparable A100 and H100 submissions under the same conditions to matching rental configurations. I therefore do not rank real GPUs by token cost. Dividing an optimized system submission by its GPU count does not establish the performance of one independently served GPU.
 
 ## The investor faces a different calculation
 
 Consider an illustrative GPU investment of \$30,000 plus \$12,000 in infrastructure, renting at \$3/hour with 70% utilization, \$6,500 annual operating cost and \$1,000 maintenance investment. Assume a 70% renewal probability after three years, renewal pricing at 55% of the initial rate then declining 12% annually, \$3,000 salvage at year six and a 12% discount rate. This **hypothetical** case has an NPV of approximately negative \$16,315. It is not a CoreWeave contract or measured return.
 
+Apply the hypothetical inference break-even rate of \$1.33/hour to the asset model's initial contract and the on-demand NPV falls to approximately **−\$46,871**. A simplified take-or-pay contract with 98% availability for the first three years gives approximately **−\$39,016**, holding the other assumptions fixed. These are not forecast profits: they test whether customer cost competitiveness and supplier capital recovery can coexist under the same hypothetical inputs. Operating and maintenance costs continue even if renewal fails. The initial rate required for zero supplier NPV is approximately \$3.89/hour on demand and \$2.94/hour under the simplified take-or-pay case. Both exceed the hypothetical customer break-even price, so these assumptions leave no price satisfying both conditions. The Lab lets readers link and unlink the price directly.
+
 On-demand revenue depends on paid utilization. A take-or-pay contract may pay for available capacity even when customer utilization is low, subject to contract terms. The simplified model keeps these cases separate and assumes zero tax to isolate operating economics. Physical use, investment payback and the date when continuing operation becomes inferior to sale or replacement are separate questions.
 
 ## What remains unknown
 
-One public-price series does not establish a universal decline rate; nor does it establish durable profitability. Contract prices, utilization, power and matched workload benchmarks remain necessary. I do not update the first article's valuation from this single case.
+This limited sample of public prices does not establish a universal decline rate or durable profitability. Contract prices, utilization, power and matched workload benchmarks remain necessary. I do not update the first article's valuation from this sample.
 
 The next step is a longer panel of matched products and genuinely comparable serving benchmarks. **Economic value depends on workload productivity, price, operating cost, contract structure and cost of capital—not age alone.**

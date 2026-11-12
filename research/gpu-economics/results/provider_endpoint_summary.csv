@@ -1,0 +1,7 @@
+gpu,form_factor,segment,provider,matched_cells,median_change_pct
+A100-80GB,SXM,hyperscaler_on_demand,aws,3,-33.00004686840913
+A100-80GB,SXM,hyperscaler_on_demand,gcp,5,0.0
+A100-80GB,SXM,hyperscaler_spot,gcp,5,40.49366514370889
+A100-80GB,SXM,neocloud_on_demand,lambda,12,55.8659217877095
+H100,PCIe,neocloud_on_demand,lambda,12,32.1285140562249
+H100,SXM,hyperscaler_on_demand,aws,1,-44.019528071602934
