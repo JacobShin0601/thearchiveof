@@ -1,10 +1,10 @@
 /** Illustrative cohort bridge, USD bn; t=0 is 2026-09-30. Not an intrinsic value. */
-export type CoreWeaveInputs = {margin:number; discount:number; prepaid:number; eligible:number; utilization:number; hourly:number; renewalMargin:number; renewalYears:number; annualCapex:number; cashYield:number; cohortLife:number; cohortCount:number; shares:number; price:number};
+export type CoreWeaveInputs = {margin:number; discount:number; prepaid:number; eligible:number; utilization:number; hourly:number; renewalMargin:number; renewalYears:number; annualCapex:number; cashYield:number; cohortLife:number; cohortCount:number; terminalFcf:number; terminalGrowth:number; shares:number; price:number};
 export const cwDebt=46.873+.649, cwCash=4.122;
 export const cwPresets: Record<'bear'|'base'|'bull',CoreWeaveInputs>={
- bear:{margin:10,discount:14,prepaid:5,eligible:45,utilization:50,hourly:1.5,renewalMargin:30,renewalYears:2,annualCapex:10,cashYield:30,cohortLife:4,cohortCount:6,shares:559,price:60.77},
- base:{margin:20,discount:12,prepaid:5,eligible:65,utilization:70,hourly:2.5,renewalMargin:40,renewalYears:3,annualCapex:20,cashYield:38,cohortLife:5,cohortCount:6,shares:559,price:60.77},
- bull:{margin:30,discount:10,prepaid:5,eligible:80,utilization:85,hourly:4,renewalMargin:50,renewalYears:4,annualCapex:30,cashYield:46,cohortLife:6,cohortCount:6,shares:559,price:60.77},
+ bear:{margin:10,discount:14,prepaid:5,eligible:45,utilization:50,hourly:1.5,renewalMargin:30,renewalYears:2,annualCapex:10,cashYield:30,cohortLife:4,cohortCount:6,terminalFcf:2,terminalGrowth:2,shares:559,price:60.77},
+ base:{margin:20,discount:12,prepaid:5,eligible:65,utilization:70,hourly:2.5,renewalMargin:40,renewalYears:3,annualCapex:20,cashYield:38,cohortLife:5,cohortCount:6,terminalFcf:5,terminalGrowth:2,shares:559,price:60.77},
+ bull:{margin:30,discount:10,prepaid:5,eligible:80,utilization:85,hourly:4,renewalMargin:50,renewalYears:4,annualCapex:30,cashYield:46,cohortLife:6,cohortCount:6,terminalFcf:10,terminalGrowth:2,shares:559,price:60.77},
 };
 export function coreweaveValue(i:CoreWeaveInputs){
  const r=i.discount/100, df=(t:number)=>1/(1+r)**t;
@@ -23,7 +23,10 @@ export function coreweaveValue(i:CoreWeaveInputs){
  const newInvestment=Array.from({length:i.cohortCount},(_,j)=>{const t=j+2;return -i.annualCapex*df(t)+Array.from({length:i.cohortLife},(_,k)=>i.annualCapex*(i.cashYield/100)*df(t+k+1)).reduce((a,b)=>a+b,0)}).reduce((a,b)=>a+b,0);
  const netDebt=cwDebt-cwCash, partialEquity=backlog+renewal+newInvestment-netDebt;
  const partialPerShare=Math.max(0,partialEquity)*1000/i.shares;
+ const terminalValue=i.terminalFcf/(r-i.terminalGrowth/100)*df(8);
+ const totalEquity=partialEquity+terminalValue;
+ const fairPrice=Math.max(0,totalEquity)*1000/i.shares;
  const marketEquity=i.price*i.shares/1000;
  const requiredResidual=marketEquity+netDebt-backlog-renewal-newInvestment;
- return {pvRevenue,pvPrepaid,backlog,renewal,newInvestment,netDebt,partialEquity,partialPerShare,marketEquity,requiredResidual};
+ return {pvRevenue,pvPrepaid,backlog,renewal,newInvestment,netDebt,partialEquity,partialPerShare,marketEquity,requiredResidual,terminalValue,totalEquity,fairPrice};
 }
