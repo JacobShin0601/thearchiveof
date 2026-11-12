@@ -1,0 +1,9 @@
+---
+import data from '../data/gpu-price-sample.json';
+interface Props {language?:'ko'|'en'}
+const {language='ko'}=Astro.props;const ko=language==='ko';
+const index=(m:string)=>{const [y,mo]=m.split('-').map(Number);return (y-2023)*12+mo-3;};
+const points=data.map(d=>({...d,x:35+index(d.month)*7.4,y:125-(d.price-1)*58}));
+---
+<figure class="price-chart"><figcaption><strong>{ko?'A100 80GB SXM · 단일 상품의 재구성 공개 가격':'A100 80GB SXM · one reconstructed posted-price series'}</strong><br/>{ko?'달러/GPU시간 · Lambda 미국 동부 온디맨드 · 공백은 미관측 월':'USD/GPU-hour · Lambda US East on demand · gaps mark missing months'}</figcaption><svg viewBox="0 0 380 150" role="img" aria-label={ko?'2023년 3월 1.50달러에서 2026년 9월 2.79달러로 변화':'Price changes from $1.50 in March 2023 to $2.79 in September 2026'}><line x1="35" x2="350" y1="125" y2="125" stroke="currentColor" opacity="0.4"/><text x="3" y="128">$1</text><text x="3" y="70">$2</text><text x="3" y="13">$3</text>{points.map((p,i)=>i>0 && index(p.month)===index(points[i-1].month)+1 && <line x1={points[i-1].x} y1={points[i-1].y} x2={p.x} y2={p.y} stroke="#337dab" stroke-width="2"/>)}{points.map(p=><circle cx={p.x} cy={p.y} r="2" fill="#337dab"><title>{p.month}: ${p.price.toFixed(2)}; snapshot {p.snapshot}</title></circle>)}<text x="35" y="145">2023-03</text><text x="288" y="145">2026-09</text></svg><p>{ko?'출처: Mittal, GPU Price History, CC BY 4.0. 38개 행, 누락 5개월. 가격은 체결가가 아니다.':'Source: Mittal, GPU Price History, CC BY 4.0. 38 rows, five missing months. Posted prices are not transactions.'}</p></figure>
+<style>.price-chart{margin:2rem 0;padding:1rem;border:1px solid #adbdd0;border-radius:12px}.price-chart svg{display:block;width:100%;height:auto;margin-top:1rem}.price-chart text{font-size:9px;fill:currentColor}.price-chart p{font-size:.8rem;opacity:.8}</style>

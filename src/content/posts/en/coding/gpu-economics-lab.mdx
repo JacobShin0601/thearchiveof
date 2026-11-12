@@ -1,0 +1,37 @@
+---
+title: "GPU Economics Lab: When Does a GPU Stop Paying for Itself?"
+subtitle: "Illustrative break-even rental prices, inference costs and asset cash flows"
+description: "Illustrative break-even rental prices, inference costs and asset cash flows"
+publishedDate: 2026-11-12
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, enterprise-ai]
+primaryTopic: enterprise-ai
+tags: [gpu, inference, valuation, research]
+author: "Jacob Shin"
+draft: true
+comments: true
+language: "en"
+translationKey: "gpu-economics-lab"
+freshness: time-sensitive
+lastReviewed: 2026-11-12
+dataThrough: 2026-09-30
+methodology: "Reconstructed public price series; hypothetical inference and unlevered investment cases."
+references:
+  - title: "GPU Price History"
+    url: "https://github.com/rahilmittal1/gpu-price-history"
+    publisher: "Rahil Mittal"
+---
+
+import GpuEconomicsLab from '../../../../components/interactive/GpuEconomicsLab.astro';
+
+Distinguish observed prices from hypothetical inputs. Read the [research article](/en/investing/research/gpu-economic-life-obsolescence/) for comparability and limitations. The throughput inputs below are not measured benchmarks.
+
+<GpuEconomicsLab language="en" />
+
+## One public-price series
+
+The reconstructed Lambda US East A100 80GB SXM 8-GPU on-demand price was \$1.50/GPU-hour in March 2023 and \$2.79 in September 2026. Five panel months are missing and some snapshots are over 30 days old. Source: [Mittal, GPU Price History](https://github.com/rahilmittal1/gpu-price-history), CC BY 4.0; underlying source terms apply. Posted prices are not transaction prices and the series is not market-representative.
+
+This draft does not yet include a full price explorer, a verified like-for-like benchmark comparison, IRR or optimal retirement calculation. Asset NPV is an illustrative unlevered model without alternative-investment or debt cash flows.

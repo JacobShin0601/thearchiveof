@@ -1,0 +1,100 @@
+---
+title: "Are GPUs Three-Year Assets or Six-Year Cash Flows?"
+subtitle: "Model Routing, Hardware Obsolescence, and the Economics of AI Compute"
+description: "Model Routing, Hardware Obsolescence, and the Economics of AI Compute"
+publishedDate: 2026-11-12
+section: "Investing"
+subsection: "Research"
+contentType: "research"
+topics: [portfolio, enterprise-ai]
+primaryTopic: enterprise-ai
+tags: [gpu, inference, valuation, depreciation, research]
+author: "Jacob Shin"
+draft: true
+comments: true
+language: "en"
+translationKey: "gpu-economic-life-obsolescence"
+freshness: time-sensitive
+lastReviewed: 2026-11-12
+dataThrough: 2026-09-30
+methodology: "Exploratory matched-SKU posted-price example; accounting disclosures and illustrative unlevered cash flows. Benchmark comparisons remain unvalidated."
+references:
+  - title: "GPU price history dataset"
+    url: "https://github.com/rahilmittal1/gpu-price-history"
+    publisher: "Rahil Mittal"
+  - title: "CoreWeave 2025 Form 10-K"
+    url: "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000104/crwv-20251231.htm"
+    publisher: "SEC"
+  - title: "Amazon 2025 Form 10-K"
+    url: "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm"
+    publisher: "SEC"
+  - title: "RouteLLM, ICLR 2025"
+    url: "https://proceedings.iclr.cc/paper_files/paper/2025/hash/5503a7c69d48a2f86fc00b3dc09de686-Abstract-Conference.html"
+    publisher: "ICLR"
+---
+
+import GpuPriceSample from '../../../../components/GpuPriceSample.astro';
+
+As an AI engineer, I often choose between model capability and the cost of completing a task. Frontier models can be valuable for difficult architecture and ambiguous reasoning; a smaller model may suffice for a well-specified implementation or repetitive extraction. The objective is **the total cost of a successfully completed task at an acceptable quality and latency**. Personal experience motivates the question; it does not establish an industry-wide result.
+
+Could older GPUs therefore generate cash for longer? Perhaps. But if newer hardware serves the same work much faster, its higher hourly price can still produce a lower cost per task. **Technical usefulness and attractive investment returns are different claims.** This companion to the [CoreWeave analysis](/en/investing/markets/coreweave-backlog-shareholder-value/) does not assume a conclusion about that company's shares.
+
+The [GPU Economics Lab](/en/coding/experiments/gpu-economics-lab/) lets readers change the hypothetical throughput, prices and investment assumptions.
+
+## Four different lives
+
+| Life | Question |
+| --- | --- |
+| Physical | Does the equipment function? |
+| Technical | Can it execute the workload? |
+| Economic | Is continued use worth more than sale, replacement or another use? |
+| Accounting | Over what period is historical cost allocated? |
+
+Depreciation allocates historical cost. Book value is not the resale price or the present value of future cash flows. Impairment has its own accounting rules. Payback and the economically optimal retirement date are distinct.
+
+## What companies disclose
+
+[CoreWeave's 2025 10-K](https://www.sec.gov/Archives/edgar/data/1769628/000176962826000104/crwv-20251231.htm) says it changed its estimated data-center computing-equipment life from five to six years in 2023, reducing that year's expense by \$20 million for the affected equipment. [Amazon's 2025 10-K](https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm) says server lives increased from five to six years in 2024, then a subset of servers and network equipment moved back to five years in 2025. The reported \$1.4 billion 2025 depreciation increase applies to the affected equipment, not GPUs alone.
+
+For a hypothetical \$1 million asset with no residual, straight-line annual depreciation is \$333,333 over three years, \$250,000 over four, \$200,000 over five and approximately \$166,667 over six. An accounting estimate changes reported income; excluding tax and indirect effects it does not itself change the rent a customer pays.
+
+## What model routing does—and does not—show
+
+[RouteLLM at ICLR 2025](https://proceedings.iclr.cc/paper_files/paper/2025/hash/5503a7c69d48a2f86fc00b3dc09de686-Abstract-Conference.html) shows that routing between stronger and weaker models can improve the quality-cost tradeoff under evaluated conditions. Results depend on models, datasets and quality thresholds. A workflow could route planning and difficult review to a frontier model while sending structured extraction to a smaller model, but must count retries, routing overhead, latency and failures.
+
+Lower spend on an external API does not identify the GPU serving it. Infrastructure demand can be linked to hardware choice more directly when an enterprise serves open-weight models itself.
+
+## One matched public-price series
+
+[Rahil Mittal's GPU Price History](https://github.com/rahilmittal1/gpu-price-history) reconstructs monthly posted prices from versioned catalogs; its accompanying paper is under review. These are not transaction prices or negotiated contracts. I selected one matched example: Lambda, US East, A100 80GB SXM, 8-GPU instance, on-demand SkyPilot catalog. Instance prices are divided by GPU count.
+
+| Panel month | USD / GPU-hour | Underlying snapshot |
+| --- | ---: | --- |
+| March 2023 | 1.50 | 2023-02-25 |
+| September 2026 | 2.79 | 2026-08-03 |
+
+<GpuPriceSample language="en" />
+
+**This single series rises 86% between its observed endpoints.** There are 38 rows across 43 calendar months, with five missing and nine whose snapshot predates the panel month by more than 30 days. A stale catalog is not automatically a wrong quote, but missing months should not be filled as though observed. The dataset also includes effective-date backfills, which are excluded from this example.
+
+This is evidence against an assumption that every old-GPU price must fall, not evidence that all A100 prices rose. Market supply, provider policies, product configuration and measurement may all matter. The data used here do not identify a causal split between obsolescence and market-wide supply.
+
+## Break-even rent depends on throughput
+
+Assume, purely illustratively, an old GPU delivers 40 tokens per second, a new GPU delivers 120, and the new GPU rents for \$4/hour. At equal quality, input/output composition and latency, the old GPU breaks even on token cost at approximately **\$1.33/hour**. Above that price, the new one is cheaper per token in this simplified example. None of those performance values are measured here.
+
+Cost per million tokens is `1,000,000 × hourly price / (3,600 × effective tokens per second)`. System-level throughput must be matched to system-level cost. Prefill and decode, batching, latency targets and failures matter.
+
+I reviewed [MLPerf Inference v6.0](https://mlcommons.org/2026/04/mlperf-inference-v6-0-results/) but did not establish a directly comparable A100/H100/B200 sample with matching workloads, settings and prices for this draft. I therefore do not rank real GPUs by token cost. Dividing an optimized system submission by its GPU count does not establish the performance of one independently served GPU.
+
+## The investor faces a different calculation
+
+Consider an illustrative GPU investment of \$30,000 plus \$12,000 in infrastructure, renting at \$3/hour with 70% utilization, \$6,500 annual operating cost and \$1,000 maintenance investment. Assume a 70% renewal probability after three years, renewal pricing at 55% of the initial rate then declining 12% annually, \$3,000 salvage at year six and a 12% discount rate. This **hypothetical** case has an NPV of approximately negative \$16,315. It is not a CoreWeave contract or measured return.
+
+On-demand revenue depends on paid utilization. A take-or-pay contract may pay for available capacity even when customer utilization is low, subject to contract terms. The simplified model keeps these cases separate and assumes zero tax to isolate operating economics. Physical use, investment payback and the date when continuing operation becomes inferior to sale or replacement are separate questions.
+
+## What remains unknown
+
+One public-price series does not establish a universal decline rate; nor does it establish durable profitability. Contract prices, utilization, power and matched workload benchmarks remain necessary. I do not update the first article's valuation from this single case.
+
+The next step is a longer panel of matched products and genuinely comparable serving benchmarks. **Economic value depends on workload productivity, price, operating cost, contract structure and cost of capital—not age alone.**
