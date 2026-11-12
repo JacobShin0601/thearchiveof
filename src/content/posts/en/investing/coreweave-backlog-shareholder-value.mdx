@@ -39,7 +39,7 @@ import decision from '../../../../data/equity-decisions/crwv-2026-11-11.json';
 
 <EquityStance neutralResearch={true} decision={decision} language="en" labHref="/en/coding/experiments/coreweave-valuation-lab/" />
 
-**Preliminary stance: neutral / wait.** The reference close is \$60.77 on November 11, 2026. We withdraw the previous \$54.64 Base estimate because it depended on a directly assumed \$60 billion of future business value. The revised model separates renewals and new investment; because business outside the model remains, its partial per-share output is not whole-company fair value. This is a research view, not a position or executed trade. [Explore the assumptions in the Lab](/en/coding/experiments/coreweave-valuation-lab/).
+**Preliminary stance: neutral / wait.** The reference close is \$60.77 on November 11, 2026. We withdraw the previous \$54.64 Base estimate because it depended on a directly assumed \$60 billion of future business value. The revised model includes assumed post-2035 business cash flows: Base value is \$36.31 per share with an illustrative \$0–301.21 range. These estimates are highly assumption-sensitive. This is a research view, not a position or executed trade. [Explore the assumptions in the Lab](/en/coding/experiments/coreweave-valuation-lab/).
 
 As an AI engineer, I often face a practical question: which work actually needs the most capable model? Difficult architecture and reasoning can justify a frontier model. Routine implementation or repeated agent tasks may be better served by a smaller, cheaper one. The relevant objective is **successful work at an acceptable cost and latency**, not raw model performance alone.
 
@@ -160,7 +160,9 @@ The prior \$54.64 estimate depended on a directly assumed \$60 billion of other 
 | Existing backlog | 4.49 | 13.94 | 24.51 |
 | Existing GPU renewals | 0.36 | 2.41 | 9.77 |
 | New investment cohort NPV | -4.29 | 27.15 | 119.19 |
+| PV of distinct post-2035 business | 5.84 | 20.19 | 58.31 |
 | Net debt and finance leases | -43.40 | -43.40 | -43.40 |
+| Total scenario value per share | \$0 | \$36.31 | \$301.21 |
 | Unmodeled net value required at reference close | 76.82 | 33.87 | -76.09 |
 
 Base assumes 65% of expiring GPUs are eligible without overlap with backlog, 70% paid utilization, \$2.50 per GPU-hour, a 40% cash-flow margin and three years of renewal. Cash flows begin in 2028 and 2029 respectively for the 2027 and 2028 expiry groups. These are assumptions, not disclosed contract prices. Management's near-\$4 billion and near-\$10 billion annualized opportunities at current pricing are conditional revenue opportunities, not guaranteed profit or necessarily price uplift.
@@ -170,6 +172,14 @@ New investments are assumed to be incremental to both backlog and renewals: \$20
 Under Base inputs, the \$60.77 reference close requires **\$33.87 billion of additional net present value outside the modeled cohorts**. It includes future investments and residual assets less unmodeled claims. A negative Bull residual means modeled value exceeds the reference price. Because later business is omitted, partial equity per share is not a full-company target or a sell signal.
 
 Backlog margins of 10%, 20% and 30% and discount rates of 14%, 12% and 10% are assumptions. The \$5 billion assumed already collected is unverified. Avoid counting future contract investment or renewals twice. Convertible dilution, capital payables and actual prepayment allocation remain uncertain. Explore inputs in the [Lab](/en/coding/experiments/coreweave-valuation-lab/).
+
+## Whole-company scenario with ongoing business
+
+Assume distinct business not overlapping existing cohorts produces unlevered cash after operating costs, taxes and reinvestment starting in 2035. Initial annual cash flow is \$2B, \$5B and \$10B in Bear, Base and Bull, growing perpetually at 2%. Discounted to September 2026 at 14%, 12% and 10%, these assumptions yield present values of \$5.84B, \$20.19B and \$58.31B.
+
+Base equity value is \$20.30B after the \$43.40B net debt and finance lease deduction. Dividing by 559 million proxy shares gives **\$36.31 per share**. Bear is floored at zero; Bull is \$301.21. Zero is not a bankruptcy forecast.
+
+The \$5B annual Base cash flow is an analyst assumption, not an observed result. It must exclude cash flows from cohorts already modeled. The timing and perpetual 2% growth rate are assumptions; the range is not a probability interval. Given uncertainty over investment, renewal economics, dilution and capital payables, the preliminary stance remains neutral / wait despite the Base estimate below the reference close.
 
 ## What to watch
 
