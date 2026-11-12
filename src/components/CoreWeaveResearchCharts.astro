@@ -1,0 +1,56 @@
+---
+interface Props { variant: 'bridge' | 'cash' | 'trend'; language?: 'ko' | 'en' }
+const { variant, language = 'ko' } = Astro.props;
+const ko = language === 'ko';
+const charts = {
+  bridge: {
+    title: ko ? '이익 조정 브리지 · 2026 Q3' : 'Earnings bridge · Q3 2026',
+    note: ko ? '십억 달러. 조정 EBITDA에서 GAAP 순손실까지. 색상은 가감 방향을 표시합니다.' : 'USD billions. Reconciliation from adjusted EBITDA to GAAP net loss; colors show additions and deductions.',
+    rows: [
+      [ko ? '조정 EBITDA' : 'Adjusted EBITDA', '2.256', 100, 'positive'],
+      [ko ? '감가상각·상각 차감' : 'Less depreciation & amortization', '−1.889', 84, 'negative'],
+      [ko ? '주식보상 차감' : 'Less stock compensation', '−0.160', 7, 'negative'],
+      [ko ? 'GAAP 영업이익' : 'GAAP operating income', '0.207', 9, 'subtotal'],
+      [ko ? '순이자비용 차감' : 'Less net interest', '−0.846', 38, 'negative'],
+      [ko ? '기타수익' : 'Other income', '+0.013', 1, 'positive'],
+      [ko ? '법인세 비용 차감' : 'Less tax expense', '−0.083', 4, 'negative'],
+      [ko ? '순손실' : 'Net loss', '−0.709', 31, 'subtotal']
+    ]
+  },
+  cash: {
+    title: ko ? '현금 조달과 투자 · 2026년 1~9월' : 'Cash flow and financing · first nine months of 2026',
+    note: ko ? '십억 달러. 회계상 전체 현금흐름표의 일부 항목이며 각각 순흐름이 아닙니다.' : 'USD billions. Selected cash-flow statement items; these are not all net flows.',
+    rows: [
+      [ko ? '영업현금흐름' : 'Operating cash flow', '+5.638', 21, 'positive'],
+      [ko ? '유형자산·소프트웨어 현금취득' : 'Cash purchases of equipment & software', '−23.558', 87, 'negative'],
+      [ko ? '부채 발행 유입액' : 'Debt issuance proceeds', '+27.048', 100, 'positive'],
+      [ko ? '부채 상환' : 'Debt repayments', '−7.563', 28, 'negative'],
+      [ko ? '사모 증자 유입액' : 'Private share issuance', '+2.982', 11, 'positive']
+    ]
+  },
+  trend: {
+    title: ko ? '매출과 조정 EBITDA · 8개 분기' : 'Revenue and adjusted EBITDA · eight quarters',
+    note: ko ? '십억 달러. 각 행: 매출 / 조정 EBITDA. 막대는 매출 규모입니다.' : 'USD billions. Each row: revenue / adjusted EBITDA; bars show revenue.',
+    rows: [
+      ['2024 Q4','0.747 / 0.486',20,'positive'],['2025 Q1','0.982 / 0.606',27,'positive'],
+      ['2025 Q2','1.212 / 0.753',33,'positive'],['2025 Q3','1.365 / 0.838',37,'positive'],
+      ['2025 Q4','1.572 / 0.898',43,'positive'],['2026 Q1','2.078 / 1.157',57,'positive'],
+      ['2026 Q2','2.575 / 1.510',70,'positive'],['2026 Q3','3.661 / 2.256',100,'positive']
+    ]
+  }
+};
+const c = charts[variant];
+---
+<figure class="cw-chart" aria-label={c.title}>
+  <figcaption><strong>{c.title}</strong><span>{c.note}</span></figcaption>
+  <div class="cw-rows">
+    {c.rows.map(([label, value, width, type]) => (
+      <div class="cw-row"><span class="label">{label}</span><div class="bar-wrap" aria-hidden="true"><span class:list={['bar', type]} style={`width:${width}%`}></span></div><strong class="value">{value}</strong></div>
+    ))}
+  </div>
+  <p class="source">{ko ? '출처: CoreWeave 분기 실적 발표. 계산과 반올림은 저자.' : 'Source: CoreWeave quarterly earnings releases. Calculations and rounding by the author.'}</p>
+</figure>
+<style>
+.cw-chart{margin:1.8rem 0;padding:1.2rem;border:1px solid var(--border-color, #d1d9e3);border-radius:12px;background:var(--surface, transparent)}
+figcaption strong,figcaption span{display:block}figcaption span,.source{font-size:.83rem;opacity:.78;margin-top:.4rem}.cw-rows{display:grid;gap:.65rem;margin-top:1rem}.cw-row{display:grid;grid-template-columns:minmax(125px,1.1fr) minmax(60px,2fr) minmax(78px,auto);gap:.6rem;align-items:center;font-size:.86rem}.bar-wrap{height:10px;background:rgba(130,150,170,.14);border-radius:8px;overflow:hidden}.bar{display:block;height:100%;border-radius:8px;background:#3380ae}.bar.negative{background:#d67956}.bar.subtotal{background:#7e739e}.value{text-align:right;font-variant-numeric:tabular-nums;font-size:.82rem}.source{margin-bottom:0}@media(max-width:540px){.cw-row{grid-template-columns:1fr auto;gap:.25rem .6rem}.bar-wrap{grid-row:2;grid-column:1 / 3}.value{grid-row:1;grid-column:2}}
+</style>
