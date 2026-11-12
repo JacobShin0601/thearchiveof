@@ -1,0 +1,62 @@
+---
+title: "CoreWeave Valuation Lab: What Is $132.5 Billion of Backlog Worth Per Share?"
+subtitle: "Change backlog margins, prepayments, renewal value, discount rates and dilution to test value per share."
+description: "Change backlog margins, prepayments, renewal value, discount rates and dilution to test value per share."
+publishedDate: 2026-11-12
+section: "Lab"
+subsection: "Experiments"
+contentType: "implementation"
+topics: [portfolio, enterprise-ai]
+primaryTopic: portfolio
+tags: [coreweave, valuation, gpu, ai, scenario-analysis]
+author: "Jacob Shin"
+draft: true
+comments: true
+language: "en"
+translationKey: "coreweave-valuation-lab"
+freshness: time-sensitive
+lastReviewed: 2026-11-12
+dataThrough: 2026-11-11
+methodology: "Illustrative unlevered backlog cash-flow bridge and separately assumed future-business value. Shares, prepayment allocation and margins are uncertain and adjustable."
+references:
+  - title: "CoreWeave Q3 2026 earnings presentation"
+    url: "https://s205.q4cdn.com/133937190/files/content_files/CoreWeave-3Q26-Earnings-Presentation-Final.pdf"
+    publisher: "CoreWeave"
+  - title: "CoreWeave Q3 2026 earnings release"
+    url: "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000461/coreweave3q26earningspress.htm"
+    publisher: "CoreWeave / SEC"
+---
+
+import EquityDecisionChart from '../../../../components/interactive/EquityDecisionChart.astro';
+import CoreWeaveValuationLab from '../../../../components/interactive/CoreWeaveValuationLab.astro';
+import decision from '../../../../data/equity-decisions/crwv-2026-11-11.json';
+
+<EquityDecisionChart decision={decision} language="en" />
+
+The **preliminary research stance is neutral / wait**. The existing decision card labels this “Hold” for consistency with the site's format; it does not assert ownership or a trade on November 11. The fixed reference is the November 11, 2026 adjusted close of \$60.77. A Base estimate of \$54.64 is about 10.1% lower, but the unusually wide assumption range does not justify a sell decision on that difference alone.
+
+This Lab explores the inputs in the [CoreWeave investment research](/en/investing/markets/coreweave-backlog-shareholder-value/). The reference close is November 11 and the balance sheet is September 30.
+
+<CoreWeaveValuationLab language="en" />
+
+## Three illustrative cases
+
+| Assumption | Bear | Base | Bull |
+| --- | ---: | ---: | ---: |
+| Backlog unlevered cash-flow margin | 10% | 20% | 30% |
+| Net PV of other business | \$35B | \$60B | \$90B |
+| Discount rate | 12% | 12% | 12% |
+| Assumed shares | 559M | 559M | 559M |
+| Estimated value per share | \$0.00 | \$54.64 | \$124.56 |
+
+These are analyst assumptions, not company forecasts. **Bear's zero applies an equity floor to a negative modeled result; it is not a bankruptcy prediction.** The \$35B, \$60B and \$90B net values for renewals and new business are explicitly assumed, not independently observed. At 12%, the Base \$60B is equivalent to about \$10.6B per year in net cash flows for ten years; this is an illustration, not a forecast. Other-business PV must exclude cash flows already counted in backlog and include associated incremental investment and costs.
+
+## Method and limits
+
+Disclosed backlog recognition buckets are 36%, 38%, and 26%. We assume even recognition within each, and place the last bucket in years five through eight. At 12%, the revenue PV is about \$90.85B. Applying a 20% hypothetical unlevered cash margin and subtracting the \$4.23B discounted value of an assumed \$5B already collected yields backlog cash-flow PV of about \$13.95B.
+
+Add the assumed \$60B of other business and subtract \$43.40B of net debt including finance leases. That yields \$30.54B of equity, divided by 559M proxy shares. The cash-flow measure excludes financing payments; operating lease costs remain in operating expenses, so operating leases are not separately subtracted as debt.
+
+**559M shares is not current shares outstanding.** It is a proxy for Q3 weighted-average basic shares. Convertible and share compensation dilution, capital payables, customer-specific prepayments, receivables and remaining deployment costs are not fully identifiable. The \$5B prepayment input is a hypothetical allocation, not a verified balance. Modeling note conversion requires also removing the corresponding debt claim.
+
+Changing the discount rate leaves the separate other-business PV input fixed, so this is not a fully integrated DCF sensitivity. Scenarios simplify correlated changes in renewal pricing, utilization and financing. Later price moves inform the analysis; they are not account returns or an automatic score of this tentative decision.
