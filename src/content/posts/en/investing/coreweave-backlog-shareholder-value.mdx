@@ -1,0 +1,190 @@
+---
+title: "CoreWeave: How Much Profit Will $132.5 Billion in Backlog Generate?"
+subtitle: "Neocloud economics, GPU infrastructure, and shareholder value"
+description: "An analysis of CoreWeave backlog, cash flow, financing and the expectations embedded in its stock price."
+publishedDate: 2026-11-12
+section: "Investing"
+subsection: "Markets"
+contentType: "research"
+topics: [portfolio, enterprise-ai]
+primaryTopic: portfolio
+tags: [valuation, ai, gpu, infrastructure, research]
+author: "Jacob Shin"
+draft: false
+comments: true
+language: "en"
+translationKey: "coreweave-backlog-shareholder-value"
+freshness: time-sensitive
+lastReviewed: 2026-11-12
+dataThrough: 2026-11-11
+methodology: "SEC filings and company statements are separated from illustrative assumptions; Q3 financials and November 11 market prices have different dates."
+references:
+  - title: "CoreWeave Q3 2026 earnings release"
+    url: "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000461/coreweave3q26earningspress.htm"
+    publisher: "CoreWeave / SEC"
+  - title: "CoreWeave Q2 2026 Form 10-Q"
+    url: "https://www.sec.gov/Archives/edgar/data/1769628/000176962826000366/crwv-20260630.htm"
+    publisher: "SEC"
+  - title: "Q3 2026 earnings call transcript"
+    url: "https://stockanalysis.com/stocks/crwv/transcripts/730325-q3-2026/"
+    publisher: "Quartr / Stock Analysis"
+  - title: "Microsoft and Oracle AI capacity"
+    url: "https://www.reuters.com/business/microsoft-is-winding-down-oracle-deal-rent-ai-cloud-capacity-bloomberg-news-2026-11-06/"
+    publisher: "Reuters"
+---
+
+import CoreWeaveResearchCharts from '../../../../components/CoreWeaveResearchCharts.astro';
+import EquityStance from '../../../../components/EquityStance.astro';
+import decision from '../../../../data/equity-decisions/crwv-2026-11-11.json';
+
+<EquityStance neutralResearch={true} decision={decision} language="en" labHref="/en/coding/experiments/coreweave-valuation-lab/" />
+
+**Preliminary stance: neutral / wait.** The reference close is \$60.77 on November 11, 2026. We withdraw the previous \$54.64 Base estimate because it depended on a directly assumed \$60 billion of future business value. The revised model includes assumed post-2035 business cash flows: Base value is \$36.31 per share with an illustrative \$0–301.21 range. These estimates are highly assumption-sensitive. This is a research view, not a position or executed trade. [Explore the assumptions in the Lab](/en/coding/experiments/coreweave-valuation-lab/).
+
+As an AI engineer, I often face a practical question: which work actually needs the most capable model? Difficult architecture and reasoning can justify a frontier model. Routine implementation or repeated agent tasks may be better served by a smaller, cheaper one. The relevant objective is **successful work at an acceptable cost and latency**, not raw model performance alone.
+
+That distinction explains why I waited to examine neocloud valuations. AI computing demand can be real and still fail to produce an adequate return for shareholders at a particular price.
+
+CoreWeave makes that question tangible. In Q3 2026 it reported revenue of \$3.661 billion, backlog of \$132.5 billion and adjusted EBITDA of \$2.256 billion, alongside a \$709 million net loss. **Who ultimately earns the return on that demand?**
+
+> Preliminary research as of the November 11, 2026 US close, using September 30 balance-sheet data. This is not an investment recommendation or a price target.
+
+## More than a GPU rental company
+
+A neocloud specializes in computing infrastructure for AI and related workloads. CoreWeave combines accelerators with power, facilities, networking, storage, orchestration and development software. Its customers need a working cluster, not merely chips. At September 30, active power exceeded 1.7 GW while contracted power exceeded 4.6 GW; contracted power is not capacity already operating. It competes with hyperscalers while also supplying them; Nebius, Lambda and Crusoe have different business models and disclosure levels.
+
+| Layer | Function | Example |
+| --- | --- | --- |
+| Semiconductors | Accelerators and platforms | NVIDIA |
+| Data centers | Power, buildings and cooling | Applied Digital and others |
+| Cloud | Clusters and operations | CoreWeave, AWS, Azure, GCP |
+| AI developers | Models and applications | Labs and enterprises |
+
+Unlike the facility provider examined in [our Applied Digital analysis](/en/investing/markets/applied-digital-corporation-ai-data-center-value/), CoreWeave bears the economics of owning and monetizing GPU infrastructure.
+
+## High operating cash potential, substantial asset costs
+
+<CoreWeaveResearchCharts variant="trend" language="en" />
+
+
+
+The [Q3 earnings release](https://www.sec.gov/Archives/edgar/data/1769628/000176962826000461/coreweave3q26earningspress.htm) shows both rapid growth and the cost of financing it. Dollar figures are billions.
+
+| Q3 2026 | Amount | Context |
+| --- | ---: | --- |
+| Revenue | 3.661 | Up 168% year on year |
+| Adjusted EBITDA | 2.256 | 61.6% margin |
+| Depreciation and amortization | 1.889 | 51.6% of revenue |
+| GAAP operating income | 0.207 | 5.7% margin |
+| Net interest expense | 0.846 | 23.1% of revenue |
+| Net loss | -0.709 | After interest, tax and other items |
+
+
+
+<CoreWeaveResearchCharts variant="bridge" language="en" />
+
+Subtracting depreciation and amortization of \$1.889 billion and stock compensation of \$160 million from adjusted EBITDA reconciles to \$207 million of GAAP operating income. Subtract net interest of \$846 million, add other income of \$13 million and subtract tax of \$83 million to reach the net loss. EBITDA is useful for comparing operations before financing and accounting allocations. It is not cash available to equity holders after replacing equipment.
+
+## What does the backlog promise?
+
+Revenue backlog includes remaining performance obligations (RPO) plus other estimated revenue under committed contracts, subject to delivery and service availability. It is neither profit nor cash already received.
+
+| Measure | Meaning | Qualification |
+| --- | --- | --- |
+| Backlog | Company's estimate of future contract revenue | Broader than RPO; conditional on delivery |
+| RPO | Transaction price allocated to undelivered obligations | Includes billed and unbilled amounts |
+| Deferred revenue | Billed or received consideration before service | Not necessarily all cash prepayments |
+| Equity cash flow | Cash after costs, reinvestment and creditor claims | Cannot be read from backlog alone |
+
+The [Q3 presentation, pages 13 and 15](https://s205.q4cdn.com/133937190/files/content_files/CoreWeave-3Q26-Earnings-Presentation-Final.pdf), breaks the September backlog into **\$132.3 billion of RPO** and \$0.2 billion of other estimated revenue. Management expects 36% of backlog to be recognized within 24 months, 38% in months 25–48 and 26% thereafter. This is expected revenue recognition, not a schedule of cash receipts.
+
+Consider an **illustrative**, not actual, five-year \$1 billion contract with \$600 million in build cost and \$200 million of operating cost. A \$300 million prepayment reduces funding pressure but cannot be collected again when service is delivered. Re-leasing can add value after expiry; replacement costs can reduce it. This simplified example is not a full after-tax financing IRR.
+
+Like shipbuilders, CoreWeave uses long contracts to underpin substantial investment and financing. Unlike shipbuilders delivering a vessel, it retains the equipment and provides services. The residual equipment may be re-leased, but its future price and costs are uncertain. The economic chain is **contract → deployment → service → collections → operating costs and reinvestment → capital providers → equity**.
+
+## Why customers choose CoreWeave
+
+Customers may value access to capacity, cluster performance and reliable operation without building their own facilities. These are potential advantages, not proof that hyperscalers cannot compete. Through Forge, which includes capabilities obtained with Weights & Biases, software could create a path to infrastructure adoption.
+
+On the [earnings call](https://stockanalysis.com/stocks/crwv/transcripts/730325-q3-2026/), executives said 70% of new cloud customers already used Forge. That denominator is new cloud customers, not all Forge users, and it does not establish conversion economics. Management also said 10% of Fortune 500 companies were customers and financial services represented 10% of backlog.
+
+Customer count is not the same as diversification of cash flow. In Q2, the three largest customers represented 36%, 26% and 10% of revenue. Those figures are for June, not Q3, and the filing does not permit assigning a name to each percentage by assumption.
+
+## Growth consumes capital
+
+
+
+<CoreWeaveResearchCharts variant="cash" language="en" />
+
+For the first nine months of 2026 operating cash flow was \$5.638 billion and cash purchases of property, equipment and software were \$23.558 billion: a simple difference of **negative \$17.920 billion**. This is not standardized free cash flow to equity. Some investment precedes revenue, so the gap alone does not establish poor returns; it does show the scale of external funding required during expansion.
+
+Prepayments help finance growth, but create an obligation to deliver. Deferred revenue was about \$10 billion at September 30. Treating it as permanent profit would be wrong; mechanically subtracting the entire deferred-revenue movement from operating cash flow would also not yield a reliable normalized measure.
+
+| September 30, 2026 | \$ billions |
+| --- | ---: |
+| Recourse debt | 41.600 |
+| Non-recourse debt | 5.273 |
+| Cash and equivalents | 4.122 |
+| Simple net debt | 42.751 |
+| Finance lease liabilities | 0.649 |
+| Operating lease liabilities | 18.697 |
+
+The company's Q3 capital expenditure measure was \$14.511 billion, compared with \$9.441 billion in cash purchases. [Presentation page 16](https://s205.q4cdn.com/133937190/files/content_files/CoreWeave-3Q26-Earnings-Presentation-Final.pdf) defines that CapEx as gross property additions including finance leases, less the change in construction in progress. Timing, payables, leases and construction accounting can produce differences; the \$5.070 billion difference cannot be assigned to one item without further evidence. Company-defined CapEx for the first nine months was \$30.650 billion.
+
+Restricted cash is excluded from the offset. Management guided to \$37–39 billion of 2026 capital expenditure and \$1.05–1.15 billion of Q4 interest expense. Guidance and cash purchases may cover different amounts and timing.
+
+Management reported a 7.9% weighted average debt cost at quarter-end and expected about \$9 billion of customer prepayments and deposits over the next three months, including over \$3 billion related to existing infrastructure. These are forward-looking statements; prepayments can lower financing needs while changing price and leaving future service obligations. The company also established an at-the-market program for up to 35 million shares and announced convertible notes with an initial conversion price near \$97.85. The program ceiling is not shares already sold. If conversion is modeled, the associated debt must also be adjusted rather than counting debt and converted shares simultaneously.
+
+## The second life of a GPU
+
+[Reuters](https://www.reuters.com/business/microsoft-is-winding-down-oracle-deal-rent-ai-cloud-capacity-bloomberg-news-2026-11-06/) cited Bloomberg reporting that Microsoft was winding down a particular Oracle rental arrangement using older NVIDIA chips as its requirements changed. This does not establish that all Oracle agreements were canceled. Oracle said demand for earlier-generation GPUs remained strong.
+
+CoreWeave management, by contrast, said Ampere and Hopper pricing rose 30–50% sequentially and that more than 130,000 GPUs in 2027 and about 170,000 in 2028 would come off contract. Its implied renewal opportunity at current prices is a conditional management estimate outside the current backlog, not guaranteed revenue.
+
+The [2025 10-K](https://www.sec.gov/Archives/edgar/data/1769628/000176962826000104/crwv-20251231.htm) states that the company changed its estimated useful life for data-center computing equipment from five to six years in 2023. That accounting estimate alone does not demonstrate six years of competitive rental cash flows. Management also described a one-to-two-year hardware CapEx payback for longer contracts at current prices; that claim is not independently verified equity IRR after all facility and financing costs.
+
+Both observations can coexist. Frontier training, smaller models and repetitive agent tasks have different requirements. Yet technical feasibility on an older GPU does not prove that it is cheapest: a newer GPU may deliver enough extra throughput to lower the cost per token. **Continued use and attractive rental pricing are different propositions.** A second article will test them separately.
+
+## What expectations are embedded in the price?
+
+The [November 11 close was \$60.77](https://stockanalysis.com/stocks/crwv/history/). Multiplying by the 559M Q3 weighted-average basic share proxy gives equity value of about \$33.97B. Adding September net debt including finance leases of \$43.40B gives an approximate enterprise value of **\$77.37B**. Dates differ and 559M is not actual shares outstanding. An external estimate uses around 551.5M shares, matching July disclosure; current shares, potential dilution and other claims require further verification.
+
+Annualizing Q3 revenue and adjusted EBITDA produces multiples of approximately 5.28 and 8.57 times. Annualization is not a forecast. Including operating leases in debt requires consistent adjustments to lease expense and cash flow.
+
+### Separate the value drivers
+
+The prior \$54.64 estimate depended on a directly assumed \$60 billion of other business value; we withdraw it. Instead, the illustrative model separates backlog, GPU renewals and incremental investment. Values below are USD billions, not company guidance.
+
+| Component | Bear | Base | Bull |
+| --- | ---: | ---: | ---: |
+| Existing backlog | 4.49 | 13.94 | 24.51 |
+| Existing GPU renewals | 0.36 | 2.41 | 9.77 |
+| New investment cohort NPV | -4.29 | 27.15 | 119.19 |
+| PV of distinct post-2035 business | 5.84 | 20.19 | 58.31 |
+| Net debt and finance leases | -43.40 | -43.40 | -43.40 |
+| Total scenario value per share | \$0 | \$36.31 | \$301.21 |
+| Unmodeled net value required at reference close | 76.82 | 33.87 | -76.09 |
+
+Base assumes 65% of expiring GPUs are eligible without overlap with backlog, 70% paid utilization, \$2.50 per GPU-hour, a 40% cash-flow margin and three years of renewal. Cash flows begin in 2028 and 2029 respectively for the 2027 and 2028 expiry groups. These are assumptions, not disclosed contract prices. Management's near-\$4 billion and near-\$10 billion annualized opportunities at current pricing are conditional revenue opportunities, not guaranteed profit or necessarily price uplift.
+
+New investments are assumed to be incremental to both backlog and renewals: \$20 billion per year for six cohorts starting in 2028, each generating annual unlevered cash inflows equal to 38% of initial cost for five years from the following year. Cash inflows are after operating costs, tax and maintenance; initial investment is subtracted separately. Later renewals and salvage value are set to zero. The \$7.6 billion annual inflow per \$20 billion cohort is a critical hypothetical assumption, not a verified contract return.
+
+Under Base inputs, the \$60.77 reference close requires **\$33.87 billion of additional net present value outside the modeled cohorts**. It includes future investments and residual assets less unmodeled claims. A negative Bull residual means modeled value exceeds the reference price. Because later business is omitted, partial equity per share is not a full-company target or a sell signal.
+
+Backlog margins of 10%, 20% and 30% and discount rates of 14%, 12% and 10% are assumptions. The \$5 billion assumed already collected is unverified. Avoid counting future contract investment or renewals twice. Convertible dilution, capital payables and actual prepayment allocation remain uncertain. Explore inputs in the [Lab](/en/coding/experiments/coreweave-valuation-lab/).
+
+## Whole-company scenario with ongoing business
+
+Assume distinct business not overlapping existing cohorts produces unlevered cash after operating costs, taxes and reinvestment starting in 2035. Initial annual cash flow is \$2B, \$5B and \$10B in Bear, Base and Bull, growing perpetually at 2%. Discounted to September 2026 at 14%, 12% and 10%, these assumptions yield present values of \$5.84B, \$20.19B and \$58.31B.
+
+Base equity value is \$20.30B after the \$43.40B net debt and finance lease deduction. Dividing by 559 million proxy shares gives **\$36.31 per share**. Bear is floored at zero; Bull is \$301.21. Zero is not a bankruptcy forecast.
+
+The \$5B annual Base cash flow is an analyst assumption, not an observed result. It must exclude cash flows from cohorts already modeled. The timing and perpetual 2% growth rate are assumptions; the range is not a probability interval. Given uncertainty over investment, renewal economics, dilution and capital payables, the preliminary stance remains neutral / wait despite the Base estimate below the reference close.
+
+## What to watch
+
+The bullish case rests on real demand, committed contracts, customer funding, software distribution and possible GPU renewals. The bearish case rests on capital intensity, concentrated customers, financing costs, delivery risk and uncertain renewal prices. Watch backlog conversion, actual GPU renewal economics, customer concentration, funding costs and cash capital spending together.
+
+We could not directly confirm a Q3 10-Q in this research pass. Its notes on customer concentration, debt maturities and capital payables need checking once available.
+
+Whether CoreWeave is a capable infrastructure provider and whether its shares offer an attractive return at this price remain separate questions. The next article will investigate the key unresolved variable: **how long a GPU can generate cash flows above its cost of capital**.
