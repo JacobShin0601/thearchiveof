@@ -1,0 +1,13 @@
+---
+interface Props { language?: 'ko'|'en' }
+const {language='ko'}=Astro.props; const ko=language==='ko';
+---
+<figure class="book-chart">
+<figcaption><strong>{ko?'가상 사례: 연말 장부가치':'Hypothetical example: year-end book value'}</strong><br />{ko?'최초 투자 $42,000 · 잔존가치 0 · 단위: 천 달러':'Initial cost $42,000 · zero accounting residual · USD thousands'}</figcaption>
+<svg viewBox="0 0 520 210" role="img" aria-label={ko?'1년부터 3년까지 3년 및 6년 정액법의 장부가치':'Book values in years one through three under three-year and six-year straight-line depreciation'}>
+<line x1="60" y1="170" x2="490" y2="170" stroke="currentColor"/><text x="10" y="30" fill="currentColor">$35k</text><text x="25" y="173" fill="currentColor">0</text>
+<g fill="#4e78a3"><rect x="105" y="58" width="45" height="112"/><rect x="235" y="114" width="45" height="56"/></g><g fill="#d79a53"><rect x="155" y="30" width="45" height="140"/><rect x="285" y="58" width="45" height="112"/><rect x="415" y="86" width="45" height="84"/></g>
+<g fill="currentColor" font-size="13" text-anchor="middle"><text x="127" y="53">28</text><text x="177" y="25">35</text><text x="257" y="109">14</text><text x="307" y="53">28</text><text x="387" y="165">0</text><text x="437" y="81">21</text><text x="155" y="192">{ko?'1년':'Year 1'}</text><text x="285" y="192">{ko?'2년':'Year 2'}</text><text x="415" y="192">{ko?'3년':'Year 3'}</text></g>
+</svg><p><span class="blue">■</span> {ko?'3년 회계수명':'3-year accounting life'} · <span class="orange">■</span> {ko?'6년 회계수명':'6-year accounting life'}</p>
+</figure>
+<style>.book-chart{border:1px solid #a7b7ca;border-radius:12px;padding:1rem;margin:1.5rem 0}.book-chart svg{display:block;width:100%;height:auto;max-width:540px}.book-chart figcaption,.book-chart p{font-size:.9rem}.blue{color:#4e78a3}.orange{color:#d79a53}</style>
