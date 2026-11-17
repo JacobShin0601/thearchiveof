@@ -16,8 +16,8 @@ language: "en"
 translationKey: "gpu-economic-life-obsolescence"
 freshness: time-sensitive
 lastReviewed: 2026-11-12
-dataThrough: 2026-09-30
-methodology: "Exploratory matched-SKU posted-price example; accounting disclosures and illustrative unlevered cash flows. Benchmark comparisons remain unvalidated."
+dataThrough: 2026-11-17
+methodology: "Matched public-price observations, Lambda benchmark with an explicitly assumed eight-GPU scaling and illustrative unlevered cash flows."
 references:
   - title: "GPU price history dataset"
     url: "https://github.com/rahilmittal1/gpu-price-history"
@@ -76,6 +76,8 @@ Consider a **hypothetical** enterprise agent workflow. This is a framework for c
 | Implementing a specified plan | Model matched to difficulty | Test success and retry cost |
 | Verification | Rules or stronger model | Error detection and delay |
 
+For illustration, if each independent attempt costs \$0.01 and succeeds with 80% probability, retrying until success costs an expected \$0.0125 per successful task. At \$0.02 and 98%, the equivalent is approximately \$0.0204. This **hypothetical** example assumes independence, unlimited retries and a consistent quality threshold; verification, routing, latency and failure costs can change the result.
+
 Even if smaller-model traffic grows, it does not automatically require older GPUs. Newer hardware can serve the same model faster, and idle capacity also costs money. Routing creates a possible source of demand; it does not establish hardware price competitiveness.
 
 ## One matched public-price series
@@ -120,6 +122,21 @@ Cost per million tokens is `1,000,000 × hourly price / (3,600 × effective toke
 
 I reviewed [MLPerf Inference v6.0](https://mlcommons.org/2026/04/mlperf-inference-v6-0-results/) but did not establish a directly comparable A100/H100/B200 sample with matching workloads, settings and prices for this draft. That round includes B200 system results for Llama 3.1 8B Offline, but I could not link comparable A100 and H100 submissions under the same conditions to matching rental configurations. I therefore do not rank real GPUs by token cost. Dividing an optimized system submission by its GPU count does not establish the performance of one independently served GPU.
 
+### A measured A100–H100 comparison
+
+[Lambda's published vLLM benchmark](https://github.com/LambdaLabsML/vllm-benchmark/blob/main/benchmark_v0.md) reports Llama 3.1 8B FP8, vLLM 0.5.4, one 80GB SXM GPU and 320 prompts. The reported output throughput and inter-token latency are:
+
+| One GPU | Output tokens/second | Reported inter-token latency |
+| --- | ---: | ---: |
+| A100 80GB SXM | 1,517.54 | 42.85ms |
+| H100 80GB SXM | 3,400.40 | 19.75ms |
+
+H100 throughput is approximately **2.24 times** A100 in this test. The provider conducted the benchmark; prompt lengths, batching, engine version and load can change the result. The points were **not measured at the same latency target**. A same-service-level cost comparison requires further measurements.
+
+[Lambda's public price page](https://lambda.com/pricing), accessed November 17, 2026, lists eight-GPU HGX A100 80GB at \$3.19 per GPU-hour and eight-GPU HGX H100 80GB at \$4.59. These public instance prices include other server resources and are not realized contract prices. The benchmark measures one GPU while the prices apply to eight-GPU products. **Assume each of eight GPUs independently delivers the measured single-GPU throughput**: multiplying both full-system price and throughput by eight then produces the same per-GPU arithmetic. This scaling is not a measured eight-GPU result.
+
+Under that assumption, prices per million output tokens are approximately **\$0.584** for A100 and **\$0.375** for H100. H100 is about 36% cheaper, and at \$4.59 per H100 GPU-hour A100 would have to cost at most about **\$2.05 per GPU-hour** to match it. This is a **conditional sensitivity illustration**, combining historical benchmark results with later public prices; it is not proof of a market-wide advantage under identical latency or product configuration. Input tokens, idle time at low utilization, storage, networking, operations and tax are excluded. Equal reductions in effective utilization increase both costs, while unequal utilization changes the competitive threshold.
+
 ## Customer ceiling and supplier floor
 
 The hypothetical figures answer different questions. The customer comparison assumes matching quality, latency, workload and throughput units; the supplier figure is the initial rent required by the six-year asset model below.
@@ -155,6 +172,14 @@ Selling is preferable in this scenario. Holding the other assumptions fixed, the
 
 The decision also depends on paid utilization. At the assumed \$1.65 renewal price, continuation values are about −\$5,024 at 50% utilization, −\$682 at 70%, and \$3,659 at 90%. Each is below the hypothetical \$4,000 sale, but changing sale proceeds or operating costs can change the conclusion. Changing only the discount rate to 8%, 12% and 16% gives approximately −\$692, −\$682 and −\$671, respectively. Cash flows here have mixed signs and timing, so their sensitivity to the discount rate need not follow one direction.
 
+| Price | Decision point | Illustrative threshold |
+| --- | --- | ---: |
+| Customer ceiling | Hypothetical 40 versus 120 tokens/second | At most \$1.33 |
+| Existing-asset continuation | Compared with \$4,000 immediate net sale | At least \$2.16 |
+| New-investment zero NPV | Six-year new investment and future contracts | At least \$3.89 |
+
+All three are **hypothetical** and answer different questions at different dates. They should not be confused with the \$2.05 sensitivity calculated from the published benchmark above.
+
 ## Book value and cash flow can move differently
 
 Allocate the same hypothetical \$42,000 initial cost using straight-line depreciation with zero accounting residual. During the first three years the rent is \$3/hour, paid utilization is 70%, and annual operating and maintenance costs are \$7,500, producing \$10,896 of annual pre-tax cash flow. The figures below are year-end values; the annual cash flow excludes initial investment and financing costs.
@@ -169,8 +194,19 @@ Allocate the same hypothetical \$42,000 initial cost using straight-line depreci
 
 The same asset can have zero or \$21,000 book value at year three depending on the accounting estimate, without that change itself altering the proceeds from sale or renewal. Continuing value can be negative as in the example above, while an asset with zero book value can still generate future cash. Tax, impairment and financing covenants require separate consideration.
 
+### Returning to the first article's valuation
+
+| Variable examined here | Direction in the first article, all else equal |
+| --- | --- |
+| Higher realized renewal price or paid utilization | Potentially higher remaining cohort revenue and cash flow |
+| Higher power and maintenance expense | Less cash left from the same revenue |
+| Higher immediate sale proceeds | Greater value from the disposal alternative |
+| Higher new GPU and facility investment | Lower new-cohort investment NPV |
+
+Renewal revenue already included in backlog must not be counted again. These directional relationships alone do not determine whole-company equity value after debt, leases and dilution. They do not replace the first article's assumptions or forecast realized returns.
+
 ## What remains unknown
 
-This limited sample of public prices does not establish a universal decline rate or durable profitability. Contract prices, utilization, power and matched workload benchmarks remain necessary. I do not update the first article's valuation from this sample. Investors need contract expiry, renewal pricing, paid utilization, operating and maintenance costs, and current disposal value. Low renewal prices may still create incremental value for an installed asset, but actual contract and operating data are needed to establish that.
+This limited sample of public prices does not establish a universal decline rate or durable profitability. Contract prices, utilization, power and same-latency workload benchmarks remain necessary. Combining one-GPU throughput with eight-GPU pricing does not close those gaps. I do not update the first article's valuation from this sample. Investors need contract expiry, renewal pricing, paid utilization, operating and maintenance costs, and current disposal value. Low renewal prices may still create incremental value for an installed asset, but actual contract and operating data are needed to establish that.
 
 The next step is a longer panel of matched products and genuinely comparable serving benchmarks. **Economic value depends on workload productivity, price, operating cost, contract structure and cost of capital—not age alone.**
